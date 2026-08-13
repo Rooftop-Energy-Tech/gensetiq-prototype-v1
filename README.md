@@ -16,9 +16,14 @@ There is no backend. The fleet is mock data and "logging in" writes a flag to
 localStorage — see [Caveats](#caveats).
 
 ```bash
+git clone git@github.com:tristanlim0303/gensetiq-prototype-1.git
+cd gensetiq-prototype-1
 bun install
 bun run dev     # http://localhost:3100
 ```
+
+Needs [Bun](https://bun.sh) (`curl -fsSL https://bun.sh/install | bash`); the
+lockfile is `bun.lock`, so npm/pnpm will resolve different versions.
 
 Port 3100, not 3000: `rooftopiq-frontend-v3` pins 3000 with `strictPort`, so the
 two run side by side.
