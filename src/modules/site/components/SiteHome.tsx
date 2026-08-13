@@ -1,6 +1,8 @@
 import {useState} from 'react';
 
+import {isolatorStateOf} from '../types/site.type';
 import type {SiteSummary} from '../data/sites';
+import {SiteChangeover} from './SiteChangeover';
 import {SiteDiagram} from './SiteDiagram';
 import {SiteGensetRow} from './SiteGensetRow';
 import {SiteSummaryPanel} from './SiteSummaryPanel';
@@ -23,21 +25,50 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
   // either side of a minute boundary and disagree about the current time.
   const [now] = useState(() => Date.now());
 
+  /**
+   * Which set the changeover has on the bus.
+   *
+   * Component state rather than URL state, for the same reason a genset's control
+   * mode is: it describes what the *plant* is set to, not what the reader is
+   * looking at. Putting a machine setting in a query string would make it look
+   * shareable and reloadable when it is neither. It resets on navigation, which is
+   * the honest behaviour for a prototype with no changeover behind it.
+   */
+  const [dutyId, setDutyId] = useState<string | undefined>(summary.defaultDutyId);
+
   return (
-    <div className="flex flex-col gap-5 px-4 pt-1 pb-6">
+    <div className="flex flex-col gap-2.5 px-4 pt-1 pb-6">
+      {/* Three columns, and no border. The section is the page's top band rather
+          than a card in it — the divider below carries the separation, which is the
+          same job the rules do between the genset home page's bands. */}
       <section
         aria-label="Site circuit"
-        className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8 rounded-md border border-default px-6 py-7"
+        className="flex flex-wrap items-center gap-x-30 gap-y-8 px-6 py-7"
       >
-        <SiteSummaryPanel summary={summary} />
-        <SiteDiagram summary={summary} />
+        <SiteSummaryPanel summary={summary} dutyId={dutyId} />
+
+        <SiteDiagram summary={summary} dutyId={dutyId} />
+
+        {/* Only where there is a choice to make. A single-set site has no
+            changeover — its one isolator is either closed or it isn't, and a
+            one-option control would imply an operation that does not exist. */}
+        {summary.gensets.length > 1 && (
+          <SiteChangeover summary={summary} dutyId={dutyId} onDutyChange={setDutyId} />
+        )}
       </section>
+
+      <hr className="border-subtle" />
 
       {summary.gensets.length === 0 ? (
         <p className="px-1 text-sm text-secondary">No gensets are installed at this site.</p>
       ) : (
         summary.gensets.map((member) => (
-          <SiteGensetRow key={member.genset.id} member={member} now={now} />
+          <SiteGensetRow
+            key={member.genset.id}
+            member={member}
+            onLoad={isolatorStateOf(member.genset.runState, member.genset.id === dutyId).live}
+            now={now}
+          />
         ))
       )}
     </div>

@@ -52,10 +52,30 @@ A genset is always at exactly one site, and the relationship is held on the
 cannot claim a unit that doesn't exist, and a unit cannot go missing from the site
 it stands at — both of which a hand-maintained list eventually gets wrong.
 
-A site owns only what cannot be inferred from a diesel engine: its name, and what
-kind of load it carries. Everything else it reports — draw, installed capacity,
-fuel on site, condition — is **summed or ranked from its gensets, never stored**,
-so a site cannot disagree with the machines on it.
+A site owns only what cannot be inferred from a diesel engine: its name, what kind
+of load it carries, and **which of its sets is on the bus**. Everything else it
+reports — draw, installed capacity, fuel on site, condition — is **summed or ranked
+from its gensets, never stored**, so a site cannot disagree with the machines on it.
+
+### Duty set
+
+One site, one load, one changeover — so **exactly one set is connected at a time.**
+The connected one is the *duty* set; the others are isolated.
+
+This is what the design's frame draws the outcome of, one closed isolator beside one
+open, and taking it as the rule rather than a coincidence is what makes a two-set
+page mean anything: the second set is not idling *in parallel*, it is isolated, and
+moving the load to it is a deliberate operation.
+
+It follows that **a site's draw is the duty set's output, not the sum of its running
+sets'**. A set that happens to be turning while isolated is off-load and contributes
+nothing to what the customer is pulling; adding it in would report a figure no meter
+at the site could ever read.
+
+The load can only be handed to a set that is **already turning**. The three refusals
+are real, not caution: a stopped set has to be *started* first (a `START` command,
+and those are inert here), a faulted set is isolated by its own controller, and an
+unreachable set cannot be commanded at all.
 
 What a site can say that no genset can is whether the load is actually **covered**:
 
@@ -312,6 +332,13 @@ the bus they share, and the load at the end of it. It is the only thing on the
 page that is a fact about the *yard* rather than about a machine in it, and it
 establishes the topology the rows below then fill in.
 
+Every node is captioned in two lines — what it is, and what it is putting into the
+bus. Only a connected, turning set gets a **kW figure**; the rest get a word
+(`off-load`, `stopped`, `unavailable`), because `0 kW` is a *measurement*, and
+claiming to have measured zero at a machine that is faulted or unreachable is a
+stronger statement than the page is entitled to make. The load's caption is the
+site's draw, stated where the power actually arrives.
+
 An isolator carries two independent facts, and separating them is the whole point:
 
 - **closed / open** — is this set *connected* to the site bus;
@@ -320,18 +347,38 @@ An isolator carries two independent facts, and separating them is the whole poin
 A set can be closed onto a dead bus, and that is the normal state of a healthy
 standby installation: breaker made up, engine off, waiting. It is what lets the
 controller pick up a mains failure in ten seconds instead of after somebody drives
-out. The impossible combination is open *and* live, and `switchStateOf()` is the
+out. The impossible combination is open *and* live, and `isolatorStateOf()` is the
 one place that is guaranteed:
 
-| Run state | Isolator | Why |
-| --- | --- | --- |
-| `RUNNING` | closed, live | feeding the load |
-| `IDLE` | closed, dead | standby — made up and waiting |
-| `FAULT` | open, dead | the controller isolated it as part of shutting down |
-| `OFFLINE` | open, dead | we cannot hear from it, so it must be drawn as *not* contributing |
+| Duty? | Run state | Isolator | Why |
+| --- | --- | --- | --- |
+| duty | `RUNNING` | closed, live | this is the set feeding the load |
+| duty | `IDLE` | closed, dead | standby — made up and waiting |
+| duty | `FAULT` | open, dead | the controller isolated it as part of shutting down |
+| duty | `OFFLINE` | open, dead | we cannot hear from it, so it must be drawn as *not* contributing |
+| not duty | anything | open, dead | isolated by the changeover; off-load even if turning |
 
-That last row is a safety decision, not a display one. Assuming a silent machine
+That fourth row is a safety decision, not a display one. Assuming a silent machine
 is carrying load is the single error on this page that could get somebody hurt.
+
+**The changeover control** is the band's third column, to the right of the diagram,
+on sites with more than one set — a single-set site has no changeover, and a
+one-option control would imply an operation that does not exist. Picking a set hands
+it the load and isolates the others; the diagram, the site's draw and the `off-load`
+badge in each genset row all move together. Options that cannot take the load are
+refused *and say which refusal it is*. On the site the design draws — one running set
+beside a faulted one — every option but the current one is refused, which is the
+honest answer: there is nothing to transfer to.
+
+Only the duty set carries a glyph, on a chip the full height of the track; the others
+are shorter, dimmed text. So the *specific* refusal — faulted, unreachable, stopped —
+is legible only from the tooltip, which is the trade the design makes for a track
+that reads as one live choice rather than four equal buttons.
+
+Transferring is **modelled, not commanded**, the same line `START` and `STOP` hold.
+It moves the load in the drawing because that is what a changeover does and it is
+worth being able to see; it does not start an engine or pretend a breaker moved in
+Johor.
 
 Flow along a live conductor is animated, and it is switched off under
 `prefers-reduced-motion` — the conductor is already teal, glowing and terminated
@@ -381,9 +428,10 @@ src/modules/site/
 └── components/
     ├── SitesTable.tsx       the list
     ├── SiteDetailShell.tsx  header + tab strip
-    ├── SiteHome.tsx         the designed page
+    ├── SiteHome.tsx         the designed page; owns the duty selection
     ├── SiteDiagram.tsx      the single-line diagram
-    ├── SiteSummaryPanel.tsx coverage, draw, capacity, fuel
+    ├── SiteChangeover.tsx   which set is on the bus
+    ├── SiteSummaryPanel.tsx coverage, capacity, fuel
     └── SiteGensetRow.tsx    one row per set
 ```
 

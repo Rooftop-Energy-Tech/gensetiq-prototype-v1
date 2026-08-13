@@ -6,7 +6,7 @@ import type {RunState} from '@/modules/genset/types/genset.type';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {isolatorStateOf} from '../types/site.type';
-import {siteDrawKw} from '../data/sites';
+import {dutyMember, siteDrawKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 
 /**
@@ -21,8 +21,8 @@ import type {SiteSummary} from '../data/sites';
  * the same call `TickGauge` makes about the design's gauge bitmaps.
  *
  * Every dimension below is the design's, measured off the frame's coordinates:
- * 88 × 74 nodes, a 54px lead to a 64 × 40 isolator, a 56px elbow onto the bus,
- * and a 73px tap from the bus to the load. The switch's internals follow the
+ * 88 × 74 nodes, a 44px lead to a 64 × 40 isolator, a 47px elbow onto the bus,
+ * and a 67px tap from the bus to the load. The switch's internals follow the
  * component's own documentation: terminals on the horizontal centreline at
  * x = 18 and x = 46, and an open blade lifted 35° off the source terminal.
  *
@@ -38,9 +38,12 @@ import type {SiteSummary} from '../data/sites';
  *
  * The frame draws two identical `GENSET` boxes with nothing to tell them apart —
  * fine for a mock-up of a two-set site, useless the moment the page has to say
- * *which* set is open. Each node is therefore captioned with its asset tag, and
- * the load with the site's draw. Both are additive: the boxes keep their designed
- * 88 × 74 and the captions sit in the gap beneath them.
+ * *which* set is open. So every node is captioned, in two lines: what it is, and
+ * what it is putting into the bus. The load's caption is the site's draw, stated at
+ * the point the power actually arrives.
+ *
+ * Both are additive. The boxes keep their designed 88 × 74 and the captions sit in
+ * the 64px gap between them.
  */
 
 // ─── The design's measurements ───────────────────────────────────────────────
@@ -48,14 +51,14 @@ import type {SiteSummary} from '../data/sites';
 const NODE_W = 88;
 const NODE_H = 74;
 /** Node top to node top, vertically. */
-const PITCH = 106;
+const PITCH = 138;
 /** Genset edge to isolator edge. */
-const LEAD = 54;
+const LEAD = 44;
 const SWITCH_W = 64;
 /** Isolator edge to the bus riser. */
-const ELBOW = 56;
+const ELBOW = 47;
 /** Bus to load edge. */
-const TAP = 73;
+const TAP = 67;
 /** Room under the bottom node for its two caption lines. */
 const CAPTION = 30;
 
@@ -323,7 +326,11 @@ export const SiteDiagram = ({
       role="img"
       aria-label={`${summary.site.name} single-line diagram: ${gensets.length} genset${
         gensets.length === 1 ? '' : 's'
-      }, ${summary.runningCount} feeding the load`}
+      }, ${
+        drawKw === null
+          ? 'none feeding the load'
+          : `${dutyMember(summary, dutyId)?.genset.tag} feeding the load at ${amount(drawKw, 'kW')}`
+      }`}
     >
       <svg
         width={WIDTH}

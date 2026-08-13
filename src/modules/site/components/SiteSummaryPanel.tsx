@@ -5,7 +5,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, fuelHeadline} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
-import {coverageOf} from '../data/sites';
+import {coverageOf, siteDrawKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 import {COVERAGE_META} from './coverageMeta';
 
@@ -18,24 +18,46 @@ import {COVERAGE_META} from './coverageMeta';
  * figure here is a *site-level* fact that no genset row below can state:
  *
  *  - **coverage** — whether the load is being served, could be served, or can't be;
- *  - **draw against installed capacity** — the headroom, which is the site's
- *    number and not any single set's. A site drawing 205 kW of 1,600 kW installed
- *    can lose a set and not notice; one drawing 1,400 kW cannot;
+ *  - **installed capacity** — nameplate across the yard, which is the site's number
+ *    and not any single set's. Read against the draw on the diagram's `LOAD` node,
+ *    it is the headroom: a site pulling 205 kW of 1,600 kW installed can lose a set
+ *    and not notice; one pulling 1,400 kW cannot;
  *  - **fuel on site** — the tanker question, which is asked per yard rather than
  *    per machine, because one lorry visits a site and fills what's there.
  *
- * Deliberately three lines and one glyph. The detail belongs to the genset rows
+ * The draw itself is *not* here. It belongs on the diagram's `LOAD` node, where the
+ * power actually arrives, rather than as a row in a list beside it.
+ *
+ * Deliberately two lines and one glyph. The detail belongs to the genset rows
  * underneath; if this column grows to compete with them it stops being a summary.
  */
-export const SiteSummaryPanel = ({summary}: {summary: SiteSummary}) => {
+export const SiteSummaryPanel = ({
+  summary,
+  dutyId,
+}: {
+  summary: SiteSummary;
+  dutyId: string | undefined;
+}) => {
   const coverage = coverageOf(summary);
   const meta = COVERAGE_META[coverage];
   const Icon = meta.icon;
 
-  const feeding = `${summary.runningCount} of ${summary.gensets.length} feeding`;
+  /**
+   * "1 of 2 feeding", not "1 of 2 running".
+   *
+   * At most one set feeds the load, because there is one changeover — so a second
+   * turning set is off-load and does not count here. That distinction is the point
+   * of the wording: on a site with two running sets, "2 feeding" would claim a
+   * parallel installation this yard does not have.
+   */
+  const feedingCount = siteDrawKw(summary, dutyId) === null ? 0 : 1;
+  const feeding = `${feedingCount} of ${summary.gensets.length} feeding`;
 
   return (
-    <div className="flex min-w-0 shrink-0 items-center gap-8">
+    // Stacked rather than side by side: the verdict reads down into the figures
+    // that justify it, and the column then sits at the diagram's own height
+    // instead of stretching the top section across two thirds of the page.
+    <div className="flex w-[260px] shrink-0 flex-col justify-center gap-8">
       <div className="flex w-[113px] shrink-0 flex-col items-center gap-3">
         <Tooltip>
           <TooltipTrigger className="flex cursor-help flex-col items-center gap-2">
@@ -49,22 +71,14 @@ export const SiteSummaryPanel = ({summary}: {summary: SiteSummary}) => {
 
         <Badge variant="element" className="w-full border-subtle">
           <PlugZapIcon
-            className={summary.runningCount > 0 ? 'text-teal' : 'text-tertiary'}
+            className={feedingCount > 0 ? 'text-teal' : 'text-tertiary'}
             aria-hidden="true"
           />
           {feeding}
         </Badge>
       </div>
 
-      <div className="flex w-[260px] shrink-0 flex-col gap-4">
-        <MetricRow
-          label="Site draw"
-          // A site with nothing running is not drawing 0 kW from its gensets — it
-          // is drawing nothing *from them*, which is a different sentence, and the
-          // dash is how the rest of the app writes "not applicable" rather than
-          // "measured as zero".
-          value={summary.runningCount > 0 ? amount(summary.loadKw, 'kW') : '—'}
-        />
+      <div className="flex w-[260px] shrink-0 flex-col gap-3">
         <MetricRow label="Installed capacity" value={amount(summary.ratedKw, 'kW')} />
         <MetricRow
           label="Fuel on site"

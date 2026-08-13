@@ -38,8 +38,14 @@ const GensetHomeRoute = () => {
     });
   };
 
+  // `key` so a different genset is a different component instance. `GensetHome`
+  // holds the control mode in `useState`, and moving between two units' pages reuses
+  // this instance — so without it, unit B's page opens showing unit A's mode. A
+  // control mode is a fact about one machine's controller; it must not follow the
+  // reader to the next machine.
   return (
     <GensetHome
+      key={gensetId}
       genset={genset}
       detail={detail}
       focus={alertFocus(search)}

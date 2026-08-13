@@ -181,10 +181,16 @@ The layout, spacing and every component's construction follow the frame. The
    dials pinned at zero reads as a broken page rather than a stopped engine.
 
 7. **START and STOP are inert, and say so.** Mode switching works. The two
-   commands are disabled outside `MANUAL` and outside the state they'd change, and
+   commands are refused outside `MANUAL` and outside the state they'd change, and
    their tooltips state plainly that no controller is wired up — a button that
    appears to crank a diesel engine and silently does nothing is worse than one
    that admits it.
+
+   Refused tiles carry `aria-disabled`, not `disabled`. A genuinely disabled control
+   receives no pointer events in Chrome or Safari and cannot take focus, so its
+   tooltip never opens — which meant the pad greyed out its commands and then
+   explained nothing, the exact opposite of the intent above. The changeover on the
+   site page refuses options the same way, for the same reason.
 
 ### The site page
 
@@ -216,21 +222,54 @@ Five departures, in order of how much they matter.
    page demonstrate both isolator states. The design's `Senai, Johor` is not lost;
    it is `data-013`.
 
-3. **The genset nodes are captioned and the load states its draw.** The frame
-   draws two identical `GENSET` boxes with nothing to tell them apart, which is
-   fine for a mock-up and useless the moment the page has to say *which* set is
-   isolated. Each node is captioned with its asset tag and the load with the site's
-   draw. Additive only: the boxes keep their designed 88 × 74 and the captions sit
-   in the gap beneath them.
+3. **There is a changeover control, and the diagram is live.** The frame draws the
+   *outcome* of a changeover — one isolator closed, one open — and no control that
+   causes it. A `Load on` selector is the third column of the top band on multi-set
+   sites, and transferring the load moves it in the drawing, in the site's draw
+   figure and in each genset row's badge together.
 
-4. **The diagram card's empty left half became the site's verdict.** The frame's
-   card is 1300px wide with a 423px diagram and nothing else in it, while the one
-   question a site page exists to answer — *is this load covered* — is not on the
-   page at all. That column now holds coverage, site draw against installed
-   capacity, and fuel on site: three site-level facts, none of which any genset row
-   below can state.
+   It is **modelled, not commanded**, the same line `START` and `STOP` hold: it does
+   not start an engine. Only a set that is already turning can be handed the load,
+   and each refused option says which refusal it is — stopped (start it first),
+   faulted (isolated by its controller), or unreachable. On `telco-001` every option
+   but the current one is refused, which is the honest answer for a running set
+   beside a faulted one.
 
-5. **Flow along a live conductor is animated.** The design's teal wires are static.
+   Per the refined frame, only the duty set carries a run-state glyph, on a chip that
+   takes the track's full 48px height; the rest are shorter, dimmed text. That costs
+   something worth naming: a faulted option and a merely stopped one now look
+   identical, where a red triangle used to separate them at a glance. The reason
+   moves entirely into the tooltip — which is where the *specific* reason always
+   lived, and is now the only place it lives.
+
+   The consequence worth knowing: because one changeover means one connected set, a
+   **site's draw is the duty set's output, not the sum of its running sets'** — and a
+   running set whose load has been transferred away reads `off-load` rather than
+   quoting the kW its own controller is still metering.
+
+4. **Every node is captioned, in two lines.** The frame draws identical `GENSET`
+   boxes with nothing to tell them apart — fine for a mock-up, useless the moment
+   the page has to say *which* set is isolated. So each node names its asset and
+   states what it is putting into the bus, and the `LOAD` node carries the site's
+   draw at the point the power actually arrives. Only a connected, turning set gets
+   a kW figure; the rest get a word, because `0 kW` is a measurement and the page
+   has not measured anything at a machine it cannot reach. Additive only: the boxes
+   keep their designed 88 × 74 and the captions sit in the 64px gap between them.
+
+5. **The top band's empty left half became the site's verdict.** The frame gave the
+   band a 1300px width with a 399px diagram and nothing else in it, while the one
+   question a site page exists to answer — *is this load covered* — was not on the
+   page at all. The first column now holds coverage, installed capacity and fuel on
+   site: site-level facts, none of which any genset row below can state.
+
+6. **Nothing in the band or the rows is boxed.** The refined frame drops the strokes
+   from the diagram card and from both genset rows, and separates the band from the
+   rows with a single 1px `bd-subtle` rule — the same device the genset home page
+   uses between its three bands. The rows' own contents keep their edges (the run
+   card, the four control tiles), so removing the outer stroke takes away a frame
+   around a frame rather than the only thing holding the row together.
+
+7. **Flow along a live conductor is animated.** The design's teal wires are static.
    Motion is the only cue here that colour doesn't duplicate, and it is switched off
    under `prefers-reduced-motion`. The switch geometry is redrawn rather than
    exported for the same reason the gauges are: Figma ships four variants of it, and

@@ -29,7 +29,16 @@ import type {SiteGenset} from '../data/sites';
  * go stale: run state and load change by the second, the tank by the hour, the
  * condition and its alert counts by the day.
  */
-export const SiteGensetRow = ({member, now}: {member: SiteGenset; now: number}) => {
+export const SiteGensetRow = ({
+  member,
+  /** Is the changeover giving this set the load? Decides whether it reports a kW. */
+  onLoad,
+  now,
+}: {
+  member: SiteGenset;
+  onLoad: boolean;
+  now: number;
+}) => {
   const {genset, detail} = member;
 
   /**
@@ -46,7 +55,10 @@ export const SiteGensetRow = ({member, now}: {member: SiteGenset; now: number}) 
   const counts = countBySeverity(detail.alerts);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-6 rounded-md border border-default px-5 py-6">
+    // Unbordered, as the design now draws it. The row's own contents already carry
+    // edges — the run card and the four control tiles are bordered — and boxing
+    // those inside a second box was a frame around a frame.
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-6 px-5 py-6">
       {/* 268px rather than the design's 249. The frame's four badges pair into two
           rows of two at its placeholder values, and they should keep that shape —
           but a real load reads "205 kW" where the frame writes "10 kW", which is
@@ -67,13 +79,15 @@ export const SiteGensetRow = ({member, now}: {member: SiteGenset; now: number}) 
           <Badge variant="secondary" className="whitespace-pre">
             <StateIcon className={stateMeta.iconClassName} aria-hidden="true" />
             {stateMeta.label}
-            {/* The load is only shown while the engine turns. "0 kW" on a stopped
-                set reads as a genset running into an open breaker — a real fault,
-                and a different one. */}
+            {/* A kW figure only while the engine turns *and* the changeover has this
+                set on the bus. "0 kW" on a stopped set would read as a genset
+                running into an open breaker — a real fault, and a different one —
+                and a running set whose load has been transferred away is delivering
+                nothing here, however much its own controller is still metering. */}
             {detail.loadKw !== null && (
               <>
                 <span className="text-tertiary"> | </span>
-                {amount(detail.loadKw, 'kW')}
+                {onLoad ? amount(detail.loadKw, 'kW') : 'off-load'}
               </>
             )}
           </Badge>

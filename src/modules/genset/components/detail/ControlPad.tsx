@@ -38,8 +38,15 @@ const Tile = ({
     <TooltipTrigger asChild>
       <button
         type="button"
-        disabled={disabled}
-        onClick={onClick}
+        // `aria-disabled` rather than `disabled`: Chrome and Safari deliver no
+        // pointer events to a disabled control, so its tooltip never opens — and on
+        // this pad the tooltip is the only thing that says *why* a command is
+        // refused ("Switch to MANUAL to start by hand", "not wired in this
+        // prototype"). A button that greys out and then explains nothing is worse
+        // than the inert button it was trying to be honest about. The tile stays
+        // focusable and hoverable; the handler below refuses the press.
+        aria-disabled={disabled}
+        onClick={disabled ? undefined : onClick}
         aria-pressed={active}
         className={cn(
           'relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-default bg-element px-2 pt-3 pb-2.5 transition-colors',
