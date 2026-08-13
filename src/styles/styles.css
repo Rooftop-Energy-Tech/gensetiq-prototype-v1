@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+/* Imported here rather than from the map component so the cascade is decided in
+   one file. It is unlayered, as are the overrides at the bottom of this
+   stylesheet — equal specificity, later wins, no @layer ordering to reason
+   about (layered rules lose to unlayered ones, which is the trap when you
+   import this from a component and try to override it from `@layer components`). */
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* All color token values are injected by colors.ts via __root.tsx. */
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Background surfaces */
+  --color-canvas: var(--canvas);
+  --color-fill: var(--fill);
+  --color-fill-text: var(--fill-text);
+  --color-element: var(--element);
+  --color-overlay: var(--overlay);
+  --color-inset: var(--inset);
+  --color-hover: var(--hover);
+  --color-highlight: var(--highlight);
+  --color-brand: var(--brand);
+  --color-brand-text: var(--brand-text);
+  --color-teal: var(--teal);
+  --color-indent: var(--indent);
+  --color-primary-button: var(--primary-button);
+  --color-primary-button-text: var(--primary-button-text);
+  --color-button-hover: var(--button-hover);
+  --color-brand-button-hover: var(--brand-button-hover);
+  --color-destructive-hover: var(--destructive-hover);
+
+  /* Text scale */
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-tertiary: var(--tertiary);
+  --color-muted-foreground: var(--muted-foreground);
+
+  /* Borders */
+  --color-subtle: var(--subtle);
+  --color-default: var(--default);
+  --color-strong: var(--strong);
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-highlight: var(--sidebar-highlight);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-secondary: var(--sidebar-secondary);
+
+  /* Genset run states */
+  --color-status-running: var(--status-running);
+  --color-status-idle: var(--status-idle);
+  --color-status-fault: var(--status-fault);
+  --color-status-offline: var(--status-offline);
+
+  /* Fuel */
+  --color-fuel: var(--fuel);
+  --color-fuel-tip: var(--fuel-tip);
+
+  /* Alert severities */
+  --color-severity-critical: var(--severity-critical);
+  --color-severity-warning: var(--severity-warning);
+  --color-severity-ok: var(--severity-ok);
+
+  /* Misc */
+  --color-scroll-bar: var(--scroll-bar);
+  --color-outline: var(--outline);
+  --color-destructive: var(--destructive);
+  --color-white: var(--white);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  * {
+    @apply border-default outline-outline;
+
+    /*
+     * `--scroll-bar` has been in the token set since rooftopiq-frontend-v3 but
+     * was never wired to anything, so every scrollable region fell back to the
+     * browser's own bar — a light track and thumb, glaring against a dark
+     * canvas. This is the token doing its job.
+     *
+     * On `*` rather than `html`: `scrollbar-color` inherits but
+     * `scrollbar-width` does not, so a rule on the root would leave every
+     * nested scroll container at the default width.
+     */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-bar) transparent;
+  }
+
+  /*
+   * Fallback for engines without `scrollbar-color` (Safari below 18). Where the
+   * standard property is supported it takes precedence and these are ignored,
+   * so the two never fight. In `@layer base` rather than unlayered, so a utility
+   * can still override a bar per-element.
+   */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scroll-bar);
+    border-radius: var(--radius-lg);
+  }
+
+  body {
+    @apply bg-canvas text-primary;
+  }
+}
+
+/*
+ * Flow along a live conductor in the site diagram.
+ *
+ * The offset shifts by exactly one dash period (`stroke-dasharray: 4 8`), so the
+ * pattern lands back on itself and the loop has no visible seam. Here rather than
+ * in the component because keyframes cannot be expressed as a utility class, and
+ * this is the one stylesheet the cascade is decided in.
+ *
+ * Motion is the *only* thing this conveys — the conductor is already teal, glowing
+ * and terminated in filled dots — so switching it off under `prefers-reduced-motion`
+ * costs the reader nothing.
+ */
+@keyframes power-flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.power-flow {
+  animation: power-flow 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .power-flow {
+    animation: none;
+  }
+}
+
+/*
+ * MapLibre ships light-theme chrome. These rules restyle the handful of controls
+ * this prototype actually renders onto the app's tokens. Unlayered and declared
+ * after the library's import above — see the note at the top of this file.
+ */
+.maplibregl-map {
+  font-family: var(--font-sans);
+}
+
+/* Zoom / compass buttons — matched to the toolbar's outline icon buttons. */
+.maplibregl-ctrl-group {
+  @apply overflow-hidden rounded-md border border-subtle bg-element shadow-none;
+}
+.maplibregl-ctrl-group button {
+  @apply size-8 cursor-pointer border-0 bg-transparent;
+}
+.maplibregl-ctrl-group button + button {
+  @apply border-t border-subtle;
+}
+.maplibregl-ctrl-group button:hover {
+  @apply bg-highlight;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  /* The control glyphs are dark SVG data-URIs baked into the library; invert
+     them rather than shipping replacements. */
+  filter: invert(1);
+  opacity: 0.7;
+}
+
+/* Attribution — required by the tile terms, so it stays visible; just quiet. */
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  @apply rounded-md bg-canvas/80 px-1.5 text-[10px] text-tertiary backdrop-blur-sm;
+}
+.maplibregl-ctrl-attrib a {
+  @apply text-secondary no-underline;
+}
+.maplibregl-ctrl-attrib-button {
+  display: none;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-inner {
+  visibility: visible;
+}
