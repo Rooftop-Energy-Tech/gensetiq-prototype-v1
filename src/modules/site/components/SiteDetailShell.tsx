@@ -4,6 +4,7 @@ import {InfoIcon, MapPinIcon} from 'lucide-react';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, fuelHeadline} from '@/lib/format';
 import {SITE_KIND_LABEL} from '../data/sites';
+import {useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
 
 /**
@@ -38,6 +39,7 @@ const TABS = [
  */
 export const SiteDetailShell = ({summary}: {summary: SiteSummary}) => {
   const {site, gensets} = summary;
+  const role = useSitePowerRole(site.id);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -62,6 +64,13 @@ export const SiteDetailShell = ({summary}: {summary: SiteSummary}) => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="flex flex-col gap-1">
                 <span>Load · {SITE_KIND_LABEL[site.kind]}</span>
+                {/* Above the genset count on purpose: whether the yard has a mains
+                    incomer decides what "2 installed" is *for*. Two sets backing up a
+                    grid and two sets that are the grid are different installations. */}
+                <span>
+                  Supply ·{' '}
+                  {role === 'STANDBY' ? 'Mains, backed by gensets' : 'Gensets, no mains supply'}
+                </span>
                 <span>
                   Gensets · {gensets.length} installed, {summary.onlineCount} reporting
                 </span>

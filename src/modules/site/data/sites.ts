@@ -4,7 +4,8 @@ import type {Genset} from '@/modules/genset/types/genset.type';
 import {GENSETS} from '@/modules/genset/data/fleet';
 import {gensetDetail} from '@/modules/genset/data/detail';
 import type {GensetDetail} from '@/modules/genset/data/detail';
-import type {Site, SiteKind} from '../types/site.type';
+import {spreadBetween} from '@/modules/genset/data/spread';
+import type {MainsSupply, Site, SiteKind, SitePowerRole} from '../types/site.type';
 
 /**
  * The sites the fleet stands on, and everything the site pages report.
@@ -89,6 +90,17 @@ export type SiteSummary = {
   fuelCapacityLitres: number;
   /** Worst condition among the sets — a site is as healthy as its sickest unit. */
   condition: GensetCondition;
+  /**
+   * What the intake meter reads.
+   *
+   * On the summary rather than in the config store beside `powerRole`, because the
+   * two are different kinds of thing: the meter is a **reading**, fixed mock data
+   * like a tank level, and the role is a **display choice** a reader can flip at
+   * any moment. Every site therefore carries a reading, including one declared
+   * `PRIME` — where it simply goes undrawn, which is what lets the settings page
+   * preview the standby layout without inventing a figure for it.
+   */
+  mains: MainsSupply;
 };
 
 /** The set the changeover currently has on the bus, if any. */
@@ -114,26 +126,90 @@ export const siteDrawKw = (
 };
 
 /**
- * Is the site's load actually covered?
+ * What is actually feeding the load, and at what.
  *
- * A site is `COVERED` while something is feeding it, `STANDBY` while every set is
- * stopped but at least one is fit to start, and `EXPOSED` when nothing here can
- * pick the load up — every set faulted or unreachable. The third state is the
- * reason this exists: it is invisible on any individual genset's page, and it is
- * the thing somebody gets called at night about.
+ * One function rather than a `drawKw` figure plus an `onMains` boolean beside it,
+ * because those two can be assembled into a state that cannot happen — on mains
+ * *and* on generator — and every screen would have to re-derive which of them wins.
+ * Here the winner is decided once.
+ *
+ * The genset wins, and that ordering is the transfer switch's own: a set that has
+ * been given the load is carrying it, so the mains contactor is open (see
+ * `mainsContactorStateOf`). The grid's health is then a separate fact reported
+ * beside it, which is what keeps a **test run** from reading as an outage.
+ *
+ * `NONE` is a real state at both kinds of site and means different things at each —
+ * at a `PRIME` site, nothing is generating; at a `STANDBY` site, the grid is down
+ * *and* no set has picked the load up. Both are outages. Callers get to say so in
+ * their own words; this only reports that nobody is feeding.
  */
-export type SiteCoverage = 'COVERED' | 'STANDBY' | 'EXPOSED';
+export type SiteFeed =
+  | {source: 'GENSET'; gensetId: string; drawKw: number}
+  | {source: 'MAINS'; drawKw: number}
+  | {source: 'NONE'};
 
-export const coverageOf = (summary: SiteSummary): SiteCoverage => {
-  if (summary.runningCount > 0) return 'COVERED';
-  const startable = summary.gensets.some(({genset}) => genset.runState === 'IDLE');
-  return startable ? 'STANDBY' : 'EXPOSED';
+export const siteFeed = (
+  summary: SiteSummary,
+  dutyId: string | undefined,
+  role: SitePowerRole,
+): SiteFeed => {
+  const gensetKw = siteDrawKw(summary, dutyId);
+  if (gensetKw !== null && dutyId !== undefined) {
+    return {source: 'GENSET', gensetId: dutyId, drawKw: gensetKw};
+  }
+
+  // A `PRIME` yard has no incomer to fall back to, so the meter goes unread there
+  // however healthy it claims to be — that is the whole of what the role changes.
+  if (role === 'STANDBY' && summary.mains.live && summary.mains.drawKw !== null) {
+    return {source: 'MAINS', drawKw: summary.mains.drawKw};
+  }
+
+  return {source: 'NONE'};
+};
+
+/**
+ * The intake meter's reading, in place of the metering API this prototype doesn't
+ * have.
+ *
+ * Same rule as everything else in this file: **derived from a given, not a second
+ * given.** The given is each set's `startReason` in `fleet.ts`, and the derivation
+ * is the one an operator would make in reverse — a set out on an outage *is* the
+ * evidence the grid dropped:
+ *
+ *   the supply is dead ⟺ some set here is out on an unfinished outage run.
+ *
+ * "Unfinished" is why `IDLE` doesn't count. An idle set started on an outage too,
+ * and then stopped — its own feed says "utility restored" — so its outage is over
+ * and the grid is back. `FAULT` and `OFFLINE` do count: those sets went out on an
+ * outage and never came home, which is the worst state a standby site has.
+ *
+ * A second, independent mains flag was the obvious alternative and it is the wrong
+ * shape. It could disagree with the activity feed, and the disagreement would land
+ * on exactly the case this is here to get right: a set on a **test exercise**, which
+ * has no outage behind it and therefore leaves the meter healthy. Two of the fleet's
+ * sets are pinned that way, so the case is on screen rather than hypothetical.
+ *
+ * The magnitude is a hash of the site id — never `Math.random()` — so a site reads
+ * the same on every render and every reload, the convention `detail.ts` sets.
+ */
+const meterReading = (siteId: string, members: Array<Genset>, ratedKw: number): MainsSupply => {
+  const live = !members.some(
+    (genset) => genset.startReason === 'OUTAGE' && genset.runState !== 'IDLE',
+  );
+
+  return {
+    live,
+    // Against installed capacity, because standby plant is sized to cover the load
+    // it backs up — so a fraction of nameplate is the load, near enough for a
+    // prototype, and it moves with the site instead of being a flat figure.
+    drawKw: live ? Math.round(spreadBetween(siteId, 'mains', 0.28, 0.62) * ratedKw) : null,
+  };
 };
 
 const stateRank = (genset: Genset) => RUN_STATES.indexOf(genset.runState);
 
 const buildSummary = (seed: SiteSeed): SiteSummary => {
-  const members = GENSETS.filter((genset) => genset.siteId === seed.id)
+  const members: Array<Genset> = GENSETS.filter((genset) => genset.siteId === seed.id)
     // `RUN_STATES` is declared worst-first, so a faulted set leads and the tag
     // breaks ties — the same order the fleet table uses, for the same reason.
     .sort((left, right) => stateRank(left) - stateRank(right) || left.tag.localeCompare(right.tag));
@@ -148,6 +224,9 @@ const buildSummary = (seed: SiteSeed): SiteSummary => {
   // in step with them.
   const latitude = members.reduce((sum, g) => sum + g.latitude, 0) / (members.length || 1);
   const longitude = members.reduce((sum, g) => sum + g.longitude, 0) / (members.length || 1);
+
+  // Hoisted out of the literal below because the meter reading is scaled by it.
+  const ratedKw = gensets.reduce((sum, {detail}) => sum + detail.ratedKw, 0);
 
   return {
     site: {
@@ -167,9 +246,9 @@ const buildSummary = (seed: SiteSeed): SiteSummary => {
     defaultDutyId:
       members.find((genset) => genset.runState === 'RUNNING')?.id ??
       members.find((genset) => genset.runState === 'IDLE')?.id,
-    ratedKw: gensets.reduce((sum, {detail}) => sum + detail.ratedKw, 0),
+    ratedKw,
     runningCount: gensets.filter(({genset}) => genset.runState === 'RUNNING').length,
-    onlineCount: gensets.filter(({detail}) => detail.online).length,
+    onlineCount: gensets.filter(({genset}) => genset.runState !== 'OFFLINE').length,
     fuelLitres: members.reduce((sum, g) => sum + g.fuelLitres, 0),
     fuelCapacityLitres: members.reduce((sum, g) => sum + g.fuelCapacityLitres, 0),
     // Worst wins, on the severity ordering the alert module already defines.
@@ -178,6 +257,7 @@ const buildSummary = (seed: SiteSeed): SiteSummary => {
       : gensets.some(({detail}) => detail.condition === 'ATTENTION')
         ? 'ATTENTION'
         : 'OPTIMUM',
+    mains: meterReading(seed.id, members, ratedKw),
   };
 };
 
@@ -201,20 +281,17 @@ export const DEFAULT_SITE_ID = 'telco-001';
 export const siteLabel = (siteId: string): string => SUMMARIES[siteId]?.site.name ?? 'Site';
 
 /**
- * Sites in the order the list shows them: exposed first, then by how much is
- * wrong, then by name.
+ * Sites in the order the list shows them: by how much is wrong, then by name.
  *
- * Coverage leads rather than condition, because it is the more urgent question. A
- * site with a critical alert on a running set is still carrying its load; a site
- * with nothing able to start is not, even with a clean alert list.
+ * Condition is the ranking the list has, and it is the genset module's own —
+ * worst severity among the sets standing here. Name breaks the tie so the order
+ * is total and the list does not reshuffle between renders.
  */
-const COVERAGE_RANK: Record<SiteCoverage, number> = {EXPOSED: 0, STANDBY: 1, COVERED: 2};
 const CONDITION_RANK: Record<GensetCondition, number> = {CRITICAL: 0, ATTENTION: 1, OPTIMUM: 2};
 
 export const sortSites = (summaries: Array<SiteSummary>): Array<SiteSummary> =>
   [...summaries].sort(
     (left, right) =>
-      COVERAGE_RANK[coverageOf(left)] - COVERAGE_RANK[coverageOf(right)] ||
       CONDITION_RANK[left.condition] - CONDITION_RANK[right.condition] ||
       left.site.name.localeCompare(right.site.name),
   );

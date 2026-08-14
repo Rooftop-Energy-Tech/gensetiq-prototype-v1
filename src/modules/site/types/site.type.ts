@@ -2,11 +2,9 @@
  * A site is a **place with a load**, and gensets are what stand on it.
  *
  * That is the distinction the whole section rests on. A genset answers "what is
- * this machine doing"; a site answers "is this customer's power covered" — and
- * those are different questions the moment a site has more than one set, because
- * a site with two 1000 kVA units and one running is fully covered, while the same
- * site with both stopped is not, and neither fact is visible on either unit's own
- * page.
+ * this machine doing"; a site answers "which of these machines is on the bus" —
+ * a question that only exists the moment a site has more than one set, and one
+ * that is invisible on either unit's own page.
  *
  * A site therefore owns exactly two things of its own: an identity (its name, and
  * what kind of load it carries) and the changeover that decides which of its sets
@@ -27,6 +25,67 @@ import type {RunState} from '@/modules/genset/types/genset.type';
 export const SITE_KINDS = ['TELCO', 'DATA', 'HOSPITAL', 'MANUFACTURING', 'RETAIL', 'PORT', 'AIRPORT', 'TOWER'] as const;
 
 export type SiteKind = (typeof SITE_KINDS)[number];
+
+/**
+ * How this yard is fed — and therefore **which circuit the site page draws**.
+ *
+ * - `STANDBY` — there is a mains incomer, and the gensets back it up. The load
+ *   normally sits on the grid; a set picks it up when the grid drops. Every site
+ *   in this prototype is this, which is the assumption the whole app was written
+ *   under before this setting existed.
+ * - `PRIME` — there is no mains incomer. The gensets *are* the supply and carry
+ *   the load continuously; a second set at a prime site is a spare, not a backup
+ *   to something else.
+ *
+ * ## This is a display choice, and only a display choice
+ *
+ * It selects a **layout**: whether the single-line diagram includes a mains
+ * source above the gensets. It does not configure a machine, does not command
+ * anything, and nothing about how a genset behaves depends on it —
+ * `isolatorStateOf` below, the changeover, `defaultDutyId` and every control pad
+ * are all untouched by it.
+ *
+ * That boundary is deliberate rather than a shortcut. A control that both redrew
+ * a diagram *and* silently changed which sets could take load would be two
+ * operations wearing one label, and the second of them would be a command this
+ * prototype has no business issuing.
+ *
+ * One visible consequence of holding that line: a set's activity feed is the
+ * *machine's* history, so at a site declared `PRIME` it may still read "Engine
+ * started on utility outage". The setting redraws the yard; it does not rewrite
+ * what the controllers did.
+ */
+export const SITE_POWER_ROLES = ['STANDBY', 'PRIME'] as const;
+
+export type SitePowerRole = (typeof SITE_POWER_ROLES)[number];
+
+/**
+ * The mains incomer, as its meter reports it.
+ *
+ * A **measurement**, not an inference. An earlier sketch of this derived mains
+ * health from the gensets — "a set is running, so the grid must be down" — and it
+ * was wrong for the one case that matters most: a set on a **test exercise** runs
+ * beside a perfectly healthy grid, and inferring a failure from it would report an
+ * outage at a site that never had one.
+ *
+ * So the site reads its intake meter, and the meter is what says whether the
+ * supply is there. In this prototype that reading is mock data like every other
+ * figure (see `data/sites.ts`); in a real deployment it is the meter's API, and
+ * nothing downstream of this type changes.
+ */
+export type MainsSupply = {
+  /** Is the incomer energised, per the meter at the intake. */
+  live: boolean;
+  /**
+   * What the meter is reading through the incomer, kW — `null` while the supply
+   * is dead or the contactor is open.
+   *
+   * `null` rather than `0` for the same reason a faulted genset's node says
+   * `unavailable` rather than `0 kW`: zero is a measurement, and a dead incomer
+   * has not measured anything.
+   */
+  drawKw: number | null;
+};
 
 export type Site = {
   /** e.g. `telco-001`. Matches `Genset.siteId`. */
@@ -84,6 +143,33 @@ export const isolatorStateOf = (runState: RunState, duty: boolean): SwitchState 
     closed: runState === 'RUNNING' || runState === 'IDLE',
     live: runState === 'RUNNING',
   };
+};
+
+/**
+ * Where the **mains contactor** stands: the grid half of the transfer switch.
+ *
+ * Derived, never selected. The changeover control on the site page picks between
+ * *gensets*, and adding the grid to it would dress a utility supply up as
+ * something an operator here can switch on. A transfer switch acts on its own, so
+ * this reads the two facts it acts on — the meter, and whether a set is already
+ * carrying — and reports the position that follows.
+ *
+ * `closed` and `live` are the same value here, which they are *not* for a genset
+ * isolator, and the asymmetry is the point: a genset can sit closed onto a dead
+ * bus waiting for a mains failure, but the grid is either carrying the load or
+ * disconnected from it. A transfer switch must never bridge the two sources — that
+ * is back-feed onto the utility, the one thing the interlock exists to prevent — so
+ * there is no closed-and-dead mains position to draw.
+ *
+ * A set that is carrying therefore *wins*: the contactor is open, and the meter's
+ * verdict on the grid is reported next to it rather than in place of it. That is
+ * what separates the two cases this whole type exists for — a genset carrying
+ * because the grid **failed**, and a genset carrying while the grid is **healthy**,
+ * which is a test run and not an incident.
+ */
+export const mainsContactorStateOf = (mains: MainsSupply, gensetCarrying: boolean): SwitchState => {
+  const carrying = mains.live && !gensetCarrying;
+  return {closed: carrying, live: carrying};
 };
 
 /**

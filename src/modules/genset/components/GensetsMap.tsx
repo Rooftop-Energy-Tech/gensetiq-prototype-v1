@@ -195,7 +195,14 @@ export const GensetsMap = ({gensets, selectedId, onSelect, panelInset}: GensetsM
         source: SOURCE,
         filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-radius': ['case', ['get', 'selected'], 9, 6],
+          // 9 at rest, 13.5 selected — both scaled up by half from the 6/9 the
+          // pins started at. The fill is what carries run state, and at a 6px
+          // radius behind a 2px stroke there was barely any of it left to read:
+          // a fault pin and a running pin were distinguishable by inspection but
+          // not at a glance, which is the only thing a pin is for. The selected
+          // pin scales with it so the pair keeps its 1.5× relationship, and
+          // separation stays a matter of size rather than of stroke alone.
+          'circle-radius': ['case', ['get', 'selected'], 13.5, 9],
           'circle-color': runStateColor(),
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
           'circle-stroke-color': [

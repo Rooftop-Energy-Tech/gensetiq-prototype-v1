@@ -1,10 +1,8 @@
 import {Link, Outlet} from '@tanstack/react-router';
-import {CircleIcon, InfoIcon, MapPinIcon} from 'lucide-react';
+import {InfoIcon, MapPinIcon} from 'lucide-react';
 
-import {Badge} from '@/components/ui/badge';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
-import {age, fuelLevel, relativeTime} from '@/lib/format';
-import {cn} from '@/lib/utils';
+import {fuelLevel, relativeTime} from '@/lib/format';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 
@@ -26,16 +24,16 @@ const TABS = [
 ] as const;
 
 /**
- * Everything one genset's pages share: the title row, the connectivity badge and
- * the tab strip. Each tab renders into the `<Outlet />` below it.
+ * Everything one genset's pages share: the title row and the tab strip. Each tab
+ * renders into the `<Outlet />` below it.
  *
- * The connectivity badge is separate from the run-state hero on purpose, and the
- * two answer different questions. Run state is what the machine is *doing*;
- * online is whether we are hearing from it. A running genset whose modem has
- * dropped is the most dangerous combination on this page, and one badge cannot
- * say it.
+ * There is no separate connectivity badge here. Whether the panel is talking to
+ * us is not a second fact alongside run state — it *is* a run state, `OFFLINE`,
+ * and the run-state hero in band 1 already says it. A header badge reading
+ * `Online` beside a hero reading `Idle` invited the reader to look for a
+ * distinction the machine does not report.
  */
-export const GensetDetailShell = ({genset, online}: {genset: Genset; online: boolean}) => (
+export const GensetDetailShell = ({genset}: {genset: Genset}) => (
   <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-4 pt-4 pb-2">
       <div className="flex min-w-0 items-center gap-6">
@@ -66,16 +64,6 @@ export const GensetDetailShell = ({genset, online}: {genset: Genset; online: boo
       </div>
 
       <div className="flex items-center gap-5">
-        <Badge variant="secondary" className="whitespace-pre">
-          <CircleIcon
-            className={cn(online ? 'text-severity-ok' : 'text-status-offline')}
-            aria-hidden="true"
-          />
-          {online ? 'Online' : 'Offline'}
-          {'  |  '}
-          {age(genset.lastUpdated)}
-        </Badge>
-
         <nav
           aria-label="Genset sections"
           className="flex h-9 items-center gap-0 rounded-lg bg-element p-[3px]"

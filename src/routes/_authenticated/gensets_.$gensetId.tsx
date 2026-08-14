@@ -13,7 +13,7 @@ import type {Genset} from '@/modules/genset/types/genset.type';
  * TS2322, "'Route' implicitly has type 'any' because it is referenced in its own
  * initializer". Naming the shape here breaks the cycle.
  */
-type GensetLoaderData = {genset: Genset; online: boolean; crumb: string};
+type GensetLoaderData = {genset: Genset; crumb: string};
 
 /**
  * One genset's pages: `/gensets/brf9540`, `/gensets/brf9540/runs`, …
@@ -27,9 +27,9 @@ type GensetLoaderData = {genset: Genset; online: boolean; crumb: string};
  * for the whole section instead of six children repeating the check.
  */
 const GensetDetailRoute = () => {
-  const {genset, online} = useLoaderData({from: '/_authenticated/gensets_/$gensetId'});
+  const {genset} = useLoaderData({from: '/_authenticated/gensets_/$gensetId'});
 
-  return <GensetDetailShell genset={genset} online={online} />;
+  return <GensetDetailShell genset={genset} />;
 };
 
 export const Route = createFileRoute('/_authenticated/gensets_/$gensetId')({
@@ -41,7 +41,7 @@ export const Route = createFileRoute('/_authenticated/gensets_/$gensetId')({
     // `crumb` is read off loader data by <TopNav />: the breadcrumb has to say
     // `BRF9540 | Cummins 1000 kVa`, and `staticData` cannot hold a value that
     // depends on the params.
-    return {genset, online: detail.online, crumb: gensetName(genset)};
+    return {genset, crumb: gensetName(genset)};
   },
   staticData: {crumbParent: {label: 'Gensets', to: '/gensets'}},
   component: GensetDetailRoute,

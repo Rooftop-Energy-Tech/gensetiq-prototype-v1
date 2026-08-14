@@ -44,6 +44,18 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   const panelOpen = panel;
   const mapPanelInset = view === 'map' && panelOpen ? PANEL_WIDTH + PANEL_INSET : 0;
 
+  /**
+   * Selecting a genset opens the panel, whether or not the toggle was on.
+   *
+   * Selection has no other visible effect: in the list it tints a row, and on the
+   * map it recolours a pin — so with the panel closed, clicking is a dead end that
+   * reads as a broken control rather than as a deliberate one. The toggle is best
+   * understood as "hide the preview until I next ask for one", which is what this
+   * makes it. Row-click previews, name-click navigates; the toggle no longer sits
+   * between the two.
+   */
+  const selectGenset = (next: string) => onSearchChange({id: next, panel: true});
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
       <GensetsToolbar
@@ -68,7 +80,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
               <GensetsMap
                 gensets={gensets}
                 selectedId={id}
-                onSelect={(next) => onSearchChange({id: next})}
+                onSelect={selectGenset}
                 panelInset={mapPanelInset}
               />
             </Suspense>
@@ -83,7 +95,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
             <GensetsTable
               gensets={gensets}
               selectedId={id}
-              onSelect={(next) => onSearchChange({id: next})}
+              onSelect={selectGenset}
             />
           </div>
         )}

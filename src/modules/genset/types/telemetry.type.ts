@@ -10,6 +10,21 @@
  * caring where on the page it happens to be rendered.
  */
 
+/**
+ * What kind of quantity a reading is — and therefore whether plotting it against
+ * time means anything.
+ *
+ * Only `instantaneous` readings are trends. The other two look like numbers and
+ * are not: `engine-hours` is a counter that can only go up, so its "trend" is a
+ * ramp that says nothing; `mains-outages (30 d)` is already an aggregate over a
+ * window, so plotting it against time draws a window sliding over itself. The
+ * analysis tab offers the first kind and nothing else — the distinction has to
+ * live on the reading, because the chart cannot infer it from the values.
+ */
+export const READING_KINDS = ['instantaneous', 'cumulative', 'windowed'] as const;
+
+export type ReadingKind = (typeof READING_KINDS)[number];
+
 export type Reading = {
   /** Stable key. This is what a `GensetAlert` and a `GensetTag` refer to. */
   key: string;
@@ -24,6 +39,22 @@ export type Reading = {
    * it looks coarser than its neighbours in the same list.
    */
   precision?: number;
+  kind: ReadingKind;
+  /**
+   * The quantity **only exists while the engine turns**.
+   *
+   * Phase current, alternator frequency and oil pressure are properties of a
+   * machine in motion; a stopped set does not have a low one, it has none. Both
+   * halves of the app read this: the snapshot zeroes these when the engine is
+   * off, and the analysis chart breaks the line rather than drawing it down to
+   * zero and back — a dive to 0 bar and a recovery is a *shutdown event*, and
+   * inventing one where the set was simply parked would be a lie the reader has
+   * no way to catch.
+   *
+   * Temperatures and levels are deliberately not in this set. A coolant probe on
+   * a set that stopped ten minutes ago reads 70 °C, not nothing.
+   */
+  engineOnly: boolean;
 };
 
 /**

@@ -14,7 +14,7 @@ import type {AlertFocus, GensetHomeSearch} from '@/modules/genset/types/detailVi
  *
  * The parent route has already resolved and 404'd the id, so the lookups here
  * cannot fail; they are repeated rather than threaded down through loader data
- * because the parent only needs the fleet row and the online flag, and the whole
+ * because the parent only needs the fleet row for its header, and the whole
  * `GensetDetail` is a much larger object to carry through a route boundary that
  * doesn't use it.
  */

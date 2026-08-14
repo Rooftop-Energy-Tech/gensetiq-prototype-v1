@@ -13,7 +13,7 @@ type SitesPageProps = {
 };
 
 /**
- * `/sites` — seventeen sites, worst coverage first.
+ * `/sites` — seventeen sites, worst condition first.
  *
  * No view switcher and no preview panel, unlike the fleet screen. A site has no
  * second representation worth building: its position on a map is its gensets'

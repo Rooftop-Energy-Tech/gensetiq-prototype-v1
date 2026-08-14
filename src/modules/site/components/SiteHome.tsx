@@ -1,6 +1,7 @@
 import {useState} from 'react';
 
 import {isolatorStateOf} from '../types/site.type';
+import {useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
 import {SiteChangeover} from './SiteChangeover';
 import {SiteDiagram} from './SiteDiagram';
@@ -36,6 +37,21 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
    */
   const [dutyId, setDutyId] = useState<string | undefined>(summary.defaultDutyId);
 
+  /**
+   * How this yard says it is fed, from the Settings tab.
+   *
+   * Live from the store rather than loader data, so walking Settings → Home shows
+   * the change without a reload. It is read here and threaded down instead of each
+   * child reaching for the store itself: the diagram has to stay a pure function of
+   * its props so the settings page can render it twice, one role each, as a preview.
+   *
+   * Note what it does *not* touch. `dutyId` below is untouched by it, and so is
+   * `defaultDutyId` above — the role selects a drawing, and which of the yard's sets
+   * is on the bus is a fact about the plant that a display choice has no business
+   * moving. That is also why there is no state to reset when the role changes.
+   */
+  const role = useSitePowerRole(summary.site.id);
+
   return (
     <div className="flex flex-col gap-2.5 px-4 pt-1 pb-6">
       {/* Three columns, and no border. The section is the page's top band rather
@@ -45,9 +61,9 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
         aria-label="Site circuit"
         className="flex flex-wrap items-center gap-x-30 gap-y-8 px-6 py-7"
       >
-        <SiteSummaryPanel summary={summary} dutyId={dutyId} />
+        <SiteSummaryPanel summary={summary} dutyId={dutyId} role={role} />
 
-        <SiteDiagram summary={summary} dutyId={dutyId} />
+        <SiteDiagram summary={summary} dutyId={dutyId} role={role} />
 
         {/* Only where there is a choice to make. A single-set site has no
             changeover — its one isolator is either closed or it isn't, and a

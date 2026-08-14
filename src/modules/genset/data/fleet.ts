@@ -1,4 +1,10 @@
-import type {Genset, GensetActivity, GensetActivityKind, RunState} from '../types/genset.type';
+import type {
+  Genset,
+  GensetActivity,
+  GensetActivityKind,
+  RunState,
+  StartReason,
+} from '../types/genset.type';
 
 /**
  * A stand-in fleet, in place of the telemetry API this prototype doesn't have.
@@ -26,6 +32,20 @@ type FleetSeed = {
   tag: string;
   model: string;
   runState: RunState;
+  /**
+   * Why this unit last cranked. **`OUTAGE` unless stated** — the standby fleet's
+   * ordinary reason, and the one its activity feed has always assumed.
+   *
+   * Seeded rather than derived because it is the *given* the site page's intake
+   * meter reads: `sites.ts` decides whether a yard's mains is up by looking at
+   * whether any set there is out on an outage. Stating it once, here, is what
+   * stops a set's activity feed ("started on utility outage") from contradicting
+   * the meter drawn a few pixels above it on the site diagram.
+   *
+   * Two units are pinned to `TEST` so the fleet actually contains the case that
+   * distinction exists for — a set turning beside a healthy grid.
+   */
+  startReason?: StartReason;
   /**
    * The site this unit stands at. Sites are derived from this column rather than
    * seeded separately — see `modules/site/data/sites.ts`.
@@ -58,7 +78,7 @@ const FLEET_SEED: Array<FleetSeed> = [
   {tag: 'CHR5162', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'hosp-006',    locationLabel: 'Cheras, Kuala Lumpur',      latitude: 3.0833, longitude: 101.7500, fuelLitres: 1102, fuelCapacityLitres: 1800, staleMinutes: 6},
   {tag: 'AMP8890', model: 'Kohler 400 kVa',      runState: 'IDLE',    siteId: 'hosp-006',    locationLabel: 'Cheras, Kuala Lumpur',      latitude: 3.0841, longitude: 101.7512, fuelLitres: 448,  fuelCapacityLitres: 900,  staleMinutes: 31},
   {tag: 'RWG3471', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'mfg-007',     locationLabel: 'Rawang, Selangor',          latitude: 3.3212, longitude: 101.5769, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8},
-  {tag: 'SPG2093', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'airport-008', locationLabel: 'Sepang, Selangor',          latitude: 2.7456, longitude: 101.7072, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5},
+  {tag: 'SPG2093', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'airport-008', locationLabel: 'Sepang, Selangor',          latitude: 2.7456, longitude: 101.7072, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST'},
 
   // — Northern corridor (6).
   {tag: 'IPH7724', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'mfg-009',     locationLabel: 'Ipoh, Perak',              latitude: 4.5975, longitude: 101.0901, fuelLitres: 1520, fuelCapacityLitres: 1800, staleMinutes: 7},
@@ -72,7 +92,7 @@ const FLEET_SEED: Array<FleetSeed> = [
   {tag: 'JHB5503', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'data-013',    locationLabel: 'Senai, Johor',             latitude: 1.6015, longitude: 103.6650, fuelLitres: 2640, fuelCapacityLitres: 3000, staleMinutes: 3},
   {tag: 'PSG8817', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'data-013',    locationLabel: 'Senai, Johor',             latitude: 1.6023, longitude: 103.6662, fuelLitres: 1890, fuelCapacityLitres: 2450, staleMinutes: 6},
   {tag: 'MLK3392', model: 'FG Wilson 650 kVa',   runState: 'IDLE',    siteId: 'retail-014',  locationLabel: 'Melaka Tengah, Melaka',    latitude: 2.1896, longitude: 102.2501, fuelLitres: 720,  fuelCapacityLitres: 1600, staleMinutes: 26},
-  {tag: 'SRB6644', model: 'Kohler 400 kVa',      runState: 'RUNNING', siteId: 'mfg-015',     locationLabel: 'Seremban, Negeri Sembilan',latitude: 2.7258, longitude: 101.9424, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4},
+  {tag: 'SRB6644', model: 'Kohler 400 kVa',      runState: 'RUNNING', siteId: 'mfg-015',     locationLabel: 'Seremban, Negeri Sembilan',latitude: 2.7258, longitude: 101.9424, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST'},
   {tag: 'KTN1970', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'port-016',    locationLabel: 'Kuantan, Pahang',          latitude: 3.8077, longitude: 103.3260, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9},
   {tag: 'KBR4128', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'telco-017',   locationLabel: 'Kota Bharu, Kelantan',     latitude: 6.1254, longitude: 102.2381, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73},
 ];
@@ -95,24 +115,33 @@ const minutesBefore = (now: number, minutes: number): string =>
 const buildActivity = (seed: FleetSeed, now: number): Array<GensetActivity> => {
   const {tag, runState, staleMinutes} = seed;
 
+  // The START line quotes the seeded reason rather than assuming an outage. A unit
+  // out on a test exercise beside a healthy grid is a real state of this fleet
+  // (two are seeded that way), and a feed that called it an outage would disagree
+  // with the intake meter the site page draws directly above it.
+  const startedBecause =
+    (seed.startReason ?? 'OUTAGE') === 'TEST'
+      ? 'Engine started on test exercise'
+      : 'Engine started on utility outage';
+
   const head: Array<[GensetActivityKind, string, number]> =
     runState === 'FAULT'
       ? [
           ['FAULT', 'Low fuel pressure — engine shut down', staleMinutes],
-          ['START', 'Engine started on utility outage', staleMinutes + 96],
+          ['START', startedBecause, staleMinutes + 96],
         ]
       : runState === 'OFFLINE'
         ? [
             ['STOP', 'Controller stopped reporting', staleMinutes],
-            ['START', 'Engine started on schedule', staleMinutes + 240],
+            ['START', startedBecause, staleMinutes + 240],
           ]
         : runState === 'IDLE'
           ? [
               ['STOP', 'Engine stopped — utility restored', staleMinutes],
-              ['START', 'Engine started on utility outage', staleMinutes + 174],
+              ['START', startedBecause, staleMinutes + 174],
             ]
           : [
-              ['START', 'Engine started on utility outage', staleMinutes + 42],
+              ['START', startedBecause, staleMinutes + 42],
               ['STOP', 'Engine stopped — utility restored', staleMinutes + 1_290],
             ];
 
@@ -137,6 +166,9 @@ const buildFleet = (): Array<Genset> => {
     tag: seed.tag,
     model: seed.model,
     runState: seed.runState,
+    // The seed's default. Resolved here rather than left optional on `Genset`, so
+    // no reader has to know that a missing reason means an outage.
+    startReason: seed.startReason ?? 'OUTAGE',
     fuelLitres: seed.fuelLitres,
     fuelCapacityLitres: seed.fuelCapacityLitres,
     siteId: seed.siteId,

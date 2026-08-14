@@ -97,9 +97,9 @@ export const GensetHome = ({
           </div>
         ) : (
           <p className="max-w-xs pt-6 text-sm text-secondary">
-            {detail.online
-              ? 'Live readings appear here while the engine is turning. This genset is stopped.'
-              : 'No live readings — this controller has stopped reporting.'}
+            {genset.runState === 'OFFLINE'
+              ? 'No live readings — this panel has stopped reporting.'
+              : 'Live readings appear here while the engine is turning. This genset is stopped.'}
           </p>
         )}
       </div>

@@ -53,9 +53,16 @@ const ReadingRow = ({
  * One alert, with the reading that tripped it inside the same card.
  *
  * The card is what pairs them. An alert list on its own is a list of adjectives;
- * putting the number in the box with the name is what turns "Warning ·
- * Undervoltage" into a claim you can check, and the threshold underneath says
- * what the rule actually is.
+ * putting the number in the box with the name is what turns "Warning · AL Battery
+ * Voltage" into a claim you can check, and the threshold underneath says what the
+ * rule actually is.
+ *
+ * The badge reads the register map's own protection class — `Shutdown Alarm`
+ * rather than `Critical` — while keeping the severity's colour. The colour is what
+ * ties a card to the chip row above it; the word is what tells the reader whether
+ * the panel stopped the engine or opened the breaker, which the three severities
+ * cannot say on their own. Roll-up bits arrive with no reading, so the card is the
+ * name and the rule and nothing underneath.
  */
 const AlertCard = ({alert, reading}: {alert: GensetAlert; reading: Reading | undefined}) => {
   const meta = SEVERITY_META[alert.severity];
@@ -65,7 +72,7 @@ const AlertCard = ({alert, reading}: {alert: GensetAlert; reading: Reading | und
       <div className="flex flex-wrap items-center gap-3.5">
         <Badge variant="element" size="md" className="border-subtle">
           <BellIcon className={meta.textClassName} aria-hidden="true" />
-          {meta.label}
+          {alert.type}
         </Badge>
         <p className="text-base font-medium text-primary">{alert.name}</p>
         <p className="ml-auto text-xs text-tertiary">
@@ -114,8 +121,14 @@ export const AlertsSection = ({
   const conditionMeta = CONDITION_META[condition];
   const ConditionIcon = conditionMeta.icon;
 
+  // Keyed by reading, so a tag can pull in the alarms on the readings it lists.
+  // The roll-up bits (`AL Common Sd`, `Sd Override`) have no reading and so appear
+  // under no tag — correctly: a tag is a set of readings, and an alarm about the
+  // panel's state is not filed under a measurement. They still show under the
+  // severity chips, which is where "what is wrong" gets asked.
   const alertsByKey = new Map<string, Array<GensetAlert>>();
   for (const alert of alerts) {
+    if (alert.readingKey === null) continue;
     alertsByKey.set(alert.readingKey, [...(alertsByKey.get(alert.readingKey) ?? []), alert]);
   }
 
@@ -265,7 +278,7 @@ export const AlertsSection = ({
                 <AlertCard
                   key={alert.id}
                   alert={alert}
-                  reading={readings[alert.readingKey]}
+                  reading={alert.readingKey === null ? undefined : readings[alert.readingKey]}
                 />
               ))}
 

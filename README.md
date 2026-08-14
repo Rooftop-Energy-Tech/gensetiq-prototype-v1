@@ -38,10 +38,12 @@ Any email and password gets you in.
 | Gensets — list | `/gensets?view=list` | 24 units, sortable by attention (faults first). |
 | Gensets — map | `/gensets?view=map` | Real MapLibre map with live clustering. |
 | Genset home | `/gensets/<id>` | The genset's own page: run + fuel, controls + live gauges, alerts. All 24 units have one. |
-| Analysis / Runs / Alarms / Equipment / Settings | `/gensets/<id>/runs`, … | Named in the design's tab strip but not drawn — labelled placeholders so the strip isn't dead. |
-| Sites — list | `/sites` | 17 sites, worst coverage first. Not a Figma frame — see [below](#the-sites-list-is-not-in-the-design). |
+| Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
+| Runs / Alarms / Equipment / Settings | `/gensets/<id>/runs`, … | Named in the design's tab strip but not drawn — labelled placeholders so the strip isn't dead. |
+| Sites — list | `/sites` | 17 sites, worst condition first. Not a Figma frame — see [below](#the-sites-list-is-not-in-the-design). |
 | Site home | `/sites/<id>` | Matches the Figma frame: the site's single-line diagram, then one row per genset with its run and its controls. All 17 sites have one. |
-| Runs / Alarms / Contract / Settings | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
+| Site settings | `/sites/<id>/settings` | Whether the site is fed by mains with the gensets as backup, or by the gensets alone. Not a Figma frame — see [below](#the-power-role-is-not-in-the-design). |
+| Runs / Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
 | Deployment / Refuel / Settings | `/deployment`, … | Named in the sidebar but not designed — same treatment. |
 
 Getting from the fleet into a genset: click its **name** in the list, or the `→`
@@ -56,6 +58,9 @@ through it:
 /gensets?view=map&q=selangor&id=brf9540&panel=true
 /gensets/brf9540?tag=coolant          # home page, coolant readings showing
 /gensets/brf9540?severity=critical    # home page, filtered to criticals
+/gensets/brf9540/analysis?keys=coolant-temp,oil-pressure&window=7d
+/gensets/brf9540/analysis?from=2026-07-20&to=2026-08-05
+/gensets/brf9540/analysis?run=brf9540-run-3           # one run, end to end
 /sites?q=senai                        # sites list, filtered
 /sites/telco-001                      # the site page the Figma frame draws
 ```
@@ -73,7 +78,8 @@ src/
 ├── layouts/           AuthenticatedLayout — the 94px rail + canvas shell
 ├── modules/
 │   ├── auth/          localStorage stand-in for a session
-│   ├── genset/        types, mock data, fleet screens, and detail/ for the home page
+│   ├── genset/        types, mock data, fleet screens, and detail/ for the
+│   │                  home page and detail/analysis/ for the chart
 │   └── site/          the sites list, the site page, and the single-line diagram
 ├── routes/            file-based TanStack Router tree
 └── styles/            colors.ts (token source of truth) + styles.css
@@ -256,11 +262,11 @@ Five departures, in order of how much they matter.
    has not measured anything at a machine it cannot reach. Additive only: the boxes
    keep their designed 88 × 74 and the captions sit in the 64px gap between them.
 
-5. **The top band's empty left half became the site's verdict.** The frame gave the
-   band a 1300px width with a 399px diagram and nothing else in it, while the one
-   question a site page exists to answer — *is this load covered* — was not on the
-   page at all. The first column now holds coverage, installed capacity and fuel on
-   site: site-level facts, none of which any genset row below can state.
+5. **The top band's empty left half became the site's figures.** The frame gave the
+   band a 1300px width with a 399px diagram and nothing else in it. The first column
+   now holds what is feeding the load, installed capacity and fuel on site:
+   site-level facts, none of which any genset row below can state. It is figures
+   only — there is no site-level status roll-up, by design.
 
 6. **Nothing in the band or the rows is boxed.** The refined frame drops the strokes
    from the diagram card and from both genset rows, and separates the band from the
@@ -275,6 +281,66 @@ Five departures, in order of how much they matter.
    exported for the same reason the gauges are: Figma ships four variants of it, and
    a bitmap per state per genset count is not a component.
 
+### The power role is not in the design
+
+The Figma draws a site as gensets, isolators, a bus and a load — and **no mains
+supply**, at any site. That is a gap rather than a statement: the product is standby
+power, so a page about backing something up that never draws the thing being backed
+up is missing its subject, and every site is left looking as though nothing else feeds
+it.
+
+So a site declares how it is fed, on its Settings tab, and the diagram follows:
+
+- **Backup to mains** (the default, and what the whole app assumed before this) — a
+  `MAINS` source above the gensets, on its own transfer contactor, onto the same bus.
+- **Main power source** — no incomer. The diagram is exactly what the frame draws.
+
+Five things worth knowing, in order of how much they matter.
+
+1. **It is a display choice, and only a display choice.** It selects a layout. The
+   isolator rules, the changeover, the default duty set and every control pad are
+   untouched by it, which is why there is no state to reset when it changes. A control
+   that redrew a diagram *and* quietly changed which sets could take load would be two
+   operations wearing one label, and the second would be a command this prototype has
+   no business issuing.
+
+   The honest cost of holding that line: a set's activity feed is the **machine's**
+   history, so at a site declared `PRIME` it may still read "Engine started on utility
+   outage". The role redraws the yard; it does not rewrite what the controllers did.
+
+2. **Mains health is metered, not inferred.** The first version of this derived it from
+   the gensets — "a set is running, so the grid must be down" — and that is wrong for
+   the case that matters most: a set on a **test exercise** runs beside a perfectly
+   healthy grid, and inferring a failure from it reports an outage at a site that never
+   had one. So a genset carrying the load and a failed grid are two facts, and the
+   diagram states both: `off-load` under a healthy mains that isn't carrying, `failed`
+   under a dead one. `SPG2093` and `SRB6644` are pinned to `TEST` so the fleet actually
+   contains the case — see `mfg-015`.
+
+   That is also why `Genset.startReason` was added. The meter reading is *derived* from
+   it rather than seeded beside it, because two independent givens could disagree, and
+   the disagreement would land on exactly this case.
+
+3. **`0 kW` is still never printed.** The mains gets the same treatment the gensets
+   already had — a word, not a measurement, when it isn't carrying — and the `LOAD`
+   node now reads `not served` only when *nothing* is feeding. On a standby site with
+   the grid up, the site's draw is the meter's figure. Reading "0 of 2 feeding" over a
+   site running perfectly well on the grid was alarm-shaped where no alarm existed, so
+   the badge reads `On mains` / `On generator` there, and keeps `1 of 2 feeding` at a
+   prime site, where counting the sets is the useful fact.
+
+4. **Conductors are painted dead-first.** Every source elbows onto the bus riser and
+   runs along it to the tap, so with three or more sources those segments overlap — and
+   in document order a dead genset could paint a grey stub over the live mains riser
+   above it, leaving a conductor that appears to go dead halfway to the load. Ordering
+   by state rather than position makes that unrepresentable. Today's mock data cannot
+   reach it; one seed change can.
+
+5. **The setting lives in `localStorage`,** overrides only, keyed by site id. So a fresh
+   browser renders the designed screens, clearing site data restores them, and a
+   colleague opening the same site sees the default. It does not sync, and the page says
+   so rather than implying a server.
+
 ### The sites list is not in the design
 
 The Figma names `Sites` in the sidebar, draws one site's page, and gives that page
@@ -284,9 +350,80 @@ fleet table's own language (sticky 40px header, 52px rows, hairline rules) rathe
 than as a new pattern.
 
 Its columns are the site-level facts, in the order they get asked: where it is, is
-it covered, is anything wrong, what is standing there, does it need a tanker. Site
-draw is deliberately absent — it changes while you read the list, which makes it a
+anything wrong, what is standing there, does it need a tanker. Site draw is
+deliberately absent — it changes while you read the list, which makes it a
 detail-page figure.
+
+### The analysis tab
+
+The Figma frame is the home page duplicated with three notes pasted over it:
+`number/value multiselect`, `date range or select by deployment/ run`, and `graph`
+in the middle of a full-width panel. That is a toolbar of two controls over one
+large chart, and the layout follows it exactly. Everything below is a decision the
+notes left open.
+
+**Two readings at a time, on two axes.** Readings have incompatible units, so a
+third series would either share a scale that fits neither or force everything onto
+a percentage of its own range, at which point the numbers stop being numbers. Teal
+takes the left axis, violet the right, and the colour is the only thing tying a
+trace to its scale — the picker chips are the legend.
+
+**The picker offers trends and nothing else.** `Engine hours` only climbs,
+`Mains outages (30 d)` is already an aggregate over a window, and `Crank time` is
+measured once per start. Each reading carries a `kind`, and only `instantaneous`
+ones are offered — see `types/telemetry.type.ts`.
+
+**A stopped engine is a gap, not a zero.** Oil pressure and phase current are
+properties of a machine in motion; a parked set does not have a low one, it has
+none. The trace breaks over those periods and the runs behind it are shaded, so
+the break is explained rather than looking like missing data. This is also why
+selecting a *run* is the most useful range: it is the only window over which every
+reading on the machine is defined.
+
+**Thresholds are drawn.** `AlertRule` now carries a numeric `limit` and a
+comparator, and its prose (`< 24 V`) is derived from them rather than typed beside
+them. The chart draws the limit on that series' own axis and marks where the trace
+crossed it, which is the thing that makes this tab an argument rather than a
+prettier gauge.
+
+**The history is invented, but consistently.** There is no time-series API, so
+`data/history.ts` generates one — and the generator is the interesting part, not
+the chart. Every series is built *backwards* from the value `detail.ts` already
+publishes and eased onto it at the right-hand edge, so the last point on the chart
+and the reading on the home page are the same number. The run log's newest entry
+**is** `detail.run`, not a copy. Fuel level is integrated from the burn rate over
+a fixed grid rather than wobbled around a mean, so its slope is a real quantity.
+Noise is a ladder of octaves from eight days down to seven minutes, each faded out
+once the window's bucket is too coarse to resolve it — so zooming in reveals
+detail instead of replacing the picture.
+
+**Three ways to pick a window, sharing one precedence.** A preset
+(`24 hours / 7 days / 30 days`) is anchored to now. A **custom range** is two
+local calendar dates, `?from=2026-07-20&to=2026-08-05`, resolved to the start of
+the first day and the end of the last — so a single-day pick is that whole day
+rather than a zero-width window. A **run** is anchored to an event. Each control
+clears the other two, so the contradiction is not normally reachable; the URL can
+still express it, and `analysisRange()` resolves run over custom over preset in
+one place rather than three components agreeing not to conflict.
+
+The calendar is hand-built (`analysis/RangeCalendar.tsx`) for the same reason the
+chart is — two months of buttons against a dependency that arrives with its own
+theming to override. It clamps to `historyStart()`, the layer's own 60-day
+horizon: selecting a February that would come back flat would read as "the machine
+did nothing" rather than "we do not hold this".
+
+**The one thing the notes ask for that is not built.** There is no *deployment*
+selector: a deployment is a period a genset was installed somewhere, and the model
+has no such concept — `Genset` carries one `siteId` with no history, so there is
+nothing to select, and a picker over a relationship the data cannot express would
+filter nothing while looking authoritative.
+
+**One knock-on change to the home page.** Extending `engineOnly` to every reading
+that exists only in motion means a stopped set now reports `0 V` line voltage and
+`0.0 Hz` alongside its `0 kW`, where before only speed, power and oil pressure
+were zeroed. Without it the chart would break the line for a parked set while the
+home page showed it a healthy 405 V — the two screens have to agree about what a
+stopped machine reports.
 
 ## Caveats
 
@@ -300,11 +437,28 @@ detail-page figure.
   `data/detail.ts` derives the home page from those givens; per-unit variation is
   a hash of the genset's id, not `Math.random()`, so a unit looks identical on
   every render and every reload.
+- **History is invented too.** `data/detail.ts` publishes one number per reading;
+  `data/history.ts` generates the run log and the series behind the analysis tab
+  from the same hash, working *backwards* from those numbers so the chart's
+  right-hand edge and the home page always agree. It is not a recording — but it
+  is internally consistent all the way down, which is what makes the screen worth
+  reviewing.
 - **Sites are derived, not mocked.** `modules/site/data/sites.ts` seeds only a
   site's identity — its name and the kind of load it carries. Its membership comes
   from the gensets naming it, its placename and position from those gensets, and
   its draw, capacity, fuel and condition are summed or ranked from them. Change a
   genset's `siteId` in `fleet.ts` and every site figure follows.
+
+  The **intake meter** follows the same rule: a yard's mains is dead exactly when some
+  set there is out on an unfinished outage run, so `startReason` in `fleet.ts` is the
+  only given behind it and the meter cannot contradict a set's activity feed. The
+  magnitude is a hash of the site id against installed capacity. All 17 sites carry a
+  reading, including any declared `PRIME`, where it simply goes undrawn — which is what
+  lets the settings page preview the standby layout without inventing a figure.
+- **The power role is browser-local.** `modules/site/data/siteConfig.ts` is the one
+  thing in the site module that is neither seeded nor derived, so it cannot live in
+  `sites.ts` — that file is built once at module load. It is `localStorage`, overrides
+  only, and it is not a settings API.
 - **`BRF9540`'s Figma frames disagree.** The list frame puts it at 1,763 L of
   2,450 in Petaling Jaya; the home-page and site frames say 1,623 L of 2,300 in
   Senai, Johor. `fleet.ts` keeps the list frame's values, so both detail pages

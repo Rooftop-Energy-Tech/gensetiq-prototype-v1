@@ -9,6 +9,24 @@ export type RunState = (typeof RUN_STATES)[number];
 
 export type GensetActivityKind = 'START' | 'STOP' | 'REFUEL' | 'FAULT' | 'SERVICE';
 
+/**
+ * Why this unit's run began — the controller's own reason for cranking.
+ *
+ * Two, and the distinction is the difference between an incident and a scheduled
+ * chore:
+ *
+ * - `OUTAGE` — the mains failed and the controller picked the load up. The site
+ *   is on generator because it has to be.
+ * - `TEST` — a periodic exercise. Standby plant that is never run seizes, so it is
+ *   started deliberately on a schedule, beside a perfectly healthy grid.
+ *
+ * It lives on the genset because starting is something a *controller* does, and it
+ * is what lets the site page's intake meter agree with this unit's activity feed:
+ * a set running on `TEST` cannot be drawn as evidence of a mains failure, which is
+ * precisely the wrong answer an earlier version of the site diagram gave.
+ */
+export type StartReason = 'OUTAGE' | 'TEST';
+
 export type GensetActivity = {
   id: string;
   kind: GensetActivityKind;
@@ -24,6 +42,14 @@ export type Genset = {
   /** e.g. `Cummins 1000 kVa`. */
   model: string;
   runState: RunState;
+  /**
+   * Why the current run started — or, on a stopped unit, why the last one did.
+   *
+   * Always present rather than optional-when-idle: every unit in the log has been
+   * started by something, and a nullable field here would push the "we don't know"
+   * case onto every reader for a fact that is never actually unknown.
+   */
+  startReason: StartReason;
   fuelLitres: number;
   fuelCapacityLitres: number;
   /**

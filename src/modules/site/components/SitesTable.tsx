@@ -4,10 +4,8 @@ import {Badge} from '@/components/ui/badge';
 import {fuelHeadline} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
-import {coverageOf} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 import {SITE_KIND_LABEL} from '../data/sites';
-import {COVERAGE_META} from './coverageMeta';
 
 /**
  * The sites list — not a frame in the design, which names `Sites` in the sidebar
@@ -20,24 +18,23 @@ import {COVERAGE_META} from './coverageMeta';
  * two lists answer the same shape of question about different objects.
  *
  * The columns are the site-level facts, in the order they get asked: *where is
- * it*, *is it covered*, *is anything wrong*, *what is standing there*, *does it
- * need a tanker*. Site draw is deliberately not among them — it is instantaneous
- * and changes while you read the list, which makes it a detail-page figure.
+ * it*, *is anything wrong*, *what is standing there*, *does it need a tanker*.
+ * Site draw is deliberately not among them — it is instantaneous and changes
+ * while you read the list, which makes it a detail-page figure.
  */
 const COLUMNS = [
-  {label: 'Site', width: '20%'},
-  {label: 'Location', width: '20%'},
-  {label: 'Coverage', width: '13%'},
-  {label: 'Condition', width: '13%'},
-  {label: 'Gensets', width: '16%'},
-  {label: 'Fuel on site', width: '18%'},
+  {label: 'Site', width: '22%'},
+  {label: 'Location', width: '24%'},
+  {label: 'Condition', width: '15%'},
+  {label: 'Gensets', width: '18%'},
+  {label: 'Fuel on site', width: '21%'},
 ] as const;
 
 export const SitesTable = ({summaries}: {summaries: Array<SiteSummary>}) => (
   <div className="h-full overflow-auto">
     <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
       <caption className="sr-only">
-        Sites, with coverage, condition, the gensets installed and fuel on site
+        Sites, with condition, the gensets installed and fuel on site
       </caption>
       <colgroup>
         {COLUMNS.map((column) => (
@@ -59,8 +56,6 @@ export const SitesTable = ({summaries}: {summaries: Array<SiteSummary>}) => (
       </thead>
       <tbody>
         {summaries.map((summary) => {
-          const coverage = COVERAGE_META[coverageOf(summary)];
-          const CoverageIcon = coverage.icon;
           const condition = CONDITION_META[summary.condition];
           const ConditionIcon = condition.icon;
 
@@ -84,12 +79,6 @@ export const SitesTable = ({summaries}: {summaries: Array<SiteSummary>}) => (
               </td>
               <td className="h-13 truncate border-b border-subtle p-2 text-primary">
                 {summary.site.locationLabel}
-              </td>
-              <td className="h-13 border-b border-subtle p-2">
-                <Badge variant="secondary">
-                  <CoverageIcon className={coverage.textClassName} aria-hidden="true" />
-                  {coverage.label}
-                </Badge>
               </td>
               <td className="h-13 border-b border-subtle p-2">
                 <Badge variant="secondary">

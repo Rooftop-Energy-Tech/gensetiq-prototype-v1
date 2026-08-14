@@ -28,28 +28,6 @@ export const relativeTime = (iso: string, now: number = Date.now()): string => {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 };
 
-/**
- * "3 mins" / "2 hrs" / "4 days" — telemetry age, without the "ago".
- *
- * The genset home page's connectivity badge reads `Online  |  3 mins`, where the
- * pipe already supplies the relationship. `relativeTime()` above would put a
- * second one in with "ago" and make the badge two words too long for its 24px
- * pill.
- */
-export const age = (iso: string, now: number = Date.now()): string => {
-  const elapsed = Math.max(0, now - new Date(iso).getTime());
-
-  if (elapsed < MINUTE) return 'live';
-
-  const [count, unit] =
-    elapsed < HOUR
-      ? [Math.floor(elapsed / MINUTE), 'min']
-      : elapsed < DAY
-        ? [Math.floor(elapsed / HOUR), 'hr']
-        : [Math.floor(elapsed / DAY), 'day'];
-
-  return `${count} ${unit}${count === 1 ? '' : 's'}`;
-};
 
 /** "1763L (72%)" — litres remaining plus the percentage of tank capacity. */
 export const fuelLevel = (litres: number, capacityLitres: number): string => {
@@ -102,6 +80,46 @@ export const stampAt = (iso: string): string => {
   const at = new Date(iso);
   const minute = String(at.getMinutes()).padStart(2, '0');
   return `${at.getHours()}:${minute} ${at.getDate()} ${MONTHS[at.getMonth()]} ${at.getFullYear()}`;
+};
+
+/**
+ * "8:09" — an axis tick, or the head of the chart's hover readout.
+ *
+ * Unpadded hour to match `stampAt` above; a chart whose ticks read "08:09" beside
+ * a run card reading "8:09" looks like two different clocks.
+ */
+export const clockTime = (at: number | string): string => {
+  const time = new Date(at);
+  return `${time.getHours()}:${String(time.getMinutes()).padStart(2, '0')}`;
+};
+
+/** "9 Aug" — an axis tick on a window too wide to label by the hour. */
+export const dayMonth = (at: number | string): string => {
+  const day = new Date(at);
+  return `${day.getDate()} ${MONTHS[day.getMonth()]}`;
+};
+
+/**
+ * "1–7 Aug 2026", "28 Jul – 3 Aug 2026", "28 Dec 2025 – 3 Jan 2026".
+ *
+ * Says each part exactly once. Repeating the month across a range that stays
+ * inside one, or the year across a range that stays inside one, makes the chip
+ * twice as wide to carry the same fact — and the reader is scanning it to check
+ * a span, not to read a sentence.
+ */
+export const dateRange = (from: number, to: number): string => {
+  const start = new Date(from);
+  const end = new Date(to);
+
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `${dayMonth(from)} ${start.getFullYear()} – ${dayMonth(to)} ${end.getFullYear()}`;
+  }
+  if (start.getMonth() !== end.getMonth()) {
+    return `${dayMonth(from)} – ${dayMonth(to)} ${end.getFullYear()}`;
+  }
+  if (start.getDate() === end.getDate()) return `${dayMonth(from)} ${end.getFullYear()}`;
+
+  return `${start.getDate()}–${dayMonth(to)} ${end.getFullYear()}`;
 };
 
 /** "01 Jul 2026" — a date with no time of day, e.g. "Refuel by". */

@@ -19,11 +19,29 @@ import type {AlertSeverity, GensetCondition} from '../../types/alert.type';
  */
 export const SEVERITY_META: Record<
   AlertSeverity,
-  {label: string; textClassName: string}
+  {label: string; textClassName: string; strokeClassName: string; fillClassName: string}
 > = {
-  CRITICAL: {label: 'Critical', textClassName: 'text-severity-critical'},
-  WARNING: {label: 'Warning', textClassName: 'text-severity-warning'},
-  NEUTRAL: {label: 'Neutral', textClassName: 'text-primary'},
+  CRITICAL: {
+    label: 'Critical',
+    textClassName: 'text-severity-critical',
+    // The SVG pair, for the analysis chart's threshold lines. Tailwind resolves
+    // `stroke-*` and `fill-*` from the same token as `text-*`, so an alarm line
+    // and its caption cannot end up different shades of the same red.
+    strokeClassName: 'stroke-severity-critical',
+    fillClassName: 'fill-severity-critical',
+  },
+  WARNING: {
+    label: 'Warning',
+    textClassName: 'text-severity-warning',
+    strokeClassName: 'stroke-severity-warning',
+    fillClassName: 'fill-severity-warning',
+  },
+  NEUTRAL: {
+    label: 'Neutral',
+    textClassName: 'text-primary',
+    strokeClassName: 'stroke-primary',
+    fillClassName: 'fill-primary',
+  },
 };
 
 /**

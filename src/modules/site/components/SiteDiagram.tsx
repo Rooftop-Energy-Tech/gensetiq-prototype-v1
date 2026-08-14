@@ -1,12 +1,13 @@
-import {BoomBoxIcon, FactoryIcon} from 'lucide-react';
+import {BoomBoxIcon, FactoryIcon, UtilityPoleIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import type {RunState} from '@/modules/genset/types/genset.type';
 
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import {isolatorStateOf} from '../types/site.type';
-import {dutyMember, siteDrawKw} from '../data/sites';
+import {isolatorStateOf, mainsContactorStateOf} from '../types/site.type';
+import type {MainsSupply, SitePowerRole, SwitchState} from '../types/site.type';
+import {siteFeed} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 
 /**
@@ -44,6 +45,20 @@ import type {SiteSummary} from '../data/sites';
  *
  * Both are additive. The boxes keep their designed 88 × 74 and the captions sit in
  * the 64px gap between them.
+ *
+ * ## The mains
+ *
+ * A `STANDBY` site draws a **mains source above its gensets**, on its own contactor,
+ * onto the same bus. The frame has no such node — it draws only gensets, which
+ * quietly makes every site look like it has nothing else feeding it — and a page
+ * about *backup* power that never shows what is being backed up is missing its
+ * subject.
+ *
+ * It costs no new geometry, and that is the argument for putting it in this column
+ * rather than opposite the gensets: a transfer switch **is** a changeover between
+ * two sources onto one bus, so the mains is a source row like any other and every
+ * measurement above applies to it unchanged. A `PRIME` site has no incomer and draws
+ * exactly what it drew before this existed.
  */
 
 // ─── The design's measurements ───────────────────────────────────────────────
@@ -293,43 +308,147 @@ const powerLabel = (runState: RunState, live: boolean, loadKw: number | null): s
   return 'unavailable';
 };
 
+/**
+ * The same sentence for the grid, in the same three words where they apply.
+ *
+ * `off-load` is doing real work here and it is the reason this whole file changed.
+ * A healthy incomer sitting behind a set that has the load is **off-load** — present,
+ * fine, not carrying — and that is the picture of a **test run**. `failed` is the
+ * other case, and the two must never be drawn the same way: one is a chore somebody
+ * scheduled, the other is why the site is on diesel.
+ */
+const mainsPowerLabel = (mains: MainsSupply, carrying: boolean): string => {
+  if (carrying && mains.drawKw !== null) return amount(mains.drawKw, 'kW');
+  return mains.live ? 'off-load' : 'failed';
+};
+
+/**
+ * One row of the diagram: a box, its switch, and its run onto the bus.
+ *
+ * The mains and a genset differ in exactly three things a reader can see — the
+ * glyph, the two caption lines, and where the switch stands — so they are one shape
+ * here rather than two branches through the render. Everything geometric is shared
+ * by construction, which is what guarantees a conductor cannot land in mid-air on
+ * one kind of source and not the other.
+ */
+type DiagramSource = {
+  key: string;
+  icon: LucideIcon;
+  /** The word inside the box — `MAINS` or `GENSET`, as the design writes them. */
+  label: string;
+  /** First caption line: which supply or which asset this is. */
+  caption: string;
+  /** Second caption line: what it is putting into the bus. */
+  power: string;
+  switchState: SwitchState;
+};
+
+/**
+ * Every source feeding this site's bus, top to bottom.
+ *
+ * Mains first, and not arbitrarily: at a standby site it is the *normal* supply and
+ * the gensets are what sit under it waiting. Reading the column downwards then
+ * follows the order the site actually uses its sources in.
+ */
+const sourcesOf = (
+  summary: SiteSummary,
+  dutyId: string | undefined,
+  role: SitePowerRole,
+): Array<DiagramSource> => {
+  const gensetCarrying = siteFeed(summary, dutyId, role).source === 'GENSET';
+
+  const gensets: Array<DiagramSource> = summary.gensets.map(({genset, detail}) => {
+    const switchState = isolatorStateOf(genset.runState, genset.id === dutyId);
+    return {
+      key: genset.id,
+      icon: BoomBoxIcon,
+      label: 'GENSET',
+      caption: genset.tag,
+      power: powerLabel(genset.runState, switchState.live, detail.loadKw),
+      switchState,
+    };
+  });
+
+  if (role === 'PRIME') return gensets;
+
+  return [
+    {
+      key: 'mains',
+      icon: UtilityPoleIcon,
+      label: 'MAINS',
+      caption: 'Grid supply',
+      power: mainsPowerLabel(summary.mains, mainsContactorStateOf(summary.mains, gensetCarrying).live),
+      switchState: mainsContactorStateOf(summary.mains, gensetCarrying),
+    },
+    ...gensets,
+  ];
+};
+
 // ─── The diagram ─────────────────────────────────────────────────────────────
 
 export const SiteDiagram = ({
   summary,
   /** The set the changeover has on the bus. Drives every isolator in the drawing. */
   dutyId,
+  /**
+   * `STANDBY` draws the mains above the gensets; `PRIME` draws gensets alone.
+   *
+   * Passed in rather than read from the config store here, so this stays a pure
+   * function of its inputs — which is what lets the settings page render it twice,
+   * once per role, as a live preview of a choice not yet made.
+   */
+  role,
 }: {
   summary: SiteSummary;
   dutyId: string | undefined;
+  role: SitePowerRole;
 }) => {
-  const {gensets} = summary;
-  const count = Math.max(1, gensets.length);
-  const drawKw = siteDrawKw(summary, dutyId);
+  const sources = sourcesOf(summary, dutyId, role);
+  const count = Math.max(1, sources.length);
+  const feed = siteFeed(summary, dutyId, role);
 
-  /** Centreline of genset `index` — where its conductor leaves the box. */
+  /** Centreline of source `index` — where its conductor leaves the box. */
   const centreline = (index: number) => index * PITCH + NODE_H / 2;
-  // The load taps the bus at the midpoint of the sets feeding it, which is what
-  // puts a single-genset site's load on the same line as its genset and keeps a
-  // two-set site's symmetric — the design's arrangement in both cases.
+  // The load taps the bus at the midpoint of the sources feeding it, which is what
+  // puts a single-source site's load on the same line as its source and keeps a
+  // two-source site's symmetric — the design's arrangement in both cases.
   const busY = (centreline(0) + centreline(count - 1)) / 2;
 
   const height = (count - 1) * PITCH + NODE_H + CAPTION;
-  const anyLive = gensets.some(
-    ({genset}) => isolatorStateOf(genset.runState, genset.id === dutyId).live,
-  );
+  const anyLive = sources.some((source) => source.switchState.live);
+
+  /**
+   * The sources in **paint order: every dead run first, then every live one.**
+   *
+   * Not cosmetic. Each source elbows onto the bus riser at `BUS_X` and then runs
+   * along it to the tap at `busY`, so with three or more sources those riser
+   * segments *overlap* — an outer source's run passes straight through the stretch
+   * an inner one occupies. In document order the later source wins, which means a
+   * dead genset can paint a grey stub over the live mains riser above it and leave
+   * the drawing showing a conductor that goes dead halfway to the load.
+   *
+   * Ordering by state instead of position makes that unrepresentable: a dead run can
+   * never obscure a live one, whatever the source count or which of them is
+   * carrying. The `y` is captured from the original index first, because paint order
+   * must not move a box.
+   */
+  const rows = sources
+    .map((source, index) => ({source, y: centreline(index)}))
+    .sort((left, right) => Number(left.source.switchState.live) - Number(right.source.switchState.live));
 
   return (
     <div
       className="relative shrink-0"
       style={{width: WIDTH, height}}
       role="img"
-      aria-label={`${summary.site.name} single-line diagram: ${gensets.length} genset${
-        gensets.length === 1 ? '' : 's'
-      }, ${
-        drawKw === null
-          ? 'none feeding the load'
-          : `${dutyMember(summary, dutyId)?.genset.tag} feeding the load at ${amount(drawKw, 'kW')}`
+      aria-label={`${summary.site.name} single-line diagram: ${
+        role === 'STANDBY' ? 'mains supply and ' : ''
+      }${summary.gensets.length} genset${summary.gensets.length === 1 ? '' : 's'}, ${
+        feed.source === 'GENSET'
+          ? `${summary.gensets.find(({genset}) => genset.id === feed.gensetId)?.genset.tag} feeding the load at ${amount(feed.drawKw, 'kW')}`
+          : feed.source === 'MAINS'
+            ? `on mains at ${amount(feed.drawKw, 'kW')}`
+            : 'nothing feeding the load'
       }`}
     >
       <svg
@@ -339,13 +458,12 @@ export const SiteDiagram = ({
         className="absolute inset-0 overflow-visible"
         aria-hidden="true"
       >
-        {gensets.map(({genset}, index) => {
-          const y = centreline(index);
-          const {closed, live} = isolatorStateOf(genset.runState, genset.id === dutyId);
+        {rows.map(({source, y}) => {
+          const {closed, live} = source.switchState;
 
           return (
-            <g key={genset.id}>
-              {/* Genset → isolator. */}
+            <g key={source.key}>
+              {/* Source → switch. */}
               <Conductor
                 points={[
                   [NODE_W, y],
@@ -356,8 +474,8 @@ export const SiteDiagram = ({
 
               <Isolator y={y} closed={closed} live={live} />
 
-              {/* Isolator → bus, as the design's elbow: out, then along the
-                  riser to the tap. An open isolator's run is drawn dead all the
+              {/* Switch → bus, as the design's elbow: out, then along the
+                  riser to the tap. An open switch's run is drawn dead all the
                   way, because nothing past a lifted blade is energised. */}
               <Conductor
                 points={[
@@ -390,23 +508,19 @@ export const SiteDiagram = ({
         />
       </svg>
 
-      {gensets.map(({genset, detail}, index) => {
-        const {live} = isolatorStateOf(genset.runState, genset.id === dutyId);
-
-        return (
-          <Node
-            key={genset.id}
-            icon={BoomBoxIcon}
-            label="GENSET"
-            caption={genset.tag}
-            power={powerLabel(genset.runState, live, detail.loadKw)}
-            powered={live}
-            live={live}
-            x={0}
-            y={index * PITCH}
-          />
-        );
-      })}
+      {sources.map((source, index) => (
+        <Node
+          key={source.key}
+          icon={source.icon}
+          label={source.label}
+          caption={source.caption}
+          power={source.power}
+          powered={source.switchState.live}
+          live={source.switchState.live}
+          x={0}
+          y={index * PITCH}
+        />
+      ))}
 
       <Node
         icon={FactoryIcon}
@@ -415,7 +529,7 @@ export const SiteDiagram = ({
         // nothing feeding it, this is not "0 kW" — that would read as a load that
         // has gone away, when in fact it is a load nobody is currently serving.
         caption="Site draw"
-        power={drawKw === null ? 'not served' : amount(drawKw, 'kW')}
+        power={feed.source === 'NONE' ? 'not served' : amount(feed.drawKw, 'kW')}
         powered={anyLive}
         x={LOAD_X}
         y={busY - NODE_H / 2}
