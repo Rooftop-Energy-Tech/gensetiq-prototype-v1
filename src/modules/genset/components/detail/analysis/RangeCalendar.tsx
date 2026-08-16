@@ -135,7 +135,7 @@ export const RangeCalendar = ({
         {WEEKDAYS.map((weekday) => (
           <span
             key={weekday}
-            className="flex h-6 items-center justify-center text-[10px] font-medium text-tertiary"
+            className="flex h-6 items-center justify-center text-[10px] font-medium text-secondary"
           >
             {weekday.charAt(0)}
           </span>
@@ -197,7 +197,7 @@ export const RangeCalendar = ({
           <span className="sr-only">Previous month</span>
         </button>
 
-        <p className="text-xs text-tertiary">
+        <p className="text-xs text-secondary">
           {anchor === undefined ? 'Pick a start date' : 'Pick an end date'}
         </p>
 

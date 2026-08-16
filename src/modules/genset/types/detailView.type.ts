@@ -52,9 +52,18 @@ export const alertFocus = (search: GensetHomeSearch): AlertFocus => {
   return {kind: 'none'};
 };
 
-/** The inverse — an `AlertFocus` back into search params, clearing the other. */
+/**
+ * The inverse — an `AlertFocus` back into search params, clearing the other.
+ *
+ * Both keys are always named, `undefined` included. The caller merges this over
+ * the current search, so a returned object that mentions only the selected kind
+ * leaves the other param behind — and since `alertFocus()` resolves that
+ * contradiction in favour of severity, a severity chip would stay selected no
+ * matter how many tags were clicked afterwards.
+ */
 export const alertFocusSearch = (focus: AlertFocus): GensetHomeSearch => {
-  if (focus.kind === 'severity') return {severity: SEVERITY_PARAM[focus.severity]};
-  if (focus.kind === 'tag') return {tag: focus.tagId};
+  if (focus.kind === 'severity')
+    return {severity: SEVERITY_PARAM[focus.severity], tag: undefined};
+  if (focus.kind === 'tag') return {severity: undefined, tag: focus.tagId};
   return {severity: undefined, tag: undefined};
 };

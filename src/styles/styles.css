@@ -195,7 +195,7 @@ body {
 
 /* Attribution — required by the tile terms, so it stays visible; just quiet. */
 .maplibregl-ctrl-attrib.maplibregl-compact {
-  @apply rounded-md bg-canvas/80 px-1.5 text-[10px] text-tertiary backdrop-blur-sm;
+  @apply rounded-md bg-canvas/80 px-1.5 text-[10px] text-secondary backdrop-blur-sm;
 }
 .maplibregl-ctrl-attrib a {
   @apply text-secondary no-underline;

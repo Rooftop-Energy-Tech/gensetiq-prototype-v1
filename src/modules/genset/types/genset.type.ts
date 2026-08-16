@@ -53,14 +53,23 @@ export type Genset = {
   fuelLitres: number;
   fuelCapacityLitres: number;
   /**
-   * The site this unit is installed at, e.g. `telco-001`.
+   * The site this unit is installed at, e.g. `telco-001` — or `null` when it is in
+   * the depot, owned but not deployed.
    *
-   * A genset is always at exactly one site — it is a machine bolted to a slab,
-   * and the site is the slab. The relationship is held here rather than as a list
-   * of members on the site so it cannot be half-stated: there is no way to
-   * express a unit at two sites, or at none.
+   * The relationship is held **here rather than as a member list on the site**, and
+   * that is the half of the old invariant still doing work: a unit can be at one
+   * site or no site, never two, and a site cannot claim a unit that does not exist.
+   * A hand-maintained list on the site gets both of those wrong eventually.
+   *
+   * The half deliberately given up is "never at no site". It was true only because
+   * nothing could move a machine; once a set can be detached, a depot is where it
+   * goes — and gensets genuinely exist before they are deployed and while they are
+   * away being serviced. Pretending otherwise would force every removal to be a
+   * transfer to somewhere it is not.
+   *
+   * `fleet.ts` seeds it. `deployment.ts` is what changes it.
    */
-  siteId: string;
+  siteId: string | null;
   /**
    * Human-readable placename, e.g. `Petaling Jaya, Selangor`.
    *

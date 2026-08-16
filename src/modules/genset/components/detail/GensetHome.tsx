@@ -3,7 +3,11 @@ import {useState} from 'react';
 import type {Genset} from '../../types/genset.type';
 import type {ControlMode} from '../../types/telemetry.type';
 import type {AlertFocus} from '../../types/detailView.type';
+import {serviceNotice} from '../../types/service.type';
 import type {GensetDetail} from '../../data/detail';
+import {useServiceStatus} from '../../data/services';
+import {gensetCondition, useFuelIntegrity} from '../../data/fuelIntegrity';
+import {fuelLeakNotice} from '../../types/fuelIntegrity.type';
 import {AlertsSection} from './AlertsSection';
 import {ControlPad} from './ControlPad';
 import {CurrentRunCard} from './CurrentRunCard';
@@ -30,6 +34,25 @@ import {TickGauge} from './TickGauge';
  * Bands 1 and 3 are always populated. Band 2 empties out when the engine stops,
  * which is why the gauges sit *after* the controls rather than before: the
  * controls are the part of that band that still matters on a stopped set.
+ *
+ * ## At phone width
+ *
+ * The bands survive intact and stack, which is the whole reason this page needed no
+ * mobile rewrite: **the reading order is already vertical.** The three bands are
+ * asked in sequence and the rules between them are what carry that, so a phone gets
+ * the same page in the same order with each band's row broken into a column.
+ *
+ * Every child keeps its designed size. The gauges are 153px and the phase bars
+ * 322px, both of which fit a 390px screen, and the diagram-plus-control-pad pair is
+ * a fixed 232 + 220 that has to stay side by side — the conductors in
+ * `PowerFlowDiagram` land on the boxes at fixed coordinates, so it is scrolled
+ * sideways rather than reflowed.
+ *
+ * `SiteDiagram` faces the same problem and answers it the other way, by scaling
+ * itself down to fit. The difference is what each half is made of: that one is all
+ * drawing, and shrinking it costs only type size, while the right half of this pair
+ * is four **tap targets** — and a control shrunk below a thumb is a worse outcome
+ * than a swipe.
  */
 export const GensetHome = ({
   genset,
@@ -60,25 +83,58 @@ export const GensetHome = ({
 
   const running = genset.runState === 'RUNNING';
 
+  // Live, not from `detail` — a service logged in this session has to move the
+  // reading in band 3 and clear the overdue notice without a reload. Measured
+  // against the same `now` as everything else on the page.
+  const service = useServiceStatus(genset.id, now);
+
+  // Live for the same reason: switching the alarm off, or moving its threshold,
+  // has to change band 1's verdict and band 3's list without a reload.
+  const integrity = useFuelIntegrity(genset.id, now);
+
   return (
-    <div className="flex flex-col gap-5 px-4 pb-6">
-      {/* Band 1 — the run and the tank. */}
-      <div className="flex flex-wrap items-stretch gap-6">
-        <div className="flex min-w-[560px] flex-1 items-center gap-2.5 p-3">
+    <div className="flex flex-col gap-5 px-4 pb-24 md:pb-6">
+      {/* Band 1 — the run and the tank.
+          A column below `md` rather than a wrapping row. Wrapping is what the desktop
+          band wants — two halves that break onto two lines when the window narrows —
+          but on a phone both halves *can* squeeze into one line once they are allowed
+          to shrink, and the result is two 170px columns with the labels truncated
+          away. The two questions are separate; at this width they are separate rows. */}
+      <div className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-stretch">
+        {/* The 560px floor is a desktop instruction — "keep the run beside the state
+            or wrap the whole band" — and on a 390px screen it is unsatisfiable, so
+            it would win over `flex-wrap` and push the page into a sideways scroll.
+            `min-w-0` replaces it below `md`: a flex item's automatic minimum is its
+            content's, so without it the run card's widest line — a timestamp that
+            must not wrap — becomes the floor for the whole band. */}
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
           <RunStateSummary runState={genset.runState} loadKw={detail.loadKw} />
           <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
         </div>
 
-        <FuelPanel genset={genset} fuel={detail.fuel} running={running} />
+        <FuelPanel
+          genset={genset}
+          fuel={detail.fuel}
+          running={running}
+          integrity={integrity}
+        />
       </div>
 
       <hr className="border-subtle" />
 
       {/* Band 2 — controls, the circuit they act on, and the live dials. */}
-      <div className="flex flex-wrap items-start gap-12 py-4">
-        <div className="flex shrink-0 items-center gap-8 rounded-xl">
-          <PowerFlowDiagram live={running} />
-          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
+      <div className="flex flex-wrap items-start gap-6 py-4 md:gap-12">
+        {/* Scrolled rather than wrapped: both halves are fixed-geometry drawings and
+            the pair is 484px, so on a phone it goes sideways in its own strip and
+            leaves the rest of the page scrolling vertically.
+            `min-w-0` is what keeps the strip *inside* the page: a flex item sizes to
+            its content by default, so without it the 484px drawing sets the width of
+            every ancestor and the whole page scrolls sideways instead of the strip. */}
+        <div className="w-full min-w-0 max-w-full overflow-x-auto pb-3 md:w-auto md:max-w-none md:overflow-visible md:pb-0">
+          <div className="flex shrink-0 items-center gap-8 rounded-xl">
+            <PowerFlowDiagram live={running} />
+            <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
+          </div>
         </div>
 
         {running ? (
@@ -89,7 +145,7 @@ export const GensetHome = ({
               ))}
             </div>
 
-            <div className="flex flex-wrap items-start gap-x-18 gap-y-6">
+            <div className="flex flex-wrap items-start gap-y-6 md:gap-x-18">
               {detail.phases.map((group) => (
                 <PhaseBars key={group.label} group={group} />
               ))}
@@ -107,7 +163,15 @@ export const GensetHome = ({
       <hr className="border-subtle" />
 
       {/* Band 3 — thresholds and the numbers behind them. */}
-      <AlertsSection detail={detail} focus={focus} onFocusChange={onFocusChange} />
+      <AlertsSection
+        detail={detail}
+        service={service}
+        notice={serviceNotice(genset.id, service)}
+        leak={fuelLeakNotice(genset.id, integrity)}
+        condition={gensetCondition(genset.id, now)}
+        focus={focus}
+        onFocusChange={onFocusChange}
+      />
     </div>
   );
 };

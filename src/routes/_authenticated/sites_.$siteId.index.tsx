@@ -1,7 +1,7 @@
 import {createFileRoute, useParams} from '@tanstack/react-router';
 
 import {SiteHome} from '@/modules/site/components/SiteHome';
-import {siteSummary} from '@/modules/site/data/sites';
+import {useSiteSummary} from '@/modules/site/data/sites';
 
 /**
  * The site home page — the tab a click from the sites list lands on, and the one
@@ -16,7 +16,7 @@ const SiteHomeRoute = () => {
   // Read off the parent explicitly: `$siteId` belongs to the layout route, and
   // this index route's own params are empty.
   const {siteId} = useParams({from: '/_authenticated/sites_/$siteId'});
-  const summary = siteSummary(siteId);
+  const summary = useSiteSummary(siteId);
   if (summary === undefined) return null;
 
   /**

@@ -314,7 +314,7 @@ export const TimeSeriesChart = ({
               x={x(tick)}
               y={height - 10}
               textAnchor={index === 0 ? 'start' : index === timeTicks.length - 1 ? 'end' : 'middle'}
-              className="text-[10px] font-medium text-tertiary"
+              className="text-[10px] font-medium text-secondary"
               fill="currentColor"
             >
               {byHour ? clockTime(tick) : dayMonth(tick)}
@@ -389,7 +389,7 @@ export const TimeSeriesChart = ({
           })}
 
           {series.some((one) => sampleAt(one, hovered.t)?.value === null) && (
-            <p className="text-[10px] text-tertiary">— engine not turning</p>
+            <p className="text-[10px] text-secondary">— engine not turning</p>
           )}
         </div>
       )}

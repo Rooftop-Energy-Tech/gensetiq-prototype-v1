@@ -14,6 +14,14 @@ type GensetsToolbarProps = {
   onViewChange: (view: GensetView) => void;
   panelOpen: boolean;
   onPanelOpenChange: (open: boolean) => void;
+  /**
+   * Show the view switcher and the panel toggle.
+   *
+   * `false` at phone width, where neither has anything to switch: the map and the
+   * 393px preview panel are desktop-only. Search is the whole toolbar there, which
+   * is why it is the one control not behind this flag.
+   */
+  showViewControls: boolean;
 };
 
 export const GensetsToolbar = ({
@@ -23,6 +31,7 @@ export const GensetsToolbar = ({
   onViewChange,
   panelOpen,
   onPanelOpenChange,
+  showViewControls,
 }: GensetsToolbarProps) => {
   return (
     <div className="flex items-center justify-between gap-4">
@@ -41,6 +50,7 @@ export const GensetsToolbar = ({
         />
       </InputGroup>
 
+      {showViewControls && (
       <div className="flex items-center gap-5">
         <Tabs value={view} onValueChange={(next) => onViewChange(next as GensetView)}>
           <TabsList className="w-[70px]">
@@ -84,6 +94,7 @@ export const GensetsToolbar = ({
           <TooltipContent>{panelOpen ? 'Hide details' : 'Show details'}</TooltipContent>
         </Tooltip>
       </div>
+      )}
     </div>
   );
 };

@@ -14,6 +14,7 @@
  */
 
 import type {RunState} from '@/modules/genset/types/genset.type';
+import type {MeterFeed} from '@/modules/meter/types/meter.type';
 
 /**
  * What the site's load actually is.
@@ -74,17 +75,23 @@ export type SitePowerRole = (typeof SITE_POWER_ROLES)[number];
  * nothing downstream of this type changes.
  */
 export type MainsSupply = {
-  /** Is the incomer energised, per the meter at the intake. */
+  /**
+   * Is the incomer energised.
+   *
+   * **Always known, meter or no meter** — this comes from the transfer switch, which
+   * senses voltage on the incomer because that is how it decides to transfer at all.
+   * Presence and consumption are separate instruments, and conflating them would make
+   * an unmetered site look like a site with no grid.
+   */
   live: boolean;
   /**
-   * What the meter is reading through the incomer, kW — `null` while the supply
-   * is dead or the contactor is open.
+   * What is flowing through the incomer — **only if somebody fitted a meter to it.**
    *
-   * `null` rather than `0` for the same reason a faulted genset's node says
-   * `unavailable` rather than `0 kW`: zero is a measurement, and a dead incomer
-   * has not measured anything.
+   * See `MeterFeed`: the figure, or which of the two reasons there isn't one. This
+   * used to be a bare number every site carried, which quietly claimed instrumentation
+   * most of them have never had.
    */
-  drawKw: number | null;
+  feed: MeterFeed;
 };
 
 export type Site = {
@@ -95,9 +102,17 @@ export type Site = {
   kind: SiteKind;
   /** Shared by every genset here, because they stand in the same yard. */
   locationLabel: string;
-  /** The yard's centre — the mean of its gensets' own positions. */
+  /** The yard's own position, seeded — see `siteSeed.ts`. */
   latitude: number;
   longitude: number;
+  /**
+   * What the customer draws, kW.
+   *
+   * The physical quantity, which exists whether or not anybody measures it. A meter
+   * is what makes it *visible* — see `MeterFeed` — so this is carried separately from
+   * the readings, and fitting or removing a meter never changes it.
+   */
+  loadKw: number;
 };
 
 /**

@@ -129,7 +129,7 @@ export const GensetAnalysis = ({
       {/* Only alongside a chart. It is a legend, and a legend under an empty
           panel is an explanation of marks the reader cannot see. */}
       {drawn.length > 0 && (
-        <p className="text-xs text-tertiary">
+        <p className="text-xs text-secondary">
           Shaded bands are runs — the engine turning. A broken trace is a reading
           that did not exist, not a reading of zero.
         </p>

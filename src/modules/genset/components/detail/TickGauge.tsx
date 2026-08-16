@@ -77,7 +77,11 @@ export const TickGauge = ({reading}: {reading: GaugeReading}) => {
             viewBox={`0 0 97 ${VISIBLE_HEIGHT}`}
             className="block w-full"
             role="img"
-            aria-label={`${reading.label}: ${amount(reading.value, reading.unit, reading.precision)} of ${amount(reading.max, reading.unit)}`}
+            // "of 55 Hz" would be a lie on the two dials whose scale starts above
+            // zero: it reads as a fraction of full scale, and frequency's face
+            // begins at 45. Both ends, so the sighted reader's `45 ─── 55` and the
+            // screen reader's sentence carry the same information.
+            aria-label={`${reading.label}: ${amount(reading.value, reading.unit, reading.precision)}, on a scale of ${amount(reading.min, reading.unit)} to ${amount(reading.max, reading.unit)}`}
           >
             {TICK_GEOMETRY.map((tick, index) => (
               <line

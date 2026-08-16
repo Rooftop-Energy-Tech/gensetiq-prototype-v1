@@ -148,7 +148,7 @@ export const RangePicker = ({
                   ? 'By run'
                   : `Run · ${stampAt(selectedRun.startedAt)}`}
               </span>
-              <ChevronDownIcon className="text-tertiary" aria-hidden="true" />
+              <ChevronDownIcon className="text-secondary" aria-hidden="true" />
             </button>
           </Badge>
         </PopoverTrigger>
@@ -186,9 +186,9 @@ export const RangePicker = ({
                 )}
               </span>
               {/* The run's own totals, so choosing one is an informed pick rather
-                  than a date lottery — a 20-hour run at full output is a
+                  than a date lottery — a 14-hour run at full output is a
                   different thing to investigate than a 90-minute test. */}
-              <span className="text-xs text-tertiary">
+              <span className="text-xs text-secondary">
                 {duration(runElapsedMs(run, now))} · {amount(run.energyProducedKwh, 'kWh')} ·{' '}
                 {amount(run.fuelConsumedLitres, 'L')}
               </span>

@@ -1,8 +1,10 @@
 import {Suspense, lazy, useMemo} from 'react';
 import {SearchXIcon} from 'lucide-react';
 
-import {GENSETS} from './data/fleet';
+import {useIsCompact} from '@/lib/useIsCompact';
+import {useFleet} from './data/deployment';
 import {GensetDetailPanel} from './components/GensetDetailPanel';
+import {GensetsCards} from './components/GensetsCards';
 import {GensetsTable} from './components/GensetsTable';
 import {GensetsToolbar} from './components/GensetsToolbar';
 import {searchGensets, sortGensets} from './utils/searchGensets';
@@ -31,7 +33,25 @@ type GensetsPageProps = {
 export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   const {view, q = '', id, panel} = search;
 
-  const gensets = useMemo(() => sortGensets(searchGensets(GENSETS, q)), [q]);
+  /**
+   * At phone width this screen is the card list and nothing else.
+   *
+   * Not a narrowed version of the desktop screen: the map's own controls and its
+   * floating 393px panel have no phone form, and a map with a preview sheet over it
+   * is a screen of its own rather than this one at a smaller size. So the view
+   * switcher and the panel toggle are withheld here — the same rule the nav follows,
+   * that the app offers no control it cannot honour.
+   *
+   * `view` in the URL is left exactly as it is. A phone reading a link to
+   * `?view=map` shows the list and, followed on a desktop, that same link still
+   * opens the map — the reader's device decides the presentation, not the URL.
+   */
+  const compact = useIsCompact();
+
+  // The deployed fleet, so a set that has been moved to another yard shows its new
+  // placename in the Location column and its pin in the new spot on the map.
+  const all = useFleet();
+  const gensets = useMemo(() => sortGensets(searchGensets(all, q)), [all, q]);
 
   // Resolved against the *filtered* list, not the whole fleet: if a search hides
   // the selected unit, the panel should say so rather than describing a row the
@@ -41,8 +61,12 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
     [gensets, id],
   );
 
-  const panelOpen = panel;
-  const mapPanelInset = view === 'map' && panelOpen ? PANEL_WIDTH + PANEL_INSET : 0;
+  const showMap = view === 'map' && !compact;
+  // No explicit toggle yet → the selection decides. An empty panel is 393px of
+  // placeholder taken off the table, which is worth showing to somebody who asked
+  // for a preview and not to somebody who has just arrived.
+  const panelOpen = (panel ?? id !== undefined) && !compact;
+  const mapPanelInset = showMap && panelOpen ? PANEL_WIDTH + PANEL_INSET : 0;
 
   /**
    * Selecting a genset opens the panel, whether or not the toggle was on.
@@ -65,10 +89,11 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         onViewChange={(next) => onSearchChange({view: next})}
         panelOpen={panelOpen}
         onPanelOpenChange={(next) => onSearchChange({panel: next})}
+        showViewControls={!compact}
       />
 
       <div className="relative flex min-h-0 flex-1 gap-3">
-        {view === 'map' ? (
+        {showMap ? (
           <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element">
             <Suspense
               fallback={
@@ -87,16 +112,16 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
           </div>
         ) : gensets.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-            <SearchXIcon className="size-6 text-tertiary" aria-hidden="true" />
+            <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
             <p className="text-sm text-secondary">No gensets match “{q}”.</p>
           </div>
         ) : (
           <div className="min-h-0 min-w-0 flex-1">
-            <GensetsTable
-              gensets={gensets}
-              selectedId={id}
-              onSelect={selectGenset}
-            />
+            {compact ? (
+              <GensetsCards gensets={gensets} />
+            ) : (
+              <GensetsTable gensets={gensets} selectedId={id} onSelect={selectGenset} />
+            )}
           </div>
         )}
 
@@ -108,7 +133,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
               // underneath it, the way the design shows. In the list it takes its
               // own column instead, so it can't sit on top of the table's last
               // two columns.
-              view === 'map'
+              showMap
                 ? 'absolute inset-y-2 right-2 z-10 w-[393px] shadow-lg'
                 : 'w-[393px] shrink-0'
             }

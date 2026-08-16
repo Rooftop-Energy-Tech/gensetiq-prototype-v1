@@ -2,6 +2,7 @@ import type {GensetRun} from '../types/run.type';
 import type {ReadingSeries, Sample, SeriesThreshold} from '../types/series.type';
 import {GENSETS} from './fleet';
 import {LITRES_PER_KWH, READING_SWING, gensetById, gensetDetail} from './detail';
+import {lossRateOf, lossStartedHoursAgo} from './fuelInstruments';
 import {spread, spreadBetween} from './spread';
 
 /**
@@ -35,6 +36,23 @@ const DAY = 24 * HOUR;
 
 /** How far back the run log goes. Two months of standby duty is ~25 starts. */
 const LOG_DAYS = 60;
+
+/**
+ * The longest a single run gets, in hours.
+ *
+ * A set does not turn indefinitely, and the ceiling is a fact about how these
+ * machines are worked rather than a display convenience. Continuous sites run
+ * **two sets in turn** — while one carries the load the other rests, cools and is
+ * serviced, then they swap — so a run there ends at a handover rather than at a
+ * fault. Standby sets ride out an outage, and outages long enough to need a
+ * changeover are the ones that get a second set started. Either way a run is a
+ * shift, not a season.
+ *
+ * `detail.ts` caps the open run to match. The two have to agree: the newest entry
+ * in this log **is** `detail.run`, so a ceiling applied to only one of them would
+ * put the single longest run in the fleet at the head of every list.
+ */
+const RUN_HOURS_MAX = 14.5;
 
 /**
  * One clock reading for the whole history layer, taken at module load.
@@ -74,7 +92,7 @@ const buildRuns = (gensetId: string): Array<GensetRun> => {
     // the wet season and weeks apart otherwise, which is what the wide gap range
     // is standing in for.
     const gapHours = spreadBetween(gensetId, `run-gap-${index}`, 14, 132);
-    const runHours = spreadBetween(gensetId, `run-hours-${index}`, 1.5, 26);
+    const runHours = spreadBetween(gensetId, `run-hours-${index}`, 1.5, RUN_HOURS_MAX);
     // Each run carries its own load — the site's draw at the time. This is the
     // single most useful thing the analysis tab can show, so it must not be
     // constant across the log.
@@ -281,6 +299,23 @@ const FUEL_LADDERS = new Map<string, Array<number>>();
  * because the two are not the same curve. Integrating from the right-hand edge of
  * *whatever window is open* would put today's level at the end of a run in April,
  * and every zoom would draw a different tank.
+ *
+ * ## The tank falls faster than the burn on a leaking set
+ *
+ * The loss rate from `fuelInstruments.ts` is integrated here alongside the burn,
+ * which is what makes this the **tank's** curve rather than the injectors'. Before
+ * it, the two were the same line: this ladder was the burn, `fuel-rate` was the
+ * burn, and a discrepancy between the level sensor and the flow meter was
+ * arithmetically impossible — so a leak could be asserted on a card and never
+ * shown on a chart.
+ *
+ * It applies whether or not the engine is turning, unlike the burn, because that
+ * is what a leak is. A hole in a tank does not wait for the set to be started, and
+ * the flat stretches between runs are where the loss is most visible: the burn term
+ * is zero there, so any slope at all is fuel going somewhere it should not.
+ *
+ * `meteredBurn()` below is the other half — the same integration without the loss
+ * term — and the gap between the two is the whole of what the leak alarm reports.
  */
 const fuelLadder = (gensetId: string): Array<number> => {
   const cached = FUEL_LADDERS.get(gensetId);
@@ -297,13 +332,22 @@ const fuelLadder = (gensetId: string): Array<number> => {
 
   const levels = new Array<number>(steps).fill(genset.fuelLitres);
   const hours = LADDER_STEP / HOUR;
+  const loss = lossRateOf(gensetId) * hours;
+  // A leak has a start. `Infinity` hours ago is the ordinary case — a seep that
+  // predates the log — and a finite one bends the curve at the hour it began,
+  // which is what makes a *fresh* leak distinguishable from an old one. The
+  // detector escalates a shortfall standing across two windows, so without this
+  // every leaking unit would be critical and the warning state unreachable.
+  const lossFrom = CLOCK - lossStartedHoursAgo(gensetId) * HOUR;
 
   for (let index = steps - 2; index >= 0; index -= 1) {
     const t = ladderStart() + index * LADDER_STEP;
     const run = runAt(runs, t);
     const burn = run === undefined ? 0 : LITRES_PER_KWH * runLoadKw(run, CLOCK) * hours;
 
-    const candidate = levels[index + 1] + burn;
+    // Backwards, so the tank *was* higher by everything that has since left it —
+    // the fuel the engine burned and the fuel that simply went.
+    const candidate = levels[index + 1] + burn + (t >= lossFrom ? loss : 0);
     levels[index] = candidate > capacity ? reserve : candidate;
   }
 
@@ -311,10 +355,103 @@ const fuelLadder = (gensetId: string): Array<number> => {
   return levels;
 };
 
+/**
+ * Litres the flow meter would have totalled between two instants.
+ *
+ * The burn alone — no loss term — which is precisely what makes it the *other*
+ * instrument. Integrated over the same fifteen-minute grid the ladder uses so the
+ * two are commensurable: a burn figure taken at a finer resolution than the level
+ * it is subtracted from would produce a discrepancy that is an artefact of the
+ * sampling rather than of the diesel.
+ *
+ * Not cached, because it is called with a moving window rather than a fixed one,
+ * and one day of a sixty-day grid is ninety-six additions.
+ */
+export const meteredBurn = (gensetId: string, from: number, to: number): number => {
+  const runs = gensetRuns(gensetId);
+  const hours = LADDER_STEP / HOUR;
+
+  let total = 0;
+  for (let t = from; t < to; t += LADDER_STEP) {
+    const run = runAt(runs, t);
+    if (run !== undefined) total += LITRES_PER_KWH * runLoadKw(run, CLOCK) * hours;
+  }
+
+  return total;
+};
+
+/** Whether the engine was turning at any point in a window, and at every point. */
+export const runSpan = (
+  gensetId: string,
+  from: number,
+  to: number,
+): {ran: boolean; stopped: boolean} => {
+  const runs = gensetRuns(gensetId);
+
+  let ran = false;
+  let stopped = false;
+  for (let t = from; t < to; t += LADDER_STEP) {
+    if (runAt(runs, t) === undefined) stopped = true;
+    else ran = true;
+  }
+
+  return {ran, stopped};
+};
+
+/**
+ * Deliveries inside a window, read off the ladder's own step-ups.
+ *
+ * The ladder already places a refuel wherever backward integration passes a full
+ * tank, so these are not seeded a second time. One source, so a delivery cannot
+ * exist for the reconciliation and not for the chart every screen draws — and when
+ * `/refuel` grows a real log, that becomes the source and this retires.
+ *
+ * The threshold is a litre rather than zero: the ladder is floating-point, and a
+ * tank sitting flat between two steps can differ in the last bit.
+ */
+export const refuelsIn = (
+  gensetId: string,
+  from: number,
+  to: number,
+): Array<{at: number; litres: number}> => {
+  const levels = fuelLadder(gensetId);
+  const refuels: Array<{at: number; litres: number}> = [];
+
+  for (let index = 0; index < levels.length - 1; index += 1) {
+    const at = ladderStart() + (index + 1) * LADDER_STEP;
+    if (at < from || at > to) continue;
+
+    const risen = levels[index + 1] - levels[index];
+    if (risen > 1) refuels.push({at, litres: risen});
+  }
+
+  return refuels;
+};
+
+/**
+ * When the engine last started or stopped before an instant, or `undefined`.
+ *
+ * The leak detector blanks a period after each, because a tank that has just
+ * stopped drawing is still sloshing and a level probe reports slosh as volume.
+ */
+export const lastEngineTransition = (gensetId: string, before: number): number | undefined => {
+  let latest: number | undefined;
+
+  for (const run of gensetRuns(gensetId)) {
+    for (const stamp of [run.startedAt, run.endedAt]) {
+      if (stamp === null) continue;
+      const at = new Date(stamp).getTime();
+      if (at <= before && (latest === undefined || at > latest)) latest = at;
+    }
+  }
+
+  return latest;
+};
+
 const ladderStart = (): number => historyStart();
 
 /** The tank level at an instant, interpolated between ladder steps. */
-const fuelAt = (gensetId: string, t: number): number => {
+export const fuelAt = (gensetId: string, t: number): number => {
   const levels = fuelLadder(gensetId);
   if (levels.length === 0) return 0;
 

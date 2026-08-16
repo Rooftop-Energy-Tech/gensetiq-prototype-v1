@@ -1,6 +1,7 @@
 import {ActivityIcon, CircleCheckIcon, CircleXIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
+import {darkToken} from '@/styles/colors';
 import type {AlertSeverity, GensetCondition} from '../../types/alert.type';
 
 /**
@@ -51,12 +52,33 @@ export const SEVERITY_META: Record<
  * section's icon in every state, so using it for the verdict too means the one
  * element that is supposed to change with the machine's health is the one that
  * looks the same whatever it says.
+ *
+ * `mapColor` is the same colour as a literal, for the sites map's pins — MapLibre
+ * evaluates paint properties in a shader, where a CSS variable means nothing. It
+ * lives here rather than in the site module for the reason `RUN_STATE_META`
+ * carries the fleet map's: the pin and the badge are two readings of one verdict,
+ * and a second copy of the colour is how they end up disagreeing.
  */
 export const CONDITION_META: Record<
   GensetCondition,
-  {label: string; icon: LucideIcon; textClassName: string}
+  {label: string; icon: LucideIcon; textClassName: string; mapColor: string}
 > = {
-  OPTIMUM: {label: 'Optimum', icon: CircleCheckIcon, textClassName: 'text-severity-ok'},
-  ATTENTION: {label: 'Attention', icon: ActivityIcon, textClassName: 'text-severity-warning'},
-  CRITICAL: {label: 'Critical', icon: CircleXIcon, textClassName: 'text-severity-critical'},
+  OPTIMUM: {
+    label: 'Optimum',
+    icon: CircleCheckIcon,
+    textClassName: 'text-severity-ok',
+    mapColor: darkToken['severity-ok'],
+  },
+  ATTENTION: {
+    label: 'Attention',
+    icon: ActivityIcon,
+    textClassName: 'text-severity-warning',
+    mapColor: darkToken['severity-warning'],
+  },
+  CRITICAL: {
+    label: 'Critical',
+    icon: CircleXIcon,
+    textClassName: 'text-severity-critical',
+    mapColor: darkToken['severity-critical'],
+  },
 };

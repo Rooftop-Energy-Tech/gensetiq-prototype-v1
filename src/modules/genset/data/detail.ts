@@ -17,7 +17,9 @@ import type {
   Reading,
   ReadingKind,
 } from '../types/telemetry.type';
+import {fleet} from './deployment';
 import {GENSETS} from './fleet';
+import {seededHoursSinceService} from './serviceSeed';
 import {spread} from './spread';
 
 /**
@@ -267,52 +269,71 @@ export const PLOTTABLE_READING_KEYS: Array<string> = READING_SPECS.filter(
 ).map((spec) => spec.key);
 
 /**
- * The operator's own filing system. Nine tags, each a list of reading keys.
+ * The operator's own filing system. Ten tags, each mostly a list of reading keys.
  *
- * Six of the labels are the design's; it repeats "Generator condition" eight
- * times to fill the row, so the other five are named for what an operator
- * actually gets called out for. A reading may appear under more than one tag —
- * oil pressure matters to both Lubrication and Generator condition — which is the
- * point of tags being lists rather than a partition.
+ * These are **grouped around the alarm map**, which is the change from the first
+ * version. That one was drawn against an invented alarm pool and grouped badly
+ * against the real one: `Generator output` ended up holding ten of the alarms while
+ * `SLA performance` and `Fuel system` held none, so half the chip row could not
+ * answer the question a chip is for.
+ *
+ * Every alarm now reaches exactly one tag, and the counts are even enough that
+ * picking a chip narrows something. A reading may still appear under more than one
+ * tag — oil pressure matters to Lubrication and to anyone watching the engine —
+ * which is the point of tags being lists rather than a partition.
+ *
+ * Two tags carry no alarms at all, and they stay. A tag answers "how is this
+ * subsystem doing", and `Fuel` showing three healthy readings and nothing wrong is
+ * a complete answer to that. (It is also a question worth asking of the map: the
+ * controller *has* `AL Fuel Level Wrn` and `AL Fuel Level Sd`, and neither is
+ * marked for the dashboard.)
  */
 const TAGS: Array<GensetTag> = [
   {
-    id: 'start-up',
-    label: 'Start up',
-    readingKeys: ['start-attempts', 'crank-time', 'battery-voltage', 'time-to-load'],
+    // Together on purpose. On a four-pole set at 50 Hz, 1500 rpm *is* 50 Hz —
+    // underspeed and underfrequency are one event read by two instruments, and
+    // filing them apart sends somebody chasing two faults.
+    id: 'speed-frequency',
+    label: 'Speed & frequency',
+    readingKeys: ['engine-speed', 'frequency'],
   },
   {
-    id: 'generator-output',
-    label: 'Generator output',
-    readingKeys: ['active-power', 'power-factor', 'frequency', 'voltage-l1l2'],
+    id: 'generator-voltage',
+    label: 'Generator voltage',
+    readingKeys: ['voltage-l1l2', 'voltage-l2l3', 'voltage-l3l1', 'power-factor'],
   },
   {
-    id: 'sla-performance',
-    label: 'SLA performance',
-    readingKeys: ['availability', 'time-to-load', 'mains-outages'],
+    id: 'load-current',
+    label: 'Load & current',
+    readingKeys: ['active-power', 'current-l1', 'current-l2', 'current-l3', 'earth-leakage'],
   },
   {id: 'coolant', label: 'Coolant', readingKeys: ['coolant-temp', 'coolant-level']},
   {
-    id: 'generator-condition',
-    label: 'Generator condition',
-    readingKeys: ['engine-speed', 'oil-pressure', 'oil-temp', 'engine-hours'],
-  },
-  {
-    id: 'fuel-system',
-    label: 'Fuel system',
-    readingKeys: ['fuel-level', 'fuel-rate', 'fuel-temp'],
+    id: 'battery',
+    label: 'Battery & charging',
+    readingKeys: ['battery-voltage', 'charge-alt-voltage'],
   },
   {id: 'lubrication', label: 'Lubrication', readingKeys: ['oil-pressure', 'oil-temp']},
-  {id: 'battery', label: 'Battery', readingKeys: ['battery-voltage', 'charge-alt-voltage']},
   {
-    id: 'load-balance',
-    label: 'Load balance',
-    readingKeys: ['current-l1', 'current-l2', 'current-l3', 'earth-leakage'],
+    id: 'starting',
+    label: 'Starting',
+    readingKeys: ['start-attempts', 'crank-time', 'time-to-load', 'battery-voltage'],
+  },
+  {id: 'fuel', label: 'Fuel', readingKeys: ['fuel-level', 'fuel-rate', 'fuel-temp']},
+  {
+    // `DPF status` is filed here rather than under an emissions tag of its own: a
+    // regeneration coming due is a maintenance action, which is what this tag is
+    // about, and one alarm does not earn a chip that would otherwise be empty.
+    id: 'service',
+    label: 'Service',
+    readingKeys: ['engine-hours', 'hours-since-service', 'availability', 'mains-outages'],
+    alarmIds: ['dpf-status'],
   },
   {
-    id: 'connectivity',
-    label: 'Connectivity',
-    readingKeys: ['telemetry-age', 'hours-since-service'],
+    id: 'panel',
+    label: 'Panel & comms',
+    readingKeys: ['telemetry-age'],
+    alarmIds: ['sd-override'],
   },
 ];
 
@@ -659,73 +680,9 @@ const ALERT_RULES: Array<AlertRule> = [
     agoHours: 1.6,
     requiresEngine: true,
   },
-  // The five roll-ups. Each is a condition over the panel's other protections
-  // rather than a measurement, so none carries a reading — see `alert.type.ts`.
-  {
-    id: 'common-wrn',
-    register: 1300,
-    bit: 6,
-    name: 'AL Common Wrn',
-    type: 'Warning',
-    readingKey: null,
-    comparator: '>',
-    limit: null,
-    thresholdLabel: 'Any warning protection active',
-    violation: null,
-    agoHours: 2.4,
-  },
-  {
-    id: 'common-sd',
-    register: 1300,
-    bit: 7,
-    name: 'AL Common Sd',
-    type: 'Shutdown Alarm',
-    readingKey: null,
-    comparator: '>',
-    limit: null,
-    thresholdLabel: 'Any shutdown protection active',
-    violation: null,
-    agoHours: 0.4,
-  },
-  {
-    id: 'common-boc',
-    register: 1300,
-    bit: 8,
-    name: 'AL Common BOC',
-    type: 'Alarm',
-    readingKey: null,
-    comparator: '>',
-    limit: null,
-    thresholdLabel: 'Any breaker-open protection active',
-    violation: null,
-    agoHours: 0.8,
-  },
-  {
-    id: 'common-fls',
-    register: 1300,
-    bit: 9,
-    name: 'AL Common Fls',
-    type: 'Alarm',
-    readingKey: null,
-    comparator: '>',
-    limit: null,
-    thresholdLabel: 'Any sensor-fail protection active',
-    violation: null,
-    agoHours: 7.1,
-  },
-  {
-    id: 'common-stp',
-    register: 1300,
-    bit: 11,
-    name: 'AL Common Stp',
-    type: 'Alarm',
-    readingKey: null,
-    comparator: '>',
-    limit: null,
-    thresholdLabel: 'Any stop protection active',
-    violation: null,
-    agoHours: 1.3,
-  },
+  // Bits 6–11 here are the five `AL Common *` roll-ups, deliberately not in this
+  // list — see the note below the array.
+  //
   // ── Register 1301 · Log Bout 6 ──
   {
     id: 'coolant-temp-low',
@@ -827,6 +784,36 @@ const ALERT_RULES: Array<AlertRule> = [
 ];
 
 /**
+ * Why `AL Common Wrn / Sd / BOC / Fls / Stp` are not in `ALERT_RULES`.
+ *
+ * They are marked for the dashboard and they are not duplicates, so leaving them
+ * out is a decision worth writing down rather than a gap.
+ *
+ * Each is an OR over **every** protection in the controller, not just the ones on
+ * this dashboard — and the map has 21 alarm bits that are not marked to be shown
+ * (`AL Fuel Level Sd`, the four `AL AIN` sensor pairs, `AL Mains Fail`,
+ * `AL Maintenance 1–3`, the fence and rental-timer alarms). So `AL Common Sd` can
+ * be true when none of the 26 alarms below is, and *that* is the case it earns its
+ * place in: it is the page's only signal that something it does not show has
+ * stopped the engine.
+ *
+ * Which is also why it cannot be shown as one more card. A row reading "AL Common
+ * Sd · Any shutdown protection active", sitting next to `AL Oil Press Sd`, tells an
+ * operator nothing they cannot already see; the version that is worth building
+ * separates *explained* (some shown alarm accounts for it) from *unexplained*
+ * (nothing here does — go and open the panel), and only shouts about the second.
+ *
+ * That needs one thing the map does not currently give: which Common bit each
+ * alarm rolls into. Nineteen bits are typed only `Alarm`, and whether `AL Overspeed`
+ * is a shutdown, a breaker-open or a stop is a per-protection setting in the panel.
+ * Without that column, "explained" is not computable.
+ *
+ * So: omitted until the Type column distinguishes the classes, or until an operator
+ * asks for the catch-all. A prototype should not draw a control whose behaviour it
+ * cannot state.
+ */
+
+/**
  * A unit that has dropped off the network carries this one instead of the pool.
  *
  * The only alarm here with no register behind it, and it cannot have one: the
@@ -924,27 +911,33 @@ const ruleById = (id: string): AlertRule => {
 };
 
 /**
- * The set `BRF9540` is pinned to, chosen to land the design's chip counts —
- * `Critical 2 / Warning 5 / Neutral 3` — out of the register map's own alarms.
+ * The set `BRF9540` is pinned to, out of the register map's own alarms.
  *
- * It also has to hold together as one machine's story, which is what fixes the
- * choice. A set that has cooked its coolant reads high on both coolant bits at
+ * It lands `Critical 2 / Warning 4 / Neutral 3` against the design's
+ * `Critical 2 / Warning 5 / Neutral 3`. **The fifth warning is unreachable**, and
+ * the reason is worth keeping: the map has six `Warning` bits, one of them is
+ * `AL Common Wrn` (omitted, see the note above `COMMS_RULE`), and the last is
+ * `AL Overload Wrn` — which would have to put this unit over its nameplate, while
+ * its load is pinned at 205 kW so its run lands on the design's "12 hours". No set
+ * of real alarms satisfies both, and the design's count is the softer of the two
+ * constraints.
+ *
+ * What is left has to hold together as one machine's story, which fixes the rest of
+ * the choice. A set that has cooked its coolant reads high on both coolant bits at
  * once (the shutdown band sits inside the warning band, so crossing the first
- * crosses the second), the five active warnings are exactly what `AL Common Wrn`
- * rolls up, and the two `Info` bits sit under the voltage and frequency warnings
- * that put those readings off nominal in the first place. Every row here is
- * implied by another row, which is the difference between a fixture and a
- * screenshot of one.
+ * crosses the second), and the two `Info` bits sit under the voltage and frequency
+ * warnings that put those readings off nominal in the first place. Every row here is
+ * implied by another row, which is the difference between a fixture and a screenshot
+ * of one.
  */
 const PINNED_RULE_IDS = [
   'coolant-temp-sd', // Shutdown Alarm ─┬─ critical 2
   'earth-fault', //     Alarm         ─┘
-  'coolant-temp-wrn', //               ─┬─ warning 5
+  'coolant-temp-wrn', // Warning      ─┬─ warning 4
   'oil-press-wrn', //                   │
   'gen-voltage-wrn', //                 │
-  'gen-freq-wrn', //                    │
-  'common-wrn', //                     ─┘
-  'gen-voltage', //    Info           ─┬─ neutral 3
+  'gen-freq-wrn', //                   ─┘
+  'gen-voltage', //     Info          ─┬─ neutral 3
   'gen-frequency', //                   │
   'dpf-status', //                     ─┘
 ];
@@ -1016,16 +1009,36 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
   const kva = ratingKva(genset.model);
   const ratedKw = Math.round(kva * POWER_FACTOR);
 
-  // Load, and everything that follows from it. `BRF9540` is pinned to 205 kW
-  // because that is the load whose fuel rate puts its run at the design's
-  // "12 hours"; every other unit takes a stable 22–55% of nameplate.
+  // Dealt first, because one of them changes the load — and the load is what the
+  // fuel rate, the run's totals and the refuel runway are all derived from.
+  const rules = rulesFor(genset);
+
+  // An overload alarm is a claim about the load itself, so it has to set the load
+  // rather than overwrite the reading afterwards. Forcing `active-power` at the end
+  // would leave the gauge reading 928 kW over a run costed at 205 kW's worth of
+  // diesel — the one thing this file exists to prevent. Setting it here instead
+  // carries through to the burn rate, the phase currents and the runway together.
+  const overloadFraction = Math.max(
+    0,
+    ...rules.map((rule) =>
+      rule.readingKey === 'active-power' ? (rule.ofNameplate?.violation ?? 0) : 0,
+    ),
+  );
+
+  // `BRF9540` is pinned to 205 kW because that is the load whose fuel rate puts its
+  // run at the design's "12 hours"; every other unit takes a stable 22–55% of
+  // nameplate, or whatever its overload alarm says it is carrying.
   const loadFraction = 0.22 + spread(genset.id, 'load') * 0.33;
-  const loadKw = genset.id === 'brf9540' ? 205 : Math.round(ratedKw * loadFraction);
+  const loadKw =
+    genset.id === 'brf9540'
+      ? 205
+      : Math.round(ratedKw * (overloadFraction > 0 ? overloadFraction : loadFraction));
   const litresPerHour = Math.round(LITRES_PER_KWH * loadKw * 10) / 10;
 
   // Run length: how long the engine has been turning (open run) or was turning
-  // (closed run). 3–36 hours, which is the range a standby set actually sees.
-  const runHours = genset.id === 'brf9540' ? 12 : 3 + Math.round(spread(genset.id, 'runHours') * 33);
+  // (closed run). 3–14 hours — see `RUN_HOURS_MAX` in `history.ts` for why a single
+  // run does not pass about half a day. `BRF9540` is pinned to the design's 12.
+  const runHours = genset.id === 'brf9540' ? 12 : 3 + Math.round(spread(genset.id, 'runHours') * 11);
   const lastUpdatedMs = new Date(genset.lastUpdated).getTime();
   // A closed run ended when the engine stopped, which is the event the fleet's
   // newest activity entry records — so anchor it to `lastUpdated` rather than to
@@ -1102,6 +1115,19 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
     ...readings['telemetry-age'],
     value: Math.round((now - lastUpdatedMs) / 60_000),
   };
+  // Not a measurement — a subtraction against the service log. It used to be
+  // seeded like the readings above it, which made it a number with nothing
+  // behind it: no service could be pointed at as the moment it counts from, and
+  // logging one would not have moved it. `serviceSeed.ts` holds the elapsed
+  // figure and `services.ts` places the record at the meter reading it implies,
+  // so this and the Service tab are two views of one fact.
+  //
+  // This is the *seeded* value. A service logged in the browser moves it, and the
+  // alerts section takes the live figure from the store — see `AlertsSection`.
+  readings['hours-since-service'] = {
+    ...readings['hours-since-service'],
+    value: seededHoursSinceService(genset.id),
+  };
   for (const key of ['current-l1', 'current-l2', 'current-l3'] as const) {
     // A healthy set is balanced to within a couple of percent. The per-phase
     // skew is small on purpose — it is what makes the three bars readable as a
@@ -1135,8 +1161,6 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
     'active-power': ratedKw,
     'current-l1': Math.round((kva * 1_000) / (Math.sqrt(3) * 415)),
   };
-
-  const rules = rulesFor(genset);
 
   // Resolve each rule against this unit before anything is written: the relative
   // rules need `nameplate`, and the readings need every violation on a given key
@@ -1181,6 +1205,7 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
 
   const alerts: Array<GensetAlert> = resolved.map(({rule, limit}) => ({
     id: `${genset.id}-${rule.id}`,
+    ruleId: rule.id,
     name: rule.name,
     register: rule.register,
     bit: rule.bit,
@@ -1215,12 +1240,59 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
     // Dials only while the engine turns. A row of gauges pinned at zero says
     // less than one line of text saying the engine is stopped, and it invites
     // the reader to wonder whether the page is broken.
+    //
+    // ## Which five, and why these ends
+    //
+    // The row is the page's only *instantaneous* instrument — the bars beside it
+    // carry voltage and current and the panel above carries fuel, so a dial that
+    // repeats one of those spends 153px saying nothing new. What is left is one
+    // reading per subsystem that can kill a running set: the governor, the load,
+    // lubrication, cooling, and the charging circuit.
+    //
+    // The ends matter more than they look. `TickGauge` draws 39 discrete ticks,
+    // so a scale is really a choice of *resolution*: span ÷ 39 is the smallest
+    // movement the dial can show. A reading whose entire working band occupies a
+    // fifth of its scale is a reading whose drift is invisible, and drift is the
+    // whole diagnostic value of a live dial. So each pair below is set to put the
+    // healthy value near mid-scale and keep every alarm limit on the face.
     gauges: running
       ? [
-          gauge('engine-speed', 0, 3_000),
-          gauge('active-power', 0, ratedKw),
+          // Frequency in place of engine speed. On a four-pole 50 Hz set the two
+          // are one measurement — 1500 rpm *is* 50 Hz, as the `Speed & frequency`
+          // tag says — and of the pair frequency is the one the load actually
+          // sees, so showing rpm here spent a dial on the less useful half.
+          //
+          // 45–55, not 0–60. Centred on nominal, 0.26 Hz per tick: the ±0.25%
+          // ISO 8528 G3 steady-state band is about a tick, and the 48/52 alarm
+          // limits sit six either side. A 0–60 scale would put nominal at 83% and
+          // render a 2 Hz droop — a governor fault — as one tick of movement.
+          gauge('frequency', 45, 55),
+          // 1.2 × rating, not rating. `AL Overload Wrn` fires at 100% and
+          // `AL Overload BOC` at 110%, so a dial ending at rated pegs full for
+          // both and cannot distinguish a set at its limit from one past it.
+          // Headroom is also what makes the *low* end readable: below 30% of
+          // rating a diesel wet-stacks, and that is a third of this face rather
+          // than a number to be compared against a rating held in your head.
+          gauge('active-power', 0, Math.round(ratedKw * 1.2)),
+          // 0–8 stands. Zero is a real and catastrophic reading for oil pressure —
+          // the one gauge here where the bottom of the scale means something — and
+          // healthy 4.3 already sits mid-face with the 2.5 warning and 1.5
+          // shutdown nine and fourteen ticks below it.
           gauge('oil-pressure', 0, 8),
-          gauge('coolant-temp', 0, 120),
+          // 40–120, not 0–120. A third of the old face covered temperatures a
+          // running engine passes through in its first minutes and never revisits,
+          // which cost the band that matters — 60 (`AL CoolantTemp Low`) through
+          // 98 (`AL CoolantTemp Sd`) — a third of its resolution. 40 keeps a warm-
+          // up on scale without spending ticks on ambient.
+          gauge('coolant-temp', 40, 120),
+          // The fifth, and the one that is not about this run. A flat bank is the
+          // commonest reason a standby set fails its *next* start, and the only
+          // window in which the charging circuit can be proved is while the engine
+          // is turning — which makes it precisely a running-set reading, and the
+          // one alarm on the home page's list (`AL Battery Charger`, < 26 V) with
+          // no instrument behind it. 20–32 spans a 24 V system from flat to fully
+          // charged, putting the 26 V alarm six ticks below a healthy 27.9.
+          gauge('charge-alt-voltage', 20, 32),
         ]
       : [],
     phases: running
@@ -1275,9 +1347,15 @@ const DETAILS: Record<string, GensetDetail> = (() => {
 
 export const gensetDetail = (gensetId: string): GensetDetail | undefined => DETAILS[gensetId];
 
-/** The fleet row for an id — the home page needs both halves. */
+/**
+ * The fleet row for an id — the home page needs both halves.
+ *
+ * Reads the **deployed** fleet, not the seed, so a set that has been moved reports
+ * the yard it is actually standing in. `DETAILS` above stays on the seed and stays
+ * correct: nothing it derives looks at where a machine is.
+ */
 export const gensetById = (gensetId: string): Genset | undefined =>
-  GENSETS.find((genset) => genset.id === gensetId);
+  fleet().find((genset) => genset.id === gensetId);
 
 /** `BRF9540 | Cummins 1000 kVa`, for the breadcrumb and the document title. */
 export const gensetLabel = (gensetId: string): string => {

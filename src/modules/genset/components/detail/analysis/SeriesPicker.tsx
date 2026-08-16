@@ -54,7 +54,7 @@ export const SeriesPicker = ({
               <button
                 type="button"
                 onClick={() => onToggle(reading.key)}
-                className="cursor-pointer text-tertiary transition-colors hover:text-primary"
+                className="cursor-pointer text-secondary transition-colors hover:text-primary"
               >
                 <XIcon aria-hidden="true" />
                 <span className="sr-only">Remove {reading.label}</span>
@@ -76,7 +76,7 @@ export const SeriesPicker = ({
               <span className="text-secondary">
                 {chosen.length < MAX_SERIES ? 'Add a reading' : 'Swap a reading'}
               </span>
-              <ChevronDownIcon className="text-tertiary" aria-hidden="true" />
+              <ChevronDownIcon className="text-secondary" aria-hidden="true" />
             </button>
           </Badge>
         </PopoverTrigger>
@@ -87,7 +87,7 @@ export const SeriesPicker = ({
               at the moment of choosing, and it pushed the range picker onto a
               second row. */}
           {chosen.length === MAX_SERIES && (
-            <p className="shrink-0 px-2 py-1.5 text-xs text-tertiary">
+            <p className="shrink-0 px-2 py-1.5 text-xs text-secondary">
               Two at a time, one per axis — picking a third drops the oldest.
             </p>
           )}
@@ -121,7 +121,7 @@ export const SeriesPicker = ({
                   >
                     {reading.label}
                   </span>
-                  <span className="shrink-0 text-xs whitespace-nowrap text-tertiary">
+                  <span className="shrink-0 text-xs whitespace-nowrap text-secondary">
                     {amount(reading.value, reading.unit, reading.precision)}
                   </span>
                 </button>

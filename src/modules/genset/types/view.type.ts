@@ -20,7 +20,21 @@ export const gensetSearchSchema = z.object({
   q: z.string().optional().catch(undefined),
   /** Selected genset id. Absent = nothing selected. */
   id: z.string().optional().catch(undefined),
-  panel: z.boolean().default(true).catch(true),
+  /**
+   * Panel visibility, and deliberately *not* defaulted.
+   *
+   * Absent means "nobody has said" — and the page then follows the selection:
+   * open when a genset is chosen, closed on a first load with nothing to preview,
+   * where the panel is 393px of "Select a genset to see its details" taking width
+   * from the table. Present means somebody hit the toggle, and an explicit
+   * `false` survives selecting a row for as long as they leave it that way.
+   *
+   * `.optional()` sits *outside* `.catch()`, unlike the fields above: a catch on
+   * the outside makes the key required in the schema's input type, and every
+   * `<Link to="/gensets">` in the app would then have to spell out a `search`
+   * object. Absent stays absent; a hand-typed `?panel=maybe` reads as closed.
+   */
+  panel: z.boolean().catch(false).optional(),
 });
 
 export type GensetSearch = z.infer<typeof gensetSearchSchema>;
@@ -35,6 +49,5 @@ export type GensetSearch = z.infer<typeof gensetSearchSchema>;
  */
 export const gensetSearch = (overrides: Partial<GensetSearch> = {}): GensetSearch => ({
   view: 'list',
-  panel: true,
   ...overrides,
 });

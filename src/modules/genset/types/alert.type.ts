@@ -12,11 +12,14 @@
  * below 24 V, which is why an alert can carry a `readingKey` and a `threshold`
  * and the page can show the number that tripped it right underneath the name.
  *
- * Some are not, and `readingKey` is `null` for those. The five `AL Common *`
- * bits are roll-ups over other protections and `Sd Override` is a statement
- * about the panel's configuration; there is no single reading behind either, so
- * the card shows the name and the rule in prose and no value. Forcing a reading
- * onto them would be inventing a measurement to justify a flag.
+ * Two are not, and `readingKey` is `null` for those. `Sd Override` is a statement
+ * about the panel's configuration and `DPF status` is an aftertreatment flag;
+ * neither has a single reading behind it, so the card shows the name and the rule
+ * in prose and no value. Forcing a reading onto them would be inventing a
+ * measurement to justify a flag.
+ *
+ * The map's five `AL Common *` roll-up bits are **deliberately not here** — see
+ * the note in `data/detail.ts`.
  *
  * Severity is a property of the rule, so the same reading can carry two rules at
  * different severities (a warning band inside a shutdown band — which is how a
@@ -63,7 +66,15 @@ export const SEVERITY_OF_ALARM_TYPE: Record<AlarmType, AlertSeverity> = {
 export type AlertComparator = '>' | '<';
 
 export type GensetAlert = {
+  /** This alarm on this unit — `brf9540-earth-fault`. Unique across the fleet. */
   id: string;
+  /**
+   * The **rule's** id — `earth-fault` — shared by every unit carrying it.
+   *
+   * The identity a tag references and the identity a threshold is set against: a
+   * setpoint belongs to the rule, not to one machine's instance of it.
+   */
+  ruleId: string;
   /** The rule's name as the register map writes it, e.g. `AL Battery Voltage`. */
   name: string;
   /** Modbus register holding the bit, and the bit within it — the sheet's coordinates. */
@@ -93,20 +104,30 @@ export type GensetAlert = {
 };
 
 /**
- * A user-defined grouping of readings — "Start up", "Coolant", "SLA
- * performance".
+ * A user-defined grouping of readings — "Coolant", "Battery & charging",
+ * "Speed & frequency".
  *
  * Tags are the operator's own filing system, not the controller's. Two crews
  * running identical hardware will group it differently depending on what they get
- * called out for, so a tag is a list of reading keys and nothing more. Selecting
- * one is how the alerts section narrows from "everything this machine reports" to
- * "the handful of numbers I care about right now", and it pulls in each reading's
- * alerts along with it.
+ * called out for. Selecting one is how the alerts section narrows from "everything
+ * this machine reports" to "the handful of numbers I care about right now", and it
+ * pulls in each reading's alarms along with it.
+ *
+ * A tag is **mostly** a list of reading keys, because that is the useful direction:
+ * name the numbers, and the alarms watching them follow. `alarmIds` is the escape
+ * hatch for the two alarms with no reading behind them — `Sd Override` and
+ * `DPF status`. Without it those would belong to no tag at all, and a filing system
+ * with rows that cannot be filed is not one.
+ *
+ * Membership is the union of the two, so an alarm named directly does not also have
+ * to have its reading listed, and vice versa.
  */
 export type GensetTag = {
   id: string;
   label: string;
   readingKeys: Array<string>;
+  /** Alarms filed here by name — those with no reading to reach them through. */
+  alarmIds?: Array<string>;
 };
 
 /**

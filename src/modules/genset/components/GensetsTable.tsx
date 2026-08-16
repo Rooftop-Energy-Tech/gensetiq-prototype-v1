@@ -1,9 +1,13 @@
 import {Link} from '@tanstack/react-router';
 import type {KeyboardEvent} from 'react';
 
+import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
+import {CONDITION_META} from './detail/severityMeta';
+import {gensetDetail} from '../data/detail';
+import {gensetCondition} from '../data/fuelIntegrity';
 import {gensetName} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
@@ -23,11 +27,17 @@ type GensetsTableProps = {
  * gets the slack; the fixed-shape columns (a badge, a litre figure) give it up.
  */
 const COLUMNS = [
-  {label: 'Genset name', width: '32%'},
-  {label: 'Run state', width: '15%'},
-  {label: 'Fuel level', width: '16%'},
-  {label: 'Location', width: '21%'},
-  {label: 'Last updated', width: '16%'},
+  {label: 'Genset name', width: '27%'},
+  // Health sits next to run state because the two together are the row's verdict:
+  // what the machine is doing, and whether it is doing it well. It is the same
+  // `GensetCondition` the detail page prints above its alerts and the sites list
+  // rolls up per yard — derived from the alerts, so a row cannot claim `Optimum`
+  // over a set whose page shows two shutdown alarms.
+  {label: 'Run state', width: '13%'},
+  {label: 'Health', width: '14%'},
+  {label: 'Fuel level', width: '14%'},
+  {label: 'Location', width: '18%'},
+  {label: 'Last updated', width: '14%'},
 ] as const;
 
 export const GensetsTable = ({gensets, selectedId, onSelect}: GensetsTableProps) => {
@@ -45,7 +55,7 @@ export const GensetsTable = ({gensets, selectedId, onSelect}: GensetsTableProps)
     <div className="h-full overflow-auto">
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
-          Fleet gensets, with run state, fuel level, location and telemetry age
+          Fleet gensets, with run state, health, fuel level, location and telemetry age
         </caption>
         <colgroup>
           {COLUMNS.map((column) => (
@@ -68,6 +78,16 @@ export const GensetsTable = ({gensets, selectedId, onSelect}: GensetsTableProps)
         <tbody>
           {gensets.map((genset) => {
             const selected = genset.id === selectedId;
+            // A set with no detail entry has no alerts to judge, so it gets no
+            // verdict rather than a green one it hasn't earned.
+            //
+            // `gensetCondition` rather than `detail.condition`: the latter is the
+            // register map's verdict alone, and a set losing fuel carries an alarm
+            // no register map has a bit for.
+            const condition =
+              gensetDetail(genset.id) === undefined ? undefined : gensetCondition(genset.id);
+            const conditionMeta = condition === undefined ? undefined : CONDITION_META[condition];
+            const ConditionIcon = conditionMeta?.icon;
 
             return (
               <tr
@@ -98,6 +118,16 @@ export const GensetsTable = ({gensets, selectedId, onSelect}: GensetsTableProps)
                 </td>
                 <td className="h-13 border-b border-subtle p-2">
                   <RunStateBadge runState={genset.runState} />
+                </td>
+                <td className="h-13 border-b border-subtle p-2">
+                  {conditionMeta === undefined || ConditionIcon === undefined ? (
+                    <span className="text-tertiary">—</span>
+                  ) : (
+                    <Badge variant="secondary">
+                      <ConditionIcon className={conditionMeta.textClassName} aria-hidden="true" />
+                      {conditionMeta.label}
+                    </Badge>
+                  )}
                 </td>
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
                   {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}

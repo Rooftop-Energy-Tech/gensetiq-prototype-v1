@@ -7,17 +7,26 @@ import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 
 /**
- * The six tabs across the top of a genset.
+ * The seven tabs across the top of a genset.
  *
  * Real routes rather than local state, for the same reason the fleet screen keeps
  * its view in the URL — a tab is a place, and `/gensets/brf9540/runs` should be
- * linkable and survive a reload. Only `Home` is designed; the other five are
- * labelled placeholders so the tab strip isn't five dead buttons.
+ * linkable and survive a reload.
+ *
+ * `Service` sits after `Runs` because it reads the run log: a genset falls due on
+ * the hours it has turned, so the tab that says *how much it has run* comes
+ * before the one that says *what that means for its next service*.
+ *
+ * It is deliberately not folded into `Equipment`, whose placeholder text
+ * mentions a service schedule. Equipment is nameplate data — what is fitted, what
+ * it is rated at — and it does not change. Servicing is a clock, a log and an
+ * action, which is a different kind of page.
  */
 const TABS = [
   {label: 'Home', to: '/gensets/$gensetId'},
   {label: 'Analysis', to: '/gensets/$gensetId/analysis'},
   {label: 'Runs', to: '/gensets/$gensetId/runs'},
+  {label: 'Service', to: '/gensets/$gensetId/service'},
   {label: 'Alarms', to: '/gensets/$gensetId/alarms'},
   {label: 'Equipment', to: '/gensets/$gensetId/equipment'},
   {label: 'Settings', to: '/gensets/$gensetId/settings'},
@@ -36,8 +45,13 @@ const TABS = [
 export const GensetDetailShell = ({genset}: {genset: Genset}) => (
   <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-4 pt-4 pb-2">
-      <div className="flex min-w-0 items-center gap-6">
-        <h1 className="truncate text-base font-medium text-primary">{gensetName(genset)}</h1>
+      {/* Stacked below `md`. Side by side, the name gives up most of its width to the
+          placename and truncates to `BRF9540 | C…` — on a phone the tag is the one
+          thing on this page that must survive, and there is a whole line for it. */}
+      <div className="flex min-w-0 flex-col items-start gap-1 md:flex-row md:items-center md:gap-6">
+        <h1 className="max-w-full truncate text-base font-medium text-primary">
+          {gensetName(genset)}
+        </h1>
 
         <div className="flex shrink-0 items-center gap-5">
           <span className="flex items-center gap-2 text-sm text-secondary">
@@ -63,7 +77,11 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => (
         </div>
       </div>
 
-      <div className="flex items-center gap-5">
+      {/* Hidden at phone width, where `Home` is the only tab with a mobile layout.
+          The rest are desktop-only in this prototype, and the same rule the bottom
+          nav follows applies inside a page: offer no door the app cannot open
+          properly. The routes still resolve if one is typed. */}
+      <div className="hidden items-center gap-5 md:flex">
         <nav
           aria-label="Genset sections"
           className="flex h-9 items-center gap-0 rounded-lg bg-element p-[3px]"

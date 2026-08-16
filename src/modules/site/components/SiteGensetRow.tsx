@@ -58,12 +58,17 @@ export const SiteGensetRow = ({
     // Unbordered, as the design now draws it. The row's own contents already carry
     // edges — the run card and the four control tiles are bordered — and boxing
     // those inside a second box was a frame around a frame.
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-6 px-5 py-6">
+    // A column below `md`, a wrapping row above it. Wrapping is the wrong instruction
+    // at phone width: the control pad is a fixed 220px and the run card is allowed to
+    // shrink, so the two "fit" on one line — the card compressed to 100px with its
+    // contents spilling under the pad. Three stacked blocks is what the row means
+    // anyway: what it is, what its run has done, what you can do about it.
+    <div className="flex flex-col gap-4 px-1 py-5 md:flex-row md:flex-wrap md:items-center md:gap-x-5 md:gap-y-6 md:px-5 md:py-6">
       {/* 268px rather than the design's 249. The frame's four badges pair into two
           rows of two at its placeholder values, and they should keep that shape —
           but a real load reads "205 kW" where the frame writes "10 kW", which is
           enough to tip the first badge onto a line of its own at 249px. */}
-      <div className="flex w-[268px] shrink-0 flex-col gap-2">
+      <div className="flex w-full shrink-0 flex-col gap-2 md:w-[268px]">
         {/* The name is the way *into* the genset, exactly as in the fleet table —
             a site page is a summary, and anyone who wants the dials, the phase
             currents or the alert list is one click from them. */}
@@ -86,7 +91,7 @@ export const SiteGensetRow = ({
                 nothing here, however much its own controller is still metering. */}
             {detail.loadKw !== null && (
               <>
-                <span className="text-tertiary"> | </span>
+                <span className="text-secondary"> | </span>
                 {onLoad ? amount(detail.loadKw, 'kW') : 'off-load'}
               </>
             )}
@@ -134,7 +139,10 @@ export const SiteGensetRow = ({
           width it gains nothing but distance between a label and its number, and
           the frame's own layout leaves the leftover space to the right of the
           control pad. */}
-      <div className="flex min-w-[380px] max-w-[479px] flex-1">
+      {/* The 380px floor is a desktop instruction — "wrap rather than squeeze the run
+          card" — and unsatisfiable on a 390px screen, where it would win over
+          `flex-wrap` and scroll the whole page sideways. */}
+      <div className="flex w-full min-w-0 flex-1 md:min-w-[380px] md:max-w-[479px]">
         <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
       </div>
 

@@ -47,8 +47,12 @@ export const RunStateSummary = ({
   const {icon: Icon, className} = HERO[runState];
 
   return (
-    <div className="flex w-[113px] shrink-0 flex-col items-center gap-3">
-      <div className="flex flex-col items-center gap-2">
+    // A row at phone width, a column from `md` up. Stacked into a 113px column on a
+    // 390px screen it would be a tall sliver against the full-width run card beneath
+    // it; laid out across, the state and its load read as one line — which is what
+    // the pair says anyway.
+    <div className="flex shrink-0 items-center gap-3 md:w-[113px] md:flex-col">
+      <div className="flex flex-1 items-center gap-2 md:flex-none md:flex-col">
         <Icon className={cn('size-8', className)} aria-hidden="true" />
         <p className="text-base font-medium whitespace-nowrap text-primary">
           {LABEL[runState]}
@@ -56,7 +60,7 @@ export const RunStateSummary = ({
       </div>
 
       {loadKw !== null && (
-        <Badge variant="element" className="w-full border-subtle">
+        <Badge variant="element" className="border-subtle md:w-full">
           <GaugeIcon className="text-teal" aria-hidden="true" />
           {amount(loadKw, 'kW')}
         </Badge>

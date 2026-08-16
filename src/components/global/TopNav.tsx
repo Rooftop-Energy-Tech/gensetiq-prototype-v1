@@ -55,7 +55,7 @@ export const TopNav = () => {
         {crumbs.map((crumb, index) => (
           <span key={crumb.label} className="flex min-w-0 items-center gap-2">
             {index > 0 && (
-              <ChevronRightIcon className="size-3.5 shrink-0 text-tertiary" aria-hidden="true" />
+              <ChevronRightIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
             )}
             {crumb.to === undefined ? (
               <span className="truncate text-sm font-medium text-primary">{crumb.label}</span>

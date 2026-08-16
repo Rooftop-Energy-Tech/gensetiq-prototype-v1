@@ -15,7 +15,7 @@ export type NavItem = {
    * an error once the route tree grew parameterised paths (`/gensets/$gensetId`),
    * because until then the fallback happened to land on something usable.
    */
-  link: '/gensets' | '/deployment' | '/sites' | '/refuel' | '/settings';
+  link: '/gensets' | '/deployment' | '/sites' | '/meters' | '/refuel' | '/settings';
 };
 
 /**

@@ -20,6 +20,16 @@ import {SiteSummaryPanel} from './SiteSummaryPanel';
  * Nothing here is a section heading, also per the design. The diagram needs no
  * label (it is a picture of the thing named in the header) and the rows are
  * self-titling — each one leads with the asset it describes.
+ *
+ * ## At phone width
+ *
+ * The three columns of the top band become three stacked blocks, in the same order,
+ * and the rows below are unchanged in content. The **diagram scales to the width it
+ * is given** rather than reflowing or scrolling: it is 398px of fixed geometry whose
+ * conductors land on the boxes at measured coordinates, so a reflow would leave a
+ * wire in mid-air — but a uniform scale keeps every one of those coordinates and
+ * costs only type size. `SiteDiagram` measures its own box and does this itself, so
+ * there is nothing to arrange here.
  */
 export const SiteHome = ({summary}: {summary: SiteSummary}) => {
   // One clock reading for every row, so two runs on the same site cannot land
@@ -53,17 +63,35 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
   const role = useSitePowerRole(summary.site.id);
 
   return (
-    <div className="flex flex-col gap-2.5 px-4 pt-1 pb-6">
+    <div className="flex flex-col gap-2.5 px-4 pt-1 pb-24 md:pb-6">
       {/* Three columns, and no border. The section is the page's top band rather
           than a card in it — the divider below carries the separation, which is the
           same job the rules do between the genset home page's bands. */}
       <section
         aria-label="Site circuit"
-        className="flex flex-wrap items-center gap-x-30 gap-y-8 px-6 py-7"
+        // A column below `md`, for the reason `SiteGensetRow` gives: with a shrinkable
+        // item beside a fixed one, "wrap" resolves to a squeezed line rather than two.
+        className="flex flex-col gap-y-8 px-1 py-4 md:flex-row md:flex-wrap md:items-center md:gap-x-30 md:px-6 md:py-7"
       >
         <SiteSummaryPanel summary={summary} dutyId={dutyId} role={role} />
 
-        <SiteDiagram summary={summary} dutyId={dutyId} role={role} />
+        {/* An empty **standby** site still has a circuit, and it is worth drawing:
+            mains straight to the load says "on the grid, no plant installed", which
+            is a real and reassuring state. An empty **prime** site has no incomer and
+            no machines, so there is nothing to draw — the diagram would be a load box
+            with a conductor arriving from nowhere. */}
+        {summary.gensets.length === 0 && role === 'PRIME' ? (
+          <p className="max-w-sm text-sm text-secondary">
+            Nothing supplies this site. It is set to run on its own gensets and none are
+            installed.
+          </p>
+        ) : (
+          // Handed straight to the band, with nothing wrapped around it: the diagram
+          // measures the width it is given and scales itself to fit. A wrapper here
+          // was the previous answer and it made the sizing circular — the wrapper
+          // sized to the drawing while the drawing measured the wrapper.
+          <SiteDiagram summary={summary} dutyId={dutyId} role={role} />
+        )}
 
         {/* Only where there is a choice to make. A single-set site has no
             changeover — its one isolator is either closed or it isn't, and a

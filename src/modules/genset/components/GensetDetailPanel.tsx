@@ -17,6 +17,7 @@ import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
 import {gensetName} from '../types/genset.type';
 import type {Genset, GensetActivityKind} from '../types/genset.type';
+import {useServiceRecords, withServiceActivity} from '../data/services';
 
 const ACTIVITY_ICON: Record<GensetActivityKind, LucideIcon> = {
   START: CirclePlayIcon,
@@ -42,6 +43,13 @@ export const GensetDetailPanel = ({
   genset: Genset | undefined;
   className?: string;
 }) => {
+  // The feed is the machine's history plus its service log, merged and re-sorted.
+  // `fleet.ts` used to carry a hardcoded service line; now the entry and the
+  // record are the same fact, so a service logged on the Service tab shows up
+  // here without either file knowing about the other.
+  const records = useServiceRecords();
+  const activity = genset === undefined ? [] : withServiceActivity(genset, records);
+
   return (
     <aside
       aria-label="Genset details"
@@ -92,9 +100,9 @@ export const GensetDetailPanel = ({
           <section className="flex min-h-0 flex-col gap-3">
             <h3 className="font-medium text-primary">Activity</h3>
             <ol className="flex flex-col">
-              {genset.activity.map((event, index) => {
+              {activity.map((event, index) => {
                 const Icon = ACTIVITY_ICON[event.kind];
-                const last = index === genset.activity.length - 1;
+                const last = index === activity.length - 1;
 
                 return (
                   <li key={event.id} className="flex gap-3">
@@ -105,7 +113,7 @@ export const GensetDetailPanel = ({
                       <Icon
                         className={cn(
                           'size-4 shrink-0',
-                          event.kind === 'FAULT' ? 'text-status-fault' : 'text-tertiary',
+                          event.kind === 'FAULT' ? 'text-status-fault' : 'text-secondary',
                         )}
                         aria-hidden="true"
                       />
@@ -113,7 +121,7 @@ export const GensetDetailPanel = ({
                     </div>
                     <div className={cn('flex min-w-0 flex-col', last ? 'pb-0' : 'pb-4')}>
                       <span className="text-primary">{event.message}</span>
-                      <span className="text-xs text-tertiary">{relativeTime(event.at)}</span>
+                      <span className="text-xs text-secondary">{relativeTime(event.at)}</span>
                     </div>
                   </li>
                 );

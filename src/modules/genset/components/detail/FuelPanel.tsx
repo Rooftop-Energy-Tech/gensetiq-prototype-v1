@@ -3,8 +3,11 @@ import {HourglassIcon} from 'lucide-react';
 import {Badge} from '@/components/ui/badge';
 import {amount, duration, fuelFraction, fuelHeadline, stampDate} from '@/lib/format';
 import type {Genset} from '../../types/genset.type';
+import type {FuelIntegrityState} from '../../types/fuelIntegrity.type';
+import {instrumentsOf} from '../../data/fuelInstruments';
 import type {GensetFuelDetail} from '../../data/detail';
 import {FuelTank} from './FuelTank';
+import {LeakBadge} from './LeakBadge';
 import {MetricRow} from './MetricRow';
 
 const HOUR = 3_600_000;
@@ -32,12 +35,15 @@ export const FuelPanel = ({
   genset,
   fuel,
   running,
+  integrity,
 }: {
   genset: Genset;
   fuel: GensetFuelDetail;
   running: boolean;
+  integrity: FuelIntegrityState;
 }) => {
   const reserve = Math.round(fuel.reserveFraction * 100);
+  const metered = instrumentsOf(genset.id).flowMeter !== null;
   const belowReserve = genset.fuelLitres <= fuel.reserveFraction * fuel.maxLitres;
 
   const runway = belowReserve
@@ -49,7 +55,10 @@ export const FuelPanel = ({
         : `${fuel.hoursToReserve} hours of runtime left`;
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-8 p-3">
+    // The tank and its three figures sit side by side at every width — the tank is
+    // 46px and the rows are label/value pairs, so the pair fits a phone with room
+    // over. Only the gap gives way.
+    <div className="flex min-w-0 flex-1 items-center gap-5 p-3 md:gap-8">
       <div className="flex shrink-0 flex-col items-center gap-3">
         <div className="flex flex-col items-center gap-2">
           <FuelTank fraction={fuelFraction(genset.fuelLitres, fuel.maxLitres)} />
@@ -62,12 +71,33 @@ export const FuelPanel = ({
           <HourglassIcon className="text-fuel" aria-hidden="true" />
           {runway}
         </Badge>
+
+        {/* The verdict only. The arithmetic behind it is a nine-row derivation and
+            belongs beside the threshold that governs it, not in a band whose job is
+            "how much is in there and when do I fill it". */}
+        <LeakBadge gensetId={genset.id} state={integrity} />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <MetricRow label="Max capacity" value={amount(fuel.maxLitres, 'L')} />
+        {/* Metered or estimated, said out loud. Without a flow meter this figure is
+            computed from the electrical load — a good estimate, and not a
+            measurement — and the difference is the whole premise of the alarm
+            below it. Presenting the two identically would make the one screen that
+            depends on the distinction the one screen that hides it.
+            The provenance replaces the word "Fuel" rather than being added after
+            it: this column truncates at 375px, and a parenthetical would be the
+            first thing a phone dropped. */}
         <MetricRow
-          label={running ? 'Fuel consumption rate' : 'Rate at last run'}
+          label={
+            running
+              ? metered
+                ? 'Metered rate'
+                : 'Estimated rate'
+              : metered
+                ? 'Metered, last run'
+                : 'Estimated, last run'
+          }
           value={amount(fuel.litresPerHour, 'L/hr', 1)}
         />
         {running ? (

@@ -7,6 +7,8 @@ import type {SitePowerRole} from '../types/site.type';
 import {setSitePowerRole, useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
 import {SiteDiagram} from './SiteDiagram';
+import {SiteGensets} from './SiteGensets';
+import {SiteMetering} from './SiteMetering';
 
 /**
  * The site's Settings tab — one section, and it configures how the site page draws
@@ -115,7 +117,7 @@ const RoleOption = ({
       <span className="flex min-w-0 flex-col gap-1">
         <span className="text-sm font-medium text-primary">{copy.label}</span>
         <span className="text-sm text-secondary">{copy.claim}</span>
-        <span className="pt-1 text-[13px] leading-[18px] text-tertiary">{copy.effect}</span>
+        <span className="pt-1 text-[13px] leading-[18px] text-secondary">{copy.effect}</span>
       </span>
     </label>
   );
@@ -153,11 +155,19 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
           ))}
         </div>
 
-        <p className="text-[13px] leading-[18px] text-tertiary">
+        <p className="text-[13px] leading-[18px] text-secondary">
           Saved in this browser only. This prototype has no backend, so the choice does not
           sync and a colleague opening {summary.site.name} sees the default.
         </p>
       </section>
+
+      <hr className="border-subtle" />
+
+      <SiteGensets summary={summary} />
+
+      <hr className="border-subtle" />
+
+      <SiteMetering summary={summary} />
 
       <hr className="border-subtle" />
 
@@ -171,8 +181,11 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
           {summary.site.name} as {ROLE_COPY[role].label.toLowerCase()}
         </h2>
 
-        {summary.gensets.length === 0 ? (
-          <p className="text-sm text-secondary">No gensets are installed at this site.</p>
+        {summary.gensets.length === 0 && role === 'PRIME' ? (
+          <p className="text-sm text-secondary">
+            Nothing supplies this site. It is set to run on its own gensets and none are
+            installed.
+          </p>
         ) : (
           <SiteDiagram summary={summary} dutyId={summary.defaultDutyId} role={role} />
         )}

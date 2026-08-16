@@ -28,6 +28,20 @@ import type {SiteSummary} from '../data/sites';
  * Deliberately short. The detail belongs to the genset rows underneath; if this
  * column grows to compete with them it stops being a summary.
  */
+/**
+ * How the yard is fed, in one line — `Mains + 2 gensets`, `1 genset, no mains`.
+ *
+ * The zero cases are spelled out rather than falling out of the arithmetic, because
+ * "Mains + 0 gensets" reads as a defect and "0 gensets, no mains" reads as a bug
+ * rather than what it is: a site with nothing supplying it, which is a real thing to
+ * be looking at and deserves saying plainly.
+ */
+const supplyLabel = (role: SitePowerRole, count: number): string => {
+  const sets = `${count} genset${count === 1 ? '' : 's'}`;
+  if (role === 'STANDBY') return count === 0 ? 'Mains only' : `Mains + ${sets}`;
+  return count === 0 ? 'No supply' : `${sets}, no mains`;
+};
+
 export const SiteSummaryPanel = ({
   summary,
   dutyId,
@@ -73,7 +87,10 @@ export const SiteSummaryPanel = ({
     // Stacked rather than side by side: the verdict reads down into the figures
     // that justify it, and the column then sits at the diagram's own height
     // instead of stretching the top section across two thirds of the page.
-    <div className="flex w-[260px] shrink-0 flex-col justify-center gap-8">
+    // 260px is the design's column. On a phone it is the full width instead, so the
+    // three metric rows keep their label/value split rather than crushing it into a
+    // 260px block beside empty space.
+    <div className="flex w-full shrink-0 flex-col justify-center gap-6 md:w-[260px] md:gap-8">
       {/* Auto rather than the old fixed 113px: "1 of 2 feeding" set that width, and
           the badge now also has to hold "On generator" without clipping it. */}
       <div className="flex shrink-0 flex-col items-start gap-3">
@@ -86,18 +103,11 @@ export const SiteSummaryPanel = ({
         </Badge>
       </div>
 
-      <div className="flex w-[260px] shrink-0 flex-col gap-3">
+      <div className="flex w-full shrink-0 flex-col gap-3 md:w-[260px]">
         {/* How the yard is fed, which is the fact the badge above is a reading of.
             Stated because the diagram alone leaves a reader to infer the absence of
             a mains node, and an absence is a poor way to state a fact. */}
-        <MetricRow
-          label="Supply"
-          value={
-            role === 'STANDBY'
-              ? `Mains + ${summary.gensets.length} genset${summary.gensets.length === 1 ? '' : 's'}`
-              : `${summary.gensets.length} genset${summary.gensets.length === 1 ? '' : 's'}, no mains`
-          }
-        />
+        <MetricRow label="Supply" value={supplyLabel(role, summary.gensets.length)} />
         <MetricRow label="Installed capacity" value={amount(summary.ratedKw, 'kW')} />
         <MetricRow
           label="Fuel on site"

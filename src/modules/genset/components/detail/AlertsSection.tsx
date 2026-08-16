@@ -1,14 +1,108 @@
-import {ActivityIcon, BellIcon, CircleGaugeIcon} from 'lucide-react';
+import {ActivityIcon, BellIcon, CircleGaugeIcon, DropletIcon, WrenchIcon} from 'lucide-react';
+import {Link} from '@tanstack/react-router';
 
 import {Badge} from '@/components/ui/badge';
 import {amount, relativeTime} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {ALERT_SEVERITIES, countBySeverity, worstSeverity} from '../../types/alert.type';
-import type {AlertSeverity, GensetAlert, GensetTag} from '../../types/alert.type';
+import type {AlertSeverity, GensetAlert, GensetCondition, GensetTag} from '../../types/alert.type';
+import type {ServiceNotice, ServiceStatus} from '../../types/service.type';
+import type {FuelLeakNotice} from '../../types/fuelIntegrity.type';
 import type {Reading} from '../../types/telemetry.type';
 import type {AlertFocus} from '../../types/detailView.type';
 import {CONDITION_META, SEVERITY_META} from './severityMeta';
 import type {GensetDetail} from '../../data/detail';
+
+/** The tag an overdue service is filed under — the one it already belonged to. */
+const SERVICE_TAG_ID = 'service';
+
+/**
+ * And the one a leak is filed under.
+ *
+ * `Fuel` was the tag that deliberately carried no alarms, and the note in
+ * `detail.ts` explaining why is still true: the register map's two fuel bits
+ * (`AL Fuel Level Wrn`, `AL Fuel Level Sd`) are not marked for the dashboard, so
+ * the map contributes nothing here. What has changed is that the *app* now does.
+ */
+const FUEL_TAG_ID = 'fuel';
+
+/**
+ * An overdue service, in the alert list but not disguised as an alarm.
+ *
+ * The differences from `AlertCard` are the point rather than styling drift. It
+ * carries a spanner instead of a bell, and where an alarm prints its register and
+ * bit this prints `Service schedule` — because that is honestly where it came
+ * from. A reader has to be able to tell at a glance which rows are the panel
+ * talking and which are the app's own arithmetic, and the register line is what
+ * they already use to do it.
+ *
+ * The card links to the Service tab, because unlike an alarm there is something
+ * to *do* about this one and the place to do it is one click away.
+ */
+const ServiceNoticeCard = ({notice}: {notice: ServiceNotice}) => (
+  <div className="flex w-full flex-col gap-3 rounded-md border border-severity-critical/40 bg-element px-3 py-2.5">
+    <div className="flex flex-wrap items-center gap-3.5">
+      <Badge variant="element" size="md" className="border-subtle">
+        <WrenchIcon className="text-severity-critical" aria-hidden="true" />
+        Service
+      </Badge>
+      <p className="text-base font-medium text-primary">{notice.message}</p>
+      <p className="ml-auto text-xs text-secondary">{notice.source}</p>
+    </div>
+
+    <Link
+      to="/gensets/$gensetId/service"
+      params={{gensetId: notice.gensetId}}
+      className="text-sm text-secondary underline-offset-4 hover:text-primary hover:underline"
+    >
+      Open the service log
+    </Link>
+  </div>
+);
+
+/**
+ * A leak, in the alert list and visibly not from the panel.
+ *
+ * Same shape as the service notice above and for the same reason: a droplet
+ * instead of a bell, and `Fuel reconciliation` where an alarm prints its register
+ * and bit. No controller raises this — a panel watches its own tank and its own
+ * injectors and never puts the two together — so a card that looked like a
+ * register-map row would be claiming a source that does not exist.
+ *
+ * Unlike the service notice it takes a severity colour, because unlike an overdue
+ * chore this is a live fault: it is what turns the verdict above from `Optimum`,
+ * and a border that did not agree with that would leave the reader hunting.
+ */
+const FuelLeakNoticeCard = ({notice}: {notice: FuelLeakNotice}) => (
+  <div
+    className={cn(
+      'flex w-full flex-col gap-3 rounded-md border bg-element px-3 py-2.5',
+      notice.kind === 'critical' ? 'border-severity-critical/40' : 'border-severity-warning/40',
+    )}
+  >
+    <div className="flex flex-wrap items-center gap-3.5">
+      <Badge variant="element" size="md" className="border-subtle">
+        <DropletIcon
+          className={
+            notice.kind === 'critical' ? 'text-severity-critical' : 'text-severity-warning'
+          }
+          aria-hidden="true"
+        />
+        Fuel leak
+      </Badge>
+      <p className="text-base font-medium text-primary">{notice.message}</p>
+      <p className="ml-auto text-xs text-secondary">{notice.source}</p>
+    </div>
+
+    <Link
+      to="/gensets/$gensetId/settings"
+      params={{gensetId: notice.gensetId}}
+      className="text-sm text-secondary underline-offset-4 hover:text-primary hover:underline"
+    >
+      See the reconciliation
+    </Link>
+  </div>
+);
 
 /**
  * A reading and its number, on one line.
@@ -75,7 +169,7 @@ const AlertCard = ({alert, reading}: {alert: GensetAlert; reading: Reading | und
           {alert.type}
         </Badge>
         <p className="text-base font-medium text-primary">{alert.name}</p>
-        <p className="ml-auto text-xs text-tertiary">
+        <p className="ml-auto text-xs text-secondary">
           {alert.threshold} · raised {relativeTime(alert.raisedAt)}
         </p>
       </div>
@@ -109,31 +203,103 @@ const AlertCard = ({alert, reading}: {alert: GensetAlert; reading: Reading | und
  */
 export const AlertsSection = ({
   detail,
+  service,
+  notice,
+  leak,
+  condition,
   focus,
   onFocusChange,
 }: {
   detail: GensetDetail;
+  /** Live service status — the source of the `hours-since-service` figure below. */
+  service: ServiceStatus;
+  notice: ServiceNotice | undefined;
+  leak: FuelLeakNotice | undefined;
+  /**
+   * The verdict, passed in rather than read off `detail`.
+   *
+   * `detail.condition` is the register map's verdict alone, and a set losing fuel
+   * carries an alarm the register map has no bit for. The combined reading lives in
+   * `data/fuelIntegrity.ts`; this component stays a view over what it is given.
+   */
+  condition: GensetCondition;
   focus: AlertFocus;
   onFocusChange: (focus: AlertFocus) => void;
 }) => {
-  const {alerts, readings, tags, condition} = detail;
+  const {alerts, tags} = detail;
+
+  /** The leak's severity, in the alert module's own three-value ranking. */
+  const leakSeverity: AlertSeverity | undefined =
+    leak === undefined ? undefined : leak.kind === 'critical' ? 'CRITICAL' : 'WARNING';
+
+  /**
+   * The chip counts, **including the leak**.
+   *
+   * This is where it parts company with the service notice below, and the reason is
+   * worth stating because the notice's own comment argues the opposite. A service
+   * falling due does not move the verdict above these chips, so leaving it out of
+   * them costs nothing. A leak does — and a page reading `Critical` over a row of
+   * chips reading `Critical 0` is a summary contradicting the thing it summarises.
+   * Worse, the reader who clicks `Critical` looking for what turned the verdict
+   * would find an empty list.
+   *
+   * The chips count *this section's rows*, not the register map. The map's own
+   * identity is protected where it actually lives: on the card, which prints
+   * `Fuel reconciliation` where an alarm prints its register and bit.
+   */
   const counts = countBySeverity(alerts);
+  if (leakSeverity !== undefined) counts[leakSeverity] += 1;
+
+  /**
+   * The readings, with `hours-since-service` taken from the service log rather
+   * than from the snapshot.
+   *
+   * `detail.ts` publishes a seeded value for it — correct at module load and
+   * stale the moment somebody logs a service. Overriding it here is what makes
+   * the spec's "the reading agrees with the log" true *after* an operator has
+   * done something, not just on first paint.
+   *
+   * On a never-serviced genset the key is removed outright. There is no baseline
+   * to subtract from, and a row reading "Hours since service 0 h" on a machine
+   * that has never been serviced is precisely the invented number this feature
+   * exists to delete.
+   */
+  const readings = (() => {
+    const base = detail.readings;
+    if (service.kind === 'never-serviced') {
+      const {'hours-since-service': _dropped, ...rest} = base;
+      return rest;
+    }
+    return {
+      ...base,
+      'hours-since-service': {
+        ...base['hours-since-service'],
+        value: Math.round(service.hours.elapsed),
+      },
+    };
+  })();
   const conditionMeta = CONDITION_META[condition];
   const ConditionIcon = conditionMeta.icon;
 
   // Keyed by reading, so a tag can pull in the alarms on the readings it lists.
-  // The roll-up bits (`AL Common Sd`, `Sd Override`) have no reading and so appear
-  // under no tag — correctly: a tag is a set of readings, and an alarm about the
-  // panel's state is not filed under a measurement. They still show under the
-  // severity chips, which is where "what is wrong" gets asked.
   const alertsByKey = new Map<string, Array<GensetAlert>>();
   for (const alert of alerts) {
     if (alert.readingKey === null) continue;
     alertsByKey.set(alert.readingKey, [...(alertsByKey.get(alert.readingKey) ?? []), alert]);
   }
 
-  const alertsForTag = (tag: GensetTag): Array<GensetAlert> =>
-    tag.readingKeys.flatMap((key) => alertsByKey.get(key) ?? []);
+  /**
+   * A tag's alarms: those on its readings, plus the ones it names outright.
+   *
+   * The second half is for `Sd Override` and `DPF status`, which watch no reading
+   * and would otherwise be filed nowhere. Deduped by id, because an alarm that is
+   * both named by the tag and sitting on one of its readings is still one alarm.
+   */
+  const alertsForTag = (tag: GensetTag): Array<GensetAlert> => {
+    const byReading = tag.readingKeys.flatMap((key) => alertsByKey.get(key) ?? []);
+    const named = alerts.filter((alert) => (tag.alarmIds ?? []).includes(alert.ruleId));
+    return [...new Map([...byReading, ...named].map((alert) => [alert.id, alert])).values()];
+  };
 
   const selectedTag =
     focus.kind === 'tag' ? tags.find((tag) => tag.id === focus.tagId) : undefined;
@@ -166,6 +332,16 @@ export const AlertsSection = ({
           .map((key) => readings[key])
           .filter((reading) => reading !== undefined);
 
+  const showNotice =
+    notice !== undefined &&
+    (focus.kind === 'none' || (focus.kind === 'tag' && focus.tagId === SERVICE_TAG_ID));
+
+  const showLeak =
+    leak !== undefined &&
+    (focus.kind === 'none' ||
+      (focus.kind === 'tag' && focus.tagId === FUEL_TAG_ID) ||
+      (focus.kind === 'severity' && focus.severity === leakSeverity));
+
   const toggleSeverity = (severity: AlertSeverity) =>
     onFocusChange(
       focus.kind === 'severity' && focus.severity === severity
@@ -179,13 +355,28 @@ export const AlertsSection = ({
     );
 
   return (
-    <section aria-label="Alerts" className="flex gap-9 py-4">
-      <div className="flex w-[70px] shrink-0 flex-col items-center gap-2 pt-4">
+    <section
+      aria-label="Alerts"
+      // A column below `md`, and the verdict runs across the top of it. Kept as a
+      // row, the 113px condition rail takes a third of a 390px screen and leaves
+      // the chips 223px to wrap into a ten-line stack — the same trade `SiteHome`
+      // and `SiteGensetRow` make, and for the same reason.
+      className="flex flex-col gap-2.5 py-4 pl-0 md:flex-row md:pl-3"
+    >
+      {/* Band 1's run-state hero geometry, repeated exactly — the same 12px
+          inset, the same 113px column, the same 10px gap to the content beside
+          it. The two glyphs are the page's only 32px marks and they answer the
+          same kind of question ("what is this machine doing" / "how is it"), so
+          they have to sit on one vertical line; anything else reads as two
+          sections that were laid out separately.
+          On a phone that line cannot exist — there is no column beside it — so the
+          pair turns and reads as a heading instead. */}
+      <div className="flex shrink-0 flex-row items-center gap-2 md:w-[113px] md:flex-col md:pt-4">
         <ConditionIcon
           className={cn('size-8', conditionMeta.textClassName)}
           aria-hidden="true"
         />
-        <p className="text-center text-base font-medium text-primary">{conditionMeta.label}</p>
+        <p className="text-base font-medium text-primary md:text-center">{conditionMeta.label}</p>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-5">
@@ -227,7 +418,16 @@ export const AlertsSection = ({
 
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => {
-              const worst = worstSeverity(alertsForTag(tag));
+              // The leak colours the `Fuel` chip, which is how it reaches the chip
+              // row at all. It deliberately does *not* touch the three severity
+              // chips above — those count the register map, and slipping an
+              // app-generated row into them would undo the reason it is a separate
+              // type. Colouring the tag is the honest half of the same job: the
+              // verdict says something is wrong, and the chip row says where.
+              const worst =
+                tag.id === FUEL_TAG_ID && leakSeverity !== undefined
+                  ? leakSeverity
+                  : worstSeverity(alertsForTag(tag));
               const selected = focus.kind === 'tag' && focus.tagId === tag.id;
 
               return (
@@ -266,7 +466,18 @@ export const AlertsSection = ({
         </div>
 
         <div className="flex max-w-[720px] flex-col gap-5">
-          {orderedAlerts.length === 0 && quietReadings.length === 0 ? (
+          {/* Shown unfiltered and under the tag it belongs to, and nowhere else.
+              It is not an alarm, so a severity chip cannot claim it — filtering
+              to "Critical" narrows to the register map, and quietly slipping an
+              app-generated row into that list would undo the whole reason it is a
+              separate type. */}
+          {showNotice && notice !== undefined && <ServiceNoticeCard notice={notice} />}
+          {showLeak && leak !== undefined && <FuelLeakNoticeCard notice={leak} />}
+
+          {orderedAlerts.length === 0 &&
+          quietReadings.length === 0 &&
+          !showNotice &&
+          !showLeak ? (
             <p className="text-sm text-secondary">
               {focus.kind === 'none'
                 ? 'No active alerts on this genset.'

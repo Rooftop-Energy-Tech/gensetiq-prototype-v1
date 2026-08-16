@@ -1,7 +1,7 @@
 import {createFileRoute, useParams} from '@tanstack/react-router';
 
 import {SiteSettings} from '@/modules/site/components/SiteSettings';
-import {siteSummary} from '@/modules/site/data/sites';
+import {useSiteSummary} from '@/modules/site/data/sites';
 
 /**
  * The site's Settings tab.
@@ -16,7 +16,7 @@ import {siteSummary} from '@/modules/site/data/sites';
  */
 const SiteSettingsRoute = () => {
   const {siteId} = useParams({from: '/_authenticated/sites_/$siteId'});
-  const summary = siteSummary(siteId);
+  const summary = useSiteSummary(siteId);
   if (summary === undefined) return null;
 
   return <SiteSettings summary={summary} />;

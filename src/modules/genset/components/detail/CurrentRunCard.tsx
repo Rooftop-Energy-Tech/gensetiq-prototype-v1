@@ -7,6 +7,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, duration, stampAt} from '@/lib/format';
 import {isOpen, runElapsedMs} from '../../types/run.type';
 import type {GensetRun} from '../../types/run.type';
+import {DEFAULT_RUN_WINDOW} from '../../types/runsView.type';
 import {MetricRow} from './MetricRow';
 
 /**
@@ -45,7 +46,16 @@ export const CurrentRunCard = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon-sm" className="size-7" asChild>
-              <Link to="/gensets/$gensetId/runs" params={{gensetId}} aria-label="All runs">
+              <Link
+                to="/gensets/$gensetId/runs"
+                params={{gensetId}}
+                // The tab's own default. A link has to name the whole search
+                // object — the schema's defaults settle a URL that is parsed, not
+                // one that is built — so this is where the arrow says which
+                // window the log opens on.
+                search={{window: DEFAULT_RUN_WINDOW}}
+                aria-label="All runs"
+              >
                 <ArrowRightIcon aria-hidden="true" />
               </Link>
             </Button>
@@ -54,13 +64,16 @@ export const CurrentRunCard = ({
         </Tooltip>
       </div>
 
-      <div className="flex w-full items-center gap-10">
+      {/* `gap-10` is the design's; a phone gives that space to the figures instead,
+          which is what keeps a 117px stamp column and three label/value pairs on one
+          line at 390px rather than wrapping the interval away from its totals. */}
+      <div className="flex w-full items-center gap-4 md:gap-10">
         {/* The interval, drawn as one. The arrow is the design's, and it is
             doing real work — without it the two stamps read as a pair of
             unrelated timestamps rather than a start and an end. */}
         <div className="flex w-[117px] shrink-0 flex-col items-center gap-3 text-sm font-medium text-primary">
           <span className="whitespace-nowrap">{stampAt(run.startedAt)}</span>
-          <ArrowDownIcon className="size-4 text-tertiary" aria-hidden="true" />
+          <ArrowDownIcon className="size-4 text-secondary" aria-hidden="true" />
           <span className="whitespace-nowrap">{stampAt(endStamp)}</span>
         </div>
 

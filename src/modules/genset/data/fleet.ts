@@ -145,9 +145,14 @@ const buildActivity = (seed: FleetSeed, now: number): Array<GensetActivity> => {
               ['STOP', 'Engine stopped — utility restored', staleMinutes + 1_290],
             ];
 
+  // No `SERVICE` line here. There used to be one — "Scheduled 250-hour service
+  // completed", eight days ago, on every unit in the fleet — and it was a claim
+  // with no record behind it. Now that services are recorded, `services.ts` is
+  // where they come from, and `serviceActivity()` turns each one into the feed
+  // entry this used to fake. Leaving the seeded line in would have put a service
+  // eight days ago on the same page as a service log saying it was in April.
   const tail: Array<[GensetActivityKind, string, number]> = [
     ['REFUEL', `Refuelled to ${seed.fuelCapacityLitres.toLocaleString('en-MY')}L`, staleMinutes + 2_760],
-    ['SERVICE', 'Scheduled 250-hour service completed', staleMinutes + 11_400],
   ];
 
   return [...head, ...tail].map(([kind, message, minutes], index) => ({

@@ -1,3 +1,4 @@
+import {useRef} from 'react';
 import {BoomBoxIcon, FactoryIcon, UtilityPoleIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
@@ -5,9 +6,11 @@ import type {RunState} from '@/modules/genset/types/genset.type';
 
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
+import {useElementSize} from '@/lib/useElementSize';
 import {isolatorStateOf, mainsContactorStateOf} from '../types/site.type';
 import type {MainsSupply, SitePowerRole, SwitchState} from '../types/site.type';
-import {siteFeed} from '../data/sites';
+import type {MeterFeed} from '@/modules/meter/types/meter.type';
+import {siteFeed, siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 
 /**
@@ -27,13 +30,19 @@ import type {SiteSummary} from '../data/sites';
  * component's own documentation: terminals on the horizontal centreline at
  * x = 18 and x = 46, and an open blade lifted 35° off the source terminal.
  *
- * ## Why the geometry is fixed
+ * ## Why the geometry is fixed, and how it still fits a phone
  *
  * Same reason as `PowerFlowDiagram`: the conductors have to *land* on the boxes.
  * A flex or grid arrangement that reflows leaves a wire ending in mid-air at some
  * viewport width, and a diagram with a conductor pointing at nothing is worse than
- * one that needs a scrollbar. So the block is a fixed pixel canvas and the card
- * centres it.
+ * one that needs a scrollbar. So the block is a fixed pixel canvas.
+ *
+ * When the canvas is wider than the space it is given, the whole drawing is
+ * **scaled down uniformly** rather than scrolled or reflowed. That keeps the
+ * geometry exactly as measured — every wire still lands where it was drawn to —
+ * and it costs only type size, which at the 0.86 a 375px screen asks for is a
+ * legible 9.5px caption. Scrolling was the previous answer and it was worse: the
+ * load node, the one thing the whole drawing points at, started off screen.
  *
  * ## What is added to the design
  *
@@ -318,9 +327,22 @@ const powerLabel = (runState: RunState, live: boolean, loadKw: number | null): s
  * scheduled, the other is why the site is on diesel.
  */
 const mainsPowerLabel = (mains: MainsSupply, carrying: boolean): string => {
-  if (carrying && mains.drawKw !== null) return amount(mains.drawKw, 'kW');
-  return mains.live ? 'off-load' : 'failed';
+  if (!mains.live) return 'failed';
+  if (!carrying) return 'off-load';
+  // Carrying, so there is real power here — whether the page can put a number on it
+  // is a separate question, and the answer names the reason. `unmetered` is somebody
+  // never having fitted a device; `no reading` is one fitted and gone quiet. Two
+  // different problems, two different people to call.
+  return meterLabel(mains.feed);
 };
+
+/** `218 kW`, or which of the two reasons there is no figure. */
+const meterLabel = (feed: MeterFeed): string =>
+  feed.state === 'METERED'
+    ? amount(feed.kw, 'kW')
+    : feed.state === 'UNMETERED'
+      ? 'unmetered'
+      : 'no reading';
 
 /**
  * One row of the diagram: a box, its switch, and its run onto the bus.
@@ -406,6 +428,9 @@ export const SiteDiagram = ({
   const sources = sourcesOf(summary, dutyId, role);
   const count = Math.max(1, sources.length);
   const feed = siteFeed(summary, dutyId, role);
+  // Who is feeding and how much are two questions now, because a site can know the
+  // first without the second — that is exactly what an unmetered yard looks like.
+  const loadKw = siteLoadKw(summary, dutyId, role);
 
   /** Centreline of source `index` — where its conductor leaves the box. */
   const centreline = (index: number) => index * PITCH + NODE_H / 2;
@@ -436,21 +461,55 @@ export const SiteDiagram = ({
     .map((source, index) => ({source, y: centreline(index)}))
     .sort((left, right) => Number(left.source.switchState.live) - Number(right.source.switchState.live));
 
+  /**
+   * How much of the canvas fits, and therefore what to scale it by.
+   *
+   * Measured rather than derived from a breakpoint, because the space this drawing
+   * gets is not a function of the viewport: the site page gives it a whole line, the
+   * settings page gives it half of one, and both can be any width. Only ever scaled
+   * *down* — a 398px drawing stretched across a desktop column would be a different
+   * design, not a larger one.
+   *
+   * `0` on the first render, before the ref is attached, which reads as scale 1 and
+   * paints the drawing at full size for one frame. That is the right way round: the
+   * alternative is a frame of nothing, and one frame at 1.0 in a container that turns
+   * out to be narrower is invisible next to a flash of empty space.
+   */
+  const boxRef = useRef<HTMLDivElement>(null);
+  const {width: available} = useElementSize(boxRef);
+  const scale = available === 0 ? 1 : Math.min(1, available / WIDTH);
+
   return (
     <div
-      className="relative shrink-0"
-      style={{width: WIDTH, height}}
+      ref={boxRef}
+      // Takes the width it is given and reserves the *scaled* height, so the rest of
+      // the page packs against the drawing's real size rather than the canvas's.
+      //
+      // Sized by `width` and `max-width` rather than a flex basis, and that is not a
+      // style preference: a basis applies to the **main axis**, so the one value that
+      // means "398px wide" in the site page's desktop row means "398px tall" in its
+      // phone column — which is exactly the wrong number in the one place the height
+      // is being computed. Width and max-width mean the same thing in both.
+      className="relative w-full shrink"
+      style={{maxWidth: WIDTH, height: height * scale}}
       role="img"
       aria-label={`${summary.site.name} single-line diagram: ${
         role === 'STANDBY' ? 'mains supply and ' : ''
       }${summary.gensets.length} genset${summary.gensets.length === 1 ? '' : 's'}, ${
         feed.source === 'GENSET'
-          ? `${summary.gensets.find(({genset}) => genset.id === feed.gensetId)?.genset.tag} feeding the load at ${amount(feed.drawKw, 'kW')}`
+          ? `${summary.gensets.find(({genset}) => genset.id === feed.gensetId)?.genset.tag} feeding the load`
           : feed.source === 'MAINS'
-            ? `on mains at ${amount(feed.drawKw, 'kW')}`
+            ? 'on mains'
             : 'nothing feeding the load'
-      }`}
+      }${loadKw === null ? '' : ` at ${amount(loadKw, 'kW')}`}`}
     >
+      {/* The canvas: always the measured 398px wide, and scaled as one piece. Every
+          coordinate below is therefore the design's, at every viewport width — which
+          is the whole point of scaling rather than reflowing. */}
+      <div
+        className="absolute top-0 left-0 origin-top-left"
+        style={{width: WIDTH, height, transform: `scale(${scale})`}}
+      >
       <svg
         width={WIDTH}
         height={height}
@@ -529,11 +588,20 @@ export const SiteDiagram = ({
         // nothing feeding it, this is not "0 kW" — that would read as a load that
         // has gone away, when in fact it is a load nobody is currently serving.
         caption="Site draw"
-        power={feed.source === 'NONE' ? 'not served' : amount(feed.drawKw, 'kW')}
+        power={
+          feed.source === 'NONE'
+            ? 'not served'
+            : loadKw !== null
+              ? amount(loadKw, 'kW')
+              : // Something *is* feeding the load — we just cannot say how much.
+                // `not served` here would be a much stronger and quite wrong claim.
+                meterLabel(summary.loadFeed)
+        }
         powered={anyLive}
         x={LOAD_X}
         y={busY - NODE_H / 2}
       />
+      </div>
     </div>
   );
 };

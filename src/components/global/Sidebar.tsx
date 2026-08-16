@@ -1,5 +1,13 @@
 import {useNavigate} from '@tanstack/react-router';
-import {BoomBoxIcon, FuelIcon, LandPlotIcon, LogOutIcon, SettingsIcon, TruckIcon} from 'lucide-react';
+import {
+  BoomBoxIcon,
+  FuelIcon,
+  GaugeIcon,
+  LandPlotIcon,
+  LogOutIcon,
+  SettingsIcon,
+  TruckIcon,
+} from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
 import type {NavItem} from '@/components/global/NavButton';
@@ -11,9 +19,14 @@ import iqMark from '@/assets/iq-mark.svg';
 
 const NAV_ITEMS: Array<NavItem> = [
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
-  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
   {label: 'Sites', icon: LandPlotIcon, link: '/sites'},
+  // After Sites, because a meter is fitted to a site's circuit and reads nothing on
+  // its own — the order of the rail follows what each destination is about.
+  {label: 'Meters', icon: GaugeIcon, link: '/meters'},
   {label: 'Refuel', icon: FuelIcon, link: '/refuel'},
+  // Last: the only destination about moving plant between the places above rather
+  // than about a thing you monitor.
+  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
 ];
 
 export const Sidebar = () => {
@@ -26,7 +39,10 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="flex h-full w-[94px] flex-col items-center pt-2">
+    // Gone entirely below `md`, where `MobileNav` takes over. Not merely narrowed:
+    // a rail of seven destinations has no phone-width form, and the two that do
+    // have mobile layouts are the two the floating bar offers.
+    <aside className="hidden h-full w-[94px] flex-col items-center pt-2 md:flex">
       <div className="flex w-full items-center justify-center py-3.5">
         {/* The mark's own aspect ratio is 37 × 27.2; both dimensions are set so
             it can't be stretched by the flex row it sits in. */}

@@ -25,7 +25,7 @@ export const WINDOW_LABELS: Record<AnalysisWindow, string> = {
   '30d': '30 days',
 };
 
-const WINDOW_MS: Record<AnalysisWindow, number> = {
+export const WINDOW_MS: Record<AnalysisWindow, number> = {
   '24h': 24 * 3_600_000,
   '7d': 7 * 24 * 3_600_000,
   '30d': 30 * 24 * 3_600_000,
@@ -39,7 +39,17 @@ const WINDOW_MS: Record<AnalysisWindow, number> = {
  */
 export const DEFAULT_KEYS = 'active-power,fuel-level';
 
-const DATE_PARAM = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * The window the tab opens on.
+ *
+ * Exported alongside `DEFAULT_KEYS` and for the same reason: a `<Link>` *into* this
+ * tab has to name the whole search object, because the schema's defaults settle a
+ * URL that is parsed rather than one that is built. The runs tab links here per
+ * row, carrying a run id.
+ */
+export const DEFAULT_ANALYSIS_WINDOW = '24h' as const;
+
+export const DATE_PARAM = /^\d{4}-\d{2}-\d{2}$/;
 
 const DAY_MS = 24 * 3_600_000;
 
@@ -80,7 +90,7 @@ export const analysisSearchSchema = z.object({
    * the comma convention does not leak into the components.
    */
   keys: z.string().default(DEFAULT_KEYS).catch(DEFAULT_KEYS),
-  window: z.enum(ANALYSIS_WINDOWS).default('24h').catch('24h'),
+  window: z.enum(ANALYSIS_WINDOWS).default(DEFAULT_ANALYSIS_WINDOW).catch(DEFAULT_ANALYSIS_WINDOW),
   /**
    * A run id, which overrides `window` when set.
    *

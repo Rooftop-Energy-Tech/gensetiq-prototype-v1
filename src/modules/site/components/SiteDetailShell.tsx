@@ -44,8 +44,10 @@ export const SiteDetailShell = ({summary}: {summary: SiteSummary}) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-4 pt-4 pb-2">
-        <div className="flex min-w-0 items-center gap-6">
-          <h1 className="truncate text-base font-medium text-primary">{site.name}</h1>
+        {/* Stacked below `md`, the same call `GensetDetailShell` makes: the site's
+            name keeps a line of its own rather than sharing one with its placename. */}
+        <div className="flex min-w-0 flex-col items-start gap-1 md:flex-row md:items-center md:gap-6">
+          <h1 className="max-w-full truncate text-base font-medium text-primary">{site.name}</h1>
 
           <div className="flex shrink-0 items-center gap-5">
             <span className="flex items-center gap-2 text-sm text-secondary">
@@ -84,9 +86,11 @@ export const SiteDetailShell = ({summary}: {summary: SiteSummary}) => {
           </div>
         </div>
 
+        {/* Hidden at phone width, where `Home` is the only one of the five with a
+            mobile layout — the same call `GensetDetailShell` makes about its six. */}
         <nav
           aria-label="Site sections"
-          className="flex h-9 items-center gap-0 rounded-lg bg-element p-[3px]"
+          className="hidden h-9 items-center gap-0 rounded-lg bg-element p-[3px] md:flex"
         >
           {TABS.map((tab) => (
             <Link
