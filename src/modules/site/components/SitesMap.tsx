@@ -4,6 +4,8 @@ import {useEffect, useRef} from 'react';
 
 import {darkToken} from '@/styles/colors';
 import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
+import {FLEET_STATUSES, STATUS_META} from '@/modules/genset/data/fleetStatus';
+import {siteStatus} from '../data/estateSummary';
 import type {SiteSummary} from '../data/sites';
 
 /**
@@ -56,6 +58,20 @@ type SitesMapProps = {
    * stays drawn; see `GensetsMap` for why framing and filtering are kept apart.
    */
   focusIds?: Array<string>;
+  /**
+   * Which verdict the pins are painted by.
+   *
+   * `condition` is the sites list's own scale — worst alarm among the sets — and is
+   * what the list's Condition column shows, so the map beside it agrees with the
+   * rows. `status` is the overview's four buckets, so the pins there agree with the
+   * tiles above them.
+   *
+   * A prop rather than a second map component, because the two differ in one paint
+   * expression and nothing else: the clustering, the framing, the fly-to and the
+   * count-driven radius are the same map. A copy would drift on all of them to
+   * express a difference in one.
+   */
+  colorBy?: 'condition' | 'status';
 };
 
 const toFeatureCollection = (
@@ -73,6 +89,7 @@ const toFeatureCollection = (
     properties: {
       id: summary.site.id,
       condition: summary.condition,
+      status: siteStatus(summary),
       // The yard's own count, so pin size says how much plant is standing here.
       // A site with no sets attached is a real state — see `siteSeed.ts` — and it
       // draws at the floor radius rather than vanishing.
@@ -99,6 +116,19 @@ const conditionColor = (): maplibregl.ExpressionSpecification =>
     ['get', 'condition'],
     ...Object.entries(CONDITION_META).flatMap(([condition, meta]) => [condition, meta.mapColor]),
     CONDITION_META.OPTIMUM.mapColor,
+  ] as unknown as maplibregl.ExpressionSpecification;
+
+/**
+ * The four buckets → pin fill, built from `STATUS_META` for the reason above: the
+ * arms come from the `FleetStatus` union, so they cannot fall out of step with the
+ * tiles that share the record.
+ */
+const statusColor = (): maplibregl.ExpressionSpecification =>
+  [
+    'match',
+    ['get', 'status'],
+    ...FLEET_STATUSES.flatMap((status) => [status, STATUS_META[status].mapColor]),
+    STATUS_META.OK.mapColor,
   ] as unknown as maplibregl.ExpressionSpecification;
 
 /**
@@ -132,10 +162,16 @@ export const SitesMap = ({
   onSelect,
   panelInset,
   focusIds,
+  colorBy = 'condition',
 }: SitesMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const loadedRef = useRef(false);
+
+  // Read inside the layer-creation closure, which runs once. Held in a ref for the
+  // reason `onSelect` is: so the map is not torn down and rebuilt to change a colour.
+  const colorByRef = useRef(colorBy);
+  colorByRef.current = colorBy;
 
   // `onSelect` is read from inside a MapLibre click handler registered once.
   // Holding it in a ref keeps that handler pointed at the current closure without
@@ -243,7 +279,10 @@ export const SitesMap = ({
         filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': POINT_RADIUS,
-          'circle-color': conditionColor(),
+          // The mount-time value. The map is built once in an effect with no deps,
+          // so a `colorBy` that changed later would never reach the shader — the
+          // effect below is what keeps the paint current.
+          'circle-color': colorByRef.current === 'status' ? statusColor() : conditionColor(),
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
           'circle-stroke-color': [
             'case',
@@ -311,6 +350,27 @@ export const SitesMap = ({
       mapRef.current = null;
     };
   }, []);
+
+  // — Repaint when the scale changes, since the layer was built with the old one.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map === null) return;
+
+    const repaint = () => {
+      if (map.getLayer(LAYER.point) === undefined) return;
+      map.setPaintProperty(
+        LAYER.point,
+        'circle-color',
+        colorBy === 'status' ? statusColor() : conditionColor(),
+      );
+    };
+
+    if (loadedRef.current) {
+      repaint();
+      return;
+    }
+    map.once('gensetiq.ready', repaint);
+  }, [colorBy]);
 
   // — Push data (and the selection highlight) into the source.
   useEffect(() => {

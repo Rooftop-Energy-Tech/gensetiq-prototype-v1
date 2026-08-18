@@ -117,6 +117,22 @@ export const SITE_SEED: Array<SiteSeed> = [
   {id: 'mfg-015',     name: 'Mfg-015',     kind: 'MANUFACTURING', locationLabel: 'Seremban, Negeri Sembilan',  latitude: 2.7258, longitude: 101.9424, loadKw: 175, customer: 'sapura',            powerRole: 'STANDBY'},
   {id: 'port-016',    name: 'Port-016',    kind: 'PORT',          locationLabel: 'Kuantan, Pahang',            latitude: 3.8077, longitude: 103.3260, loadKw: 281, customer: 'sapura',            powerRole: 'PRIME'},
   {id: 'telco-017',   name: 'Telco-017',   kind: 'TELCO',         locationLabel: 'Kota Bharu, Kelantan',       latitude: 6.1254, longitude: 102.2381, loadKw: 64,  customer: 'redtone',           powerRole: 'PRIME'},
+  // — Sabah and Sarawak —
+  //
+  // Added because a Peninsula-only estate misrepresented the business: East Malaysia
+  // is where a great many of these sets stand, and it is also where the *interesting*
+  // ones stand. Four of these eight have no mains incomer at all — an interior
+  // Sarawak tower and a Keningau exchange are fed by their gensets and nothing else —
+  // which is the case `SitePowerRole` draws the distinction for, and which the seed
+  // barely contained before.
+  {id: 'telco-018',  name: 'Telco-018',  kind: 'TELCO',        locationLabel: 'Kota Kinabalu, Sabah',      latitude: 5.9804, longitude: 116.0735, loadKw: 188, customer: 'maxis',               powerRole: 'STANDBY'},
+  {id: 'telco-019',  name: 'Telco-019',  kind: 'TELCO',        locationLabel: 'Keningau, Sabah',           latitude: 5.3378, longitude: 116.1602, loadKw: 42,  customer: 'maxis',               powerRole: 'PRIME'},
+  {id: 'telco-020',  name: 'Telco-020',  kind: 'TELCO',        locationLabel: 'Sandakan, Sabah',           latitude: 5.8402, longitude: 118.1179, loadKw: 132, customer: 'redtone',             powerRole: 'STANDBY'},
+  {id: 'tower-021',  name: 'Tower-021',  kind: 'TOWER',        locationLabel: 'Lahad Datu, Sabah',         latitude: 5.0269, longitude: 118.3270, loadKw: 58,  customer: 'redtone',             powerRole: 'PRIME'},
+  {id: 'data-022',   name: 'Data-022',   kind: 'DATA',         locationLabel: 'Kuching, Sarawak',          latitude: 1.5533, longitude: 110.3592, loadKw: 296, customer: 'tm',                  powerRole: 'STANDBY'},
+  {id: 'port-023',   name: 'Port-023',   kind: 'PORT',         locationLabel: 'Bintulu, Sarawak',          latitude: 3.1710, longitude: 113.0417, loadKw: 415, customer: 'sapura',              powerRole: 'STANDBY'},
+  {id: 'mfg-024',    name: 'Mfg-024',    kind: 'MANUFACTURING',locationLabel: 'Miri, Sarawak',             latitude: 4.3995, longitude: 113.9914, loadKw: 267, customer: 'sapura',              powerRole: 'PRIME'},
+  {id: 'telco-025',  name: 'Telco-025',  kind: 'TELCO',        locationLabel: 'Kapit, Sarawak',            latitude: 2.0167, longitude: 112.9333, loadKw: 37,  customer: 'tm',                  powerRole: 'PRIME'},
 ];
 
 export const siteSeed = (siteId: string): SiteSeed | undefined =>

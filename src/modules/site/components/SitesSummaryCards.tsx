@@ -5,9 +5,7 @@ import {
   SummaryCard,
   SummaryCardRow,
 } from '@/components/global/SummaryCards';
-import type {ChipTone} from '@/components/global/SummaryCards';
 import {STATUS_META} from '@/modules/genset/data/fleetStatus';
-import type {FleetStatus} from '@/modules/genset/data/fleetStatus';
 import type {EstateSummary} from '../data/estateSummary';
 import type {SiteSearch} from '../types/view.type';
 
@@ -27,20 +25,6 @@ type SitesSummaryCardsProps = {
   showing: number;
   search: SiteSearch;
   onSearchChange: (next: Partial<SiteSearch>) => void;
-};
-
-/**
- * The status buckets' tones, taken from `STATUS_META` rather than restated.
- *
- * `OK` is the one that differs from the tile on the overview: there it is the good
- * news and gets its green, here it is one chip in a row of four and a green count
- * beside three coloured ones reads as a fifth severity. The dot stays neutral.
- */
-const STATUS_TONE: Record<FleetStatus, ChipTone> = {
-  EMPTY: 'critical',
-  ALARM: 'critical',
-  REFUEL: 'warning',
-  OK: 'neutral',
 };
 
 export const SitesSummaryCards = ({
@@ -92,7 +76,7 @@ export const SitesSummaryCards = ({
               key={tally.key}
               label={tally.label}
               count={tally.count}
-              tone={STATUS_TONE[tally.key]}
+              tone={STATUS_META[tally.key].tone}
               active={search.status === tally.key}
               onToggle={(next) => onSearchChange({status: next ? tally.key : undefined})}
               title={STATUS_META[tally.key].detail}

@@ -1,3 +1,4 @@
+import {darkToken} from '@/styles/colors';
 import {gensetCondition} from './fuelIntegrity';
 import {RESERVE_FRACTION, gensetDetail} from './detail';
 import type {Genset} from '../types/genset.type';
@@ -52,6 +53,25 @@ export type FleetStatus = (typeof FLEET_STATUSES)[number];
  */
 export const EMPTY_FRACTION = 0.1;
 
+/**
+ * How a bucket is coloured, everywhere it appears.
+ *
+ * **Hue says what kind of job it is; lightness says how urgent.** Violet is diesel —
+ * the colour this app already paints every fuel figure in, from the tank glyph to
+ * the burn rate — so the two fuel buckets share it and separate on lightness. Red is
+ * the machine: the same `severity-critical` the alarm badges carry, so a site drawn
+ * red on the overview map is red in the sites list too. Green is nothing to do.
+ *
+ * That means **colour does not follow the bucket ranking**, and the departure is
+ * deliberate. `EMPTY` outranks `ALARM` for *bucketing* — a set that cannot start is
+ * filed under the worse of the two — but a colour is read as a category before it is
+ * read as a rank, and an operator glancing at the map is deciding what to send
+ * rather than what to file first. A tanker and an engineer are different vans. The
+ * ordering is carried by the tiles' left-to-right order instead, which is what an
+ * ordering is actually legible as.
+ */
+export type StatusTone = 'critical' | 'fuel' | 'fuel-low' | 'ok';
+
 export const STATUS_META: Record<
   FleetStatus,
   {
@@ -59,26 +79,41 @@ export const STATUS_META: Record<
     label: string;
     /** What it means, one line, for the tile's caption. */
     detail: string;
-    /** The severity token — the same three the badges and pins already use. */
-    tone: 'critical' | 'warning' | 'ok';
+    tone: StatusTone;
+    /**
+     * The same colour as a literal, for MapLibre paint properties — which are
+     * evaluated in a shader and cannot read a CSS variable. The reason
+     * `RUN_STATE_META` and `CONDITION_META` each carry one, and the reason it lives
+     * beside the tone rather than in the map file: a second copy is how a pin and
+     * its tile end up different shades of the same idea.
+     */
+    mapColor: string;
   }
 > = {
   EMPTY: {
     label: 'Tank empty',
     detail: `Below ${Math.round(EMPTY_FRACTION * 100)}% — no cover until refuelled`,
-    tone: 'critical',
+    tone: 'fuel',
+    mapColor: darkToken.fuel,
   },
   ALARM: {
     label: 'Alarms raised',
     detail: 'Carrying a warning or a shutdown alarm',
     tone: 'critical',
+    mapColor: darkToken['severity-critical'],
   },
   REFUEL: {
     label: 'Refuel due',
     detail: `Below the ${Math.round(RESERVE_FRACTION * 100)}% reserve line`,
-    tone: 'warning',
+    tone: 'fuel-low',
+    mapColor: darkToken['fuel-tip'],
   },
-  OK: {label: 'All OK', detail: 'Fuelled, and nothing raised', tone: 'ok'},
+  OK: {
+    label: 'All OK',
+    detail: 'Fuelled, and nothing raised',
+    tone: 'ok',
+    mapColor: darkToken['severity-ok'],
+  },
 };
 
 const fuelFraction = (genset: Genset): number =>

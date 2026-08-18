@@ -73,20 +73,25 @@ export const Headline = ({value, unit, detail}: HeadlineProps) => (
   </div>
 );
 
-export type ChipTone = 'neutral' | 'ok' | 'warning' | 'critical';
+export type ChipTone = 'neutral' | 'ok' | 'warning' | 'critical' | 'fuel' | 'fuel-low';
 
 /**
- * Tone → the glyph's colour. The chip's own surface stays neutral in every tone.
+ * Tone → **the dot's** colour, and the dot's alone.
  *
- * `runStateMeta.ts`'s rule, applied here: colour the mark, not the field. A strip
- * of four cards with coloured surfaces is a traffic light before it is a set of
- * numbers, and the one thing these need to be legible as is numbers.
+ * `runStateMeta.ts`'s rule, applied here and then applied again to the numbers: the
+ * mark carries the state, the type does not. A count set in red is a coloured
+ * *number* before it is a status, it fights the neighbouring counts for attention,
+ * and four cards of it read as an alert screen rather than as a summary. So every
+ * figure on this strip is `text-primary` whatever it is counting, and the dot beside
+ * it says which bucket it belongs to.
  */
 const DOT_CLASS: Record<ChipTone, string> = {
   neutral: 'bg-tertiary',
   ok: 'bg-severity-ok',
   warning: 'bg-severity-warning',
   critical: 'bg-severity-critical',
+  fuel: 'bg-fuel',
+  'fuel-low': 'bg-fuel-tip',
 };
 
 type CountChipProps = {

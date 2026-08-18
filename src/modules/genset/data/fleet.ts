@@ -95,6 +95,36 @@ const FLEET_SEED: Array<FleetSeed> = [
   {tag: 'SRB6644', model: 'Kohler 400 kVa',      runState: 'RUNNING', siteId: 'mfg-015',     locationLabel: 'Seremban, Negeri Sembilan',latitude: 2.7258, longitude: 101.9424, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST'},
   {tag: 'KTN1970', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'port-016',    locationLabel: 'Kuantan, Pahang',          latitude: 3.8077, longitude: 103.3260, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9},
   {tag: 'KBR4128', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'telco-017',   locationLabel: 'Kota Bharu, Kelantan',     latitude: 6.1254, longitude: 102.2381, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73},
+
+  // — Sabah and Sarawak (13) —
+  //
+  // East Malaysia is where the interesting half of this estate is, and leaving it
+  // out made the fleet look like a Klang Valley operation with a few outstations.
+  // Four of these eight yards are `PRIME`, which is not a coincidence: an interior
+  // Sarawak tower or a Keningau exchange has no mains incomer to back up, and the
+  // sets there *are* the supply. That is the case the overview's outer split exists
+  // to separate, and until these sites landed the prime half of it was three yards.
+  //
+  // Their tank levels are chosen rather than scattered. `rulesFor` deals alarms from
+  // a hash of the tag, so a fleet seeded without thought lands almost everything in
+  // the alarm bucket and leaves "Refuel due" reading zero on a screen built to show
+  // it. These thirteen are picked to put real numbers in all four buckets — five
+  // below the reserve line, one dry, two alarming — without touching a single
+  // existing row, which matters because `BRF9540` and its neighbours are pinned to
+  // the Figma frames.
+  {tag: 'KKB8856', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'telco-018', locationLabel: 'Kota Kinabalu, Sabah',  latitude: 5.9808, longitude: 116.0741, fuelLitres: 220,  fuelCapacityLitres: 1000, staleMinutes: 12},
+  {tag: 'KKN4011', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'telco-018', locationLabel: 'Kota Kinabalu, Sabah',  latitude: 5.9800, longitude: 116.0729, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4},
+  {tag: 'KNU2218', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'telco-019', locationLabel: 'Keningau, Sabah',       latitude: 5.3382, longitude: 116.1608, fuelLitres: 108,  fuelCapacityLitres: 600,  staleMinutes: 38},
+  {tag: 'SDK5847', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'telco-020', locationLabel: 'Sandakan, Sabah',       latitude: 5.8398, longitude: 118.1173, fuelLitres: 740,  fuelCapacityLitres: 1000, staleMinutes: 7},
+  {tag: 'LDU7588', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'tower-021', locationLabel: 'Lahad Datu, Sabah',     latitude: 5.0273, longitude: 118.3276, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 21},
+  {tag: 'LWS6446', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'tower-021', locationLabel: 'Lahad Datu, Sabah',     latitude: 5.0265, longitude: 118.3264, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3},
+  {tag: 'KCH8566', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'data-022',  locationLabel: 'Kuching, Sarawak',      latitude: 1.5537, longitude: 110.3598, fuelLitres: 2040, fuelCapacityLitres: 3000, staleMinutes: 1},
+  {tag: 'KTG7712', model: 'Caterpillar 1250 kVa',runState: 'IDLE',    siteId: 'data-022',  locationLabel: 'Kuching, Sarawak',      latitude: 1.5529, longitude: 110.3586, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16},
+  {tag: 'BTU3941', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'port-023',  locationLabel: 'Bintulu, Sarawak',      latitude: 3.1714, longitude: 113.0423, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9},
+  {tag: 'SRI7241', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'port-023',  locationLabel: 'Bintulu, Sarawak',      latitude: 3.1706, longitude: 113.0411, fuelLitres: 1936, fuelCapacityLitres: 2450, staleMinutes: 44},
+  {tag: 'MRI8502', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'mfg-024',   locationLabel: 'Miri, Sarawak',         latitude: 4.3999, longitude: 113.9920, fuelLitres: 1544, fuelCapacityLitres: 2450, staleMinutes: 6},
+  {tag: 'LBG4884', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'mfg-024',   locationLabel: 'Miri, Sarawak',         latitude: 4.3991, longitude: 113.9908, fuelLitres: 172,  fuelCapacityLitres: 2450, staleMinutes: 51},
+  {tag: 'KPT8033', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'telco-025', locationLabel: 'Kapit, Sarawak',        latitude: 2.0171, longitude: 112.9339, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 27},
 ];
 
 const MINUTE = 60_000;
