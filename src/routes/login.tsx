@@ -8,6 +8,7 @@ import {isSignedIn, signIn} from '@/modules/auth/session';
 import {DEFAULT_GENSET_ID} from '@/modules/genset/data/fleet';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 
+import gensetiqWordmark from '@/assets/gensetiq-wordmark-light.png';
 import sesbLogo from '@/assets/sesb-logo.png';
 
 const LoginPage = () => {
@@ -39,10 +40,10 @@ const LoginPage = () => {
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <div className="flex w-[373px] flex-col items-center gap-[71px]">
-        {/* The customer's own mark carries the door; the product signs underneath
-            in plain muted text. The wordmark PNG is teal-and-white, drawn for a
-            dark ground — on this light canvas half of it would vanish, so the
-            powered-by line is type rather than the image. */}
+        {/* The customer's own mark carries the door; the product signs underneath.
+            The shipped wordmark is teal-and-white for a dark ground, so the sign-off
+            uses `gensetiq-wordmark-light.png` — the same art with its white recoloured
+            to the light theme's ink (see scripts note in the asset's commit). */}
         <div className="flex flex-col items-center gap-3">
           <img
             src={sesbLogo}
@@ -51,7 +52,16 @@ const LoginPage = () => {
             height={80}
             className="h-20 w-60 object-contain"
           />
-          <p className="text-xs text-tertiary">Powered by gensetIQ</p>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-tertiary">Powered by</span>
+            <img
+              src={gensetiqWordmark}
+              alt="gensetIQ"
+              width={67}
+              height={16}
+              className="h-4 w-auto"
+            />
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="flex w-full flex-col items-center gap-8" noValidate>
