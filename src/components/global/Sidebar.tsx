@@ -4,6 +4,7 @@ import {
   FuelIcon,
   GaugeIcon,
   LandPlotIcon,
+  LayoutDashboardIcon,
   LogOutIcon,
   SettingsIcon,
   TruckIcon,
@@ -18,6 +19,9 @@ import {sessionInitial, signOut, useSession} from '@/modules/auth/session';
 import iqMark from '@/assets/iq-mark.svg';
 
 const NAV_ITEMS: Array<NavItem> = [
+  // First, and the app's landing screen: the estate's state before any one machine
+  // in it. Everything below is a way of narrowing what this page counts.
+  {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
   {label: 'Sites', icon: LandPlotIcon, link: '/sites'},
   // After Sites, because a meter is fitted to a site's circuit and reads nothing on

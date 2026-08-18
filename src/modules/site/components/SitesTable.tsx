@@ -1,5 +1,6 @@
 import {Link} from '@tanstack/react-router';
-import type {KeyboardEvent} from 'react';
+import {useEffect} from 'react';
+import type {KeyboardEvent, RefObject} from 'react';
 
 import {Badge} from '@/components/ui/badge';
 import {fuelHeadline} from '@/lib/format';
@@ -35,9 +36,37 @@ type SitesTableProps = {
   summaries: Array<SiteSummary>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
+  /** The scroll container, for the split view's row watcher. See `GensetsTable`. */
+  scrollRef?: RefObject<HTMLDivElement | null>;
+  /** Called before this table scrolls itself — see `GensetsTable` for why. */
+  onBeforeAutoScroll?: () => void;
 };
 
-export const SitesTable = ({summaries, selectedId, onSelect}: SitesTableProps) => {
+export const SitesTable = ({
+  summaries,
+  selectedId,
+  onSelect,
+  scrollRef,
+  onBeforeAutoScroll,
+}: SitesTableProps) => {
+  // Bring a selection made on the map into view — the fleet table's effect, over
+  // sites. See `GensetsTable` for the reasoning and the sticky-header offset.
+  useEffect(() => {
+    const container = scrollRef?.current;
+    if (container === null || container === undefined || selectedId === undefined) return;
+
+    const row = container.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(selectedId)}"]`);
+    if (row === null) return;
+
+    const {top, bottom} = row.getBoundingClientRect();
+    const view = container.getBoundingClientRect();
+    if (top >= view.top + 40 && bottom <= view.bottom) return;
+
+    onBeforeAutoScroll?.();
+    row.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, scrollRef]);
+
   // Enter and Space both select; Space additionally has its default suppressed or
   // the table scrolls out from under the row being chosen. The site's own page is
   // reached through the name link in the first cell, which is in the tab order
@@ -49,7 +78,7 @@ export const SitesTable = ({summaries, selectedId, onSelect}: SitesTableProps) =
   };
 
   return (
-    <div className="h-full overflow-auto">
+    <div ref={scrollRef} className="h-full overflow-auto">
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           Sites, with condition, the gensets installed and fuel on site
@@ -81,6 +110,7 @@ export const SitesTable = ({summaries, selectedId, onSelect}: SitesTableProps) =
             return (
               <tr
                 key={summary.site.id}
+                data-row-id={summary.site.id}
                 tabIndex={0}
                 aria-selected={selected}
                 onClick={() => onSelect(summary.site.id)}

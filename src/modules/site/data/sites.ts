@@ -300,6 +300,9 @@ const buildSummary = (
       latitude: seed.latitude,
       longitude: seed.longitude,
       loadKw: seed.loadKw,
+      // Whose yard it is. Carried through from the seed rather than derived,
+      // because there is nothing on a diesel engine that says "Maxis".
+      customer: seed.customer,
     },
     gensets,
     // A running set if there is one — it is already carrying the load. Otherwise

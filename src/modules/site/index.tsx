@@ -1,18 +1,24 @@
-import {Suspense, lazy, useMemo} from 'react';
+import {Suspense, lazy, useMemo, useRef} from 'react';
 import {SearchXIcon} from 'lucide-react';
 
 import {useIsCompact} from '@/lib/useIsCompact';
+import {useVisibleRowIds} from '@/lib/useVisibleRows';
+import {estateSummary, filterSites} from './data/estateSummary';
 import {searchSites, sortSites, useSiteSummaries} from './data/sites';
+import {useSitePowerRoles} from './data/siteConfig';
 import {SiteDetailPanel} from './components/SiteDetailPanel';
 import {SitesCards} from './components/SitesCards';
+import {SitesSummaryCards} from './components/SitesSummaryCards';
 import {SitesTable} from './components/SitesTable';
 import {SitesToolbar} from './components/SitesToolbar';
 import type {SiteSearch} from './types/view.type';
 
 /**
- * MapLibre is ~800 kB, and the list is the default view — so the map is fetched
- * only once somebody switches to it, the same split the fleet screen makes. The
- * two maps share the library, so whichever screen loads it first pays for both.
+ * MapLibre is ~800 kB, and it is on this route's first paint now that the split
+ * view is the default — the same trade the fleet screen makes, and for the same
+ * return: the toolbar, the cards and the table render while the map's chunk is
+ * still arriving. The two maps share the library, so whichever screen loads it
+ * first pays for both.
  */
 const SitesMap = lazy(() =>
   import('./components/SitesMap').then((module) => ({default: module.SitesMap})),
@@ -29,7 +35,7 @@ type SitesPageProps = {
 };
 
 /**
- * `/sites` — seventeen sites, worst condition first, as a list or on a map.
+ * `/sites` — seventeen sites, worst condition first, as a list beside a map.
  *
  * The map used to be argued against on the grounds that a site's position is its
  * gensets' position, which `/gensets?view=map` already draws. That is true of the
@@ -46,14 +52,22 @@ type SitesPageProps = {
  * than a copy of its page — the facts a pin cannot state, and an arrow out.
  */
 export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
-  const {view, q = '', id, panel} = search;
+  const {view, q = '', id, panel, customer, role, status} = search;
 
   // Keyed on the summaries as well as the query: attaching or detaching a genset
   // changes a site's genset count, its fuel and its condition, and condition is what
   // this list is *ordered* by. Memoising on `q` alone would leave the list ranked by
   // a fleet that has since moved.
   const all = useSiteSummaries();
-  const summaries = useMemo(() => sortSites(searchSites(all, q)), [all, q]);
+  const roles = useSitePowerRoles();
+
+  // Over the whole estate, not the filtered view — see `estateSummary`.
+  const summary = useMemo(() => estateSummary(all, roles), [all, roles]);
+
+  const summaries = useMemo(
+    () => sortSites(filterSites(searchSites(all, q), {customer, role, status}, roles)),
+    [all, q, customer, role, status, roles],
+  );
 
   // Resolved against the *filtered* list, not the whole estate: if a search hides
   // the selected site, the panel should say so rather than describing a row the
@@ -64,25 +78,35 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   );
 
   /**
-   * At phone width this screen is the card list and nothing else — the same call
-   * the fleet screen makes, for the same reason: neither the map's controls nor a
+   * At phone width this screen is the cards and the card list — the same call the
+   * fleet screen makes, for the same reason: neither the map's controls nor a
    * floating 393px panel has a phone form, and the app offers no control it cannot
-   * honour. `view` in the URL is left untouched, so the same link opens the map on
-   * a desktop and the list on a phone.
+   * honour. `view` in the URL is left untouched, so the same link opens both halves
+   * on a desktop and the list on a phone.
    */
   const compact = useIsCompact();
 
-  const showMap = view === 'map' && !compact;
+  const showMap = (view === 'map' || view === 'split') && !compact;
+  const showList = view !== 'map' || compact;
+  const split = showMap && showList;
+
   // Undefaulted `panel` → the selection decides, as on the fleet screen: a first
   // load with nothing selected keeps the full width for the list.
   const panelOpen = (panel ?? id !== undefined) && !compact;
   const mapPanelInset = showMap && panelOpen ? PANEL_WIDTH + PANEL_INSET : 0;
+
+  // The rows on screen, which the map frames while the two halves are side by side.
+  const listRef = useRef<HTMLDivElement>(null);
+  const rowIds = useMemo(() => summaries.map((summary) => summary.site.id), [summaries]);
+  const {ids: visibleIds, suppress} = useVisibleRowIds(listRef, rowIds, split);
 
   // Selecting a site opens the panel whether or not the toggle was on — the fleet
   // screen's rule, for its reason: with the panel closed, clicking a pin tints it
   // and does nothing else, which reads as a broken control rather than a
   // deliberate one.
   const selectSite = (next: string) => onSearchChange({id: next, panel: true});
+
+  const empty = summaries.length === 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
@@ -96,9 +120,48 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         showViewControls={!compact}
       />
 
+      <SitesSummaryCards
+        summary={summary}
+        showing={summaries.length}
+        search={search}
+        onSearchChange={onSearchChange}
+      />
+
       <div className="relative flex min-h-0 flex-1 gap-3">
-        {showMap ? (
-          <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element">
+        {showList &&
+          (empty ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+              <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
+              <p className="text-sm text-secondary">No sites match the current filters.</p>
+            </div>
+          ) : (
+            <div className="min-h-0 min-w-0 flex-1">
+              {compact ? (
+                <SitesCards summaries={summaries} />
+              ) : (
+                <SitesTable
+                  summaries={summaries}
+                  selectedId={id}
+                  onSelect={selectSite}
+                  scrollRef={listRef}
+                  onBeforeAutoScroll={suppress}
+                />
+              )}
+            </div>
+          ))}
+
+        {showMap && (
+          <div
+            className={
+              // The fleet screen's proportions — see the note there on why the map
+              // grows rather than the panel covering it.
+              split
+                ? panelOpen
+                  ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
+                  : 'min-h-0 min-w-[300px] flex-1 overflow-hidden rounded-md border border-subtle bg-element'
+                : 'min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element'
+            }
+          >
             <Suspense
               fallback={
                 <div className="flex size-full items-center justify-center text-sm text-secondary">
@@ -111,21 +174,9 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
                 selectedId={id}
                 onSelect={selectSite}
                 panelInset={mapPanelInset}
+                focusIds={split ? visibleIds : undefined}
               />
             </Suspense>
-          </div>
-        ) : summaries.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-            <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
-            <p className="text-sm text-secondary">No sites match “{q}”.</p>
-          </div>
-        ) : (
-          <div className="min-h-0 min-w-0 flex-1">
-            {compact ? (
-              <SitesCards summaries={summaries} />
-            ) : (
-              <SitesTable summaries={summaries} selectedId={id} onSelect={selectSite} />
-            )}
           </div>
         )}
 
@@ -134,8 +185,8 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
             summary={selected}
             className={
               // Over the map the panel floats, so the basemap keeps running
-              // underneath it. In the list it takes its own column instead, so it
-              // can't sit on top of the table's last two columns.
+              // underneath it. In the list-only view it takes its own column
+              // instead, so it can't sit on top of the table's last two columns.
               showMap
                 ? 'absolute inset-y-2 right-2 z-10 w-[393px] shadow-lg'
                 : 'w-[393px] shrink-0'

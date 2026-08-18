@@ -55,8 +55,14 @@ import {spread} from './spread';
  */
 export const LITRES_PER_KWH = 0.28;
 
-/** Fraction of the tank the refuel runway counts down to, not to zero. */
-const RESERVE_FRACTION = 0.3;
+/**
+ * Fraction of the tank the refuel runway counts down to, not to zero.
+ *
+ * Exported because the fleet status buckets draw the same line: "refuel due" is
+ * this line crossed, and a second copy of 0.3 would let a genset's own page and the
+ * overview disagree about whether it needs a tanker.
+ */
+export const RESERVE_FRACTION = 0.3;
 
 /** Gensets are rated in kVA at a 0.8 power factor; kW is what they deliver. */
 const POWER_FACTOR = 0.8;

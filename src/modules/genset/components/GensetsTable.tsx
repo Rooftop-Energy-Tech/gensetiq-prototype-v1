@@ -1,5 +1,6 @@
 import {Link} from '@tanstack/react-router';
-import type {KeyboardEvent} from 'react';
+import {useEffect} from 'react';
+import type {KeyboardEvent, RefObject} from 'react';
 
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
@@ -15,6 +16,18 @@ type GensetsTableProps = {
   gensets: Array<Genset>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
+  /**
+   * The scroll container, handed up so the split view can watch which rows are on
+   * screen — see `useVisibleRowIds`. Optional, because the list-only view has no
+   * map to drive and nothing to observe with.
+   */
+  scrollRef?: RefObject<HTMLDivElement | null>;
+  /**
+   * Called just before this table scrolls itself, so the page can tell a scroll it
+   * caused from one the reader performed. Without it, selecting a pin on the map
+   * scrolls the list, which re-frames the map away from that pin.
+   */
+  onBeforeAutoScroll?: () => void;
 };
 
 /**
@@ -40,7 +53,42 @@ const COLUMNS = [
   {label: 'Last updated', width: '14%'},
 ] as const;
 
-export const GensetsTable = ({gensets, selectedId, onSelect}: GensetsTableProps) => {
+export const GensetsTable = ({
+  gensets,
+  selectedId,
+  onSelect,
+  scrollRef,
+  onBeforeAutoScroll,
+}: GensetsTableProps) => {
+  /**
+   * Bring a selection made elsewhere into view.
+   *
+   * A pin clicked on the map selects a row that may be six screens down the list,
+   * and a selection you cannot see is the same as no selection. `nearest` rather
+   * than `center`: a row already on screen should not move at all, which is the
+   * common case when the click came from the list itself.
+   */
+  useEffect(() => {
+    const container = scrollRef?.current;
+    if (container === null || container === undefined || selectedId === undefined) return;
+
+    const row = container.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(selectedId)}"]`);
+    if (row === null) return;
+
+    const {top, bottom} = row.getBoundingClientRect();
+    const view = container.getBoundingClientRect();
+    // The header is sticky and 40px tall, so a row tucked under it counts as out
+    // of view even though it technically intersects the container.
+    if (top >= view.top + 40 && bottom <= view.bottom) return;
+
+    onBeforeAutoScroll?.();
+    row.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+    // `onBeforeAutoScroll` is deliberately not a dependency: it is a fresh closure
+    // every render, and re-running this on each one would fight the reader's own
+    // scrolling for as long as anything stayed selected.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, scrollRef]);
+
   // Enter and Space both select; Space additionally has to have its default
   // suppressed or the table scrolls out from under the row being chosen. The
   // genset's own page is reached through the name link in the first cell, which
@@ -52,7 +100,7 @@ export const GensetsTable = ({gensets, selectedId, onSelect}: GensetsTableProps)
   };
 
   return (
-    <div className="h-full overflow-auto">
+    <div ref={scrollRef} className="h-full overflow-auto">
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           Fleet gensets, with run state, health, fuel level, location and telemetry age
@@ -92,6 +140,7 @@ export const GensetsTable = ({gensets, selectedId, onSelect}: GensetsTableProps)
             return (
               <tr
                 key={genset.id}
+                data-row-id={genset.id}
                 tabIndex={0}
                 aria-selected={selected}
                 onClick={() => onSelect(genset.id)}

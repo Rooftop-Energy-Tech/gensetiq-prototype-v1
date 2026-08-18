@@ -1,4 +1,4 @@
-import {GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon} from 'lucide-react';
+import {ColumnsIcon, GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
@@ -63,7 +63,11 @@ export const SitesToolbar = ({
       {showViewControls && (
       <div className="flex items-center gap-5">
         <Tabs value={view} onValueChange={(next) => onViewChange(next as SiteView)}>
-          <TabsList className="w-[70px]">
+          {/* Three views now, so the list is 105px rather than 70. `split` sits in
+              the middle because it is between the other two in what it shows, and
+              because it is the default — the switcher should open on its own
+              current state without the eye travelling to an end. */}
+          <TabsList className="w-[105px]">
             {/* `tabIndex` is set by hand for the reason the fleet toolbar gives:
                 Radix's roving-focus group leaves every trigger at -1 until one has
                 been clicked, which makes the switcher unreachable by keyboard on a
@@ -75,6 +79,14 @@ export const SitesToolbar = ({
               tabIndex={view === 'list' ? 0 : -1}
             >
               <MenuIcon aria-hidden="true" />
+            </TabsTrigger>
+            <TabsTrigger
+              value="split"
+              className="flex-1"
+              aria-label="List and map"
+              tabIndex={view === 'split' ? 0 : -1}
+            >
+              <ColumnsIcon aria-hidden="true" />
             </TabsTrigger>
             <TabsTrigger
               value="map"

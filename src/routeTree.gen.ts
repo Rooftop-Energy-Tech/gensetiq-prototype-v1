@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedDeploymentRouteImport } from './routes/_authenticated/deployment'
 import { Route as AuthenticatedGensetsRouteImport } from './routes/_authenticated/gensets'
 import { Route as AuthenticatedMetersRouteImport } from './routes/_authenticated/meters'
+import { Route as AuthenticatedOverviewRouteImport } from './routes/_authenticated/overview'
 import { Route as AuthenticatedRefuelRouteImport } from './routes/_authenticated/refuel'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
@@ -60,6 +61,11 @@ const AuthenticatedGensetsRoute = AuthenticatedGensetsRouteImport.update({
 const AuthenticatedMetersRoute = AuthenticatedMetersRouteImport.update({
   id: '/meters',
   path: '/meters',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedOverviewRoute = AuthenticatedOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRefuelRoute = AuthenticatedRefuelRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/deployment': typeof AuthenticatedDeploymentRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/meters': typeof AuthenticatedMetersRoute
+  '/overview': typeof AuthenticatedOverviewRoute
   '/refuel': typeof AuthenticatedRefuelRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/deployment': typeof AuthenticatedDeploymentRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/meters': typeof AuthenticatedMetersRoute
+  '/overview': typeof AuthenticatedOverviewRoute
   '/refuel': typeof AuthenticatedRefuelRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_authenticated/deployment': typeof AuthenticatedDeploymentRoute
   '/_authenticated/gensets': typeof AuthenticatedGensetsRoute
   '/_authenticated/meters': typeof AuthenticatedMetersRoute
+  '/_authenticated/overview': typeof AuthenticatedOverviewRoute
   '/_authenticated/refuel': typeof AuthenticatedRefuelRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/sites': typeof AuthenticatedSitesRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/deployment'
     | '/gensets'
     | '/meters'
+    | '/overview'
     | '/refuel'
     | '/settings'
     | '/sites'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/deployment'
     | '/gensets'
     | '/meters'
+    | '/overview'
     | '/refuel'
     | '/settings'
     | '/sites'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/_authenticated/deployment'
     | '/_authenticated/gensets'
     | '/_authenticated/meters'
+    | '/_authenticated/overview'
     | '/_authenticated/refuel'
     | '/_authenticated/settings'
     | '/_authenticated/sites'
@@ -356,6 +368,13 @@ declare module '@tanstack/react-router' {
       path: '/meters'
       fullPath: '/meters'
       preLoaderRoute: typeof AuthenticatedMetersRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/overview': {
+      id: '/_authenticated/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof AuthenticatedOverviewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/refuel': {
@@ -541,6 +560,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDeploymentRoute: typeof AuthenticatedDeploymentRoute
   AuthenticatedGensetsRoute: typeof AuthenticatedGensetsRoute
   AuthenticatedMetersRoute: typeof AuthenticatedMetersRoute
+  AuthenticatedOverviewRoute: typeof AuthenticatedOverviewRoute
   AuthenticatedRefuelRoute: typeof AuthenticatedRefuelRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
@@ -552,6 +572,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDeploymentRoute: AuthenticatedDeploymentRoute,
   AuthenticatedGensetsRoute: AuthenticatedGensetsRoute,
   AuthenticatedMetersRoute: AuthenticatedMetersRoute,
+  AuthenticatedOverviewRoute: AuthenticatedOverviewRoute,
   AuthenticatedRefuelRoute: AuthenticatedRefuelRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSitesRoute: AuthenticatedSitesRoute,

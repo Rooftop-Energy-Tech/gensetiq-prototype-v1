@@ -1,4 +1,5 @@
-import type {SiteKind} from '../types/site.type';
+import type {SiteKind, SitePowerRole} from '../types/site.type';
+import type {CustomerId} from './customers';
 
 /**
  * The seventeen sites, as **given facts about places**.
@@ -67,27 +68,55 @@ export type SiteSeed = {
    * Independent of what is standing in the yard, deliberately. See the note above.
    */
   loadKw: number;
+  /**
+   * Whose yard this is.
+   *
+   * Seeded here and nowhere else: a genset takes its customer from the site it
+   * stands at, so there is one statement of the fact and detaching a set leaves it
+   * with no customer rather than with a stale one. See `customers.ts`.
+   */
+  customer: CustomerId;
+  /**
+   * How this yard is fed, as a **given about the place** — see `SitePowerRole`.
+   *
+   * It used to be `STANDBY` for every site, as a constant in `siteConfig.ts`, on the
+   * grounds that a reader could flip any one of them. That was fine while the role
+   * only chose which diagram to draw, and stopped being fine the moment the fleet
+   * summary counted by it: a card reading "Standby 25 · Prime 0" on a fresh load is
+   * a card with nothing in it, and the estate it describes does contain yards with
+   * no mains incomer.
+   *
+   * So the fact lives with the other facts about the place, and `siteConfig.ts`
+   * keeps its override store — a reader flipping a site still wins, and clearing
+   * site data returns to what is written here rather than to a blanket default.
+   *
+   * Three yards are `PRIME`. Their gensets' activity feeds still read "started on
+   * utility outage", because those feeds are the *machines'* history and this
+   * setting does not rewrite it — the seam `SitePowerRole` describes, now visible
+   * by default rather than only after somebody flips a switch.
+   */
+  powerRole: SitePowerRole;
 };
 
 // prettier-ignore
 export const SITE_SEED: Array<SiteSeed> = [
-  {id: 'telco-001',   name: 'Telco-001',   kind: 'TELCO',         locationLabel: 'Petaling Jaya, Selangor',    latitude: 3.1077, longitude: 101.6073, loadKw: 205},
-  {id: 'data-002',    name: 'Data-002',    kind: 'DATA',          locationLabel: 'Cyberjaya, Selangor',        latitude: 2.9217, longitude: 101.6565, loadKw: 380},
-  {id: 'telco-003',   name: 'Telco-003',   kind: 'TELCO',         locationLabel: 'Subang Jaya, Selangor',      latitude: 3.0567, longitude: 101.5851, loadKw: 177},
-  {id: 'mfg-004',     name: 'Mfg-004',     kind: 'MANUFACTURING', locationLabel: 'Shah Alam, Selangor',        latitude: 3.0737, longitude: 101.5191, loadKw: 233},
-  {id: 'tower-005',   name: 'Tower-005',   kind: 'TOWER',         locationLabel: 'Kuala Lumpur City Centre',   latitude: 3.1578, longitude: 101.7119, loadKw: 332},
-  {id: 'hosp-006',    name: 'Hosp-006',    kind: 'HOSPITAL',      locationLabel: 'Cheras, Kuala Lumpur',       latitude: 3.0837, longitude: 101.7506, loadKw: 742},
-  {id: 'mfg-007',     name: 'Mfg-007',     kind: 'MANUFACTURING', locationLabel: 'Rawang, Selangor',           latitude: 3.3212, longitude: 101.5769, loadKw: 102},
-  {id: 'airport-008', name: 'Airport-008', kind: 'AIRPORT',       locationLabel: 'Sepang, Selangor',           latitude: 2.7456, longitude: 101.7072, loadKw: 169},
-  {id: 'mfg-009',     name: 'Mfg-009',     kind: 'MANUFACTURING', locationLabel: 'Ipoh, Perak',                latitude: 4.5979, longitude: 101.0907, loadKw: 313},
-  {id: 'telco-010',   name: 'Telco-010',   kind: 'TELCO',         locationLabel: 'George Town, Penang',        latitude: 5.4145, longitude: 100.3294, loadKw: 364},
-  {id: 'retail-011',  name: 'Retail-011',  kind: 'RETAIL',        locationLabel: 'Sungai Petani, Kedah',       latitude: 5.6470, longitude: 100.4870, loadKw: 71},
-  {id: 'telco-012',   name: 'Telco-012',   kind: 'TELCO',         locationLabel: 'Alor Setar, Kedah',          latitude: 6.1248, longitude: 100.3678, loadKw: 248},
-  {id: 'data-013',    name: 'Data-013',    kind: 'DATA',          locationLabel: 'Senai, Johor',               latitude: 1.6019, longitude: 103.6656, loadKw: 242},
-  {id: 'retail-014',  name: 'Retail-014',  kind: 'RETAIL',        locationLabel: 'Melaka Tengah, Melaka',      latitude: 2.1896, longitude: 102.2501, loadKw: 218},
-  {id: 'mfg-015',     name: 'Mfg-015',     kind: 'MANUFACTURING', locationLabel: 'Seremban, Negeri Sembilan',  latitude: 2.7258, longitude: 101.9424, loadKw: 175},
-  {id: 'port-016',    name: 'Port-016',    kind: 'PORT',          locationLabel: 'Kuantan, Pahang',            latitude: 3.8077, longitude: 103.3260, loadKw: 281},
-  {id: 'telco-017',   name: 'Telco-017',   kind: 'TELCO',         locationLabel: 'Kota Bharu, Kelantan',       latitude: 6.1254, longitude: 102.2381, loadKw: 64},
+  {id: 'telco-001',   name: 'Telco-001',   kind: 'TELCO',         locationLabel: 'Petaling Jaya, Selangor',    latitude: 3.1077, longitude: 101.6073, loadKw: 205, customer: 'maxis',             powerRole: 'STANDBY'},
+  {id: 'data-002',    name: 'Data-002',    kind: 'DATA',          locationLabel: 'Cyberjaya, Selangor',        latitude: 2.9217, longitude: 101.6565, loadKw: 380, customer: 'tm',                powerRole: 'STANDBY'},
+  {id: 'telco-003',   name: 'Telco-003',   kind: 'TELCO',         locationLabel: 'Subang Jaya, Selangor',      latitude: 3.0567, longitude: 101.5851, loadKw: 177, customer: 'maxis',             powerRole: 'STANDBY'},
+  {id: 'mfg-004',     name: 'Mfg-004',     kind: 'MANUFACTURING', locationLabel: 'Shah Alam, Selangor',        latitude: 3.0737, longitude: 101.5191, loadKw: 233, customer: 'sapura',            powerRole: 'STANDBY'},
+  {id: 'tower-005',   name: 'Tower-005',   kind: 'TOWER',         locationLabel: 'Kuala Lumpur City Centre',   latitude: 3.1578, longitude: 101.7119, loadKw: 332, customer: 'maxis',             powerRole: 'STANDBY'},
+  {id: 'hosp-006',    name: 'Hosp-006',    kind: 'HOSPITAL',      locationLabel: 'Cheras, Kuala Lumpur',       latitude: 3.0837, longitude: 101.7506, loadKw: 742, customer: 'kpj',               powerRole: 'STANDBY'},
+  {id: 'mfg-007',     name: 'Mfg-007',     kind: 'MANUFACTURING', locationLabel: 'Rawang, Selangor',           latitude: 3.3212, longitude: 101.5769, loadKw: 102, customer: 'sapura',            powerRole: 'STANDBY'},
+  {id: 'airport-008', name: 'Airport-008', kind: 'AIRPORT',       locationLabel: 'Sepang, Selangor',           latitude: 2.7456, longitude: 101.7072, loadKw: 169, customer: 'malaysia-airports', powerRole: 'STANDBY'},
+  {id: 'mfg-009',     name: 'Mfg-009',     kind: 'MANUFACTURING', locationLabel: 'Ipoh, Perak',                latitude: 4.5979, longitude: 101.0907, loadKw: 313, customer: 'sapura',            powerRole: 'STANDBY'},
+  {id: 'telco-010',   name: 'Telco-010',   kind: 'TELCO',         locationLabel: 'George Town, Penang',        latitude: 5.4145, longitude: 100.3294, loadKw: 364, customer: 'redtone',           powerRole: 'STANDBY'},
+  {id: 'retail-011',  name: 'Retail-011',  kind: 'RETAIL',        locationLabel: 'Sungai Petani, Kedah',       latitude: 5.6470, longitude: 100.4870, loadKw: 71,  customer: 'lotuss',            powerRole: 'STANDBY'},
+  {id: 'telco-012',   name: 'Telco-012',   kind: 'TELCO',         locationLabel: 'Alor Setar, Kedah',          latitude: 6.1248, longitude: 100.3678, loadKw: 248, customer: 'redtone',           powerRole: 'PRIME'},
+  {id: 'data-013',    name: 'Data-013',    kind: 'DATA',          locationLabel: 'Senai, Johor',               latitude: 1.6019, longitude: 103.6656, loadKw: 242, customer: 'tm',                powerRole: 'STANDBY'},
+  {id: 'retail-014',  name: 'Retail-014',  kind: 'RETAIL',        locationLabel: 'Melaka Tengah, Melaka',      latitude: 2.1896, longitude: 102.2501, loadKw: 218, customer: 'lotuss',            powerRole: 'STANDBY'},
+  {id: 'mfg-015',     name: 'Mfg-015',     kind: 'MANUFACTURING', locationLabel: 'Seremban, Negeri Sembilan',  latitude: 2.7258, longitude: 101.9424, loadKw: 175, customer: 'sapura',            powerRole: 'STANDBY'},
+  {id: 'port-016',    name: 'Port-016',    kind: 'PORT',          locationLabel: 'Kuantan, Pahang',            latitude: 3.8077, longitude: 103.3260, loadKw: 281, customer: 'sapura',            powerRole: 'PRIME'},
+  {id: 'telco-017',   name: 'Telco-017',   kind: 'TELCO',         locationLabel: 'Kota Bharu, Kelantan',       latitude: 6.1254, longitude: 102.2381, loadKw: 64,  customer: 'redtone',           powerRole: 'PRIME'},
 ];
 
 export const siteSeed = (siteId: string): SiteSeed | undefined =>

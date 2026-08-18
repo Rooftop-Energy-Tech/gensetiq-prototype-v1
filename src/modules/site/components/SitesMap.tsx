@@ -51,6 +51,11 @@ type SitesMapProps = {
    * tuck pins underneath it.
    */
   panelInset: number;
+  /**
+   * The subset to frame — the rows on screen in the list beside it. Every site
+   * stays drawn; see `GensetsMap` for why framing and filtering are kept apart.
+   */
+  focusIds?: Array<string>;
 };
 
 const toFeatureCollection = (
@@ -121,7 +126,13 @@ const POINT_RADIUS: maplibregl.ExpressionSpecification = [
   COUNT_RADIUS,
 ];
 
-export const SitesMap = ({summaries, selectedId, onSelect, panelInset}: SitesMapProps) => {
+export const SitesMap = ({
+  summaries,
+  selectedId,
+  onSelect,
+  panelInset,
+  focusIds,
+}: SitesMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const loadedRef = useRef(false);
@@ -319,14 +330,23 @@ export const SitesMap = ({summaries, selectedId, onSelect, panelInset}: SitesMap
     map.once('gensetiq.ready', push);
   }, [summaries, selectedId]);
 
-  // — Frame the estate whenever the filtered set changes.
+  // — Frame the estate: the filtered set, or the rows the list is showing. Keyed on
+  // ids rather than array identity, for the reason `GensetsMap` gives.
+  const focusKey = focusIds === undefined || focusIds.length === 0 ? '' : focusIds.join(',');
+
   useEffect(() => {
     const map = mapRef.current;
     if (map === null || summaries.length === 0) return;
 
+    const framed =
+      focusKey === ''
+        ? summaries
+        : summaries.filter((summary) => focusKey.split(',').includes(summary.site.id));
+    if (framed.length === 0) return;
+
     const fit = () => {
       const bounds = new maplibregl.LngLatBounds();
-      for (const summary of summaries) {
+      for (const summary of framed) {
         bounds.extend([summary.site.longitude, summary.site.latitude]);
       }
 
@@ -335,7 +355,7 @@ export const SitesMap = ({summaries, selectedId, onSelect, panelInset}: SitesMap
         // A single result would otherwise fit to street level, which loses all
         // sense of where in the country it is.
         maxZoom: 11,
-        duration: 500,
+        duration: focusKey === '' ? 500 : 350,
       });
     };
 
@@ -347,7 +367,7 @@ export const SitesMap = ({summaries, selectedId, onSelect, panelInset}: SitesMap
     // `panelInset` deliberately excluded: toggling the preview panel shouldn't
     // re-frame the map out from under the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [summaries]);
+  }, [summaries, focusKey]);
 
   // — Centre on a selection made elsewhere (the list, or a shared URL).
   useEffect(() => {

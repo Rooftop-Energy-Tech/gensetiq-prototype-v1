@@ -1,5 +1,17 @@
+import type {SitePowerRole} from '@/modules/site/types/site.type';
+import {gensetCustomer, gensetPowerRole} from '../data/fleetSummary';
+import {gensetStatus} from '../data/fleetStatus';
+import type {FleetStatus} from '../data/fleetStatus';
 import {RUN_STATES} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
+
+/** What the chips above the list narrow by. Every field is optional and ANDs. */
+export type GensetFilters = {
+  /** A `CustomerId`, or `DEPOT` for sets standing at no site. */
+  customer?: string;
+  role?: SitePowerRole | 'DEPOT';
+  status?: FleetStatus;
+};
 
 /**
  * Free-text filter behind the toolbar's search box.
@@ -30,3 +42,28 @@ const stateRank = (genset: Genset) => RUN_STATES.indexOf(genset.runState);
  */
 export const sortGensets = (gensets: Array<Genset>): Array<Genset> =>
   [...gensets].sort((a, b) => stateRank(a) - stateRank(b) || a.tag.localeCompare(b.tag));
+
+/**
+ * The card chips, applied. Absent fields don't narrow anything.
+ *
+ * Kept beside the free-text search rather than folded into it because the two are
+ * different acts: the box is somebody typing a guess, the chips are somebody
+ * choosing a known bucket. They compose — a query *and* a customer *and* a duty —
+ * and each is independently clearable, which is what a single combined filter
+ * string would take away.
+ */
+export const filterGensets = (
+  gensets: Array<Genset>,
+  filters: GensetFilters,
+  roles: Record<string, SitePowerRole>,
+): Array<Genset> =>
+  gensets.filter((genset) => {
+    if (filters.customer !== undefined) {
+      if ((gensetCustomer(genset) ?? 'DEPOT') !== filters.customer) return false;
+    }
+    if (filters.role !== undefined) {
+      if ((gensetPowerRole(genset, roles) ?? 'DEPOT') !== filters.role) return false;
+    }
+    if (filters.status !== undefined && gensetStatus(genset) !== filters.status) return false;
+    return true;
+  });

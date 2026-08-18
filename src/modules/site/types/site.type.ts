@@ -15,6 +15,7 @@
 
 import type {RunState} from '@/modules/genset/types/genset.type';
 import type {MeterFeed} from '@/modules/meter/types/meter.type';
+import type {CustomerId} from '../data/customers';
 
 /**
  * What the site's load actually is.
@@ -113,6 +114,18 @@ export type Site = {
    * the readings, and fitting or removing a meter never changes it.
    */
   loadKw: number;
+  /**
+   * Whose yard this is — see `data/customers.ts`.
+   *
+   * On the site and not on the genset, which is what makes "how many sets at Maxis"
+   * answerable without a machine having to carry an owner around with it.
+   *
+   * The **power role is deliberately not here.** It is seeded beside this one, but a
+   * reader can flip it at any moment, so it is read live through
+   * `siteConfig.ts` rather than baked into the summary a site was built with. A copy
+   * on this object would be the stale one within a click.
+   */
+  customer: CustomerId;
 };
 
 /**

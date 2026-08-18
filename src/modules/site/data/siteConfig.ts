@@ -1,6 +1,7 @@
 import {useSyncExternalStore} from 'react';
 
 import type {SitePowerRole} from '../types/site.type';
+import {SITE_SEED, siteSeed} from './siteSeed';
 
 /**
  * How each site says it is fed — the one setting the site's Settings tab edits.
@@ -38,15 +39,27 @@ import type {SitePowerRole} from '../types/site.type';
 const STORAGE_KEY = 'gensetiq.siteConfig';
 
 /**
- * What every site is until somebody says otherwise.
+ * What a site is until somebody says otherwise: **whatever its seed says.**
  *
- * `STANDBY` rather than a per-site seed, because the fleet's own data says standby
- * throughout: every set's activity feed is written around utility outages, and its
- * `startReason` is the given the intake meter reads. Defaulting a site to `PRIME`
- * would put a yard with no grid next to a genset whose log says it started when the
- * grid failed.
+ * This used to be the constant `STANDBY`, on the grounds that the fleet's own data
+ * says standby throughout — every set's activity feed is written around utility
+ * outages. That held while the role only chose which single-line diagram to draw.
+ * It stopped holding when the fleet summary began counting by it: a blanket default
+ * makes the estate look as though it contains no prime sites at all, which is a
+ * stronger claim than "nobody has flipped one yet".
+ *
+ * So the default is per-site and lives in `siteSeed.ts` with the other facts about
+ * the place, and the seam it opens is the one `SitePowerRole` already describes and
+ * accepts: a set at a seeded-`PRIME` yard still logs "started on utility outage",
+ * because that feed is the machine's history and this setting does not rewrite it.
+ *
+ * An id with no seed behind it falls back to `STANDBY` — the app's original
+ * assumption, and the safe reading for a site we know nothing about.
  */
-export const DEFAULT_POWER_ROLE: SitePowerRole = 'STANDBY';
+export const FALLBACK_POWER_ROLE: SitePowerRole = 'STANDBY';
+
+export const seededPowerRole = (siteId: string): SitePowerRole =>
+  siteSeed(siteId)?.powerRole ?? FALLBACK_POWER_ROLE;
 
 type Overrides = Record<string, SitePowerRole>;
 
@@ -80,14 +93,14 @@ const subscribe = (listener: () => void) => {
 
 /** The role outside a component — routes, loaders, `aria-label` builders. */
 export const sitePowerRole = (siteId: string): SitePowerRole =>
-  snapshot[siteId] ?? DEFAULT_POWER_ROLE;
+  snapshot[siteId] ?? seededPowerRole(siteId);
 
 export const setSitePowerRole = (siteId: string, role: SitePowerRole) => {
   // Back to the default means *no* override, not an override that happens to equal
   // it. Otherwise the store slowly fills with entries that say nothing, and
   // "has this site been configured" stops being answerable.
   const next: Overrides = {...snapshot};
-  if (role === DEFAULT_POWER_ROLE) delete next[siteId];
+  if (role === seededPowerRole(siteId)) delete next[siteId];
   else next[siteId] = role;
 
   try {
@@ -110,6 +123,41 @@ export const setSitePowerRole = (siteId: string, role: SitePowerRole) => {
 export const useSitePowerRole = (siteId: string): SitePowerRole =>
   useSyncExternalStore(
     subscribe,
-    () => snapshot[siteId] ?? DEFAULT_POWER_ROLE,
-    () => DEFAULT_POWER_ROLE,
+    () => snapshot[siteId] ?? seededPowerRole(siteId),
+    () => seededPowerRole(siteId),
+  );
+
+/**
+ * Every site's effective role, live — what the summary cards count by.
+ *
+ * A whole map rather than `useSitePowerRole` in a loop, because the callers are
+ * counting the *estate*: they need all seventeen answers from one moment, and a
+ * hook cannot be called per row anyway.
+ *
+ * Memoised against the overrides snapshot's identity so the object is stable
+ * between emits. `useSyncExternalStore` compares snapshots by identity, and a fresh
+ * `Object.fromEntries` on every call is an infinite render loop — the same trap
+ * `snapshot` itself is memoised against a few lines up.
+ */
+let rolesCache: {overrides: Overrides; roles: Record<string, SitePowerRole>} | null = null;
+
+const allRoles = (overrides: Overrides): Record<string, SitePowerRole> => {
+  if (rolesCache?.overrides !== overrides) {
+    rolesCache = {
+      overrides,
+      roles: Object.fromEntries(
+        SITE_SEED.map((seed) => [seed.id, overrides[seed.id] ?? seed.powerRole]),
+      ),
+    };
+  }
+  return rolesCache.roles;
+};
+
+const SERVER_OVERRIDES: Overrides = {};
+
+export const useSitePowerRoles = (): Record<string, SitePowerRole> =>
+  useSyncExternalStore(
+    subscribe,
+    () => allRoles(snapshot),
+    () => allRoles(SERVER_OVERRIDES),
   );

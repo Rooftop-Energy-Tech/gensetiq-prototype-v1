@@ -1,8 +1,25 @@
 import {z} from 'zod';
 
-export const GENSET_VIEWS = ['list', 'map'] as const;
+import {FLEET_STATUSES} from '../data/fleetStatus';
+
+/**
+ * `split` is the default, and it is what the other two are exceptions to.
+ *
+ * The screen used to be one or the other, and reading it meant switching: find the
+ * row, switch to the map, lose the row. Side by side, the list is the index and the
+ * map is where the answer is — scrolling one moves the other (see
+ * `useVisibleRowIds`), which is the behaviour a single toggle cannot express.
+ *
+ * The two full-width views survive because each is still the right shape for a
+ * question: `list` when the columns matter and the geography doesn't, `map` when a
+ * cluster is the whole point. Dropping them would have made the split a cage.
+ */
+export const GENSET_VIEWS = ['split', 'list', 'map'] as const;
 
 export type GensetView = (typeof GENSET_VIEWS)[number];
+
+/** The fleet cards' filters: whose set, what duty, and what needs doing to it. */
+export const GENSET_ROLE_FILTERS = ['STANDBY', 'PRIME', 'DEPOT'] as const;
 
 /**
  * The /gensets URL carries the whole view state — which view, what's typed in
@@ -16,8 +33,20 @@ export const gensetSearchSchema = z.object({
   // Every field is `.catch()`-guarded. These params are meant to be shared and
   // hand-edited, and a typo'd `?view=grid` should fall back to the list rather
   // than throw out of validateSearch and blank the route.
-  view: z.enum(GENSET_VIEWS).default('list').catch('list'),
+  view: z.enum(GENSET_VIEWS).default('split').catch('split'),
   q: z.string().optional().catch(undefined),
+  /**
+   * The card chips, as three independent filters combined with AND.
+   *
+   * In the URL with everything else on this screen, so a filtered fleet is a link
+   * somebody can send — which is most of the reason the chips are worth having over
+   * a plain readout. `customer` is a bare string rather than the `CustomerId` union
+   * so that a roster change cannot invalidate a shared link into a route error; an
+   * id nobody recognises simply matches nothing.
+   */
+  customer: z.string().optional().catch(undefined),
+  role: z.enum(GENSET_ROLE_FILTERS).optional().catch(undefined),
+  status: z.enum(FLEET_STATUSES).optional().catch(undefined),
   /** Selected genset id. Absent = nothing selected. */
   id: z.string().optional().catch(undefined),
   /**
@@ -48,6 +77,6 @@ export type GensetSearch = z.infer<typeof gensetSearchSchema>;
  * defaults in one place instead of at every call site.
  */
 export const gensetSearch = (overrides: Partial<GensetSearch> = {}): GensetSearch => ({
-  view: 'list',
+  view: 'split',
   ...overrides,
 });

@@ -39,6 +39,19 @@ type GensetsMapProps = {
    * tuck pins underneath it.
    */
   panelInset: number;
+  /**
+   * The subset the map should frame — the rows currently on screen in the list
+   * beside it, in the split view.
+   *
+   * Every genset stays *drawn*; this only decides what the viewport is fitted to.
+   * Hiding the off-screen ones would make the map a second rendering of the list's
+   * scroll position rather than a map of the fleet, and the cluster the design is
+   * built around would dissolve as you scrolled.
+   *
+   * Empty, or absent, means frame everything — which is what the full-width map
+   * view and the first paint both want.
+   */
+  focusIds?: Array<string>;
 };
 
 const toFeatureCollection = (
@@ -78,7 +91,13 @@ const runStateColor = (): maplibregl.ExpressionSpecification =>
     RUN_STATE_META.OFFLINE.mapColor,
   ] as unknown as maplibregl.ExpressionSpecification;
 
-export const GensetsMap = ({gensets, selectedId, onSelect, panelInset}: GensetsMapProps) => {
+export const GensetsMap = ({
+  gensets,
+  selectedId,
+  onSelect,
+  panelInset,
+  focusIds,
+}: GensetsMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const loadedRef = useRef(false);
@@ -290,21 +309,35 @@ export const GensetsMap = ({gensets, selectedId, onSelect, panelInset}: GensetsM
     map.once('gensetiq.ready', push);
   }, [gensets, selectedId]);
 
-  // — Frame the fleet whenever the filtered set changes.
+  // — Frame the fleet: the filtered set, or the rows the list is showing.
+  //
+  // Keyed on the *ids* rather than on the focus array's identity, so a scroll that
+  // ends up on the same rows doesn't re-fit. `useVisibleRowIds` already collapses
+  // most of that, but a re-render of the page hands over a fresh array and this is
+  // what stops it reaching MapLibre as a new instruction.
+  const focusKey = focusIds === undefined || focusIds.length === 0 ? '' : focusIds.join(',');
+
   useEffect(() => {
     const map = mapRef.current;
     if (map === null || gensets.length === 0) return;
 
+    const framed =
+      focusKey === '' ? gensets : gensets.filter((genset) => focusKey.split(',').includes(genset.id));
+    if (framed.length === 0) return;
+
     const fit = () => {
       const bounds = new maplibregl.LngLatBounds();
-      for (const genset of gensets) bounds.extend([genset.longitude, genset.latitude]);
+      for (const genset of framed) bounds.extend([genset.longitude, genset.latitude]);
 
       map.fitBounds(bounds, {
         padding: {...FIT_PADDING, right: FIT_PADDING.right + panelInset},
         // A single result would otherwise fit to street level, which loses all
-        // sense of where in the country it is.
+        // sense of where in the country it is. Scrolling to the bottom of the list
+        // is the ordinary way to reach that case, so it earns its keep here.
         maxZoom: 11,
-        duration: 500,
+        // Shorter than the 500ms a filter change gets: scrolling produces a run of
+        // these, and a long ease would still be settling when the next one lands.
+        duration: focusKey === '' ? 500 : 350,
       });
     };
 
@@ -316,7 +349,7 @@ export const GensetsMap = ({gensets, selectedId, onSelect, panelInset}: GensetsM
     // `panelInset` deliberately excluded: toggling the detail panel shouldn't
     // re-frame the map out from under the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gensets]);
+  }, [gensets, focusKey]);
 
   // — Centre on a selection made elsewhere (the list, or a shared URL).
   useEffect(() => {

@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, LandPlotIcon} from 'lucide-react';
+import {BoomBoxIcon, LandPlotIcon, LayoutDashboardIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 /**
@@ -12,7 +12,7 @@ import type {LucideIcon} from 'lucide-react';
  * `FilesBulkActionBar`): the page scrolls underneath it and the bar reads as a
  * control over the content instead of a piece of the frame.
  *
- * ## Two destinations, not seven
+ * ## Three destinations, not seven
  *
  * Only the screens that have a mobile layout are here. `Deployment`, `Meters`,
  * `Refuel` and `Settings` are desktop-only in this prototype, and a nav item that
@@ -27,19 +27,25 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/gensets' | '/sites';
+  link: '/overview' | '/gensets' | '/sites';
   /**
-   * The list's own default view state.
+   * The list's own default view state, for the two items that have one.
    *
-   * Both screens validate their search params, and a `Link` has to name the whole
-   * object — the schema's defaults settle a URL that is *parsed*, not one that is
-   * built — so each item says which view it opens. `list` in both cases, which at
-   * this width is the only view either screen has.
+   * Both list screens validate their search params, and a `Link` has to name the
+   * whole object — the schema's defaults settle a URL that is *parsed*, not one that
+   * is built — so each item says which view it opens. `list` in both cases, which at
+   * this width is the only view either screen has. The overview takes none: it has
+   * no view state to carry.
    */
-  search: {view: 'list'};
+  search?: {view: 'list'};
 };
 
 const ITEMS: Array<MobileNavItem> = [
+  // The overview is here where `Deployment` and the rest are not, because it
+  // genuinely has a phone layout: its tiles are a two-column grid at this width
+  // rather than a desktop screen squeezed. It is also where `/` now lands, so
+  // leaving it out would strand a phone on a screen with no way back to it.
+  {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
   {label: 'Sites', icon: LandPlotIcon, link: '/sites', search: {view: 'list'}},
 ];
@@ -64,7 +70,7 @@ export const MobileNav = () => (
           // routes are siblings of the list rather than children — see `TopNav` —
           // so this is matched on the path prefix and `/gensets/brf9540` counts.
           activeOptions={{exact: false, includeSearch: false}}
-          className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-secondary transition-colors data-[status=active]:bg-highlight data-[status=active]:text-primary"
+          className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-secondary transition-colors data-[status=active]:bg-highlight data-[status=active]:text-primary"
         >
           <Icon className="size-4 shrink-0" aria-hidden="true" />
           {item.label}

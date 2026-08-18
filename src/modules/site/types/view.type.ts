@@ -1,8 +1,17 @@
 import {z} from 'zod';
 
-export const SITE_VIEWS = ['list', 'map'] as const;
+import {FLEET_STATUSES} from '@/modules/genset/data/fleetStatus';
+
+/** `split` is the default here for the reason `GENSET_VIEWS` gives on the fleet. */
+export const SITE_VIEWS = ['split', 'list', 'map'] as const;
 
 export type SiteView = (typeof SITE_VIEWS)[number];
+
+/**
+ * The estate cards' duty filter. Two values, not the fleet's three: a *site* is
+ * always somewhere, so there is no depot bucket to filter to.
+ */
+export const SITE_ROLE_FILTERS = ['STANDBY', 'PRIME'] as const;
 
 /**
  * The `/sites` URL carries the whole view state — which view, what's typed in
@@ -24,8 +33,12 @@ export type SiteView = (typeof SITE_VIEWS)[number];
  * than throw out of `validateSearch` and blank the route.
  */
 export const siteSearchSchema = z.object({
-  view: z.enum(SITE_VIEWS).default('list').catch('list'),
+  view: z.enum(SITE_VIEWS).default('split').catch('split'),
   q: z.string().optional().catch(undefined),
+  /** The card chips — see the fleet schema's note; same three, over yards. */
+  customer: z.string().optional().catch(undefined),
+  role: z.enum(SITE_ROLE_FILTERS).optional().catch(undefined),
+  status: z.enum(FLEET_STATUSES).optional().catch(undefined),
   /** Selected site id. Absent = nothing selected. */
   id: z.string().optional().catch(undefined),
   /**
@@ -52,6 +65,6 @@ export type SiteSearch = z.infer<typeof siteSearchSchema>;
  * `gensetSearch()` does for the fleet.
  */
 export const siteSearch = (overrides: Partial<SiteSearch> = {}): SiteSearch => ({
-  view: 'list',
+  view: 'split',
   ...overrides,
 });
