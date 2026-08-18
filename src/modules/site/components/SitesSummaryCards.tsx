@@ -37,7 +37,7 @@ export const SitesSummaryCards = ({
 
   return (
     <SummaryCardRow>
-      <SummaryCard label="Estate">
+      <SummaryCard label="Sites">
         <Headline
           value={summary.total}
           unit={summary.total === 1 ? 'site' : 'sites'}

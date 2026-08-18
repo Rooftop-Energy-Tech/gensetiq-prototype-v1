@@ -224,7 +224,7 @@ export const OverviewPage = () => {
         </p>
         <p className="text-sm text-secondary">
           {overview.needingAttention === 0
-            ? 'Whole estate clear'
+            ? 'All sites clear'
             : `${overview.needingAttention} needing attention`}
         </p>
       </header>
