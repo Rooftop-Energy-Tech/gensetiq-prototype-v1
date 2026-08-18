@@ -2,7 +2,7 @@ import maplibregl from 'maplibre-gl';
 import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
-import {darkToken} from '@/styles/colors';
+import {lightToken} from '@/styles/colors';
 import {RUN_STATE_META} from './runStateMeta';
 import {RUN_STATES} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
@@ -24,9 +24,9 @@ const LAYER = {
   point: 'gensets-point',
 } as const;
 
-/** Peninsular Malaysia, for the moment before any data has been fitted. */
-const INITIAL_CENTER: LngLatLike = [101.9, 3.8];
-const INITIAL_ZOOM = 6;
+/** Sabah and Labuan, for the moment before any data has been fitted. */
+const INITIAL_CENTER: LngLatLike = [116.9, 5.5];
+const INITIAL_ZOOM = 7;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
@@ -165,7 +165,7 @@ export const GensetsMap = ({
         filter: ['has', 'point_count'],
         paint: {
           'circle-radius': 27,
-          'circle-color': darkToken.canvas,
+          'circle-color': lightToken.canvas,
           'circle-opacity': 0.18,
         },
       });
@@ -176,7 +176,7 @@ export const GensetsMap = ({
         filter: ['has', 'point_count'],
         paint: {
           'circle-radius': 23,
-          'circle-color': darkToken.canvas,
+          'circle-color': lightToken.canvas,
           'circle-opacity': 0.35,
         },
       });
@@ -187,9 +187,9 @@ export const GensetsMap = ({
         filter: ['has', 'point_count'],
         paint: {
           'circle-radius': 18,
-          'circle-color': darkToken.canvas,
+          'circle-color': lightToken.canvas,
           'circle-stroke-width': 1.5,
-          'circle-stroke-color': darkToken.primary,
+          'circle-stroke-color': lightToken.primary,
         },
       });
       map.addLayer({
@@ -205,7 +205,7 @@ export const GensetsMap = ({
           'text-size': 12,
           'text-allow-overlap': true,
         },
-        paint: {'text-color': darkToken.primary},
+        paint: {'text-color': lightToken.primary},
       });
 
       map.addLayer({
@@ -227,8 +227,8 @@ export const GensetsMap = ({
           'circle-stroke-color': [
             'case',
             ['get', 'selected'],
-            darkToken.brand,
-            darkToken.primary,
+            lightToken.brand,
+            lightToken.primary,
           ],
         },
       });

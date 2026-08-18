@@ -57,6 +57,16 @@ export const runsSearchSchema = z.object({
   /** A custom range, as two local calendar dates — `?from=2026-08-01&to=2026-08-07`. */
   from: z.string().regex(DATE_PARAM).optional().catch(undefined),
   to: z.string().regex(DATE_PARAM).optional().catch(undefined),
+  /**
+   * A deployment id — `?dep=brf9540-dep-1` — scoping the log to one posting.
+   *
+   * A third way of naming a range, not a third kind of range: it resolves to the
+   * posting's own window, exactly, so the totals here reconcile to the litre with
+   * the same posting's row on the dispatch feed. Day-granular `from`/`to` params
+   * could not say "from 14:20 on the 9th", and a posting starts when the lorry
+   * leaves, not at midnight.
+   */
+  dep: z.string().optional().catch(undefined),
 });
 
 export type RunsSearch = z.infer<typeof runsSearchSchema>;
@@ -73,7 +83,7 @@ export type RunsSearch = z.infer<typeof runsSearchSchema>;
 export type RunRange = {
   from: number;
   to: number;
-  kind: 'preset' | 'custom';
+  kind: 'preset' | 'custom' | 'deployment';
   /** What was asked for, set only when it differs from what is held. */
   requested: {from: number; to: number} | undefined;
 };
@@ -126,11 +136,12 @@ export const runsRange = (search: RunsSearch, now: number, earliest: number): Ru
   };
 };
 
-/** A search with the custom range cleared, to spread over a preset selection. */
+/** A search with the custom range and posting cleared, to spread over a preset selection. */
 export const clearedRunsRange = (search: RunsSearch): RunsSearch => ({
   ...search,
   from: undefined,
   to: undefined,
+  dep: undefined,
 });
 
 /**

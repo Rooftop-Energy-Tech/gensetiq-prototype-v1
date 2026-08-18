@@ -1,12 +1,15 @@
 import {useMemo, useState} from 'react';
 
 import {downloadText} from '@/lib/download';
+import {gensetDeployments} from '../../data/deployments';
 import {gensetRuns, historyStart} from '../../data/history';
 import {runsCsv, runsCsvFilename} from '../../data/runsCsv';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
+import type {RunRange} from '../../types/runsView.type';
 import {clearedRunsRange, runTotals, runsOverlapping, runsRange} from '../../types/runsView.type';
 import type {RunWindow, RunsSearch} from '../../types/runsView.type';
+import {DeploymentPicker} from './DeploymentPicker';
 import {RunsPanel} from './RunsPanel';
 
 /**
@@ -33,7 +36,25 @@ export const GensetRuns = ({
 
   const all = useMemo(() => gensetRuns(genset.id), [genset.id]);
   const earliest = historyStart();
-  const range = runsRange(search, now, earliest);
+
+  // A posting outranks the presets and the calendar: it is the most specific
+  // thing the URL can name, and its window is exact — the totals under it have
+  // to reconcile with the same posting's row on the dispatch feed, which a
+  // day-granular custom range cannot promise.
+  const deployments = useMemo(() => gensetDeployments(genset.id), [genset.id]);
+  const deployment = deployments.find((candidate) => candidate.id === search.dep);
+  const range: RunRange =
+    deployment === undefined
+      ? runsRange(search, now, earliest)
+      : {
+          from: Math.max(earliest, new Date(deployment.startedAt).getTime()),
+          to: Math.min(
+            now,
+            deployment.endedAt === null ? now : new Date(deployment.endedAt).getTime(),
+          ),
+          kind: 'deployment',
+          requested: undefined,
+        };
 
   const runs = useMemo(() => runsOverlapping(all, range, (run) => run), [all, range]);
   const totals = useMemo(() => runTotals(runs, range, now), [runs, range, now]);
@@ -68,10 +89,17 @@ export const GensetRuns = ({
       heldCount={all.length}
       showAsset={false}
       energyNote={undefined}
+      deploymentPicker={
+        <DeploymentPicker
+          deployments={deployments}
+          selectedId={deployment?.id}
+          onSelect={(dep) => onSearchChange({...search, from: undefined, to: undefined, dep})}
+        />
+      }
       onWindowChange={(window: RunWindow) =>
         onSearchChange({...clearedRunsRange(search), window})
       }
-      onCustomChange={(from, to) => onSearchChange({...search, from, to})}
+      onCustomChange={(from, to) => onSearchChange({...search, from, to, dep: undefined})}
       onExport={exportCsv}
     />
   );

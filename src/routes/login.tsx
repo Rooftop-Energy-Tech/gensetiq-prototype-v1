@@ -8,7 +8,7 @@ import {isSignedIn, signIn} from '@/modules/auth/session';
 import {DEFAULT_GENSET_ID} from '@/modules/genset/data/fleet';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 
-import wordmark from '@/assets/gensetiq-wordmark.png';
+import sesbLogo from '@/assets/sesb-logo.png';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -39,9 +39,20 @@ const LoginPage = () => {
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <div className="flex w-[373px] flex-col items-center gap-[71px]">
-        {/* 241 × 57 is the design's box; the source PNG is 782 × 186, the same
-            ratio, so it downscales cleanly. */}
-        <img src={wordmark} alt="GensetIQ" width={241} height={57} className="h-[57px] w-[241px]" />
+        {/* The customer's own mark carries the door; the product signs underneath
+            in plain muted text. The wordmark PNG is teal-and-white, drawn for a
+            dark ground — on this light canvas half of it would vanish, so the
+            powered-by line is type rather than the image. */}
+        <div className="flex flex-col items-center gap-3">
+          <img
+            src={sesbLogo}
+            alt="Sabah Electricity"
+            width={240}
+            height={80}
+            className="h-20 w-60 object-contain"
+          />
+          <p className="text-xs text-tertiary">Powered by gensetIQ</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex w-full flex-col items-center gap-8" noValidate>
           <div className="flex w-full flex-col gap-4">

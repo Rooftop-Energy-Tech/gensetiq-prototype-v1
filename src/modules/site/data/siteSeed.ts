@@ -2,7 +2,11 @@ import type {SiteKind, SitePowerRole} from '../types/site.type';
 import type {CustomerId} from './customers';
 
 /**
- * The seventeen sites, as **given facts about places**.
+ * The twenty-five sites, as **given facts about places**.
+ *
+ * This branch's estate is **Sabah and Labuan only** — the territory the demo's
+ * operator actually serves. The ids, loads, roles and pairings are the same
+ * rows the shared seed tunes its buckets against; only the geography moved.
  *
  * ## Why this file has no imports
  *
@@ -28,25 +32,17 @@ import type {CustomerId} from './customers';
  *    site's position is the input to that operation. Deriving it from the output is
  *    a loop with no fixed point.
  *
- * Every value below is exactly what the old derivation produced, so nothing moved on
- * the map or in the sites list the day this changed.
- *
  * ## Why the load is seeded
  *
  * `loadKw` is what the site's intake meter reads when the grid is carrying — and it
- * is a fact about the **customer**, not about the plant parked outside. A hospital
+ * is a fact about the **load**, not about the plant parked outside. A hospital
  * draws what a hospital draws.
  *
  * It used to be scaled off installed genset capacity, which was a convenience that
  * quietly made the load a function of the machinery. Being able to detach a genset
  * made that plainly wrong: strip a site of its sets and it would appear to stop using
- * electricity. Seeding it means **removing a genset does not change what the customer
+ * electricity. Seeding it means **removing a genset does not change what the load
  * draws**, which is the only defensible behaviour.
- *
- * The figures are each site's *own* current draw, taken from whichever source is
- * feeding it — so a site whose genset carries 205 kW meters 205 kW on the grid too.
- * That also fixed a contradiction the derived version had: `mfg-015` metered 152 kW
- * while its own genset reported carrying 175 kW, which is one load with two numbers.
  *
  * The intended direction of travel is a **metering device installed at the site**,
  * reporting a consumption pattern over time rather than one figure. When that lands
@@ -63,76 +59,68 @@ export type SiteSeed = {
   latitude: number;
   longitude: number;
   /**
-   * What the customer draws, kW — the intake meter's reading while the grid carries.
+   * What the load draws, kW — the intake meter's reading while the grid carries.
    *
    * Independent of what is standing in the yard, deliberately. See the note above.
    */
   loadKw: number;
   /**
-   * Whose yard this is.
+   * Whose yard this is — here, the distribution zone that requested the set.
    *
-   * Seeded here and nowhere else: a genset takes its customer from the site it
+   * Seeded here and nowhere else: a genset takes its zone from the site it
    * stands at, so there is one statement of the fact and detaching a set leaves it
-   * with no customer rather than with a stale one. See `customers.ts`.
+   * with no zone rather than with a stale one. See `customers.ts`.
    */
   customer: CustomerId;
   /**
    * How this yard is fed, as a **given about the place** — see `SitePowerRole`.
    *
-   * It used to be `STANDBY` for every site, as a constant in `siteConfig.ts`, on the
-   * grounds that a reader could flip any one of them. That was fine while the role
-   * only chose which diagram to draw, and stopped being fine the moment the fleet
-   * summary counted by it: a card reading "Standby 25 · Prime 0" on a fresh load is
-   * a card with nothing in it, and the estate it describes does contain yards with
-   * no mains incomer.
-   *
-   * So the fact lives with the other facts about the place, and `siteConfig.ts`
-   * keeps its override store — a reader flipping a site still wins, and clearing
-   * site data returns to what is written here rather than to a blanket default.
-   *
-   * Three yards are `PRIME`. Their gensets' activity feeds still read "started on
-   * utility outage", because those feeds are the *machines'* history and this
-   * setting does not rewrite it — the seam `SitePowerRole` describes, now visible
-   * by default rather than only after somebody flips a switch.
+   * Six yards are `PRIME`: an interior exchange or an east-coast tower with no
+   * mains incomer is fed by its gensets and nothing else. Their gensets' activity
+   * feeds still read "started on utility outage", because those feeds are the
+   * *machines'* history and this setting does not rewrite it — the seam
+   * `SitePowerRole` describes. `siteConfig.ts` keeps its override store: a reader
+   * flipping a site still wins, and clearing site data returns to what is written
+   * here rather than to a blanket default.
    */
   powerRole: SitePowerRole;
 };
 
 // prettier-ignore
 export const SITE_SEED: Array<SiteSeed> = [
-  {id: 'telco-001',   name: 'Telco-001',   kind: 'TELCO',         locationLabel: 'Petaling Jaya, Selangor',    latitude: 3.1077, longitude: 101.6073, loadKw: 205, customer: 'maxis',             powerRole: 'STANDBY'},
-  {id: 'data-002',    name: 'Data-002',    kind: 'DATA',          locationLabel: 'Cyberjaya, Selangor',        latitude: 2.9217, longitude: 101.6565, loadKw: 380, customer: 'tm',                powerRole: 'STANDBY'},
-  {id: 'telco-003',   name: 'Telco-003',   kind: 'TELCO',         locationLabel: 'Subang Jaya, Selangor',      latitude: 3.0567, longitude: 101.5851, loadKw: 177, customer: 'maxis',             powerRole: 'STANDBY'},
-  {id: 'mfg-004',     name: 'Mfg-004',     kind: 'MANUFACTURING', locationLabel: 'Shah Alam, Selangor',        latitude: 3.0737, longitude: 101.5191, loadKw: 233, customer: 'sapura',            powerRole: 'STANDBY'},
-  {id: 'tower-005',   name: 'Tower-005',   kind: 'TOWER',         locationLabel: 'Kuala Lumpur City Centre',   latitude: 3.1578, longitude: 101.7119, loadKw: 332, customer: 'maxis',             powerRole: 'STANDBY'},
-  {id: 'hosp-006',    name: 'Hosp-006',    kind: 'HOSPITAL',      locationLabel: 'Cheras, Kuala Lumpur',       latitude: 3.0837, longitude: 101.7506, loadKw: 742, customer: 'kpj',               powerRole: 'STANDBY'},
-  {id: 'mfg-007',     name: 'Mfg-007',     kind: 'MANUFACTURING', locationLabel: 'Rawang, Selangor',           latitude: 3.3212, longitude: 101.5769, loadKw: 102, customer: 'sapura',            powerRole: 'STANDBY'},
-  {id: 'airport-008', name: 'Airport-008', kind: 'AIRPORT',       locationLabel: 'Sepang, Selangor',           latitude: 2.7456, longitude: 101.7072, loadKw: 169, customer: 'malaysia-airports', powerRole: 'STANDBY'},
-  {id: 'mfg-009',     name: 'Mfg-009',     kind: 'MANUFACTURING', locationLabel: 'Ipoh, Perak',                latitude: 4.5979, longitude: 101.0907, loadKw: 313, customer: 'sapura',            powerRole: 'STANDBY'},
-  {id: 'telco-010',   name: 'Telco-010',   kind: 'TELCO',         locationLabel: 'George Town, Penang',        latitude: 5.4145, longitude: 100.3294, loadKw: 364, customer: 'redtone',           powerRole: 'STANDBY'},
-  {id: 'retail-011',  name: 'Retail-011',  kind: 'RETAIL',        locationLabel: 'Sungai Petani, Kedah',       latitude: 5.6470, longitude: 100.4870, loadKw: 71,  customer: 'lotuss',            powerRole: 'STANDBY'},
-  {id: 'telco-012',   name: 'Telco-012',   kind: 'TELCO',         locationLabel: 'Alor Setar, Kedah',          latitude: 6.1248, longitude: 100.3678, loadKw: 248, customer: 'redtone',           powerRole: 'PRIME'},
-  {id: 'data-013',    name: 'Data-013',    kind: 'DATA',          locationLabel: 'Senai, Johor',               latitude: 1.6019, longitude: 103.6656, loadKw: 242, customer: 'tm',                powerRole: 'STANDBY'},
-  {id: 'retail-014',  name: 'Retail-014',  kind: 'RETAIL',        locationLabel: 'Melaka Tengah, Melaka',      latitude: 2.1896, longitude: 102.2501, loadKw: 218, customer: 'lotuss',            powerRole: 'STANDBY'},
-  {id: 'mfg-015',     name: 'Mfg-015',     kind: 'MANUFACTURING', locationLabel: 'Seremban, Negeri Sembilan',  latitude: 2.7258, longitude: 101.9424, loadKw: 175, customer: 'sapura',            powerRole: 'STANDBY'},
-  {id: 'port-016',    name: 'Port-016',    kind: 'PORT',          locationLabel: 'Kuantan, Pahang',            latitude: 3.8077, longitude: 103.3260, loadKw: 281, customer: 'sapura',            powerRole: 'PRIME'},
-  {id: 'telco-017',   name: 'Telco-017',   kind: 'TELCO',         locationLabel: 'Kota Bharu, Kelantan',       latitude: 6.1254, longitude: 102.2381, loadKw: 64,  customer: 'redtone',           powerRole: 'PRIME'},
-  // — Sabah and Sarawak —
+  // — Greater Kota Kinabalu — the cluster in the map view.
+  {id: 'telco-001',   name: 'Telco-001',   kind: 'TELCO',         locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9560, longitude: 116.0810, loadKw: 205, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'data-002',    name: 'Data-002',    kind: 'DATA',          locationLabel: 'Sepanggar, Sabah',           latitude: 6.0670, longitude: 116.1330, loadKw: 380, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'telco-003',   name: 'Telco-003',   kind: 'TELCO',         locationLabel: 'Penampang, Sabah',           latitude: 5.9370, longitude: 116.1120, loadKw: 177, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'mfg-004',     name: 'Mfg-004',     kind: 'MANUFACTURING', locationLabel: 'Inanam, Sabah',              latitude: 5.9800, longitude: 116.1290, loadKw: 233, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'tower-005',   name: 'Tower-005',   kind: 'TOWER',         locationLabel: 'Kota Kinabalu City Centre',  latitude: 5.9860, longitude: 116.0760, loadKw: 332, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'hosp-006',    name: 'Hosp-006',    kind: 'HOSPITAL',      locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9500, longitude: 116.0880, loadKw: 742, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'mfg-007',     name: 'Mfg-007',     kind: 'MANUFACTURING', locationLabel: 'Telipok, Sabah',             latitude: 6.1230, longitude: 116.1740, loadKw: 102, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'airport-008', name: 'Airport-008', kind: 'AIRPORT',       locationLabel: 'Tanjung Aru, Kota Kinabalu', latitude: 5.9370, longitude: 116.0510, loadKw: 169, customer: 'west-coast', powerRole: 'STANDBY'},
+  // — The west-coast corridor north and south of the city.
+  {id: 'mfg-009',     name: 'Mfg-009',     kind: 'MANUFACTURING', locationLabel: 'Tuaran, Sabah',              latitude: 6.1770, longitude: 116.2330, loadKw: 313, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'telco-010',   name: 'Telco-010',   kind: 'TELCO',         locationLabel: 'Kota Belud, Sabah',          latitude: 6.3510, longitude: 116.4300, loadKw: 364, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'retail-011',  name: 'Retail-011',  kind: 'RETAIL',        locationLabel: 'Kudat, Sabah',               latitude: 6.8830, longitude: 116.8440, loadKw: 71,  customer: 'kudat',      powerRole: 'STANDBY'},
+  {id: 'telco-012',   name: 'Telco-012',   kind: 'TELCO',         locationLabel: 'Kota Marudu, Sabah',         latitude: 6.5040, longitude: 116.7440, loadKw: 248, customer: 'kudat',      powerRole: 'PRIME'},
+  {id: 'data-013',    name: 'Subst-013',   kind: 'SUBSTATION',    locationLabel: 'Keningau, Sabah',            latitude: 5.3380, longitude: 116.1600, loadKw: 242, customer: 'interior',   powerRole: 'STANDBY'},
+  {id: 'retail-014',  name: 'Retail-014',  kind: 'RETAIL',        locationLabel: 'Victoria, Labuan',           latitude: 5.2767, longitude: 115.2417, loadKw: 218, customer: 'labuan',     powerRole: 'STANDBY'},
+  {id: 'mfg-015',     name: 'Mfg-015',     kind: 'MANUFACTURING', locationLabel: 'Papar, Sabah',               latitude: 5.7330, longitude: 115.9330, loadKw: 175, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'port-016',    name: 'Port-016',    kind: 'PORT',          locationLabel: 'Sepanggar Bay, Sabah',       latitude: 6.0830, longitude: 116.1080, loadKw: 281, customer: 'west-coast', powerRole: 'STANDBY'},
+  {id: 'telco-017',   name: 'Telco-017',   kind: 'TELCO',         locationLabel: 'Tenom, Sabah',               latitude: 5.1330, longitude: 115.9500, loadKw: 64,  customer: 'interior',   powerRole: 'PRIME'},
+  // — The interior and the east coast — where the prime yards are.
   //
-  // Added because a Peninsula-only estate misrepresented the business: East Malaysia
-  // is where a great many of these sets stand, and it is also where the *interesting*
-  // ones stand. Four of these eight have no mains incomer at all — an interior
-  // Sarawak tower and a Keningau exchange are fed by their gensets and nothing else —
-  // which is the case `SitePowerRole` draws the distinction for, and which the seed
-  // barely contained before.
-  {id: 'telco-018',  name: 'Telco-018',  kind: 'TELCO',        locationLabel: 'Kota Kinabalu, Sabah',      latitude: 5.9804, longitude: 116.0735, loadKw: 188, customer: 'maxis',               powerRole: 'STANDBY'},
-  {id: 'telco-019',  name: 'Telco-019',  kind: 'TELCO',        locationLabel: 'Keningau, Sabah',           latitude: 5.3378, longitude: 116.1602, loadKw: 42,  customer: 'maxis',               powerRole: 'PRIME'},
-  {id: 'telco-020',  name: 'Telco-020',  kind: 'TELCO',        locationLabel: 'Sandakan, Sabah',           latitude: 5.8402, longitude: 118.1179, loadKw: 132, customer: 'redtone',             powerRole: 'STANDBY'},
-  {id: 'tower-021',  name: 'Tower-021',  kind: 'TOWER',        locationLabel: 'Lahad Datu, Sabah',         latitude: 5.0269, longitude: 118.3270, loadKw: 58,  customer: 'redtone',             powerRole: 'PRIME'},
-  {id: 'data-022',   name: 'Data-022',   kind: 'DATA',         locationLabel: 'Kuching, Sarawak',          latitude: 1.5533, longitude: 110.3592, loadKw: 296, customer: 'tm',                  powerRole: 'STANDBY'},
-  {id: 'port-023',   name: 'Port-023',   kind: 'PORT',         locationLabel: 'Bintulu, Sarawak',          latitude: 3.1710, longitude: 113.0417, loadKw: 415, customer: 'sapura',              powerRole: 'STANDBY'},
-  {id: 'mfg-024',    name: 'Mfg-024',    kind: 'MANUFACTURING',locationLabel: 'Miri, Sarawak',             latitude: 4.3995, longitude: 113.9914, loadKw: 267, customer: 'sapura',              powerRole: 'PRIME'},
-  {id: 'telco-025',  name: 'Telco-025',  kind: 'TELCO',        locationLabel: 'Kapit, Sarawak',            latitude: 2.0167, longitude: 112.9333, loadKw: 37,  customer: 'tm',                  powerRole: 'PRIME'},
+  // Six of these have no mains incomer at all: a Nabawan exchange or a Semporna
+  // tower is fed by its gensets and nothing else, which is the case
+  // `SitePowerRole` draws the distinction for. At east-coast distances the drive
+  // is most of any intervention, which is what the overview's buckets are for.
+  {id: 'telco-018',  name: 'Telco-018',  kind: 'TELCO',        locationLabel: 'Ranau, Sabah',              latitude: 5.9540, longitude: 116.6640, loadKw: 188, customer: 'interior',   powerRole: 'STANDBY'},
+  {id: 'telco-019',  name: 'Telco-019',  kind: 'TELCO',        locationLabel: 'Nabawan, Sabah',            latitude: 5.0620, longitude: 116.4370, loadKw: 42,  customer: 'interior',   powerRole: 'PRIME'},
+  {id: 'telco-020',  name: 'Telco-020',  kind: 'TELCO',        locationLabel: 'Sandakan, Sabah',           latitude: 5.8402, longitude: 118.1179, loadKw: 132, customer: 'sandakan',   powerRole: 'STANDBY'},
+  {id: 'tower-021',  name: 'Tower-021',  kind: 'TOWER',        locationLabel: 'Lahad Datu, Sabah',         latitude: 5.0269, longitude: 118.3270, loadKw: 58,  customer: 'lahad-datu', powerRole: 'PRIME'},
+  {id: 'data-022',   name: 'Subst-022',  kind: 'SUBSTATION',   locationLabel: 'Batu Sapi, Sandakan',       latitude: 5.8560, longitude: 118.0210, loadKw: 296, customer: 'sandakan',   powerRole: 'STANDBY'},
+  {id: 'port-023',   name: 'Port-023',   kind: 'PORT',         locationLabel: 'Tawau, Sabah',              latitude: 4.2450, longitude: 117.8840, loadKw: 415, customer: 'tawau',      powerRole: 'STANDBY'},
+  {id: 'mfg-024',    name: 'Mfg-024',    kind: 'MANUFACTURING',locationLabel: 'POIC Lahad Datu, Sabah',    latitude: 5.0480, longitude: 118.3990, loadKw: 267, customer: 'lahad-datu', powerRole: 'PRIME'},
+  {id: 'telco-025',  name: 'Telco-025',  kind: 'TELCO',        locationLabel: 'Semporna, Sabah',           latitude: 4.4770, longitude: 118.6110, loadKw: 37,  customer: 'tawau',      powerRole: 'PRIME'},
 ];
 
 export const siteSeed = (siteId: string): SiteSeed | undefined =>
@@ -150,6 +138,7 @@ export const SITE_KIND_LABEL: Record<SiteKind, string> = {
   PORT: 'Port terminal',
   AIRPORT: 'Airport',
   TOWER: 'Commercial tower',
+  SUBSTATION: 'Substation',
 };
 
 /** The site the design's frame opens on, and this section's default. */

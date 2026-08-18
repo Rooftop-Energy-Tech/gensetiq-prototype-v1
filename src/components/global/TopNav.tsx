@@ -33,7 +33,7 @@ const useCrumbs = (): Array<Crumb> => {
     return parent === undefined ? [{label}] : [{label: parent.label, to: parent.to}, {label}];
   }
 
-  return [{label: 'GensetIQ'}];
+  return [{label: 'Fleet'}];
 };
 
 export const TopNav = () => {

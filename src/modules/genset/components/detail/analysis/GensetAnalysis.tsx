@@ -1,6 +1,7 @@
 import {useMemo, useState} from 'react';
 
 import {relativeTime} from '@/lib/format';
+import {gensetDeployments} from '../../../data/deployments';
 import {PLOTTABLE_READING_KEYS} from '../../../data/detail';
 import type {GensetDetail} from '../../../data/detail';
 import {gensetRuns, historyStart, readingSeries, runsInWindow} from '../../../data/history';
@@ -15,6 +16,7 @@ import {
   toggleKey,
 } from '../../../types/analysisView.type';
 import type {AnalysisSearch, AnalysisWindow} from '../../../types/analysisView.type';
+import {DeploymentPicker} from '../../runs/DeploymentPicker';
 import {RangePicker} from './RangePicker';
 import {SeriesPicker} from './SeriesPicker';
 import {TimeSeriesChart} from './TimeSeriesChart';
@@ -51,9 +53,10 @@ export const GensetAnalysis = ({
   const [now] = useState(() => Date.now());
 
   const runs = useMemo(() => gensetRuns(genset.id), [genset.id]);
+  const deployments = useMemo(() => gensetDeployments(genset.id), [genset.id]);
   const keys = selectedKeys(search);
   const earliest = historyStart();
-  const range = analysisRange(search, runs, now, earliest);
+  const range = analysisRange(search, runs, now, earliest, deployments);
 
   const readings: Array<Reading> = PLOTTABLE_READING_KEYS.map(
     (key) => detail.readings[key],
@@ -85,24 +88,31 @@ export const GensetAnalysis = ({
           onToggle={(key) => onSearchChange(toggleKey(search, key))}
         />
 
-        <RangePicker
-          window={search.window}
-          range={range}
-          runs={runs}
-          customFrom={search.from}
-          customTo={search.to}
-          earliest={earliest}
-          now={now}
-          // Each selector clears the other two. They are three answers to one
-          // question and `analysisRange` gives run precedence over custom over
-          // preset — so a control that left the others standing would appear to
-          // do nothing at all.
-          onWindowChange={(window: AnalysisWindow) =>
-            onSearchChange({...clearedRange(search), window})
-          }
-          onRunChange={(run) => onSearchChange({...clearedRange(search), run})}
-          onCustomChange={(from, to) => onSearchChange({...clearedRange(search), from, to})}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <RangePicker
+            window={search.window}
+            range={range}
+            runs={runs}
+            customFrom={search.from}
+            customTo={search.to}
+            earliest={earliest}
+            now={now}
+            // Each selector clears the others. They are alternative answers to one
+            // question and `analysisRange` gives run precedence over deployment
+            // over custom over preset — so a control that left the others standing
+            // would appear to do nothing at all.
+            onWindowChange={(window: AnalysisWindow) =>
+              onSearchChange({...clearedRange(search), window})
+            }
+            onRunChange={(run) => onSearchChange({...clearedRange(search), run})}
+            onCustomChange={(from, to) => onSearchChange({...clearedRange(search), from, to})}
+          />
+          <DeploymentPicker
+            deployments={deployments}
+            selectedId={range.kind === 'deployment' ? search.dep : undefined}
+            onSelect={(dep) => onSearchChange({...clearedRange(search), dep})}
+          />
+        </div>
       </div>
 
       <div className="flex min-h-[360px] flex-1 flex-col rounded-xl border border-subtle bg-element p-3">

@@ -45,6 +45,7 @@ export const RunsPanel = ({
   heldCount,
   showAsset,
   energyNote,
+  deploymentPicker,
   onWindowChange,
   onCustomChange,
   onExport,
@@ -63,6 +64,12 @@ export const RunsPanel = ({
   showAsset: boolean;
   /** The site's caveat about whose energy this is. */
   energyNote: string | undefined;
+  /**
+   * The genset page's by-posting selector, rendered beside the range control.
+   * A slot rather than data, because the site's log has no posting to scope by
+   * and should not have to say so.
+   */
+  deploymentPicker?: ReactNode;
   onWindowChange: (window: RunWindow) => void;
   onCustomChange: (from: string, to: string) => void;
   onExport: () => void;
@@ -72,16 +79,19 @@ export const RunsPanel = ({
   return (
     <div className="flex min-h-full flex-col gap-4 px-4 pt-4 pb-6">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <RunsRangeControl
-          window={window}
-          range={range}
-          customFrom={customFrom}
-          customTo={customTo}
-          earliest={earliest}
-          now={now}
-          onWindowChange={onWindowChange}
-          onCustomChange={onCustomChange}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <RunsRangeControl
+            window={window}
+            range={range}
+            customFrom={customFrom}
+            customTo={customTo}
+            earliest={earliest}
+            now={now}
+            onWindowChange={onWindowChange}
+            onCustomChange={onCustomChange}
+          />
+          {deploymentPicker}
+        </div>
 
         {/* Disabled on an empty window rather than hidden. A control that
             disappears reads as a feature that isn't there; one that is present and

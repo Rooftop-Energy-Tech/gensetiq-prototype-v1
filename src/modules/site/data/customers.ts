@@ -1,57 +1,57 @@
 /**
- * Who the sites belong to.
+ * Whose yards the sites are — for this demo, the utility's own distribution zones.
  *
- * ## Why the customer hangs off the site
+ * ## Why the zone hangs off the site
  *
- * A genset is owned by whoever bought it and *stands* wherever it was dropped, and
- * the second of those is the one an operator asks about: "how many sets have we got
- * at Maxis" means "at Maxis's yards". So a customer owns **sites**, and a genset
- * takes its customer from the site it is deployed to — the same direction
- * `locationLabel` already travels, and for the same reason. A `customerId` seeded
- * onto each genset would be a second copy of a fact the site already states, and
- * detaching a set would then leave a machine in the depot still claiming a
- * customer's name.
+ * A genset is owned by the fleet and *stands* wherever it was dropped, and the
+ * second of those is the one an operator asks about: "how many sets have we got
+ * in Sandakan" means "at the Sandakan zone's yards". So a zone owns **sites**,
+ * and a genset takes its zone from the site it is deployed to — the same
+ * direction `locationLabel` already travels, and for the same reason. A zone id
+ * seeded onto each genset would be a second copy of a fact the site already
+ * states, and detaching a set would then leave a machine in the depot still
+ * claiming a zone's name.
  *
- * The consequence is deliberate: **a set in the depot has no customer**, and the
+ * The consequence is deliberate: **a set in the depot has no zone**, and the
  * summary cards count it under "Depot" rather than inventing an owner for it.
  *
  * ## Why the roster is a table rather than free text on the seed
  *
- * The cards group by customer and the filter chips key off it, so the identity has
- * to be stable across renames — `redtone` stays `redtone` when its display name
- * gains a "Sdn Bhd". Order here is the order the chips appear in, which is
- * deliberately *not* alphabetical and not by size: it is the order the account team
- * reads them in, so the row doesn't reshuffle when a site changes hands.
+ * The cards group by zone and the filter chips key off it, so the identity has
+ * to be stable across renames. Order here is the order the chips appear in,
+ * which is deliberately *not* alphabetical and not by size: west to east, the
+ * way the operations team reads the state, so the row doesn't reshuffle when a
+ * site changes hands.
  *
- * These are **mock accounts on mock sites**, the same standing as every other
+ * These are **mock zones on mock sites**, the same standing as every other
  * figure in this prototype.
  */
 
 export type CustomerId =
-  | 'maxis'
-  | 'redtone'
-  | 'sapura'
-  | 'tm'
-  | 'kpj'
-  | 'malaysia-airports'
-  | 'lotuss';
+  | 'west-coast'
+  | 'kudat'
+  | 'interior'
+  | 'sandakan'
+  | 'lahad-datu'
+  | 'tawau'
+  | 'labuan';
 
 export type Customer = {
   id: CustomerId;
-  /** How the account is written in full, for a tooltip or a detail line. */
+  /** How the zone is written in full, for a tooltip or a detail line. */
   name: string;
-  /** The short form the chips use — a card row has no space for "Telekom Malaysia". */
+  /** The short form the chips use — a card row has no space for "Distribution Zone". */
   shortName: string;
 };
 
 export const CUSTOMERS: Array<Customer> = [
-  {id: 'maxis', name: 'Maxis Broadband', shortName: 'Maxis'},
-  {id: 'redtone', name: 'REDtone Digital', shortName: 'REDtone'},
-  {id: 'sapura', name: 'Sapura Energy', shortName: 'Sapura'},
-  {id: 'tm', name: 'Telekom Malaysia', shortName: 'TM'},
-  {id: 'kpj', name: 'KPJ Healthcare', shortName: 'KPJ'},
-  {id: 'malaysia-airports', name: 'Malaysia Airports', shortName: 'MAHB'},
-  {id: 'lotuss', name: "Lotus's Malaysia", shortName: "Lotus's"},
+  {id: 'west-coast', name: 'West Coast Distribution', shortName: 'West Coast'},
+  {id: 'kudat', name: 'Kudat Distribution', shortName: 'Kudat'},
+  {id: 'interior', name: 'Interior Distribution', shortName: 'Interior'},
+  {id: 'sandakan', name: 'Sandakan Distribution', shortName: 'Sandakan'},
+  {id: 'lahad-datu', name: 'Lahad Datu Distribution', shortName: 'Lahad Datu'},
+  {id: 'tawau', name: 'Tawau Distribution', shortName: 'Tawau'},
+  {id: 'labuan', name: 'Labuan Distribution', shortName: 'Labuan'},
 ];
 
 const BY_ID: Record<CustomerId, Customer> = Object.fromEntries(

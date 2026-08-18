@@ -104,6 +104,15 @@ export const analysisSearchSchema = z.object({
    */
   run: z.string().optional().catch(undefined),
   /**
+   * A deployment id, which overrides `from`/`to` and `window` when set.
+   *
+   * The fourth answer to the one question, ranked under `run`: a run is more
+   * specific than the posting containing it. Resolves to the posting's exact
+   * window, so the trace here covers the same span the dispatch feed's row and
+   * the runs tab's totals describe.
+   */
+  dep: z.string().optional().catch(undefined),
+  /**
    * A custom range, as two local calendar dates — `?from=2026-08-01&to=2026-08-07`.
    *
    * Days rather than instants, because that is the unit a person picks and the
@@ -154,7 +163,7 @@ export const toggleKey = (search: AnalysisSearch, key: string): AnalysisSearch =
 export type AnalysisRange = {
   from: number;
   to: number;
-  kind: 'preset' | 'run' | 'custom';
+  kind: 'preset' | 'run' | 'custom' | 'deployment';
   /** Set when `kind` is `run`. */
   runId: string | undefined;
 };
@@ -176,6 +185,8 @@ export const analysisRange = (
   runs: Array<{id: string; startedAt: string; endedAt: string | null}>,
   now: number,
   earliest: number,
+  /** The genset's postings, for the `dep` selector. Optional: the callers that have none pass nothing. */
+  deployments: Array<{id: string; startedAt: string; endedAt: string | null}> = [],
 ): AnalysisRange => {
   const run = search.run === undefined ? undefined : runs.find((one) => one.id === search.run);
 
@@ -190,6 +201,21 @@ export const analysisRange = (
       to: Math.min(now, endedMs + margin),
       kind: 'run',
       runId: run.id,
+    };
+  }
+
+  const deployment =
+    search.dep === undefined ? undefined : deployments.find((one) => one.id === search.dep);
+
+  if (deployment !== undefined) {
+    return {
+      from: Math.max(earliest, new Date(deployment.startedAt).getTime()),
+      to: Math.min(
+        now,
+        deployment.endedAt === null ? now : new Date(deployment.endedAt).getTime(),
+      ),
+      kind: 'deployment',
+      runId: undefined,
     };
   }
 
@@ -225,6 +251,7 @@ export const analysisRange = (
 export const clearedRange = (search: AnalysisSearch): AnalysisSearch => ({
   ...search,
   run: undefined,
+  dep: undefined,
   from: undefined,
   to: undefined,
 });

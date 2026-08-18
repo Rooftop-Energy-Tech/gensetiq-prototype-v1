@@ -1,4 +1,4 @@
-import {darkToken} from '@/styles/colors';
+import {lightToken} from '@/styles/colors';
 import {gensetCondition} from './fuelIntegrity';
 import {RESERVE_FRACTION, gensetDetail} from './detail';
 import type {Genset} from '../types/genset.type';
@@ -94,25 +94,25 @@ export const STATUS_META: Record<
     label: 'Tank empty',
     detail: `Below ${Math.round(EMPTY_FRACTION * 100)}% — no cover until refuelled`,
     tone: 'fuel',
-    mapColor: darkToken.fuel,
+    mapColor: lightToken.fuel,
   },
   ALARM: {
     label: 'Alarms raised',
     detail: 'Carrying a warning or a shutdown alarm',
     tone: 'critical',
-    mapColor: darkToken['severity-critical'],
+    mapColor: lightToken['severity-critical'],
   },
   REFUEL: {
     label: 'Refuel due',
     detail: `Below the ${Math.round(RESERVE_FRACTION * 100)}% reserve line`,
     tone: 'fuel-low',
-    mapColor: darkToken['fuel-tip'],
+    mapColor: lightToken['fuel-tip'],
   },
   OK: {
     label: 'All OK',
     detail: 'Fuelled, and nothing raised',
     tone: 'ok',
-    mapColor: darkToken['severity-ok'],
+    mapColor: lightToken['severity-ok'],
   },
 };
 

@@ -95,7 +95,7 @@ const CircuitSlot = ({
       <p className="text-[13px] leading-[18px] text-secondary">
         {point === 'MAINS'
           ? 'What the site imports from the grid. Reads nothing while a genset carries the load.'
-          : 'What the customer consumes, whichever supply is carrying it.'}
+          : 'What the site consumes, whichever supply is carrying it.'}
       </p>
 
       {fitted !== undefined ? (

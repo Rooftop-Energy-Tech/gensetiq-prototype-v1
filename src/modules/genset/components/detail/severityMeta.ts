@@ -1,7 +1,7 @@
 import {ActivityIcon, CircleCheckIcon, CircleXIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
-import {darkToken} from '@/styles/colors';
+import {lightToken} from '@/styles/colors';
 import type {AlertSeverity, GensetCondition} from '../../types/alert.type';
 
 /**
@@ -67,18 +67,18 @@ export const CONDITION_META: Record<
     label: 'Optimum',
     icon: CircleCheckIcon,
     textClassName: 'text-severity-ok',
-    mapColor: darkToken['severity-ok'],
+    mapColor: lightToken['severity-ok'],
   },
   ATTENTION: {
     label: 'Attention',
     icon: ActivityIcon,
     textClassName: 'text-severity-warning',
-    mapColor: darkToken['severity-warning'],
+    mapColor: lightToken['severity-warning'],
   },
   CRITICAL: {
     label: 'Critical',
     icon: CircleXIcon,
     textClassName: 'text-severity-critical',
-    mapColor: darkToken['severity-critical'],
+    mapColor: lightToken['severity-critical'],
   },
 };

@@ -11,15 +11,15 @@ import './styles/styles.css';
  * stylesheet, mirroring rooftopiq-frontend-v3 — it's what lets `colors.ts` stay
  * the single source of truth for both themes without a build step.
  *
- * GensetIQ is designed dark-only, so `dark` is set unconditionally. The light
- * values still exist in `colors.ts`, so turning this into a real toggle later is
- * a matter of flipping the class, not re-authoring the palette.
+ * This white-label build ships light-only — the customer's own colour scheme —
+ * so the `dark` class is never added and `:root`'s light values carry the app.
+ * The dark palette still exists in `colors.ts`, so turning this into a real
+ * toggle later is a matter of flipping the class, not re-authoring the palette.
  */
 const style = document.createElement('style');
 style.id = 'theme-colors';
 style.textContent = colorThemeCss();
 document.head.append(style);
-document.documentElement.classList.add('dark');
 
 const router = createRouter();
 

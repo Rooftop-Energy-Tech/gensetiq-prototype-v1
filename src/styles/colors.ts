@@ -87,7 +87,10 @@ const BACKGROUND: ColorMap = {
   // GensetIQ teal — primary accents, brand moments. The IQ mark's accent stroke
   // and the login CTA both use this exact value.
   brand: {
-    light: '#21B0B0',
+    // SESB electric blue in the light mode this white-label ships in — the
+    // value their own site's stylesheet names `--electric-blue`. The teal
+    // stays in dark mode, which this build never shows.
+    light: '#0E4393',
     dark: '#21B0B0',
     figma: 'bg-brand',
     divergent:
@@ -275,7 +278,15 @@ const SEVERITY: ColorMap = {
 /** Everything else — brand text, scrollbar, focus outline, destructive. */
 const MISC: ColorMap = {
   // Foreground that sits on `bg-brand`.
-  'brand-text': {light: '#161D27', dark: '#161D27', figma: 'text-brand'},
+  'brand-text': {
+    // White in light mode on this build: the brand ground is SESB's dark
+    // electric blue, and the near-black that sat on the teal disappears on it.
+    light: '#FFFFFF',
+    dark: '#161D27',
+    figma: 'text-brand',
+    divergent:
+      "White-label build: text on the brand button must be white on SESB electric blue #0E4393 — do not sync from Figma's text-brand.",
+  },
   'scroll-bar': {light: '#9EA6B2', dark: '#4D5561', figma: 'scroll-bar'},
   // Focus ring. Figma carries a single translucent value for both modes —
   // Tailwind gray-500 at 50% — consumed by its `focus/default` effect variable
@@ -366,6 +377,16 @@ export const colorThemeCss = (): string =>
  */
 export const darkToken = Object.fromEntries(
   GROUPS.flatMap((group) => Object.entries(group).map(([name, token]) => [name, token.dark])),
+) as Record<string, string>;
+
+/**
+ * The light-mode counterpart, for the same WebGL reason.
+ *
+ * This white-label build ships light-only, so the map paint reads these. The
+ * dark table above stays for the day the toggle returns.
+ */
+export const lightToken = Object.fromEntries(
+  GROUPS.flatMap((group) => Object.entries(group).map(([name, token]) => [name, token.light])),
 ) as Record<string, string>;
 
 /**

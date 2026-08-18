@@ -1,7 +1,7 @@
 import {CircleIcon, PauseIcon, PowerOffIcon, TriangleAlertIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
-import {darkToken} from '@/styles/colors';
+import {lightToken} from '@/styles/colors';
 import type {RunState} from '@/modules/genset/types/genset.type';
 
 type RunStateMeta = {
@@ -27,24 +27,24 @@ export const RUN_STATE_META: Record<RunState, RunStateMeta> = {
     label: 'Running',
     icon: CircleIcon,
     iconClassName: 'text-status-running',
-    mapColor: darkToken['status-running'],
+    mapColor: lightToken['status-running'],
   },
   IDLE: {
     label: 'Idle',
     icon: PauseIcon,
     iconClassName: 'text-status-idle',
-    mapColor: darkToken['status-idle'],
+    mapColor: lightToken['status-idle'],
   },
   FAULT: {
     label: 'Fault',
     icon: TriangleAlertIcon,
     iconClassName: 'text-status-fault',
-    mapColor: darkToken['status-fault'],
+    mapColor: lightToken['status-fault'],
   },
   OFFLINE: {
     label: 'Offline',
     icon: PowerOffIcon,
     iconClassName: 'text-status-offline',
-    mapColor: darkToken['status-offline'],
+    mapColor: lightToken['status-offline'],
   },
 };

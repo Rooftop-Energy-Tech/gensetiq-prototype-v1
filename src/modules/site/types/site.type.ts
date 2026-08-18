@@ -24,7 +24,7 @@ import type {CustomerId} from '../data/customers';
  * hospital and a retail unit with identical hardware are not equally covered by
  * one working genset, and the kind is the only thing on the page that says so.
  */
-export const SITE_KINDS = ['TELCO', 'DATA', 'HOSPITAL', 'MANUFACTURING', 'RETAIL', 'PORT', 'AIRPORT', 'TOWER'] as const;
+export const SITE_KINDS = ['TELCO', 'DATA', 'HOSPITAL', 'MANUFACTURING', 'RETAIL', 'PORT', 'AIRPORT', 'TOWER', 'SUBSTATION'] as const;
 
 export type SiteKind = (typeof SITE_KINDS)[number];
 
