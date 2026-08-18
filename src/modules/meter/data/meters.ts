@@ -16,22 +16,22 @@ import type {MeterFitting, MeterPoint, PowerMeter} from '../types/meter.type';
  *
  * The seed below is deliberately uneven, and each shape is on the map for a reason:
  *
- *  - **both circuits** (`telco-001`, `data-002`, `hosp-006`, `data-013`) — the sites
+ *  - **both circuits** (`ppu-001`, `ppu-002`, `pe-006`, `ppu-013`) — the sites
  *    somebody watches closely;
- *  - **mains only** (`tower-005`, `airport-008`) — billing metering, which goes blind
+ *  - **mains only** (`ppu-005`, `ppu-008`) — billing metering, which goes blind
  *    the moment the site transfers to diesel;
- *  - **load only** (`mfg-004`, `port-016`, `telco-017`) — consumption metering, which
+ *  - **load only** (`pe-004`, `pmu-016`, `mg-017`) — consumption metering, which
  *    never does;
- *  - **nothing at all** (`telco-003`, `mfg-007`, `mfg-009`, `telco-010`, `retail-011`,
- *    `telco-012`, `retail-014`, `mfg-015`) — eight of seventeen, so the unmetered case
+ *  - **nothing at all** (`pe-003`, `pe-007`, `ppu-009`, `ppu-010`, `pe-011`,
+ *    `mg-012`, `pe-014`, `pe-015`) — eight of seventeen, so the unmetered case
  *    is the one a reader meets first rather than a corner;
  *  - **in stores** (`PM-0114`, `PM-0115`) — so a site's Metering section has something
  *    to fit without robbing another yard.
  *
  * Two sites are placed deliberately, because only two in this fleet have the **grid
  * actually carrying** — which is the one condition under which a missing meter is
- * visible on the diagram at all. `retail-014` has nothing fitted, so both its nodes
- * read `unmetered`; `telco-017`'s load meter is fitted and **offline**, so it reads
+ * visible on the diagram at all. `pe-014` has nothing fitted, so both its nodes
+ * read `unmetered`; `mg-017`'s load meter is fitted and **offline**, so it reads
  * `no reading` beside an `unmetered` mains. A device that has gone quiet is a different
  * problem from one that was never bought — different words, different owner, different
  * fix — and putting the two a few pixels apart is the clearest way to say so.
@@ -56,21 +56,21 @@ type MeterSeed = {
 
 // prettier-ignore
 const METER_SEED: Array<MeterSeed> = [
-  {serial: 'PM-0101', model: 'Schneider PM2200',   siteId: 'telco-001',   point: 'MAINS'},
-  {serial: 'PM-0102', model: 'Schneider PM2200',   siteId: 'telco-001',   point: 'LOAD'},
-  {serial: 'PM-0103', model: 'Socomec Countis E43',siteId: 'data-002',    point: 'MAINS'},
-  {serial: 'PM-0104', model: 'Socomec Countis E43',siteId: 'data-002',    point: 'LOAD'},
-  {serial: 'PM-0105', model: 'Schneider PM2200',   siteId: 'hosp-006',    point: 'MAINS'},
-  {serial: 'PM-0106', model: 'Schneider PM2200',   siteId: 'hosp-006',    point: 'LOAD'},
-  {serial: 'PM-0107', model: 'Socomec Countis E43',siteId: 'data-013',    point: 'MAINS'},
-  {serial: 'PM-0108', model: 'Socomec Countis E43',siteId: 'data-013',    point: 'LOAD'},
-  {serial: 'PM-0109', model: 'Acrel ADW300',       siteId: 'tower-005',   point: 'MAINS'},
-  {serial: 'PM-0110', model: 'Acrel ADW300',       siteId: 'airport-008', point: 'MAINS'},
-  {serial: 'PM-0111', model: 'Schneider PM2200',   siteId: 'mfg-004',     point: 'LOAD'},
-  {serial: 'PM-0112', model: 'Acrel ADW300',       siteId: 'port-016',    point: 'LOAD'},
+  {serial: 'PM-0101', model: 'Schneider PM2200',   siteId: 'ppu-001',   point: 'MAINS'},
+  {serial: 'PM-0102', model: 'Schneider PM2200',   siteId: 'ppu-001',   point: 'LOAD'},
+  {serial: 'PM-0103', model: 'Socomec Countis E43',siteId: 'ppu-002',    point: 'MAINS'},
+  {serial: 'PM-0104', model: 'Socomec Countis E43',siteId: 'ppu-002',    point: 'LOAD'},
+  {serial: 'PM-0105', model: 'Schneider PM2200',   siteId: 'pe-006',    point: 'MAINS'},
+  {serial: 'PM-0106', model: 'Schneider PM2200',   siteId: 'pe-006',    point: 'LOAD'},
+  {serial: 'PM-0107', model: 'Socomec Countis E43',siteId: 'ppu-013',    point: 'MAINS'},
+  {serial: 'PM-0108', model: 'Socomec Countis E43',siteId: 'ppu-013',    point: 'LOAD'},
+  {serial: 'PM-0109', model: 'Acrel ADW300',       siteId: 'ppu-005',   point: 'MAINS'},
+  {serial: 'PM-0110', model: 'Acrel ADW300',       siteId: 'ppu-008', point: 'MAINS'},
+  {serial: 'PM-0111', model: 'Schneider PM2200',   siteId: 'pe-004',     point: 'LOAD'},
+  {serial: 'PM-0112', model: 'Acrel ADW300',       siteId: 'pmu-016',    point: 'LOAD'},
   // Fitted and silent, at one of only two sites where the grid is actually carrying —
-  // so `no reading` lands on screen beside `retail-014`'s `unmetered`.
-  {serial: 'PM-0113', model: 'Socomec Countis E43',siteId: 'telco-017',   point: 'LOAD', online: false},
+  // so `no reading` lands on screen beside `pe-014`'s `unmetered`.
+  {serial: 'PM-0113', model: 'Socomec Countis E43',siteId: 'mg-017',   point: 'LOAD', online: false},
   {serial: 'PM-0114', model: 'Schneider PM2200',   siteId: null,          point: null},
   {serial: 'PM-0115', model: 'Acrel ADW300',       siteId: null,          point: null},
 ];

@@ -18,13 +18,14 @@ import type {MeterFeed} from '@/modules/meter/types/meter.type';
 import type {CustomerId} from '../data/customers';
 
 /**
- * What the site's load actually is.
+ * What kind of network asset the injection point is.
  *
- * Not decoration: it is the reason the site tolerates an outage or doesn't. A
- * hospital and a retail unit with identical hardware are not equally covered by
- * one working genset, and the kind is the only thing on the page that says so.
+ * Not decoration: it is the reason the site tolerates an outage or doesn't. An
+ * intake substation and a rural mini-grid with identical hardware are not
+ * equally covered by one working genset, and the kind is the only thing on the
+ * page that says so.
  */
-export const SITE_KINDS = ['TELCO', 'DATA', 'HOSPITAL', 'MANUFACTURING', 'RETAIL', 'PORT', 'AIRPORT', 'TOWER', 'SUBSTATION'] as const;
+export const SITE_KINDS = ['PMU', 'PPU', 'PE', 'FEEDER', 'MINI_GRID'] as const;
 
 export type SiteKind = (typeof SITE_KINDS)[number];
 
@@ -96,9 +97,9 @@ export type MainsSupply = {
 };
 
 export type Site = {
-  /** e.g. `telco-001`. Matches `Genset.siteId`. */
+  /** e.g. `ppu-001`. Matches `Genset.siteId`. */
   id: string;
-  /** e.g. `Telco-001` — the label the design puts in the header. */
+  /** e.g. `PPU-001` — the label the design puts in the header. */
   name: string;
   kind: SiteKind;
   /** Shared by every genset here, because they stand in the same yard. */
