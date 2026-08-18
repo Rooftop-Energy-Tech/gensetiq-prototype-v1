@@ -8,7 +8,7 @@ import {isSignedIn, signIn} from '@/modules/auth/session';
 import {DEFAULT_GENSET_ID} from '@/modules/genset/data/fleet';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 
-import gensetiqWordmark from '@/assets/gensetiq-wordmark-light.png';
+import gensetiqWordmark from '@/assets/gensetiq-wordmark-light.svg';
 import sesbLogo from '@/assets/sesb-logo.png';
 
 const LoginPage = () => {
@@ -41,9 +41,9 @@ const LoginPage = () => {
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <div className="flex w-[373px] flex-col items-center gap-[71px]">
         {/* The customer's own mark carries the door; the product signs underneath.
-            The shipped wordmark is teal-and-white for a dark ground, so the sign-off
-            uses `gensetiq-wordmark-light.png` — the same art with its white recoloured
-            to the light theme's ink (see scripts note in the asset's commit). */}
+            The wordmark is the brand SVG from the deck assets — black "genset", teal
+            "IQ", drawn for a light ground. The prototype's own PNG is the dark-ground
+            inversion (teal "genset", white "IQ") and half of it vanishes here. */}
         <div className="flex flex-col items-center gap-3">
           <img
             src={sesbLogo}
