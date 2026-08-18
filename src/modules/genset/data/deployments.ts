@@ -1,7 +1,6 @@
 import {SITE_SEED} from '@/modules/site/data/siteSeed';
 import type {DeploymentSession} from '../types/deployment.type';
 import {GENSETS} from './fleet';
-import {LITRES_PER_KWH} from './detail';
 import {fuelAt, historyStart, meteredBurn, runsInWindow} from './history';
 import {spread, spreadBetween} from './spread';
 
@@ -180,20 +179,24 @@ export const deploymentTotals = (deployment: DeploymentSession): DeploymentTotal
 
   const runs = runsInWindow(deployment.gensetId, from, to);
   let runtimeMs = 0;
+  // Energy is the runs' own figures, prorated by how much of each run the
+  // posting's window actually contains — not derived back from fuel, which
+  // would undo the load-dependent SFC and make a posting disagree with the
+  // very runs it is made of.
+  let energyKwh = 0;
   for (const run of runs) {
-    const runStart = Math.max(new Date(run.startedAt).getTime(), from);
-    const runEnd = Math.min(
-      run.endedAt === null ? CLOCK : new Date(run.endedAt).getTime(),
-      to,
-    );
-    runtimeMs += Math.max(0, runEnd - runStart);
+    const startMs = new Date(run.startedAt).getTime();
+    const endMs = run.endedAt === null ? CLOCK : new Date(run.endedAt).getTime();
+    const clippedMs = Math.max(0, Math.min(endMs, to) - Math.max(startMs, from));
+    runtimeMs += clippedMs;
+    if (endMs > startMs) energyKwh += run.energyProducedKwh * (clippedMs / (endMs - startMs));
   }
 
   const fuelBurnedLitres = meteredBurn(deployment.gensetId, from, to);
 
   return {
     runtimeHours: runtimeMs / HOUR,
-    energyKwh: fuelBurnedLitres / LITRES_PER_KWH,
+    energyKwh,
     fuelBurnedLitres,
     starts: runs.length,
   };

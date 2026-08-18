@@ -56,6 +56,28 @@ import {spread} from './spread';
 export const LITRES_PER_KWH = 0.28;
 
 /**
+ * Litres per kWh a set actually achieves at a given load, as a fraction of
+ * nameplate.
+ *
+ * A diesel's specific fuel consumption is flattest near rated output and worse
+ * the lighter the load — the engine spends a larger share of each litre keeping
+ * itself turning. `LITRES_PER_KWH` is the figure at 75% load and above; below
+ * that the burn worsens by 0.4% of itself per point of load given up, so a set
+ * loafing at 20% pays roughly a fifth more per kWh than one properly loaded.
+ *
+ * One function, used by **every** place fuel is derived from energy — the run
+ * log, the current-run card, the fuel ladder and the metered-burn integral —
+ * so the tank chart, the flow meter and the run totals all tell one story. It
+ * is also what makes efficiency comparable across runs at all: before it,
+ * every run returned the same kWh per litre and the SFC column would have been
+ * a constant pretending to be a measurement.
+ */
+export const sfcLitresPerKwh = (loadFraction: number): number => {
+  const partLoad = Math.max(0, 0.75 - Math.min(Math.max(loadFraction, 0), 1));
+  return LITRES_PER_KWH * (1 + 0.4 * partLoad);
+};
+
+/**
  * Fraction of the tank the refuel runway counts down to, not to zero.
  *
  * Exported because the fleet status buckets draw the same line: "refuel due" is
@@ -1039,7 +1061,7 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
     genset.id === 'brf9540'
       ? 205
       : Math.round(ratedKw * (overloadFraction > 0 ? overloadFraction : loadFraction));
-  const litresPerHour = Math.round(LITRES_PER_KWH * loadKw * 10) / 10;
+  const litresPerHour = Math.round(sfcLitresPerKwh(loadKw / ratedKw) * loadKw * 10) / 10;
 
   // Run length: how long the engine has been turning (open run) or was turning
   // (closed run). 3–14 hours — see `RUN_HOURS_MAX` in `history.ts` for why a single

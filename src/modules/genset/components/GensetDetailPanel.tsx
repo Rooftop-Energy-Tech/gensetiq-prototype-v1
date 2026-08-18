@@ -1,31 +1,16 @@
 import {Link} from '@tanstack/react-router';
-import {
-  ArrowRightIcon,
-  CirclePlayIcon,
-  CircleStopIcon,
-  FuelIcon,
-  TriangleAlertIcon,
-  WrenchIcon,
-} from 'lucide-react';
-import type {LucideIcon} from 'lucide-react';
+import {ArrowRightIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
 import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
 import {fuelLevel, relativeTime} from '@/lib/format';
+import {ActivityFeed} from './ActivityFeed';
 import {RunStateBadge} from './RunStateBadge';
 import {gensetName} from '../types/genset.type';
-import type {Genset, GensetActivityKind} from '../types/genset.type';
+import type {Genset} from '../types/genset.type';
 import {useServiceRecords, withServiceActivity} from '../data/services';
-
-const ACTIVITY_ICON: Record<GensetActivityKind, LucideIcon> = {
-  START: CirclePlayIcon,
-  STOP: CircleStopIcon,
-  REFUEL: FuelIcon,
-  FAULT: TriangleAlertIcon,
-  SERVICE: WrenchIcon,
-};
 
 const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
   <div className="flex items-center gap-px">
@@ -99,34 +84,7 @@ export const GensetDetailPanel = ({
 
           <section className="flex min-h-0 flex-col gap-3">
             <h3 className="font-medium text-primary">Activity</h3>
-            <ol className="flex flex-col">
-              {activity.map((event, index) => {
-                const Icon = ACTIVITY_ICON[event.kind];
-                const last = index === activity.length - 1;
-
-                return (
-                  <li key={event.id} className="flex gap-3">
-                    {/* The rail is drawn as a bordered spacer beside the glyph
-                        rather than an absolutely-positioned line, so it stretches
-                        with however many lines the message wraps to. */}
-                    <div className="flex flex-col items-center">
-                      <Icon
-                        className={cn(
-                          'size-4 shrink-0',
-                          event.kind === 'FAULT' ? 'text-status-fault' : 'text-secondary',
-                        )}
-                        aria-hidden="true"
-                      />
-                      {!last && <div className="w-px flex-1 bg-subtle" />}
-                    </div>
-                    <div className={cn('flex min-w-0 flex-col', last ? 'pb-0' : 'pb-4')}>
-                      <span className="text-primary">{event.message}</span>
-                      <span className="text-xs text-secondary">{relativeTime(event.at)}</span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+            <ActivityFeed activity={activity} />
           </section>
         </>
       )}

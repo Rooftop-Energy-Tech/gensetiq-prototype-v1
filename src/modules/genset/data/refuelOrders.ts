@@ -103,3 +103,12 @@ const buildOrders = (): Array<RefuelOrder> => {
 };
 
 export const REFUEL_ORDERS: Array<RefuelOrder> = buildOrders();
+
+/**
+ * One genset's refuel log, newest issue first — the dashboard's cut of the
+ * same orders the fleet-wide `/refuel` page lists.
+ */
+export const gensetRefuelOrders = (gensetId: string): Array<RefuelOrder> =>
+  REFUEL_ORDERS.filter((order) => order.gensetId === gensetId).sort((a, b) =>
+    b.issuedAt.localeCompare(a.issuedAt),
+  );

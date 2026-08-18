@@ -170,6 +170,13 @@ export const runsCsv = (input: RunsCsvInput): string => {
     line('Fuel consumed (L)', totals.fuelLitres),
   );
 
+  if (totals.sfcKwhPerL !== null) {
+    out.push(line('Avg SFC (kWh/L)', Math.round(totals.sfcKwhPerL * 100) / 100));
+  }
+  if (totals.loadFactor !== null) {
+    out.push(line('Avg load factor (%)', Math.round(totals.loadFactor * 100)));
+  }
+
   if (input.energyNote !== undefined) out.push(line('Note', input.energyNote));
 
   if (totals.open > 0) {
@@ -195,8 +202,8 @@ export const runsCsv = (input: RunsCsvInput): string => {
     // Units in the header, raw numbers in the cells. `1,260 kWh` is a string that
     // breaks the column it sits in and cannot be summed, which defeats the format.
     withAsset
-      ? line('Started', 'Ended', 'Asset', 'Duration (h)', 'Energy (kWh)', 'Fuel (L)', 'Status')
-      : line('Started', 'Ended', 'Duration (h)', 'Energy (kWh)', 'Fuel (L)', 'Status'),
+      ? line('Started', 'Ended', 'Asset', 'Duration (h)', 'Energy (kWh)', 'Fuel (L)', 'SFC (kWh/L)', 'Status')
+      : line('Started', 'Ended', 'Duration (h)', 'Energy (kWh)', 'Fuel (L)', 'SFC (kWh/L)', 'Status'),
   );
 
   for (const {run, assetTag} of rows) {
@@ -214,6 +221,11 @@ export const runsCsv = (input: RunsCsvInput): string => {
         ? 'Completed'
         : 'Carried in';
 
+    const sfc =
+      run.fuelConsumedLitres > 0
+        ? Math.round((run.energyProducedKwh / run.fuelConsumedLitres) * 100) / 100
+        : '';
+
     out.push(
       withAsset
         ? line(
@@ -223,9 +235,10 @@ export const runsCsv = (input: RunsCsvInput): string => {
             span,
             run.energyProducedKwh,
             run.fuelConsumedLitres,
+            sfc,
             status,
           )
-        : line(started, ended, span, run.energyProducedKwh, run.fuelConsumedLitres, status),
+        : line(started, ended, span, run.energyProducedKwh, run.fuelConsumedLitres, sfc, status),
     );
   }
 

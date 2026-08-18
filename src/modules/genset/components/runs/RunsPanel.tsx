@@ -7,6 +7,8 @@ import {amount, dateRange, duration, stampAt, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {DEFAULT_ANALYSIS_WINDOW, DEFAULT_KEYS} from '../../types/analysisView.type';
 import {runElapsedMs} from '../../types/run.type';
+import {runLoadKw} from '../../data/history';
+import {gensetDetail} from '../../data/detail';
 import type {GensetRun} from '../../types/run.type';
 import {countsInRange} from '../../types/runsView.type';
 import type {RunRange, RunTotals, RunWindow} from '../../types/runsView.type';
@@ -107,7 +109,7 @@ export const RunsPanel = ({
         <RunsTimeline lanes={lanes} from={range.from} to={range.to} now={now} />
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Metric label="Completed runs" value={String(totals.completed)} />
         {/* `duration()` renders 0 as "under a minute", which is the right answer
             for a run that has just started and the wrong one for a window where
@@ -119,6 +121,18 @@ export const RunsPanel = ({
         />
         <Metric label="Energy produced" value={amount(totals.energyKwh, 'kWh')} />
         <Metric label="Fuel consumed" value={amount(totals.fuelLitres, 'L')} />
+        {/* Fuel efficiency over the window — energy out per litre in. The two
+            tiles it is derived from sit beside it, so the arithmetic is
+            checkable on sight. */}
+        <Metric
+          label="Avg SFC"
+          value={totals.sfcKwhPerL === null ? '-' : `${totals.sfcKwhPerL.toFixed(2)} kWh/L`}
+        />
+        {/* Only the genset log carries this — a site's sets differ in nameplate,
+            so "of rated" has no single denominator there. */}
+        {totals.loadFactor !== null && (
+          <Metric label="Avg load factor" value={`${Math.round(totals.loadFactor * 100)}%`} />
+        )}
       </div>
 
       {/* Every qualification on those four figures, stated under them. The span is
@@ -168,8 +182,10 @@ export const RunsPanel = ({
                 <Th>Ended</Th>
                 {showAsset && <Th>Set</Th>}
                 <Th align="right">Duration</Th>
+                <Th align="right">Avg load</Th>
                 <Th align="right">Energy</Th>
                 <Th align="right">Fuel</Th>
+                <Th align="right">SFC</Th>
               </tr>
             </thead>
 
@@ -241,6 +257,17 @@ export const RunsPanel = ({
                   >
                     {duration(runElapsedMs(run, now))}
                   </td>
+                  {/* The run's average electrical load, and what share of
+                      nameplate it worked at. The percentage is the SFC column's
+                      explanation: a lightly-loaded run burns more per kWh. */}
+                  <td
+                    className={cn(
+                      'px-3 py-2.5 text-right tabular-nums',
+                      counted ? 'text-secondary' : 'text-tertiary',
+                    )}
+                  >
+                    {rowLoad(run, genset, now)}
+                  </td>
                   <td
                     className={cn(
                       'px-3 py-2.5 text-right tabular-nums',
@@ -256,6 +283,16 @@ export const RunsPanel = ({
                     )}
                   >
                     {amount(run.fuelConsumedLitres, 'L')}
+                  </td>
+                  <td
+                    className={cn(
+                      'px-3 py-2.5 text-right tabular-nums',
+                      counted ? 'text-secondary' : 'text-tertiary',
+                    )}
+                  >
+                    {run.fuelConsumedLitres > 0
+                      ? `${(run.energyProducedKwh / run.fuelConsumedLitres).toFixed(2)} kWh/L`
+                      : '-'}
                   </td>
                 </tr>
                 );
@@ -275,6 +312,18 @@ export const RunsPanel = ({
       )}
     </div>
   );
+};
+
+/**
+ * `320 kW · 40%` — the run's average electrical load, and the share of the
+ * set's nameplate that is. Falls back to the kW alone when the nameplate
+ * cannot be resolved, rather than showing a percentage of nothing.
+ */
+const rowLoad = (run: GensetRun, genset: Genset, now: number): string => {
+  const loadKw = Math.round(runLoadKw(run, now));
+  const ratedKw = gensetDetail(genset.id)?.ratedKw;
+  if (ratedKw === undefined || ratedKw <= 0) return `${loadKw} kW`;
+  return `${loadKw} kW · ${Math.round((loadKw / ratedKw) * 100)}%`;
 };
 
 const Metric = ({label, value}: {label: string; value: string}) => (

@@ -1,7 +1,7 @@
 import type {GensetRun} from '../types/run.type';
 import type {ReadingSeries, Sample, SeriesThreshold} from '../types/series.type';
 import {GENSETS} from './fleet';
-import {LITRES_PER_KWH, READING_SWING, gensetById, gensetDetail} from './detail';
+import {READING_SWING, gensetById, gensetDetail, sfcLitresPerKwh} from './detail';
 import {lossRateOf, lossStartedHoursAgo} from './fuelInstruments';
 import {spread, spreadBetween} from './spread';
 
@@ -110,11 +110,12 @@ const buildRuns = (gensetId: string): Array<GensetRun> => {
       startedAt: new Date(startedMs).toISOString(),
       endedAt: new Date(endedMs).toISOString(),
       // The same relationship `detail.ts` uses for the current run: energy is
-      // the load over the hours, and fuel is that energy costed at
-      // `LITRES_PER_KWH`. A run in this log can be checked against the one on
-      // the home page with a calculator.
+      // the load over the hours, and fuel is that energy costed at the SFC the
+      // run's own load earns — see `sfcLitresPerKwh`. A lightly-loaded run
+      // burns more per kWh, which is what makes the runs tab's SFC column a
+      // comparison rather than a constant.
       energyProducedKwh: Math.round(loadKw * runHours),
-      fuelConsumedLitres: Math.round(LITRES_PER_KWH * loadKw * runHours),
+      fuelConsumedLitres: Math.round(sfcLitresPerKwh(loadKw / detail.ratedKw) * loadKw * runHours),
     });
   }
 
@@ -343,7 +344,10 @@ const fuelLadder = (gensetId: string): Array<number> => {
   for (let index = steps - 2; index >= 0; index -= 1) {
     const t = ladderStart() + index * LADDER_STEP;
     const run = runAt(runs, t);
-    const burn = run === undefined ? 0 : LITRES_PER_KWH * runLoadKw(run, CLOCK) * hours;
+    const burn =
+      run === undefined
+        ? 0
+        : sfcLitresPerKwh(runLoadKw(run, CLOCK) / detail.ratedKw) * runLoadKw(run, CLOCK) * hours;
 
     // Backwards, so the tank *was* higher by everything that has since left it —
     // the fuel the engine burned and the fuel that simply went.
@@ -369,12 +373,16 @@ const fuelLadder = (gensetId: string): Array<number> => {
  */
 export const meteredBurn = (gensetId: string, from: number, to: number): number => {
   const runs = gensetRuns(gensetId);
+  const ratedKw = gensetDetail(gensetId)?.ratedKw ?? 0;
   const hours = LADDER_STEP / HOUR;
 
   let total = 0;
   for (let t = from; t < to; t += LADDER_STEP) {
     const run = runAt(runs, t);
-    if (run !== undefined) total += LITRES_PER_KWH * runLoadKw(run, CLOCK) * hours;
+    if (run !== undefined) {
+      const loadKw = runLoadKw(run, CLOCK);
+      total += sfcLitresPerKwh(ratedKw > 0 ? loadKw / ratedKw : 1) * loadKw * hours;
+    }
   }
 
   return total;

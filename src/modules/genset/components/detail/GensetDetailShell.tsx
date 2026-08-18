@@ -26,6 +26,12 @@ const TABS = [
   {label: 'Home', to: '/gensets/$gensetId'},
   {label: 'Analysis', to: '/gensets/$gensetId/analysis'},
   {label: 'Runs', to: '/gensets/$gensetId/runs'},
+  // The two logs a mobile set accumulates beyond its runs: where it has been
+  // posted, and the fuel bought for it. Both sit beside Runs because the three
+  // reconcile against each other — a posting's totals are its runs', and a
+  // delivery lands on the fuel chart the moment it is logged.
+  {label: 'Deployments', to: '/gensets/$gensetId/deployments'},
+  {label: 'Refuel', to: '/gensets/$gensetId/refuel'},
   {label: 'Service', to: '/gensets/$gensetId/service'},
   {label: 'Alarms', to: '/gensets/$gensetId/alarms'},
   {label: 'Equipment', to: '/gensets/$gensetId/equipment'},

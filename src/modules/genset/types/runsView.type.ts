@@ -210,21 +210,40 @@ export type RunTotals = {
   runtimeMs: number;
   energyKwh: number;
   fuelLitres: number;
+  /** kWh per litre across the counted runs, or `null` when nothing burned. */
+  sfcKwhPerL: number | null;
+  /**
+   * Counted energy against what nameplate could have delivered over the counted
+   * runtime, 0–1. `null` on the site log, which has no single nameplate to
+   * measure against.
+   */
+  loadFactor: number | null;
 };
 
 export const runTotals = (
   runs: Array<GensetRun>,
   range: RunRange,
   now: number,
+  /** The set's nameplate kW — omitted on the site log, where sets differ. */
+  ratedKw?: number,
 ): RunTotals => {
   const counted = runs.filter((run) => countsInRange(run, range));
+  const runtimeMs = counted.reduce((sum, run) => sum + runElapsedMs(run, now), 0);
+  const energyKwh = counted.reduce((sum, run) => sum + run.energyProducedKwh, 0);
+  const fuelLitres = counted.reduce((sum, run) => sum + run.fuelConsumedLitres, 0);
+  const runtimeHours = runtimeMs / 3_600_000;
 
   return {
     completed: counted.length,
     open: runs.filter(isOpen).length,
     carriedIn: runs.filter((run) => !isOpen(run) && !countsInRange(run, range)).length,
-    runtimeMs: counted.reduce((sum, run) => sum + runElapsedMs(run, now), 0),
-    energyKwh: counted.reduce((sum, run) => sum + run.energyProducedKwh, 0),
-    fuelLitres: counted.reduce((sum, run) => sum + run.fuelConsumedLitres, 0),
+    runtimeMs,
+    energyKwh,
+    fuelLitres,
+    sfcKwhPerL: fuelLitres > 0 ? energyKwh / fuelLitres : null,
+    loadFactor:
+      ratedKw !== undefined && ratedKw > 0 && runtimeHours > 0
+        ? energyKwh / (runtimeHours * ratedKw)
+        : null,
   };
 };

@@ -2,6 +2,7 @@ import {useMemo, useState} from 'react';
 
 import {downloadText} from '@/lib/download';
 import {gensetDeployments} from '../../data/deployments';
+import {gensetDetail} from '../../data/detail';
 import {gensetRuns, historyStart} from '../../data/history';
 import {runsCsv, runsCsvFilename} from '../../data/runsCsv';
 import {gensetName} from '../../types/genset.type';
@@ -57,7 +58,8 @@ export const GensetRuns = ({
         };
 
   const runs = useMemo(() => runsOverlapping(all, range, (run) => run), [all, range]);
-  const totals = useMemo(() => runTotals(runs, range, now), [runs, range, now]);
+  const ratedKw = gensetDetail(genset.id)?.ratedKw;
+  const totals = useMemo(() => runTotals(runs, range, now, ratedKw), [runs, range, now, ratedKw]);
 
   const exportCsv = () => {
     const text = runsCsv({
