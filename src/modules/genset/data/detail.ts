@@ -80,7 +80,7 @@ export const sfcLitresPerKwh = (loadFraction: number): number => {
 /**
  * Fraction of the tank the refuel runway counts down to, not to zero.
  *
- * Exported because the fleet status buckets draw the same line: "refuel due" is
+ * Exported because the fleet status buckets draw the same line: "low fuel" is
  * this line crossed, and a second copy of 0.3 would let a genset's own page and the
  * overview disagree about whether it needs a tanker.
  */

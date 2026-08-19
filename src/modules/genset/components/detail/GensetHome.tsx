@@ -14,7 +14,6 @@ import {ControlPad} from './ControlPad';
 import {CurrentRunCard} from './CurrentRunCard';
 import {FuelPanel} from './FuelPanel';
 import {PhaseBars} from './PhaseBars';
-import {PowerFlowDiagram} from './PowerFlowDiagram';
 import {RunStateSummary} from './RunStateSummary';
 import {TickGauge} from './TickGauge';
 
@@ -27,9 +26,9 @@ import {TickGauge} from './TickGauge';
  *  1. **What is it doing, and how long for.** Run state, load, and the run's three
  *     totals; the tank and when it needs filling. Everything here is cumulative
  *     or slow-moving — it is still true if you looked away for an hour.
- *  2. **What can I do, and what is it doing right now.** The controls, the
- *     single-line diagram they act on, and the live dials. Everything here is
- *     instantaneous and only exists while the engine turns.
+ *  2. **What can I do, and what is it doing right now.** The controls and the live
+ *     dials. Everything here is instantaneous and only exists while the engine
+ *     turns.
  *  3. **What is wrong.** Alerts, and the readings behind them.
  *
  * Bands 1 and 3 are always populated. Band 2 empties out when the engine stops,
@@ -43,17 +42,10 @@ import {TickGauge} from './TickGauge';
  * asked in sequence and the rules between them are what carry that, so a phone gets
  * the same page in the same order with each band's row broken into a column.
  *
- * Every child keeps its designed size. The gauges are 153px and the phase bars
- * 322px, both of which fit a 390px screen, and the diagram-plus-control-pad pair is
- * a fixed 232 + 220 that has to stay side by side — the conductors in
- * `PowerFlowDiagram` land on the boxes at fixed coordinates, so it is scrolled
- * sideways rather than reflowed.
- *
- * `SiteDiagram` faces the same problem and answers it the other way, by scaling
- * itself down to fit. The difference is what each half is made of: that one is all
- * drawing, and shrinking it costs only type size, while the right half of this pair
- * is four **tap targets** — and a control shrunk below a thumb is a worse outcome
- * than a swipe.
+ * Every child keeps its designed size: the gauges are 153px, the phase bars 322px
+ * and the control pad 220px, all of which fit a 390px screen. Nothing in band 2
+ * needs to shrink or scroll sideways — the pad in particular is four **tap targets**
+ * and a control shrunk below a thumb is worse than no reflow at all.
  */
 export const GensetHome = ({
   genset,
@@ -130,18 +122,7 @@ export const GensetHome = ({
 
       {/* Band 2 — controls, the circuit they act on, and the live dials. */}
       <div className="flex flex-wrap items-start gap-6 py-4 md:gap-12">
-        {/* Scrolled rather than wrapped: both halves are fixed-geometry drawings and
-            the pair is 484px, so on a phone it goes sideways in its own strip and
-            leaves the rest of the page scrolling vertically.
-            `min-w-0` is what keeps the strip *inside* the page: a flex item sizes to
-            its content by default, so without it the 484px drawing sets the width of
-            every ancestor and the whole page scrolls sideways instead of the strip. */}
-        <div className="w-full min-w-0 max-w-full overflow-x-auto pb-3 md:w-auto md:max-w-none md:overflow-visible md:pb-0">
-          <div className="flex shrink-0 items-center gap-8 rounded-xl">
-            <PowerFlowDiagram live={running} />
-            <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
-          </div>
-        </div>
+        <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
 
         {running ? (
           <div className="flex min-w-0 flex-col gap-6">

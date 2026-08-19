@@ -2,6 +2,7 @@ import maplibregl from 'maplibre-gl';
 import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
+import {attachClusterDonuts, clusterCount, refreshClusterDonuts} from '@/lib/clusterDonut';
 import {lightToken} from '@/styles/colors';
 import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import {FLEET_STATUSES, STATUS_META} from '@/modules/genset/data/fleetStatus';
@@ -132,6 +133,40 @@ const statusColor = (): maplibregl.ExpressionSpecification =>
   ] as unknown as maplibregl.ExpressionSpecification;
 
 /**
+ * Conditions worst-first, which is the order the donut ring inside a cluster's
+ * count is drawn in — critical from twelve o'clock, so the same estate always
+ * draws the same ring and the eye learns where to look. `CONDITION_META` is a
+ * record and carries no order of its own; this is that order written down.
+ */
+const CONDITIONS = ['CRITICAL', 'ATTENTION', 'OPTIMUM'] as const;
+
+/**
+ * The per-bucket tallies each cluster carries up from its sites.
+ *
+ * Both vocabularies are accumulated, not just the one in force: `colorBy` can
+ * change without the data moving — the overview paints by status and the sites
+ * page by condition, off the same component — and a source rebuilt to follow it
+ * would drop every cluster and re-cluster the estate to recolour a ring.
+ *
+ * Namespaced because the two unions are only accidentally disjoint; `ALARM` and
+ * `ATTENTION` sitting in one flat namespace is a collision waiting for whichever
+ * vocabulary grows first.
+ */
+const conditionKey = (condition: string) => `condition:${condition}`;
+const statusKey = (status: string) => `status:${status}`;
+
+const CLUSTER_PROPERTIES = Object.fromEntries([
+  ...CONDITIONS.map((condition) => [
+    conditionKey(condition),
+    ['+', ['case', ['==', ['get', 'condition'], condition], 1, 0]],
+  ]),
+  ...FLEET_STATUSES.map((status) => [
+    statusKey(status),
+    ['+', ['case', ['==', ['get', 'status'], status], 1, 0]],
+  ]),
+]) as Record<string, maplibregl.ExpressionSpecification>;
+
+/**
  * Radius from genset count: 8px for one set, 12px at four or more, interpolated
  * between — and 1.5× that when selected, the ratio the fleet map's pins keep.
  *
@@ -219,6 +254,11 @@ export const SitesMap = ({
         // overlap it prevents.
         clusterMaxZoom: 10,
         clusterRadius: 55,
+        // Carry the per-bucket counts up into every cluster, so a bubble knows the
+        // mix of what it swallowed and not just how much — which is what its donut
+        // ring is drawn from. The alternative, `getClusterLeaves` per bubble, is
+        // async and would leave the rings a frame behind the map.
+        clusterProperties: CLUSTER_PROPERTIES,
       });
 
       // Three stacked circles — two translucent haloes and an opaque core — which
@@ -338,6 +378,25 @@ export const SitesMap = ({
       map.on('mouseleave', layer, clearPointer);
     }
 
+    // The ring inside each cluster's count, on whichever scale the pins are using:
+    // the mix of conditions in that group of yards, or the mix of fleet-status
+    // buckets. Read through the ref so a scale change recolours the rings without
+    // rebuilding the map, exactly as it recolours the pins.
+    const detachDonuts = attachClusterDonuts(map, {
+      sourceId: SOURCE,
+      clusterLayerId: LAYER.clusterCore,
+      segmentsFor: (properties) =>
+        colorByRef.current === 'status'
+          ? FLEET_STATUSES.map((status) => ({
+              color: STATUS_META[status].mapColor,
+              count: clusterCount(properties, statusKey(status)),
+            }))
+          : CONDITIONS.map((condition) => ({
+              color: CONDITION_META[condition].mapColor,
+              count: clusterCount(properties, conditionKey(condition)),
+            })),
+    });
+
     map.on('error', (event) => {
       // Tile and glyph failures are recoverable — surface them rather than letting
       // the basemap silently come up blank.
@@ -346,6 +405,7 @@ export const SitesMap = ({
 
     return () => {
       loadedRef.current = false;
+      detachDonuts();
       map.remove();
       mapRef.current = null;
     };
@@ -363,6 +423,9 @@ export const SitesMap = ({
         'circle-color',
         colorBy === 'status' ? statusColor() : conditionColor(),
       );
+      // The pins are the shader's business and repaint themselves; the rings are
+      // DOM, and nothing about the map has moved to make them redraw.
+      refreshClusterDonuts(map);
     };
 
     if (loadedRef.current) {

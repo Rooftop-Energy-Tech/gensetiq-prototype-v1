@@ -112,7 +112,7 @@ const FLEET_SEED: Array<FleetSeed> = [
   //
   // Their tank levels are chosen rather than scattered. `rulesFor` deals alarms from
   // a hash of the tag, so a fleet seeded without thought lands almost everything in
-  // the alarm bucket and leaves "Refuel due" reading zero on a screen built to show
+  // the alarm bucket and leaves "Low fuel" reading zero on a screen built to show
   // it. These thirteen are picked to put real numbers in all four buckets — five
   // below the reserve line, one dry, two alarming — without touching a single
   // existing row, which matters because `BRF9540` and its neighbours are pinned to

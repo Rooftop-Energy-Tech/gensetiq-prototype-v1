@@ -32,7 +32,7 @@ import type {SiteSummary} from '../data/sites';
  *
  * ## Why the geometry is fixed, and how it still fits a phone
  *
- * Same reason as `PowerFlowDiagram`: the conductors have to *land* on the boxes.
+ * The conductors have to *land* on the boxes.
  * A flex or grid arrangement that reflows leaves a wire ending in mid-air at some
  * viewport width, and a diagram with a conductor pointing at nothing is worse than
  * one that needs a scrollbar. So the block is a fixed pixel canvas.

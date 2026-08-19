@@ -2,6 +2,7 @@ import maplibregl from 'maplibre-gl';
 import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
+import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
 import {lightToken} from '@/styles/colors';
 import {RUN_STATE_META} from './runStateMeta';
 import {RUN_STATES} from '../types/genset.type';
@@ -154,6 +155,16 @@ export const GensetsMap = ({
         // Valley always resolves the group into individual units.
         clusterMaxZoom: 11,
         clusterRadius: 60,
+        // Carry a per-run-state count up into every cluster, so a bubble knows
+        // the mix of what it swallowed and not just how much. This is what the
+        // donut ring is drawn from — the alternative, `getClusterLeaves` per
+        // bubble, is async and would leave the rings a frame behind the map.
+        clusterProperties: Object.fromEntries(
+          RUN_STATES.map((state) => [
+            state,
+            ['+', ['case', ['==', ['get', 'runState'], state], 1, 0]],
+          ]),
+        ) as Record<string, maplibregl.ExpressionSpecification>,
       });
 
       // The cluster bubble is three stacked circles — two translucent haloes and
@@ -278,6 +289,19 @@ export const GensetsMap = ({
       map.on('mouseleave', layer, clearPointer);
     }
 
+    // The run-state ring inside each cluster's count. Segments run in
+    // `RUN_STATES` order — fault first, from twelve o'clock — so the same fleet
+    // always draws the same ring and the eye learns where to look for trouble.
+    const detachDonuts = attachClusterDonuts(map, {
+      sourceId: SOURCE,
+      clusterLayerId: LAYER.clusterCore,
+      segmentsFor: (properties) =>
+        RUN_STATES.map((state) => ({
+          color: RUN_STATE_META[state].mapColor,
+          count: clusterCount(properties, state),
+        })),
+    });
+
     map.on('error', (event) => {
       // Tile and glyph failures are recoverable — surface them rather than
       // letting the basemap silently come up blank.
@@ -286,6 +310,7 @@ export const GensetsMap = ({
 
     return () => {
       loadedRef.current = false;
+      detachDonuts();
       map.remove();
       mapRef.current = null;
     };

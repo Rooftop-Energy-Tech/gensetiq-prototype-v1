@@ -103,7 +103,7 @@ export const STATUS_META: Record<
     mapColor: lightToken['severity-critical'],
   },
   REFUEL: {
-    label: 'Refuel due',
+    label: 'Low fuel',
     detail: `Below the ${Math.round(RESERVE_FRACTION * 100)}% reserve line`,
     tone: 'fuel-low',
     mapColor: lightToken['fuel-tip'],

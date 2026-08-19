@@ -24,7 +24,7 @@ import {siteSearch} from '@/modules/site/types/view.type';
  *
  * So the page is those three questions, as three bands: **readiness** (the four
  * worst-wins buckets across the whole fleet), **the dispatch position** (postings
- * open, the record behind them, the refuels outstanding), and **where** (the map).
+ * open, the record behind them, the refuel orders outstanding), and **where** (the map).
  * The stationary product cuts readiness by how each yard is fed — standby against
  * an incomer, prime with none — but for a fleet whose machines *move*, the posting
  * is the organising fact and the duty split is a site detail, read on the site's
@@ -303,7 +303,7 @@ export const OverviewPage = () => {
           <DispatchTile
             to="/refuel"
             icon={FuelIcon}
-            label="Refuels outstanding"
+            label="Refuel order outstanding"
             value={String(outstandingOrders.length)}
             detail={`${litresOwed.toLocaleString('en-MY')} L to deliver`}
           />

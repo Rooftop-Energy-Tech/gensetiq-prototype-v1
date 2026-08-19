@@ -23,14 +23,16 @@ const NAV_ITEMS: Array<NavItem> = [
   // in it. Everything below is a way of narrowing what this page counts.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
+  // Directly under Gensets, because for a mobile fleet a posting is a fact about a
+  // machine: this is the same plant the screen above lists, read by where it has
+  // been sent rather than by what it is doing. It sits above Sites for the same
+  // reason — a yard is where a set happens to be standing, not what owns it.
+  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
   {label: 'Sites', icon: LandPlotIcon, link: '/sites'},
   // After Sites, because a meter is fitted to a site's circuit and reads nothing on
   // its own — the order of the rail follows what each destination is about.
   {label: 'Meters', icon: GaugeIcon, link: '/meters'},
   {label: 'Refuel', icon: FuelIcon, link: '/refuel'},
-  // Last: the only destination about moving plant between the places above rather
-  // than about a thing you monitor.
-  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
 ];
 
 export const Sidebar = () => {
