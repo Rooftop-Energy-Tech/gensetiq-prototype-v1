@@ -388,6 +388,22 @@ export const meteredBurn = (gensetId: string, from: number, to: number): number 
   return total;
 };
 
+/**
+ * Litres the unaccounted loss took between two instants — the seeded loss
+ * rate, clipped to the period the loss has actually been standing.
+ *
+ * This is the difference between the two instruments over a window: the tank
+ * fell by `meteredBurn + lossLitresIn`, the flow meter saw only the first
+ * term. The per-run SFC anomaly is this, attributed to the runs it overlaps.
+ */
+export const lossLitresIn = (gensetId: string, from: number, to: number): number => {
+  const rate = lossRateOf(gensetId);
+  if (rate === 0) return 0;
+  const lossFrom = CLOCK - lossStartedHoursAgo(gensetId) * HOUR;
+  const overlap = Math.max(0, Math.min(to, CLOCK) - Math.max(from, lossFrom));
+  return rate * (overlap / HOUR);
+};
+
 /** Whether the engine was turning at any point in a window, and at every point. */
 export const runSpan = (
   gensetId: string,

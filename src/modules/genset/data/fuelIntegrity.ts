@@ -21,7 +21,10 @@ import {
   thresholdPercentOf,
   useLeakSettings,
 } from './fuelInstruments';
-import {fuelAt, lastEngineTransition, meteredBurn, refuelsIn, runSpan} from './history';
+import {fuelAt, lastEngineTransition, lossLitresIn, meteredBurn, refuelsIn, runSpan} from './history';
+import {sfcLitresPerKwh} from './detail';
+import {runLoadKw} from './history';
+import type {GensetRun} from '../types/run.type';
 
 /**
  * The leak verdict, assembled from the two instruments' histories.
@@ -234,3 +237,59 @@ export const gensetCondition = (gensetId: string, now: number = NOW): GensetCond
 /** Whether this genset is carrying a leak alarm at all — for counts and filters. */
 export const hasLeak = (gensetId: string, now: number = NOW): boolean =>
   isLeak(fuelIntegrityOf(gensetId, now));
+
+// ─── Per-run SFC anomaly ──────────────────────────────────────────────────────
+
+/**
+ * How far over expectation a run's *tank* draw was, for its loading.
+ *
+ * Two figures exist for every run: what the flow meter passed through the
+ * engine, and what the tank actually gave up. The first is the run's own
+ * `fuelConsumedLitres`; the second adds whatever the standing loss took while
+ * the run was open. A healthy machine returns the SFC its load predicts (see
+ * `sfcLitresPerKwh`); a tank giving up meaningfully more per kWh than the
+ * model says that loading costs is fuel leaving without reaching the engine.
+ *
+ * `undefined` below the threshold, so a table can render the flag with one
+ * truthiness check and a clean fleet shows nothing.
+ */
+export type RunSfcAnomaly = {
+  /** kWh per litre the tank's own draw works out to. */
+  tankSfcKwhPerL: number;
+  /** kWh per litre this model returns at the run's load fraction. */
+  expectedKwhPerL: number;
+  /** Whole percent the tank draw exceeded the expected litres. */
+  overPercent: number;
+  /** Litres the tank gave up beyond the metered burn. */
+  unaccountedLitres: number;
+};
+
+/** Flag a run whose tank draw is this much over its loading's expectation. */
+export const SFC_ANOMALY_THRESHOLD_PERCENT = 15;
+
+export const runSfcAnomaly = (run: GensetRun, now: number = NOW): RunSfcAnomaly | undefined => {
+  const detail = gensetDetail(run.gensetId);
+  if (detail === undefined || run.energyProducedKwh <= 0) return undefined;
+  // No level probe, no tank figure — the anomaly is a claim about the tank.
+  if (instrumentsOf(run.gensetId).levelSensor === null) return undefined;
+
+  const from = new Date(run.startedAt).getTime();
+  const to = run.endedAt === null ? now : new Date(run.endedAt).getTime();
+
+  const unaccountedLitres = lossLitresIn(run.gensetId, from, to);
+  const tankLitres = run.fuelConsumedLitres + unaccountedLitres;
+
+  const loadFraction = runLoadKw(run, now) / detail.ratedKw;
+  const expectedLPerKwh = sfcLitresPerKwh(loadFraction);
+  const tankLPerKwh = tankLitres / run.energyProducedKwh;
+
+  const overPercent = Math.round((tankLPerKwh / expectedLPerKwh - 1) * 100);
+  if (overPercent < SFC_ANOMALY_THRESHOLD_PERCENT) return undefined;
+
+  return {
+    tankSfcKwhPerL: run.energyProducedKwh / tankLitres,
+    expectedKwhPerL: 1 / expectedLPerKwh,
+    overPercent,
+    unaccountedLitres: Math.round(unaccountedLitres),
+  };
+};

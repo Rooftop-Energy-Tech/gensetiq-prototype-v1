@@ -133,6 +133,32 @@ const INSTRUMENT_SEED: Record<string, InstrumentSeed> = {
   klc1027: {levelSensor: REED_CHAIN, flowMeter: CORIOLIS, lossLitresPerHour: 6},
   amp8890: {levelSensor: CAPACITIVE, flowMeter: GEAR, lossLitresPerHour: 4},
 
+  // — The two theft showcases, on the two sets the fleet list sorts to the top
+  // (both FAULT, so they lead the table and a demo reaches them first).
+  //
+  // `bkm4409` is the overnight case: fuel leaving a machine that is not
+  // turning. The loss began 20 hours ago and the engine has been stopped for
+  // most of that window, so the notice reads "with the engine stopped" — the
+  // clause that narrows it to the tank or to somebody with a hose.
+  bkm4409: {
+    levelSensor: REED_CHAIN,
+    flowMeter: CORIOLIS,
+    lossLitresPerHour: 9,
+    lossStartedHoursAgo: 20,
+  },
+  // `kln3355` is the in-run case: a loss that has stood for eight days, so
+  // every run inside it shows a tank draw well over what its load explains —
+  // the "abnormal SFC for the loading" flag on the Runs tab.
+  // 30 L/h against this set's ~120 L/h working burn puts every affected run
+  // 25-30% over its loading's expectation — loud enough to clear the flag's
+  // 15% floor, and the reason the tank stands at 9% this morning.
+  kln3355: {
+    levelSensor: REED_CHAIN,
+    flowMeter: CORIOLIS,
+    lossLitresPerHour: 30,
+    lossStartedHoursAgo: 200,
+  },
+
   // — Gaining it. A probe drifting high, or a delivery nobody recorded.
   jhb5503: {levelSensor: CAPACITIVE, flowMeter: CORIOLIS, lossLitresPerHour: -2.5},
 

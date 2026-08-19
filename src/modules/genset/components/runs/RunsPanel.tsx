@@ -9,6 +9,7 @@ import {DEFAULT_ANALYSIS_WINDOW, DEFAULT_KEYS} from '../../types/analysisView.ty
 import {runElapsedMs} from '../../types/run.type';
 import {runLoadKw} from '../../data/history';
 import {gensetDetail} from '../../data/detail';
+import {runSfcAnomaly} from '../../data/fuelIntegrity';
 import type {GensetRun} from '../../types/run.type';
 import {countsInRange} from '../../types/runsView.type';
 import type {RunRange, RunTotals, RunWindow} from '../../types/runsView.type';
@@ -293,6 +294,7 @@ export const RunsPanel = ({
                     {run.fuelConsumedLitres > 0
                       ? `${(run.energyProducedKwh / run.fuelConsumedLitres).toFixed(2)} kWh/L`
                       : '-'}
+                    <SfcAnomalyFlag run={run} now={now} />
                   </td>
                 </tr>
                 );
@@ -311,6 +313,30 @@ export const RunsPanel = ({
         </p>
       )}
     </div>
+  );
+};
+
+/**
+ * The tank's dissent from the flow meter, when it is loud enough to matter.
+ *
+ * The SFC figure above the flag is the metered one — fuel through the engine
+ * per kWh, which follows the load. This flag appears when the *tank* gave up
+ * meaningfully more than that: litres left the tank without reaching the
+ * engine during this run, which for its loading is the signature of a siphon
+ * or a holed line rather than of an inefficient machine. The title spells the
+ * arithmetic out so the claim can be checked from the row it sits on.
+ */
+const SfcAnomalyFlag = ({run, now}: {run: GensetRun; now: number}) => {
+  const anomaly = runSfcAnomaly(run, now);
+  if (anomaly === undefined) return null;
+
+  return (
+    <span
+      title={`Tank draw ${anomaly.overPercent}% over what this loading costs: the tank gave up ${anomaly.unaccountedLitres} L beyond the metered burn, returning ${anomaly.tankSfcKwhPerL.toFixed(2)} kWh/L against an expected ${anomaly.expectedKwhPerL.toFixed(2)}. Fuel is leaving without reaching the engine.`}
+      className="mt-0.5 block whitespace-nowrap rounded-sm bg-severity-warning/15 px-1.5 py-px text-right text-xs font-medium text-severity-warning"
+    >
+      tank {anomaly.overPercent}% over
+    </span>
   );
 };
 
