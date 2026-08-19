@@ -25,6 +25,13 @@ const LAYER = {
   point: 'gensets-point',
 } as const;
 
+/**
+ * The layers a click can land on — and, read in the negative, what makes a click
+ * a click on the basemap. The cluster's count is not here: it is a symbol drawn
+ * inside the 18px core, so a click on the number hits `clusterCore` anyway.
+ */
+const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
+
 /** Sabah and Labuan, for the moment before any data has been fitted. */
 const INITIAL_CENTER: LngLatLike = [116.9, 5.5];
 const INITIAL_ZOOM = 7;
@@ -35,6 +42,13 @@ type GensetsMapProps = {
   gensets: Array<Genset>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
+  /**
+   * Clearing the selection — a click that landed on the basemap and nothing else.
+   *
+   * Optional: a map whose selection isn't its own to clear (the overview's, which
+   * hands a pin click straight to another route) simply doesn't pass one.
+   */
+  onDeselect?: () => void;
   /**
    * Right-hand inset in px for the floating detail panel, so `fitBounds` doesn't
    * tuck pins underneath it.
@@ -96,6 +110,7 @@ export const GensetsMap = ({
   gensets,
   selectedId,
   onSelect,
+  onDeselect,
   panelInset,
   focusIds,
 }: GensetsMapProps) => {
@@ -108,6 +123,8 @@ export const GensetsMap = ({
   // without tearing the map down and rebuilding it on every render.
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onDeselectRef = useRef(onDeselect);
+  onDeselectRef.current = onDeselect;
 
   // Which selection we last flew to. Without this the map re-centres on every
   // unrelated render, yanking the viewport away from wherever the user panned.
@@ -274,6 +291,31 @@ export const GensetsMap = ({
       onSelectRef.current(id);
     };
 
+    /**
+     * A click on the basemap — no bubble, no pin — clears the selection and puts
+     * the detail panel away.
+     *
+     * Bound to the map rather than to a layer, because what it listens for is the
+     * *absence* of a feature and there is no background layer to bind to. The
+     * layer-scoped handlers above fire for this same event, so it re-queries the
+     * interactive layers and stands down whenever one of them was hit — which
+     * keeps it independent of the order MapLibre dispatches the two in, rather
+     * than relying on a flag one of them sets.
+     *
+     * Guarded on `loadedRef` because those layers only exist from `style.load`,
+     * and querying a layer the style hasn't got raises a map error.
+     *
+     * A pan doesn't reach here: MapLibre's 3px `clickTolerance` means a drag ends
+     * as `dragend` and never fires `click`. So dragging the map past a pin leaves
+     * the selection where it was.
+     */
+    const handleBackgroundClick = (event: MapMouseEvent) => {
+      if (!loadedRef.current) return;
+      const hits = map.queryRenderedFeatures(event.point, {layers: INTERACTIVE_LAYERS});
+      if (hits.length > 0) return;
+      onDeselectRef.current?.();
+    };
+
     const setPointer = () => {
       map.getCanvas().style.cursor = 'pointer';
     };
@@ -284,7 +326,8 @@ export const GensetsMap = ({
     map.on('click', LAYER.clusterCore, handleClusterClick);
     map.on('click', LAYER.clusterHalo, handleClusterClick);
     map.on('click', LAYER.point, handlePointClick);
-    for (const layer of [LAYER.clusterCore, LAYER.clusterHalo, LAYER.point]) {
+    map.on('click', handleBackgroundClick);
+    for (const layer of INTERACTIVE_LAYERS) {
       map.on('mouseenter', layer, setPointer);
       map.on('mouseleave', layer, clearPointer);
     }
@@ -379,7 +422,15 @@ export const GensetsMap = ({
   // — Centre on a selection made elsewhere (the list, or a shared URL).
   useEffect(() => {
     const map = mapRef.current;
-    if (map === null || selectedId === undefined) return;
+    if (map === null) return;
+
+    // Deselecting forgets what we last flew to, so picking the same unit again is
+    // treated as a fresh selection and centres it — rather than being swallowed as
+    // a repeat of a selection that is no longer on screen.
+    if (selectedId === undefined) {
+      flownToRef.current = undefined;
+      return;
+    }
     if (flownToRef.current === selectedId) return;
 
     const genset = gensets.find((candidate) => candidate.id === selectedId);

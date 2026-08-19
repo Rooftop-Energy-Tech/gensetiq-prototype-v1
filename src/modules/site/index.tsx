@@ -106,6 +106,14 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   // deliberate one.
   const selectSite = (next: string) => onSearchChange({id: next, panel: true});
 
+  // Clicking the basemap puts the selection down and the preview away — the fleet
+  // screen's rule and its reasoning, including why `panel` returns to unset rather
+  // than to `false`.
+  const deselectSite = () => {
+    if (id === undefined && panel === undefined) return;
+    onSearchChange({id: undefined, panel: undefined});
+  };
+
   const empty = summaries.length === 0;
 
   return (
@@ -153,12 +161,10 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         {showMap && (
           <div
             className={
-              // The fleet screen's proportions — see the note there on why the map
-              // grows rather than the panel covering it.
+              // The fleet screen's proportions — see the note there, including why
+              // the column is sized for the panel whether or not it is showing.
               split
-                ? panelOpen
-                  ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
-                  : 'min-h-0 min-w-[300px] flex-1 overflow-hidden rounded-md border border-subtle bg-element'
+                ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
                 : 'min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element'
             }
           >
@@ -173,6 +179,7 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
                 summaries={summaries}
                 selectedId={id}
                 onSelect={selectSite}
+                onDeselect={deselectSite}
                 panelInset={mapPanelInset}
                 focusIds={split ? visibleIds : undefined}
               />

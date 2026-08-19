@@ -39,6 +39,9 @@ const LAYER = {
   point: 'sites-point',
 } as const;
 
+/** The layers a click can land on — `GensetsMap`'s constant, for its reason. */
+const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
+
 /** Sabah and Labuan, for the moment before any data has been fitted. */
 const INITIAL_CENTER: LngLatLike = [116.9, 5.5];
 const INITIAL_ZOOM = 7;
@@ -49,6 +52,13 @@ type SitesMapProps = {
   summaries: Array<SiteSummary>;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
+  /**
+   * Clearing the selection — a click that landed on the basemap and nothing else.
+   *
+   * Optional, as on the fleet map: the overview's copy hands a pin click straight
+   * to another route and has no selection of its own to clear.
+   */
+  onDeselect?: () => void;
   /**
    * Right-hand inset in px for the floating preview panel, so `fitBounds` doesn't
    * tuck pins underneath it.
@@ -195,6 +205,7 @@ export const SitesMap = ({
   summaries,
   selectedId,
   onSelect,
+  onDeselect,
   panelInset,
   focusIds,
   colorBy = 'condition',
@@ -213,6 +224,8 @@ export const SitesMap = ({
   // tearing the map down and rebuilding it on every render.
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onDeselectRef = useRef(onDeselect);
+  onDeselectRef.current = onDeselect;
 
   // Which selection we last flew to, seeded with whatever was selected on the
   // first render — so arriving with a site already chosen lands on the estate with
@@ -363,6 +376,18 @@ export const SitesMap = ({
       onSelectRef.current(id);
     };
 
+    /**
+     * A click on the basemap clears the selection and puts the preview away —
+     * `GensetsMap`'s handler, and see it for why this is bound to the map rather
+     * than to a layer, and why it re-queries instead of trusting dispatch order.
+     */
+    const handleBackgroundClick = (event: MapMouseEvent) => {
+      if (!loadedRef.current) return;
+      const hits = map.queryRenderedFeatures(event.point, {layers: INTERACTIVE_LAYERS});
+      if (hits.length > 0) return;
+      onDeselectRef.current?.();
+    };
+
     const setPointer = () => {
       map.getCanvas().style.cursor = 'pointer';
     };
@@ -373,7 +398,8 @@ export const SitesMap = ({
     map.on('click', LAYER.clusterCore, handleClusterClick);
     map.on('click', LAYER.clusterHalo, handleClusterClick);
     map.on('click', LAYER.point, handlePointClick);
-    for (const layer of [LAYER.clusterCore, LAYER.clusterHalo, LAYER.point]) {
+    map.on('click', handleBackgroundClick);
+    for (const layer of INTERACTIVE_LAYERS) {
       map.on('mouseenter', layer, setPointer);
       map.on('mouseleave', layer, clearPointer);
     }
@@ -495,7 +521,14 @@ export const SitesMap = ({
   // — Centre on a selection made elsewhere (the list, or a shared URL).
   useEffect(() => {
     const map = mapRef.current;
-    if (map === null || selectedId === undefined) return;
+    if (map === null) return;
+
+    // Deselecting forgets what we last flew to, so picking the same yard again
+    // centres it rather than being swallowed as a repeat — the fleet map's rule.
+    if (selectedId === undefined) {
+      flownToRef.current = undefined;
+      return;
+    }
     if (flownToRef.current === selectedId) return;
 
     const summary = summaries.find((candidate) => candidate.site.id === selectedId);

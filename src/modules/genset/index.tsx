@@ -125,6 +125,24 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    */
   const selectGenset = (next: string) => onSearchChange({id: next, panel: true});
 
+  /**
+   * Clicking the basemap — not a pin, not a cluster — puts the selection down.
+   *
+   * The counterpart of the rule above: if selecting is what opens the panel, then
+   * the panel is what a reader has to be able to close, and on a map the empty
+   * space around the pins is the only surface there is to click. `panel` goes back
+   * to *unset* rather than to `false`, because unset is what "let the selection
+   * decide" is spelled as here — a screen with nothing selected and nobody having
+   * touched the toggle is exactly the state a first arrival is in.
+   *
+   * Guarded, so clicking around a map that has nothing selected isn't a stream of
+   * navigations to the search params it already has.
+   */
+  const deselectGenset = () => {
+    if (id === undefined && panel === undefined) return;
+    onSearchChange({id: undefined, panel: undefined});
+  };
+
   const empty = gensets.length === 0;
 
   return (
@@ -172,14 +190,17 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         {showMap && (
           <div
             className={
-              // Full width on its own; beside the list it takes a shade under half.
-              // When the panel opens over it, the column grows rather than the panel
-              // covering the map entirely — 620px is the panel plus enough basemap
-              // left of it to still read as a map.
+              // Full width on its own; beside the list it takes a shade over half.
+              //
+              // Sized for the panel whether or not the panel is showing. The column
+              // used to widen as the panel opened — 620px being the panel plus enough
+              // basemap left of it to still read as a map — but the table and the map
+              // then jumped sideways every time a row or a pin was picked, and a
+              // selection should change what the screen says, not where it is. So the
+              // space is set aside up front and the panel floats into ground the map
+              // was already holding.
               split
-                ? panelOpen
-                  ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
-                  : 'min-h-0 min-w-[300px] flex-1 overflow-hidden rounded-md border border-subtle bg-element'
+                ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
                 : 'min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element'
             }
           >
@@ -194,6 +215,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
                 gensets={gensets}
                 selectedId={id}
                 onSelect={selectGenset}
+                onDeselect={deselectGenset}
                 panelInset={mapPanelInset}
                 focusIds={split ? visibleIds : undefined}
               />
