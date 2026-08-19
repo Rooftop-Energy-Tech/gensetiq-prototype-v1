@@ -47,6 +47,12 @@ export const gensetSearchSchema = z.object({
   customer: z.string().optional().catch(undefined),
   role: z.enum(GENSET_ROLE_FILTERS).optional().catch(undefined),
   status: z.enum(FLEET_STATUSES).optional().catch(undefined),
+  /**
+   * Narrow to sets inside their service window — what the overview's service tile
+   * links to. Not one of the chips: it cuts across the other three rather than
+   * partitioning the fleet, so it arrives by link and clears with them.
+   */
+  service: z.enum(['due']).optional().catch(undefined),
   /** Selected genset id. Absent = nothing selected. */
   id: z.string().optional().catch(undefined),
   /**

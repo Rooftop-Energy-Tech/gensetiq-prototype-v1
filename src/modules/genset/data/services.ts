@@ -340,3 +340,29 @@ export const logService = (input: ServiceInput): ServiceRecord => {
 
   return hydrate(record);
 };
+
+/**
+ * Whether this set is inside its service window — overdue, or close enough that
+ * somebody should be booking it.
+ *
+ * The non-hook twin of `useServiceStatus`, for callers counting across the fleet:
+ * a hook cannot be called in a loop, and the overview asks this of every genset at
+ * once. Subscribe with `useServiceRecords()` alongside it if the count has to stay
+ * live — this function reads the store, it does not watch it.
+ *
+ * **A set that has never been serviced is not counted.** `serviceStatus` calls that
+ * `never-serviced` rather than overdue on purpose: with no baseline reading there is
+ * nothing to measure an interval from, and filing it under "due" would put a number
+ * on the tile that no counter on the genset's own Service tab can reproduce. It is a
+ * gap in the record, and it belongs in whatever screen ends up owning that.
+ */
+export const isDueForService = (gensetId: string, now: number = NOW): boolean => {
+  const status = serviceStatus(
+    gensetServices(gensetId)[0],
+    scheduleOf(gensetId),
+    engineHoursOf(gensetId),
+    now,
+  );
+
+  return status.kind === 'tracked' && status.severity !== 'OK';
+};

@@ -1,6 +1,6 @@
 import {Link, useNavigate} from '@tanstack/react-router';
 import {Suspense, lazy, useMemo, useState} from 'react';
-import {FuelIcon, TruckIcon} from 'lucide-react';
+import {FuelIcon, TruckIcon, WrenchIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
 import {useIsCompact} from '@/lib/useIsCompact';
@@ -8,6 +8,8 @@ import {allDeployments} from '@/modules/genset/data/deployments';
 import {FLEET_STATUSES, STATUS_META, gensetStatus} from '@/modules/genset/data/fleetStatus';
 import type {FleetStatus, StatusTone} from '@/modules/genset/data/fleetStatus';
 import {REFUEL_ORDERS} from '@/modules/genset/data/refuelOrders';
+import {isDueForService, useServiceRecords} from '@/modules/genset/data/services';
+import {gensetSearch} from '@/modules/genset/types/view.type';
 import {CUSTOMERS} from '@/modules/site/data/customers';
 import {estateSummary, siteStatus} from '@/modules/site/data/estateSummary';
 import {useSiteSummaries} from '@/modules/site/data/sites';
@@ -116,6 +118,58 @@ const StatusTile = ({cell}: {cell: StatusCell}) => {
 };
 
 /**
+ * `6` over `Due for service`, over `at 4 sites` — the readiness band's fifth tile.
+ *
+ * ## Why it counts gensets where the other four count sites
+ *
+ * The four buckets are answers to "where do I send somebody today", and a yard is
+ * what somebody drives to — two dry sets at one site is one journey. A service is
+ * the opposite shape: it is booked against a *machine*, on that machine's own hour
+ * meter and its own interval, and two sets due at one site is two jobs whoever
+ * happens to drive there. So the headline figure is the plant, and the site count
+ * moves to the detail line where it belongs.
+ *
+ * The dot is `tertiary` rather than a status colour. The palette on this page is
+ * spent: violet is diesel, red is the machine faulting, green is nothing to do —
+ * and a service that is merely *due* is none of those. A sixth colour would be
+ * read as a fifth verdict.
+ */
+const ServiceTile = ({gensetCount, siteCount}: {gensetCount: number; siteCount: number}) => {
+  const none = gensetCount === 0;
+
+  return (
+    <Link
+      to="/gensets"
+      search={gensetSearch({service: 'due'})}
+      className={cn(
+        'flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5 transition-colors outline-none',
+        'hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline',
+      )}
+    >
+      <span className="flex items-center gap-1.5">
+        <WrenchIcon className="size-3 shrink-0 text-tertiary" aria-hidden="true" />
+        <span className="truncate text-xs font-medium text-secondary">Due for service</span>
+      </span>
+      <span
+        className={cn(
+          'text-2xl leading-none font-semibold tabular-nums',
+          none ? 'text-tertiary' : 'text-primary',
+        )}
+      >
+        {gensetCount}
+      </span>
+      <span className="truncate text-xs text-secondary">
+        {none
+          ? 'nothing booked in'
+          : `${gensetCount === 1 ? 'genset' : 'gensets'} · at ${siteCount} ${
+              siteCount === 1 ? 'site' : 'sites'
+            }`}
+      </span>
+    </Link>
+  );
+};
+
+/**
  * One dispatch figure, linked to the page that holds its record.
  *
  * The same tile grammar as the readiness grid — number, label, detail line — so
@@ -206,6 +260,30 @@ export const OverviewPage = () => {
     [summaries],
   );
 
+  // The fifth tile, and deliberately not one of the four. Service is measured off a
+  // machine's hour meter and its own interval, so it cuts across the buckets rather
+  // than partitioning them: a set can be `OK` above and still be due here. Read
+  // through `useServiceRecords()` so logging a service on a genset's own tab drops
+  // the count on this page without a reload.
+  const serviceRecords = useServiceRecords();
+  const serviceDue = useMemo(() => {
+    const sites = summaries.filter((summary) =>
+      summary.gensets.some(({genset}) => isDueForService(genset.id, now)),
+    );
+
+    return {
+      siteCount: sites.length,
+      gensetCount: summaries.reduce(
+        (running, summary) =>
+          running +
+          summary.gensets.filter(({genset}) => isDueForService(genset.id, now)).length,
+        0,
+      ),
+    };
+    // `serviceRecords` is the subscription, not an input — recount when the log moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaries, serviceRecords, now]);
+
   const gensetCount = summaries.reduce((running, summary) => running + summary.gensets.length, 0);
   const needingAttention = summaries.filter((summary) => siteStatus(summary) !== 'OK').length;
 
@@ -261,15 +339,20 @@ export const OverviewPage = () => {
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <h2 className="text-sm font-medium text-primary">Readiness</h2>
           <p className="text-xs text-tertiary">
-            Every deployed set, by what needs doing. Worst wins, so the four tiles
-            add up to the fleet
+            Every deployed set, by what needs doing. The first four are worst-wins
+            and add up to the fleet; service is counted across them, so a set can
+            appear in both
           </p>
         </header>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {cells.map((cell) => (
             <StatusTile key={cell.status} cell={cell} />
           ))}
+          <ServiceTile
+            gensetCount={serviceDue.gensetCount}
+            siteCount={serviceDue.siteCount}
+          />
         </div>
       </section>
 

@@ -1,6 +1,7 @@
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import {gensetCustomer, gensetPowerRole} from '../data/fleetSummary';
 import {gensetStatus} from '../data/fleetStatus';
+import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
 import {RUN_STATES} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
@@ -11,6 +12,16 @@ export type GensetFilters = {
   customer?: string;
   role?: SitePowerRole | 'DEPOT';
   status?: FleetStatus;
+  /**
+   * Sets inside their service window.
+   *
+   * A cross-cut rather than a bucket — it says nothing about fuel or alarms, and a
+   * set can be `OK` on the readiness tiles and still be due. Kept as `'due'` rather
+   * than a boolean because it arrives from the URL, where `?service=false` and
+   * `?service=0` are both things a hand-editing reader will write and neither means
+   * what they'd expect.
+   */
+  service?: 'due';
 };
 
 /**
@@ -65,5 +76,6 @@ export const filterGensets = (
       if ((gensetPowerRole(genset, roles) ?? 'DEPOT') !== filters.role) return false;
     }
     if (filters.status !== undefined && gensetStatus(genset) !== filters.status) return false;
+    if (filters.service === 'due' && !isDueForService(genset.id)) return false;
     return true;
   });
