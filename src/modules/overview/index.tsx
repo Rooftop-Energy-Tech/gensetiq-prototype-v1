@@ -344,9 +344,9 @@ export const OverviewPage = () => {
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <h2 className="text-sm font-medium text-primary">Readiness</h2>
           <p className="text-xs text-tertiary">
-            Every deployed set, by what needs doing. The first four are worst-wins
-            and add up to the fleet; service is counted across them, so a set can
-            appear in both
+            Every deployed genset, by what needs doing. The first four are
+            worst-wins and add up to the fleet; service is counted across them, so
+            a genset can appear in both
           </p>
         </header>
 
