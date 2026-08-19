@@ -2,7 +2,9 @@ import {
   CirclePlayIcon,
   CircleStopIcon,
   FuelIcon,
+  PencilLineIcon,
   TriangleAlertIcon,
+  TruckIcon,
   WrenchIcon,
 } from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
@@ -17,6 +19,8 @@ const ACTIVITY_ICON: Record<GensetActivityKind, LucideIcon> = {
   REFUEL: FuelIcon,
   FAULT: TriangleAlertIcon,
   SERVICE: WrenchIcon,
+  DEPLOY: TruckIcon,
+  NOTE: PencilLineIcon,
 };
 
 /**
@@ -50,7 +54,12 @@ export const ActivityFeed = ({activity}: {activity: Array<GensetActivity>}) => (
           </div>
           <div className={cn('flex min-w-0 flex-col', last ? 'pb-0' : 'pb-4')}>
             <span className="text-primary">{event.message}</span>
-            <span className="text-xs text-secondary">{relativeTime(event.at)}</span>
+            <span className="text-xs text-secondary">
+              {relativeTime(event.at)}
+              {event.source !== undefined && (
+                <span className="text-tertiary"> · {event.source}</span>
+              )}
+            </span>
           </div>
         </li>
       );

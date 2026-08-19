@@ -7,7 +7,14 @@ export const RUN_STATES = ['FAULT', 'RUNNING', 'IDLE', 'OFFLINE'] as const;
 
 export type RunState = (typeof RUN_STATES)[number];
 
-export type GensetActivityKind = 'START' | 'STOP' | 'REFUEL' | 'FAULT' | 'SERVICE';
+export type GensetActivityKind =
+  | 'START'
+  | 'STOP'
+  | 'REFUEL'
+  | 'FAULT'
+  | 'SERVICE'
+  | 'DEPLOY'
+  | 'NOTE';
 
 /**
  * Why this unit's run began — the controller's own reason for cranking.
@@ -33,6 +40,13 @@ export type GensetActivity = {
   message: string;
   /** ISO 8601. */
   at: string;
+  /**
+   * Where the entry came from — the controller's own event stream, the
+   * dispatch feed, a refuel order, the service log, or a person typing.
+   * Displayed beside the timestamp, because an audit trail whose entries
+   * cannot say who put them there is a list rather than a log.
+   */
+  source?: string;
 };
 
 export type Genset = {

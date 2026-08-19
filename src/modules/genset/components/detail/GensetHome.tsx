@@ -1,13 +1,18 @@
 import {useState} from 'react';
+import type {FormEvent} from 'react';
 
 import type {Genset} from '../../types/genset.type';
 import type {ControlMode} from '../../types/telemetry.type';
 import type {AlertFocus} from '../../types/detailView.type';
 import {serviceNotice} from '../../types/service.type';
 import type {GensetDetail} from '../../data/detail';
-import {useServiceRecords, useServiceStatus, withServiceActivity} from '../../data/services';
+import {useServiceRecords, useServiceStatus} from '../../data/services';
 import {gensetCondition, useFuelIntegrity} from '../../data/fuelIntegrity';
 import {fuelLeakNotice} from '../../types/fuelIntegrity.type';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {useSession} from '@/modules/auth/session';
+import {addActivityNote, gensetActivityLog, useActivityNotes} from '../../data/activity';
 import {ActivityFeed} from '../ActivityFeed';
 import {AlertsSection} from './AlertsSection';
 import {ControlPad} from './ControlPad';
@@ -85,10 +90,20 @@ export const GensetHome = ({
   // has to change band 1's verdict and band 3's list without a reload.
   const integrity = useFuelIntegrity(genset.id, now);
 
-  // The feed is the machine's history plus its service log, merged — the same
-  // derivation the fleet page's panel makes, so the two never disagree.
+  // The feed is every record that mentions this machine, merged — controller
+  // events, dispatch postings, refuel orders, services and typed notes — the
+  // same derivation the fleet page's panel makes, so the two never disagree.
   const records = useServiceRecords();
-  const activity = withServiceActivity(genset, records);
+  const notes = useActivityNotes();
+  const activity = gensetActivityLog(genset, records, notes);
+  const session = useSession();
+  const [noteDraft, setNoteDraft] = useState('');
+
+  const handleLogNote = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    addActivityNote(genset.id, noteDraft, session?.email ?? 'operator');
+    setNoteDraft('');
+  };
 
   return (
     <div className="flex flex-col gap-5 px-4 pb-24 md:pb-6">
@@ -168,6 +183,22 @@ export const GensetHome = ({
           backwards-looking band. */}
       <section className="flex max-w-xl flex-col gap-3">
         <h3 className="text-sm font-medium text-primary">Activity</h3>
+        {/* The feed's manual inlet. Everything else here is derived from a
+            record another screen owns; this is the one line an operator types
+            — a padlock replaced, a smell of diesel, a gate left open — and it
+            files under their own name. */}
+        <form onSubmit={handleLogNote} className="flex items-center gap-2">
+          <Input
+            value={noteDraft}
+            onChange={(event) => setNoteDraft(event.target.value)}
+            placeholder="Log an entry against this genset"
+            aria-label="Log an entry against this genset"
+            className="h-8"
+          />
+          <Button type="submit" size="sm" variant="outline" disabled={noteDraft.trim() === ''}>
+            Log
+          </Button>
+        </form>
         <ActivityFeed activity={activity} />
       </section>
     </div>

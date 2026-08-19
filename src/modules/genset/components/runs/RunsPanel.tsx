@@ -9,7 +9,8 @@ import {DEFAULT_ANALYSIS_WINDOW, DEFAULT_KEYS} from '../../types/analysisView.ty
 import {runElapsedMs} from '../../types/run.type';
 import {runLoadKw} from '../../data/history';
 import {gensetDetail} from '../../data/detail';
-import {runSfcAnomaly} from '../../data/fuelIntegrity';
+import {SFC_ANOMALY_THRESHOLD_PERCENT, runTankSfc} from '../../data/fuelIntegrity';
+import {instrumentsOf} from '../../data/fuelInstruments';
 import type {GensetRun} from '../../types/run.type';
 import {countsInRange} from '../../types/runsView.type';
 import type {RunRange, RunTotals, RunWindow} from '../../types/runsView.type';
@@ -128,6 +129,7 @@ export const RunsPanel = ({
         <Metric
           label="Avg SFC"
           value={totals.sfcKwhPerL === null ? '-' : `${totals.sfcKwhPerL.toFixed(2)} kWh/L`}
+          sub={windowTankSfc(rows, range, now, showAsset)}
         />
         {/* Only the genset log carries this — a site's sets differ in nameplate,
             so "of rated" has no single denominator there. */}
@@ -294,7 +296,7 @@ export const RunsPanel = ({
                     {run.fuelConsumedLitres > 0
                       ? `${(run.energyProducedKwh / run.fuelConsumedLitres).toFixed(2)} kWh/L`
                       : '-'}
-                    <SfcAnomalyFlag run={run} now={now} />
+                    <TankSfcLine run={run} genset={genset} now={now} />
                   </td>
                 </tr>
                 );
@@ -317,25 +319,43 @@ export const RunsPanel = ({
 };
 
 /**
- * The tank's dissent from the flow meter, when it is loud enough to matter.
+ * The second instrument's answer, under the first's.
  *
- * The SFC figure above the flag is the metered one — fuel through the engine
- * per kWh, which follows the load. This flag appears when the *tank* gave up
- * meaningfully more than that: litres left the tank without reaching the
- * engine during this run, which for its loading is the signature of a siphon
- * or a holed line rather than of an inefficient machine. The title spells the
- * arithmetic out so the claim can be checked from the row it sits on.
+ * The SFC figure above this line is the flow meter's — fuel through the
+ * engine per kWh, which follows the load. On a set fitted with both
+ * instruments the tank gives its own figure for the same run, and the two
+ * agreeing is what "no fuel is going missing" looks like as a number. When
+ * the tank's draw runs past its loading's expectation the line becomes the
+ * amber flag: litres left the tank without reaching the engine, which is the
+ * signature of a siphon or a holed line rather than of an inefficient
+ * machine. The title spells the arithmetic out so the claim can be checked
+ * from the row it sits on.
  */
-const SfcAnomalyFlag = ({run, now}: {run: GensetRun; now: number}) => {
-  const anomaly = runSfcAnomaly(run, now);
-  if (anomaly === undefined) return null;
+const TankSfcLine = ({run, genset, now}: {run: GensetRun; genset: Genset; now: number}) => {
+  // Level-only sets have nothing to compare: the one figure they hold is
+  // already the tank's. The comparison is the flow-meter fleet's feature.
+  if (instrumentsOf(genset.id).flowMeter === null) return null;
+
+  const figures = runTankSfc(run, now);
+  if (figures === undefined) return null;
+
+  if (figures.overPercent >= SFC_ANOMALY_THRESHOLD_PERCENT) {
+    return (
+      <span
+        title={`Tank draw ${figures.overPercent}% over what this loading costs: the tank gave up ${figures.unaccountedLitres} L beyond the metered burn, returning ${figures.tankSfcKwhPerL.toFixed(2)} kWh/L against an expected ${figures.expectedKwhPerL.toFixed(2)}. Fuel is leaving without reaching the engine.`}
+        className="mt-0.5 block whitespace-nowrap rounded-sm bg-severity-warning/15 px-1.5 py-px text-right text-xs font-medium text-severity-warning"
+      >
+        tank {figures.tankSfcKwhPerL.toFixed(2)} · {figures.overPercent}% over
+      </span>
+    );
+  }
 
   return (
     <span
-      title={`Tank draw ${anomaly.overPercent}% over what this loading costs: the tank gave up ${anomaly.unaccountedLitres} L beyond the metered burn, returning ${anomaly.tankSfcKwhPerL.toFixed(2)} kWh/L against an expected ${anomaly.expectedKwhPerL.toFixed(2)}. Fuel is leaving without reaching the engine.`}
-      className="mt-0.5 block whitespace-nowrap rounded-sm bg-severity-warning/15 px-1.5 py-px text-right text-xs font-medium text-severity-warning"
+      title="The level sensor's figure for the same run. The two instruments agreeing is what a healthy fuel system reads as."
+      className="mt-0.5 block whitespace-nowrap text-xs text-tertiary"
     >
-      tank {anomaly.overPercent}% over
+      tank {figures.tankSfcKwhPerL.toFixed(2)} kWh/L
     </span>
   );
 };
@@ -352,10 +372,40 @@ const rowLoad = (run: GensetRun, genset: Genset, now: number): string => {
   return `${loadKw} kW · ${Math.round((loadKw / ratedKw) * 100)}%`;
 };
 
-const Metric = ({label, value}: {label: string; value: string}) => (
+/**
+ * The window's tank-side SFC, for the tile's second line — the level sensor's
+ * answer to the flow meter's figure above it. Only the genset log gets one:
+ * the site log mixes machines, and the comparison is per set by nature.
+ */
+const windowTankSfc = (
+  rows: Array<RunsRow>,
+  range: RunRange,
+  now: number,
+  showAsset: boolean,
+): string | undefined => {
+  const genset = rows[0]?.genset;
+  if (showAsset || genset === undefined) return undefined;
+  if (instrumentsOf(genset.id).flowMeter === null) return undefined;
+
+  let energyKwh = 0;
+  let tankLitres = 0;
+  for (const {run} of rows) {
+    if (!countsInRange(run, range)) continue;
+    const figures = runTankSfc(run, now);
+    if (figures === undefined) continue;
+    energyKwh += run.energyProducedKwh;
+    tankLitres += figures.tankLitres;
+  }
+
+  if (tankLitres <= 0) return undefined;
+  return `tank ${(energyKwh / tankLitres).toFixed(2)} kWh/L`;
+};
+
+const Metric = ({label, value, sub}: {label: string; value: string; sub?: string}) => (
   <div className="flex flex-col gap-1 rounded-md border border-default bg-element px-3 py-2.5">
     <span className="text-xs text-secondary">{label}</span>
     <span className="text-base font-medium text-primary tabular-nums">{value}</span>
+    {sub !== undefined && <span className="text-xs text-tertiary tabular-nums">{sub}</span>}
   </div>
 );
 

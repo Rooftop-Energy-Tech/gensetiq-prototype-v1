@@ -10,7 +10,8 @@ import {ActivityFeed} from './ActivityFeed';
 import {RunStateBadge} from './RunStateBadge';
 import {gensetName} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
-import {useServiceRecords, withServiceActivity} from '../data/services';
+import {gensetActivityLog, useActivityNotes} from '../data/activity';
+import {useServiceRecords} from '../data/services';
 
 const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
   <div className="flex items-center gap-px">
@@ -33,7 +34,8 @@ export const GensetDetailPanel = ({
   // record are the same fact, so a service logged on the Service tab shows up
   // here without either file knowing about the other.
   const records = useServiceRecords();
-  const activity = genset === undefined ? [] : withServiceActivity(genset, records);
+  const notes = useActivityNotes();
+  const activity = genset === undefined ? [] : gensetActivityLog(genset, records, notes);
 
   return (
     <aside
