@@ -35,7 +35,7 @@ const navButtonVariants = cva(
   {
     variants: {
       active: {
-        true: 'border-strong bg-sidebar-highlight text-sidebar-primary',
+        true: 'border-sidebar-border bg-sidebar-highlight text-sidebar-primary',
         false:
           'border-transparent text-sidebar-secondary hover:bg-sidebar-highlight hover:text-sidebar-primary',
       },

@@ -16,7 +16,7 @@ import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {sessionInitial, signOut, useSession} from '@/modules/auth/session';
 
-import sesbMark from '@/assets/sesb-mark.png';
+import sesbMark from '@/assets/sesb-mark-white.png';
 
 const NAV_ITEMS: Array<NavItem> = [
   // First, and the app's landing screen: the estate's state before any one machine
@@ -53,7 +53,16 @@ export const Sidebar = () => {
         {/* The customer's mountain mark, cropped from their own logo — the rail
             is 94px and the full wordmark has no legible form at that width, the
             same call the IQ mark made for the product's own brand. The crop is
-            210 × 93; both dimensions are set so the flex row can't stretch it. */}
+            210 × 93; both dimensions are set so the flex row can't stretch it.
+
+            The all-white cut, not the two-colour one: the rail is SESB blue
+            (`--sidebar`) and the mark's own blue is #0D4C94, so on the colour
+            version the left peak disappeared into the background and the logo
+            read as a lone green chevron. Cropped from SESB's official reversed
+            logo — `sesb-white.png` in the gensetiq-sesb-deck assets — reframed
+            onto the same 210 × 93 canvas as the colour mark, so the geometry
+            above is unchanged. The colour crop stays in `assets/` for any
+            surface that is light; the login screen uses the full colour logo. */}
         <img src={sesbMark} alt="Sabah Electricity" width={44} height={19.5} className="shrink-0" />
       </div>
 

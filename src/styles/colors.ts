@@ -189,22 +189,53 @@ const BORDER: ColorMap = {
   },
 };
 
-/** Sidebar surfaces and text — `bg-sidebar`, `text-sidebar-primary`, … */
+/**
+ * Sidebar surfaces and text — `bg-sidebar`, `text-sidebar-primary`, …
+ *
+ * The rail is the one surface in this white-label that does not follow the
+ * app's light/dark polarity: it is painted in SESB's own blue in both modes, so
+ * everything layered on it is light-on-dark either way. That is why the four
+ * foreground tokens below carry the same value in both columns while the rest
+ * of the palette still flips.
+ */
 const SIDEBAR: ColorMap = {
-  sidebar: {light: '#E2E4E9', dark: '#040710', figma: 'bg-sidebar'},
+  // SESB blue, the customer's request for this build. A dark surface in the
+  // light mode this app actually ships, hence the mode-invariant foregrounds.
+  sidebar: {
+    light: '#0F4586',
+    dark: '#0F4586',
+    figma: 'bg-sidebar',
+    divergent:
+      "The white-label's rail is SESB blue in both modes, not the design system's #E2E4E9 / #040710. Customer-level override — do not sync this value from Figma's bg-sidebar.",
+  },
   // Active / hovered nav item. Overlay — layer over the sidebar background.
   'sidebar-highlight': {
-    light: 'rgba(0, 0, 0, 0.07)',
-    dark: 'rgba(255, 255, 255, 0.08)',
+    light: 'rgba(255, 255, 255, 0.10)',
+    dark: 'rgba(255, 255, 255, 0.10)',
     figma: 'tr-sidebar-highlight',
+    divergent: 'Light-on-dark in both modes — the rail is blue in both. See the group comment.',
+  },
+  // Outline on the active nav item. Code-only: the design system has no sidebar
+  // border, and the global `strong` border is black-alpha in light mode, which
+  // disappears against the blue.
+  'sidebar-border': {
+    light: 'rgba(255, 255, 255, 0.25)',
+    dark: 'rgba(255, 255, 255, 0.25)',
+    figma: '',
   },
   // Active / primary nav label.
-  'sidebar-primary': {light: '#050915', dark: '#F0F2F5', figma: 'text-sidebar-strong'},
+  'sidebar-primary': {
+    light: '#F0F2F5',
+    dark: '#F0F2F5',
+    figma: 'text-sidebar-strong',
+    divergent: 'Light-on-dark in both modes — the rail is blue in both. See the group comment.',
+  },
   // Inactive / secondary nav label.
   'sidebar-secondary': {
-    light: 'rgba(5, 9, 21, 0.60)',
+    light: 'rgba(240, 242, 245, 0.70)',
     dark: 'rgba(240, 242, 245, 0.60)',
     figma: 'text-sidebar-default',
+    divergent: 'Light-on-dark in both modes — the rail is blue in both. See the group comment.',
   },
 };
 

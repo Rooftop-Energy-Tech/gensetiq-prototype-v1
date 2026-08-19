@@ -51,6 +51,7 @@
   /* Sidebar */
   --color-sidebar: var(--sidebar);
   --color-sidebar-highlight: var(--sidebar-highlight);
+  --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-secondary: var(--sidebar-secondary);
 
