@@ -297,6 +297,11 @@ export const OverviewPage = () => {
   ).length;
   const outstandingOrders = REFUEL_ORDERS.filter((order) => order.refueledAt === null);
   const litresOwed = outstandingOrders.reduce((sum, order) => sum + order.litres, 0);
+  // The completed side of the same log. `litres` on a completed order is the
+  // delivery the fuel ladder already draws — see `refuelOrders.ts` — so this total
+  // is the diesel that actually went into tanks, not what was booked for them.
+  const completedOrders = REFUEL_ORDERS.filter((order) => order.refueledAt !== null);
+  const litresDelivered = completedOrders.reduce((sum, order) => sum + order.litres, 0);
 
   const customerName = (id: string) =>
     CUSTOMERS.find((account) => account.id === id)?.name ?? id;
@@ -394,8 +399,11 @@ export const OverviewPage = () => {
             to="/refuel"
             icon={FuelIcon}
             label="Refuels completed"
-            value={String(REFUEL_ORDERS.length - outstandingOrders.length)}
-            detail="last 60 days"
+            value={String(completedOrders.length)}
+            // Litres first, matching the outstanding tile beside it: the two read
+            // as one sentence about the tanker run — what went in, what is still
+            // owed — and putting the window first would bury the figure that pairs.
+            detail={`${litresDelivered.toLocaleString('en-MY')} L delivered · last 60 days`}
           />
         </div>
       </section>
