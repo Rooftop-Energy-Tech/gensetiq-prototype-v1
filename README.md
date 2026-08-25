@@ -74,6 +74,35 @@ stay **separate series** rather than merging into one; and the **running month i
 excluded** from every total, since a month eleven days old has made eleven days
 of energy against a whole month of design.
 
+### Three charts, three questions
+
+`SolarTodayChart` is the intraday power curve: what the arrays are putting out
+right now, against the array's **own recent normal** rather than the design. The
+two are kept apart deliberately — an own-baseline answers "has this thing
+changed", a benchmark answers "is it meeting what it was sold as", and the second
+only exists monthly, so drawing it at half-hourly resolution would be the very
+interpolation the benchmark rule forbids. The line stops at now rather than
+running to zero across the afternoon.
+
+`SolarYieldChart` is the period, per bucket. `SolarCumulativeChart` is the same
+series added up, and it earns its place beside the bars because **a small
+persistent shortfall is invisible in bars and unmissable cumulatively**: four
+percent off in a month is a bar a pixel shorter than its neighbour, four percent
+off every month is a wedge that opens all the way across the plot. That wedge is
+hatched in the same amber the bars use, and the caption prices it — every
+kilowatt-hour the arrays did not make is one a genset made instead, at the
+delivered diesel price for wherever it happened.
+
+Fixing the intraday curve turned up a real inconsistency. The diagram's live
+`SOLAR` node was `pvKwp × performanceRatio × shape`, a different model from the
+one every other figure uses, and it disagreed by a factor of two and a half: a
+29 kWp array read 22 kW on the diagram while the energy model had it making 70 kWh
+across the whole day, which is a peak near 14. The curve is now the day's energy
+spread over the day's shape, and the node reads off it, so the diagram, the daily
+bar and the month's total are three readings of one quantity. A flat 0.55 standing
+in for "today is partly done" went the same way: today's bar is the shape
+integrated to now.
+
 ### The chart's period
 
 `7D · 30D · 12M · Custom`, on the portfolio chart and on each site's own, taken
@@ -149,6 +178,19 @@ ran like any other machine while the energy screen says it barely ran at all. Th
 two models are **not** reconciled, and the rule until they are is that they never
 appear on one screen: `/energy` and the site pages read `hybrid.ts`, the run log
 and the tank chart read `history.ts`.
+
+### The site page's top band
+
+Three columns: the figures, the circuit, and **the live quantity that decides
+whether somebody acts today** — the intraday curve where there is an array, the
+tanks where there is not. That third column is why the band exists in this shape.
+It used to hold two columns and most of a desktop screen of nothing, and the
+previous answer was to widen the gaps until the emptiness looked deliberate.
+
+The diagram says what is connected to the bus and the curve says what is coming
+down it, which is one question asked twice, so they share a band. The period
+charts sit below it: a different question, and one nobody asks before they have
+looked at the picture.
 
 ### Brand
 

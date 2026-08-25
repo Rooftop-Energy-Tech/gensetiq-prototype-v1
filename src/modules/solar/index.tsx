@@ -15,6 +15,10 @@ import {
   solarRecent,
   solarYear,
 } from '@/modules/site/data/hybrid';
+import {cumulative, estateSolarIntraday, estateTodaySoFarKwh} from '@/modules/site/data/hybrid';
+import {SolarCumulativeChart} from '@/modules/site/components/SolarCumulativeChart';
+import {SolarTodayChart} from '@/modules/site/components/SolarTodayChart';
+import {deliveredDieselRm, ringgit} from '@/modules/site/data/economics';
 import {estateSeries, resolveRange} from './data/series';
 import {SolarRangeTabs} from './components/SolarRangeTabs';
 import {DEFAULT_SOLAR_RANGE} from './types/range.type';
@@ -345,6 +349,15 @@ export const SolarPage = ({
     [roles, resolved, now],
   );
 
+  // The cumulative view reads the **same resolved series** as the bars beside it,
+  // so the two are one dataset shown two ways rather than two datasets that agree
+  // most of the time. Changing the period moves both.
+  const cumulativeSeries = useMemo(() => cumulative(chartSeries), [chartSeries]);
+
+  const intraday = useMemo(() => estateSolarIntraday(roles, now), [roles, now]);
+  const generatedToday = useMemo(() => estateTodaySoFarKwh(roles, now), [roles, now]);
+  const nowKw = [...intraday].reverse().find((point) => point.kw !== null)?.kw ?? 0;
+
   /** The oldest day the model has, so the calendar cannot be walked past it. */
   const earliest = useMemo(() => {
     const first = estateMonths[0];
@@ -352,6 +365,28 @@ export const SolarPage = ({
   }, [estateMonths, now]);
 
   const installedKwp = rows.reduce((sum, row) => sum + row.kwp, 0);
+
+  /**
+   * What the shortfall against design has cost in diesel, over the window shown.
+   *
+   * Per array at its **own site's delivered price**, then added up. One estate
+   * rate would be a fiction: a litre into the Sarawak interior costs half again
+   * what one in Selangor does, and the arrays that are short are not evenly spread
+   * across the two. `undefined` where the range carries no design at all, in which
+   * case there is no shortfall to price.
+   */
+  const shortfallRm = useMemo(() => {
+    if (!resolved.benchmark) return undefined;
+
+    return rows.reduce((sum, row) => {
+      const seed = siteSeed(row.summary.site.id);
+      if (seed === undefined) return sum;
+      const short = Math.max(0, row.year.expectedKwh - row.year.actualKwh);
+      // The genset makes up the difference while charging, near its best point —
+      // the same loading `economics.ts` costs a hybrid's diesel at.
+      return sum + short * 0.296 * deliveredDieselRm(seed);
+    }, 0);
+  }, [rows, resolved.benchmark]);
   const short = rows.filter(isShort);
 
   const query = search.q ?? '';
@@ -467,13 +502,65 @@ export const SolarPage = ({
           />
         </header>
 
-        <div className="rounded-md border border-subtle bg-element px-3 py-3">
-          {chartSeries.length === 0 ? (
+        {/* Three charts, three questions, and the order is the order they get
+            asked in: what is happening now, what happened over the period, and
+            what it adds up to. The period control governs the second and third —
+            today is today whatever window is set, which is why it sits outside the
+            pair rather than beside the tab strip. */}
+        <div className="grid gap-3 xl:grid-cols-[22rem_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="text-sm font-medium text-primary">Today</span>
+              <span className="text-xs text-secondary tabular-nums">
+                {nowKw} kW now · {Math.round(generatedToday).toLocaleString('en-MY')} kWh so far
+              </span>
+            </div>
+
+            {intraday.length === 0 ? (
+              <p className="py-10 text-center text-sm text-secondary">No arrays fitted.</p>
+            ) : (
+              <SolarTodayChart points={intraday} />
+            )}
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3">
+            <span className="text-sm font-medium text-primary">Generated</span>
+            {chartSeries.length === 0 ? (
+              <p className="py-10 text-center text-sm text-secondary">
+                Nothing generated in this window.
+              </p>
+            ) : (
+              <SolarYieldChart months={chartSeries} />
+            )}
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span className="text-sm font-medium text-primary">Cumulative</span>
+            {/* The gap in ringgit, because the gap is the point.
+                Every kilowatt-hour the arrays did not make is one a genset made
+                instead, at the delivered diesel price for wherever it happened.
+                One estate rate would be a fiction — a litre into Sarawak costs
+                half again what one in Selangor does — so this is the arrays' own
+                sites, weighted by how short each of them is. */}
+            {shortfallRm === undefined ? (
+              <span className="text-xs text-tertiary">
+                No design to compare a window this short against
+              </span>
+            ) : (
+              <span className="text-xs text-secondary tabular-nums">
+                {ringgit(shortfallRm)} of diesel burned covering the shortfall
+              </span>
+            )}
+          </div>
+
+          {cumulativeSeries.length === 0 ? (
             <p className="py-10 text-center text-sm text-secondary">
               Nothing generated in this window.
             </p>
           ) : (
-            <SolarYieldChart months={chartSeries} />
+            <SolarCumulativeChart points={cumulativeSeries} />
           )}
         </div>
       </section>

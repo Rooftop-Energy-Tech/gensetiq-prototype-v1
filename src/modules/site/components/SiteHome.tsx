@@ -3,7 +3,10 @@ import {useMemo, useState} from 'react';
 import {cn} from '@/lib/utils';
 import {isolatorStateOf} from '../types/site.type';
 import {useSitePowerRole} from '../data/siteConfig';
-import {solarMonths, solarYear} from '../data/hybrid';
+import {cumulative, solarIntraday, solarMonths, solarYear, todaySoFarKwh} from '../data/hybrid';
+import {SolarCumulativeChart} from './SolarCumulativeChart';
+import {SiteFuelPanel} from './SiteFuelPanel';
+import {SolarTodayChart} from './SolarTodayChart';
 import {resolveRange, siteSeries} from '@/modules/solar/data/series';
 import {SolarRangeTabs} from '@/modules/solar/components/SolarRangeTabs';
 import {DEFAULT_SOLAR_RANGE} from '@/modules/solar/types/range.type';
@@ -105,16 +108,47 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
   );
   const earliest = months[0] === undefined ? now : new Date(months[0].at).getTime();
 
+  // The other two views of the same series. Today stands outside the period
+  // control — today is today whatever window is set — and the cumulative view
+  // reads the very series the bars are drawn from, so the period moves both.
+  const intraday = useMemo(
+    () => (seed === undefined ? [] : solarIntraday(seed, role, now)),
+    [seed, role, now],
+  );
+  const cumulativeSeries = useMemo(() => cumulative(series), [series]);
+  const nowKw = [...intraday].reverse().find((point) => point.kw !== null)?.kw ?? 0;
+  const generatedToday = useMemo(
+    () => (seed === undefined ? 0 : todaySoFarKwh(seed, role, now)),
+    [seed, role, now],
+  );
+
   return (
     <div className="flex flex-col gap-2.5 px-4 pt-1 pb-24 md:pb-6">
-      {/* Three columns, and no border. The section is the page's top band rather
-          than a card in it — the divider below carries the separation, which is the
-          same job the rules do between the genset home page's bands. */}
+      {/* The page's top band, and no border. The divider below carries the
+          separation, which is the same job the rules do between the genset home
+          page's bands.
+          
+          ## Why the live chart is up here rather than down with the other two
+          
+          The band was three columns wide and used two of them: a 260px figures
+          column, a 400px diagram, and then most of a desktop screen of nothing.
+          Widening the gaps to fill it was the previous answer and it only made the
+          emptiness deliberate.
+          
+          What belongs in that space is the thing a reader is looking at the
+          diagram *for*. The diagram says what is connected to the bus; the
+          intraday curve says what is coming down it. Those are one question asked
+          twice, so they are one band now, and the two charts below it are the
+          period views — a different question, and one nobody asks before they have
+          looked at the picture.
+          
+          A site with no array simply has no third column, and the first two sit
+          left rather than stretching to cover for it. */}
       <section
         aria-label="Site circuit"
         // A column below `md`, for the reason `SiteGensetRow` gives: with a shrinkable
         // item beside a fixed one, "wrap" resolves to a squeezed line rather than two.
-        className="flex flex-col gap-y-8 px-1 py-4 md:flex-row md:flex-wrap md:items-center md:gap-x-30 md:px-6 md:py-7"
+        className="flex flex-col gap-y-6 px-1 py-4 md:flex-row md:flex-wrap md:items-start md:gap-x-10 md:px-6 md:py-5"
       >
         <SiteSummaryPanel summary={summary} dutyId={dutyId} role={role} />
 
@@ -142,6 +176,30 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
             one-option control would imply an operation that does not exist. */}
         {summary.gensets.length > 1 && (
           <SiteChangeover summary={summary} dutyId={dutyId} onDutyChange={setDutyId} />
+        )}
+
+        {/* The third column, and what fills it depends on what the site runs on:
+            an array's curve where there is an array, the tanks where there is
+            not. Both answer the same question — what is the live quantity that
+            decides whether somebody acts today — which is why they share a slot
+            rather than stacking.
+
+            `flex-1` with a floor on each, so it takes whatever the diagram leaves
+            and drops to its own line rather than being squeezed into a strip. */}
+        {intraday.length === 0 && summary.gensets.length > 0 && (
+          <SiteFuelPanel summary={summary} />
+        )}
+
+        {intraday.length > 0 && (
+          <div className="flex min-w-[17rem] flex-1 flex-col gap-1.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="text-sm font-medium text-primary">Today</span>
+              <span className="text-xs text-secondary tabular-nums">
+                {nowKw} kW now · {Math.round(generatedToday).toLocaleString('en-MY')} kWh so far
+              </span>
+            </div>
+            <SolarTodayChart points={intraday} />
+          </div>
         )}
       </section>
 
@@ -197,13 +255,38 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
               </div>
             </header>
 
-            {series.length === 0 ? (
-              <p className="py-10 text-center text-sm text-secondary">
-                Nothing generated in this window.
-              </p>
-            ) : (
-              <SolarYieldChart months={series} />
-            )}
+            {/* Side by side, because they are the same series counted two ways
+                and a reader compares them by looking between them. Stacked, the
+                second one is below the fold on a laptop and reads as an appendix
+                to the first. */}
+            <div className="grid gap-3 xl:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3">
+                <span className="text-sm font-medium text-primary">Per month</span>
+                {series.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-secondary">
+                    Nothing generated in this window.
+                  </p>
+                ) : (
+                  <SolarYieldChart months={series} />
+                )}
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <span className="text-sm font-medium text-primary">Cumulative</span>
+                  <span className="text-xs text-tertiary">
+                    {resolved.benchmark ? 'The band is what did not arrive' : 'No design at this grain'}
+                  </span>
+                </div>
+                {cumulativeSeries.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-secondary">
+                    Nothing generated in this window.
+                  </p>
+                ) : (
+                  <SolarCumulativeChart points={cumulativeSeries} />
+                )}
+              </div>
+            </div>
           </section>
         </>
       )}

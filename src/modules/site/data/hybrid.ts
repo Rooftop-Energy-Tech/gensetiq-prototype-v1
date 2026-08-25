@@ -198,21 +198,76 @@ export type HybridState = {
   batteryKw: number;
 };
 
+const FIRST_LIGHT = 7;
+const LAST_LIGHT = 19;
+
 /**
- * A day's solar profile as a fraction of nameplate, by hour.
+ * The shape of a solar day, unnormalised: `0` before first light, `1` at noon.
  *
- * A half-sine between first and last light rather than a bell curve fitted to
- * anything: the point is that the shape is *right* — nothing before 07:00,
- * nothing after 19:00, a peak near one o'clock — not that the 14:00 value is
- * accurate to a percent. Integrated across the day it comes to roughly the peak
- * sun hours the region is quoted, which is the only property the rest of this
- * module depends on.
+ * A **cubed** sine rather than a plain one. The plain sine was here first and it
+ * is too broad: spread across twelve hours it implies a peak of only about a
+ * third of what an array actually reaches at noon, because it puts far too much
+ * of the day's energy into the first and last hours. Cubing narrows it to
+ * something like a real clear-sky curve, which lands the peak near half of
+ * nameplate and leaves the shoulders where they belong.
+ *
+ * The point is that the shape is *right* — nothing before 07:00, nothing after
+ * 19:00, a peak at one o'clock — not that the 14:00 value is accurate to a
+ * percent.
  */
-const solarFractionAt = (hour: number): number => {
-  const FIRST_LIGHT = 7;
-  const LAST_LIGHT = 19;
+const solarShape = (hour: number): number => {
   if (hour < FIRST_LIGHT || hour > LAST_LIGHT) return 0;
-  return Math.sin(((hour - FIRST_LIGHT) / (LAST_LIGHT - FIRST_LIGHT)) * Math.PI);
+  return Math.sin(((hour - FIRST_LIGHT) / (LAST_LIGHT - FIRST_LIGHT)) * Math.PI) ** 3;
+};
+
+/**
+ * Hours the shape integrates to — the divisor that turns a day's energy into a
+ * power curve.
+ *
+ * `∫ sin³` over a half period has a mean of `4/3π`, so twelve hours of this shape
+ * come to about 5.09 "peak hours". Dividing a day's kilowatt-hours by it gives
+ * the peak kilowatts that day would have had, and multiplying back by the shape
+ * gives every point in between. **That is what makes the intraday curve and the
+ * monthly totals the same fact**: the area under the curve is the day's energy by
+ * construction, not by coincidence.
+ */
+const SHAPE_HOURS =
+  ((LAST_LIGHT - FIRST_LIGHT) * 4) / (3 * Math.PI);
+
+/** What an array making `dayKwh` across the whole day is putting out at `hour`, kW. */
+const intradayKw = (dayKwh: number, hour: number): number =>
+  (dayKwh / SHAPE_HOURS) * solarShape(hour);
+
+/**
+ * How much of a day's energy has arrived by `hour`, `0`–`1`.
+ *
+ * The shape integrated from first light to now, over the whole day's integral. It
+ * replaces a flat 0.55 that stood in for "today is partly done" — which was wrong
+ * twice over: it did not move with the clock, and it was being applied to the
+ * day's total *and* then read again as the height of the intraday curve, so a
+ * portfolio putting out 53 kW at noon reported 32.
+ *
+ * A day's energy does not accrue evenly. By nine in the morning an array has made
+ * about a twelfth of its day, not a fifth, because the sun is still low. This is
+ * the curve saying so.
+ */
+const elapsedShare = (hour: number): number => {
+  if (hour <= FIRST_LIGHT) return 0;
+  if (hour >= LAST_LIGHT) return 1;
+
+  // Numeric rather than closed-form: `∫sin³` has one, and a loop of 240 steps is
+  // clearer than it and exact enough for a chart.
+  const STEPS = 240;
+  const step = (LAST_LIGHT - FIRST_LIGHT) / STEPS;
+  let sofar = 0;
+  let whole = 0;
+  for (let index = 0; index < STEPS; index += 1) {
+    const at = FIRST_LIGHT + (index + 0.5) * step;
+    const value = solarShape(at) * step;
+    whole += value;
+    if (at <= hour) sofar += value;
+  }
+  return whole === 0 ? 0 : sofar / whole;
 };
 
 export const hybridState = (
@@ -224,11 +279,17 @@ export const hybridState = (
   if (plant.batteryKwh === 0) return {solarKw: 0, soc: 0, batteryKw: 0};
 
   const hour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
-  // Peak output is the array's nameplate taken down by the same performance ratio
-  // the annual figures use, so the instantaneous reading and the monthly total
-  // cannot disagree about what the same array is capable of.
-  const solarKw =
-    Math.round(plant.pvKwp * PERFORMANCE_RATIO * solarFractionAt(hour) * 10) / 10;
+  // Read off **today's own energy**, not off nameplate.
+  //
+  // This used to be `pvKwp × performanceRatio × shape`, which was a different
+  // model from the one every other figure here uses and disagreed with it by a
+  // factor of two and a half: the diagram showed a 29 kWp array putting out
+  // 22 kW while the energy model had the same array making 70 kWh across the
+  // whole day, which is a peak of about 14. One of them was wrong and it was the
+  // one with no day's energy behind it. Now the curve is the day's kilowatt-hours
+  // spread over the day's shape, so the node on the diagram, the bar on the daily
+  // chart and the month's total are three readings of one quantity.
+  const solarKw = Math.round(intradayKw(todayFullKwh(seed, role, now), hour) * 10) / 10;
 
   // Charge follows the day at a solar site and the charging block at a diesel
   // hybrid. Both are shaped rather than dealt, because a state of charge that
@@ -803,6 +864,12 @@ export const solarDays = (
     }
 
     const isToday = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}` === todayKey;
+    // Today's bar is the energy that has actually arrived, which is the day's
+    // shape integrated to now rather than a fraction of the clock. See
+    // `elapsedShare`.
+    const arrived = isToday
+      ? elapsedShare(today.getHours() + today.getMinutes() / 60)
+      : 1;
     // A month still running has already been prorated to the days it has had, so
     // its daily total has to be shared over those days rather than over all of
     // them, or every day of the current month reads short by the same fraction.
@@ -814,14 +881,185 @@ export const solarDays = (
       at: day.toISOString(),
       label: day.toLocaleDateString('en-MY', {day: 'numeric', month: 'short'}),
       expectedKwh: null,
-      actualKwh: Math.round(
-        (total / elapsed / weightSum) * dayWeight(seed.id, day) * (isToday ? 0.55 : 1),
-      ),
+      actualKwh: Math.round((total / elapsed / weightSum) * dayWeight(seed.id, day) * arrived),
       inProgress: isToday,
     });
   }
 
   return buckets;
+};
+
+/**
+ * What this array will make across the **whole** of today, kWh.
+ *
+ * The full day, not the part of it that has happened. That distinction is the one
+ * this pair of functions exists to keep straight: the intraday curve needs the
+ * whole day's energy to know how tall it is at noon, and the daily bar needs the
+ * part that has arrived. Deriving the second from the first — `× elapsedShare` —
+ * is what stops the two disagreeing, which they did when a flat 0.55 stood in for
+ * both.
+ */
+export const todayFullKwh = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  now: number = Date.now(),
+): number => {
+  const share = elapsedShare(new Date(now).getHours() + new Date(now).getMinutes() / 60);
+  return share <= 0 ? 0 : todaySoFarKwh(seed, role, now) / share;
+};
+
+/**
+ * What this array has made **so far today**, kWh — today's bar on the daily chart.
+ *
+ * Exported because two screens print it beside the intraday curve, and the
+ * obvious way to get it there is to integrate the curve in the component. That is
+ * how the figure ended up 7% adrift of the bar in the chart above it: adding up
+ * half-hourly readings as rectangles overshoots a rising curve, so the readout
+ * and the bar were two different arithmetic of the same day. One function, one
+ * answer, and the curve is drawn from the same day's energy.
+ */
+export const todaySoFarKwh = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  now: number = Date.now(),
+): number => {
+  const today = new Date(now);
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return solarDays(seed, role, start, start, now)[0]?.actualKwh ?? 0;
+};
+
+/** The estate's, for the portfolio's today readout. */
+export const estateTodaySoFarKwh = (
+  roles: Record<string, SitePowerRole>,
+  now: number = Date.now(),
+): number =>
+  SITE_SEED.reduce(
+    (sum, seed) => sum + todaySoFarKwh(seed, roles[seed.id] ?? seed.powerRole, now),
+    0,
+  );
+
+/** A point on the intraday power curve. */
+export type SolarPoint = {
+  /** Hours since midnight, `6`–`20`. */
+  hour: number;
+  /** `13:30`. */
+  label: string;
+  /** Output at this moment, kW. `null` after now — the day has not happened yet. */
+  kw: number | null;
+  /**
+   * What this array does at this time on an ordinary day lately, kW.
+   *
+   * **The array's own baseline, and never the design.** SolarIQ keeps these two
+   * apart deliberately and so does this: a design P50 answers "is it meeting what
+   * it was sold as" and only exists monthly, while an own-baseline answers "has
+   * this thing changed" and is built from the array's own recent output. Drawing
+   * a design figure here would mean interpolating a monthly number down to
+   * half-hours, which is the thing the whole benchmark rule exists to prevent.
+   */
+  typicalKw: number;
+};
+
+/**
+ * Today's power curve, half-hourly from first light to last.
+ *
+ * `kw` is `null` after the current moment rather than `0`, so the line stops
+ * where the record does. A curve drawn to zero across the rest of the afternoon
+ * reports an array that has failed, which at 10am is every array on the estate.
+ */
+export const solarIntraday = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  now: number = Date.now(),
+): Array<SolarPoint> => {
+  const plant = hybridPlant(seed, role);
+  if (plant.pvKwp === 0) return [];
+
+  const today = new Date(now);
+  const nowHour = today.getHours() + today.getMinutes() / 60;
+  const dayKwh = todayFullKwh(seed, role, now);
+
+  // The baseline is the month's own average day, which is the array's recent
+  // normal by construction — the month's actual energy divided by the days it
+  // has had. Today is excluded from it: a day cannot be its own normal.
+  const months = solarMonths(seed, role, now);
+  const running = months[months.length - 1];
+  // The running month's actual is already prorated to the days it has had, so
+  // scaling it back up by `days / date` recovers the month's own daily average
+  // rather than an average diluted by the days it has not reached.
+  const days = DAYS_IN_MONTH(today.getFullYear(), today.getMonth());
+  const typicalKwh =
+    running === undefined ? dayKwh : (running.actualKwh * (days / today.getDate())) / days;
+
+  const points: Array<SolarPoint> = [];
+  for (let hour = FIRST_LIGHT - 1; hour <= LAST_LIGHT + 1; hour += 0.5) {
+    points.push({
+      hour,
+      label: `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 === 0 ? '00' : '30'}`,
+      kw: hour <= nowHour ? Math.round(intradayKw(dayKwh, hour) * 10) / 10 : null,
+      typicalKw: Math.round(intradayKw(typicalKwh, hour) * 10) / 10,
+    });
+  }
+
+  return points;
+};
+
+/** Every array's curve added together, for the portfolio's today chart. */
+export const estateSolarIntraday = (
+  roles: Record<string, SitePowerRole>,
+  now: number = Date.now(),
+): Array<SolarPoint> => {
+  const series = SITE_SEED.map((seed) =>
+    solarIntraday(seed, roles[seed.id] ?? seed.powerRole, now),
+  ).filter((points) => points.length > 0);
+
+  if (series.length === 0) return [];
+
+  return series[0].map((point, index) => ({
+    ...point,
+    kw:
+      point.kw === null
+        ? null
+        : Math.round(series.reduce((sum, points) => sum + (points[index]?.kw ?? 0), 0) * 10) / 10,
+    typicalKw:
+      Math.round(series.reduce((sum, points) => sum + (points[index]?.typicalKw ?? 0), 0) * 10) /
+      10,
+  }));
+};
+
+/**
+ * A series turned into running totals.
+ *
+ * Both halves accumulate together and the design half stops accumulating where it
+ * stops existing, so a range with no benchmark yields a single cumulative line
+ * rather than one line and a flat one pretending to be a target.
+ */
+export type SolarCumulativePoint = {
+  at: string;
+  label: string;
+  actualKwh: number;
+  expectedKwh: number | null;
+  inProgress: boolean;
+};
+
+export const cumulative = (buckets: Array<SolarBucket>): Array<SolarCumulativePoint> => {
+  let actual = 0;
+  let expected = 0;
+  let hasExpected = false;
+
+  return buckets.map((bucket) => {
+    actual += bucket.actualKwh;
+    if (bucket.expectedKwh !== null) {
+      expected += bucket.expectedKwh;
+      hasExpected = true;
+    }
+    return {
+      at: bucket.at,
+      label: bucket.label,
+      actualKwh: actual,
+      expectedKwh: hasExpected ? expected : null,
+      inProgress: bucket.inProgress,
+    };
+  });
 };
 
 /** Every array's days added together, for the portfolio chart. */

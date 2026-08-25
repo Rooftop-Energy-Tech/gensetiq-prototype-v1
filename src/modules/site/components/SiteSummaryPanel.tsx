@@ -64,7 +64,10 @@ export const SiteSummaryPanel = ({
     // 260px is the design's column. On a phone it is the full width instead, so the
     // three metric rows keep their label/value split rather than crushing it into a
     // 260px block beside empty space.
-    <div className="flex w-full shrink-0 flex-col justify-center gap-6 md:w-[260px] md:gap-8">
+    // `gap-5`, not the `gap-8` this carried. The column holds a badge and five
+    // short rows, and eight units between them spread 150px of content over 230px
+    // of band — which is where most of this page's air was coming from.
+    <div className="flex w-full shrink-0 flex-col gap-4 md:w-[240px] md:gap-5">
       {/* Auto rather than the old fixed 113px: "1 of 2 feeding" set that width, and
           the badge now also has to hold "On generator" without clipping it. */}
       <div className="flex shrink-0 flex-col items-start gap-3">
@@ -77,7 +80,7 @@ export const SiteSummaryPanel = ({
         </Badge>
       </div>
 
-      <div className="flex w-full shrink-0 flex-col gap-3 md:w-[260px]">
+      <div className="flex w-full shrink-0 flex-col gap-2.5 md:w-[240px]">
         {/* How the yard is fed, which is the fact the badge above is a reading of.
             Stated because the diagram alone leaves a reader to infer the absence of
             a mains node, and an absence is a poor way to state a fact. */}
