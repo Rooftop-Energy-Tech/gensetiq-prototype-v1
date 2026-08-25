@@ -1,12 +1,16 @@
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 
+import {cn} from '@/lib/utils';
 import {isolatorStateOf} from '../types/site.type';
 import {useSitePowerRole} from '../data/siteConfig';
+import {solarMonths, solarYear} from '../data/hybrid';
+import {siteSeed} from '../data/siteSeed';
 import type {SiteSummary} from '../data/sites';
 import {SiteChangeover} from './SiteChangeover';
 import {SiteDiagram} from './SiteDiagram';
 import {SiteGensetRow} from './SiteGensetRow';
 import {SiteSummaryPanel} from './SiteSummaryPanel';
+import {SolarYieldChart} from './SolarYieldChart';
 
 /**
  * The site home page: one diagram, then one row per genset.
@@ -62,6 +66,15 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
    */
   const role = useSitePowerRole(summary.site.id);
 
+  // The array's series, and the summary its heading reads. Both from `hybrid.ts`,
+  // so this page and `/energy` cannot disagree about the same array.
+  const seed = siteSeed(summary.site.id);
+  const months = useMemo(
+    () => (seed === undefined ? [] : solarMonths(seed, role, now)),
+    [seed, role, now],
+  );
+  const year = useMemo(() => solarYear(months), [months]);
+
   return (
     <div className="flex flex-col gap-2.5 px-4 pt-1 pb-24 md:pb-6">
       {/* Three columns, and no border. The section is the page's top band rather
@@ -101,6 +114,43 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
           <SiteChangeover summary={summary} dutyId={dutyId} onDutyChange={setDutyId} />
         )}
       </section>
+
+      {/* The array's own twelve months, on the array's own page.
+          It sits above the genset rows because at a solar site the array is the
+          supply and the genset is the backstop, and the page should read in that
+          order. Withheld entirely where there is no array, rather than drawn empty:
+          a chart of nothing is a worse answer than no chart. */}
+      {months.length > 0 && (
+        <>
+          <hr className="border-subtle" />
+
+          <section aria-label="Generated against design" className="flex flex-col gap-2 px-1 py-4 md:px-6">
+            <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+              <div>
+                <h2 className="text-sm font-medium text-primary">Generated against design</h2>
+                <p className="text-xs text-tertiary">
+                  Twelve months against the P50 this array was bought on. The running month is
+                  hatched and counts towards nothing
+                </p>
+              </div>
+              <span
+                className={cn(
+                  'text-sm tabular-nums',
+                  year.variance < -0.1 ? 'text-severity-warning' : 'text-secondary',
+                )}
+              >
+                {Math.round(
+                  year.expectedKwh > 0 ? (year.actualKwh / year.expectedKwh) * 100 : 0,
+                )}
+                % of design
+                {year.onsetLabel !== undefined && ` · stepped down in ${year.onsetLabel}`}
+              </span>
+            </header>
+
+            <SolarYieldChart months={months} />
+          </section>
+        </>
+      )}
 
       <hr className="border-subtle" />
 

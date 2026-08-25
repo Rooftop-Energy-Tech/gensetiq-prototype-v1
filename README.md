@@ -60,7 +60,21 @@ though the plant they would get were already there, so the bottom of the list is
 a quotation.
 
 Solar is reported **against its benchmark**, which is the other thing SolarIQ
-gets right. An array's output on its own says nothing, so every solar site
+gets right, and it is drawn as well as tabulated. `SolarYieldChart` puts twelve
+months of measurement in front of the design's own monthly P50 as paired bars,
+on `/energy` for every array and on each solar site's own page. Three of
+SolarIQ's decisions carry over intact: the benchmark's fidelity is capped at
+**monthly**, because that is what a design simulation produces and a daily
+benchmark line would be a resolution the report never had; design and measurement
+stay **separate series** rather than merging into one; and the **running month is
+excluded** from every total, since a month eleven days old has made eleven days
+of energy against a whole month of design.
+
+The chart earns its place over the column beside it by saying *when*. An array at
+84% of design all year is a commissioning problem; one at 100% until March and
+70% since is a fault with a date on it, and somebody can go and look at what
+happened that month. Two of the four arrays step down, and the heading names the
+month only where the series actually steps. An array's output on its own says nothing, so every solar site
 carries three figures: the **P50** its design was bought on, the **P90** band at
 0.9 of that, and what it actually made. Two of the four arrays are under their
 P90, and the shortfall converts into diesel and moves their payback, so the row

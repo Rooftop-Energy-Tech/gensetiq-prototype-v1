@@ -7,8 +7,15 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 
 import {cn} from '@/lib/utils';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
-import {estateEnergy, hybridPlant, siteEnergy} from '@/modules/site/data/hybrid';
+import {
+  estateEnergy,
+  hybridPlant,
+  siteEnergy,
+  solarMonths,
+  solarYear,
+} from '@/modules/site/data/hybrid';
 import type {SiteEnergy} from '@/modules/site/data/hybrid';
+import {SolarYieldChart} from '@/modules/site/components/SolarYieldChart';
 import {
   deliveredDieselRm,
   estateEconomics,
@@ -279,6 +286,24 @@ export const EnergyPage = () => {
   );
 
   const [now] = useState(() => Date.now());
+
+  /**
+   * The arrays, each with its twelve-month series.
+   *
+   * Built here rather than inside the chart so the heading beside each one can
+   * read the same `solarYear` the bars are drawn from. A component that computed
+   * its own summary would be a second answer to a question already asked.
+   */
+  const solarSites = useMemo(
+    () =>
+      rows
+        .map(({summary, role, seed}) => {
+          const months = solarMonths(seed, role, now);
+          return months.length === 0 ? null : {summary, months, year: solarYear(months)};
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null),
+    [rows, now],
+  );
   const windowLabel = new Date(now - 30 * 24 * 3_600_000).toLocaleDateString('en-MY', {
     day: 'numeric',
     month: 'short',
@@ -349,6 +374,63 @@ export const EnergyPage = () => {
           />
         </div>
       </section>
+
+      {/* The benchmark, drawn. The tiles above say the estate is at 91% of its
+          design; this is the only thing on the page that says *when* it stopped
+          being at 100%, which is the difference between a commissioning problem
+          and a fault somebody can go and find. One chart per array rather than an
+          estate total: four arrays averaged together would hide the one that
+          stepped down behind the three that did not. */}
+      {solarSites.length > 0 && (
+        <section aria-label="Solar against design" className="flex min-w-0 flex-col gap-2">
+          <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <h2 className="text-sm font-medium text-primary">Generated against design</h2>
+            <p className="text-xs text-tertiary">
+              Twelve months per array, against the P50 its design was bought on. Monthly is the
+              design's own resolution. The running month is hatched and counts towards nothing
+            </p>
+          </header>
+
+          <div className="grid gap-3 xl:grid-cols-2">
+            {solarSites.map(({summary, months, year}) => (
+              <div
+                key={summary.site.id}
+                className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <Link
+                    to="/sites"
+                    search={siteSearch({id: summary.site.id, panel: true})}
+                    className="rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+                  >
+                    {summary.site.name}
+                    <span className="pl-2 text-xs font-normal text-tertiary">
+                      {summary.site.locationLabel}
+                    </span>
+                  </Link>
+                  <span
+                    className={cn(
+                      'text-xs tabular-nums',
+                      year.variance < -0.1 ? 'text-severity-warning' : 'text-secondary',
+                    )}
+                  >
+                    {percent(
+                      year.expectedKwh > 0 ? year.actualKwh / year.expectedKwh : 0,
+                    )}{' '}
+                    of design
+                    {/* Named only where the series actually steps. An onset month
+                        printed for an array whose variance is weather would put a
+                        date on noise, which is worse than saying nothing. */}
+                    {year.onsetLabel !== undefined && ` · stepped down in ${year.onsetLabel}`}
+                  </span>
+                </div>
+
+                <SolarYieldChart months={months} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section aria-label="Investment" className="flex min-w-0 flex-col gap-2">
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">

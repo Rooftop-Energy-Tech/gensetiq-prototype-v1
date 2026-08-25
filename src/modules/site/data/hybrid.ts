@@ -499,6 +499,164 @@ export const estateEnergy = (
   };
 };
 
+// ─── The benchmark chart's series ────────────────────────────────────────────
+
+/**
+ * How much of a year's irradiance falls in each month, as a multiple of the
+ * annual average.
+ *
+ * Malaysia's seasonality is mild and it is real: the north-east monsoon takes
+ * November and December down about a tenth, and February and March are the best
+ * months of the year. A design simulation reports its P50 **month by month** for
+ * exactly this reason, and a benchmark drawn as one flat line across the year
+ * would put every site under its number every December and over it every March.
+ *
+ * The twelve factors sum to 12, so a year of them comes to the same total as
+ * twelve months at the annual-average rate. That is what keeps the chart's yearly
+ * figure and the thirty-day one on the tiles above it talking about the same
+ * array.
+ */
+const MONTH_FACTOR = [0.98, 1.06, 1.07, 1.03, 1.01, 1.02, 1.03, 1.02, 0.99, 0.97, 0.92, 0.9];
+
+const DAYS_IN_MONTH = (year: number, month: number): number =>
+  new Date(year, month + 1, 0).getDate();
+
+export type SolarMonth = {
+  /** First of the month, ISO — the key, and what a tooltip stamps. */
+  at: string;
+  /** `Mar`, and `Mar 26` in January so a twelve-month axis reads unambiguously. */
+  label: string;
+  /** The design's P50 for this month. */
+  expectedKwh: number;
+  /** What the array made. Partial in the running month. */
+  actualKwh: number;
+  /**
+   * This month is still running.
+   *
+   * Carried rather than inferred by the chart, because **an in-progress month must
+   * not enter a benchmark comparison**: a month that is eleven days old has made
+   * eleven days of energy against a whole month of design, and reporting that as a
+   * 64% shortfall is a chart lying about a plant that is fine. It is drawn, hatched,
+   * and left out of every total.
+   */
+  inProgress: boolean;
+};
+
+/**
+ * When this array's output stepped down, as a month index into the series, or
+ * `null` for one that never did.
+ *
+ * The reason the chart is worth drawing rather than tabulating. An array that has
+ * been at 84% of design all year is a commissioning problem; one that was at 100%
+ * until May and 70% since is a fault with a date on it, and somebody can go and
+ * look at what happened that month. The two are the same annual figure and
+ * completely different jobs, and only the series tells them apart.
+ *
+ * Sites within a few points of their design never stepped: their variance is
+ * weather, and inventing an event for it would put a date on noise.
+ */
+const healthOnsetMonth = (seed: SiteSeed, health: number): number | null =>
+  health > 0.95 ? null : 3 + Math.floor(spread(seed.id, 'hybrid/onset') * 6);
+
+/**
+ * Twelve months of design against measurement, oldest first.
+ *
+ * Monthly and no finer. That is the design's own maximum fidelity — a P50 is
+ * simulated month by month and a daily benchmark line is a resolution the report
+ * never had — and it is the rule SolarIQ settled on after trying to draw one.
+ */
+export const solarMonths = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  now: number = Date.now(),
+): Array<SolarMonth> => {
+  const plant = hybridPlant(seed, role);
+  if (plant.pvKwp === 0) return [];
+
+  const sunHours = customer(seed.customer).peakSunHours;
+  const health = solarPerformance(seed, role);
+  const onset = healthOnsetMonth(seed, health);
+
+  const today = new Date(now);
+  const months: Array<SolarMonth> = [];
+
+  for (let index = 0; index < 12; index += 1) {
+    // Walk back from the running month, so the series always ends on today.
+    const cursor = new Date(today.getFullYear(), today.getMonth() - (11 - index), 1);
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const days = DAYS_IN_MONTH(year, month);
+    const inProgress = index === 11;
+
+    const expectedKwh = Math.round(
+      plant.pvKwp * sunHours * PERFORMANCE_RATIO * days * MONTH_FACTOR[month],
+    );
+
+    // Weather on top of the design, and health underneath it. The two are
+    // deliberately separate multipliers: one is a month that was cloudier than the
+    // simulation assumed, the other is the array itself, and a chart that folded
+    // them together could not answer the only question it is asked.
+    const weather = spreadBetween(seed.id, `hybrid/weather-${year}-${month}`, 0.93, 1.07);
+    const healthNow = onset === null || index < onset ? 1 : health;
+
+    // The running month is prorated to the days it has actually had. It is the one
+    // bar on the chart that is not comparable to the one beside it, which is why
+    // `inProgress` travels with it.
+    const elapsed = inProgress ? today.getDate() / days : 1;
+
+    months.push({
+      at: cursor.toISOString(),
+      label:
+        month === 0
+          ? `${cursor.toLocaleDateString('en-MY', {month: 'short'})} ${String(year).slice(2)}`
+          : cursor.toLocaleDateString('en-MY', {month: 'short'}),
+      expectedKwh,
+      actualKwh: Math.round(expectedKwh * weather * healthNow * elapsed),
+      inProgress,
+    });
+  }
+
+  return months;
+};
+
+export type SolarYear = {
+  expectedKwh: number;
+  actualKwh: number;
+  /** `(actual − expected) ÷ expected` across the closed months. */
+  variance: number;
+  /** The month the array stepped down, or `undefined` where it never did. */
+  onsetLabel: string | undefined;
+};
+
+/**
+ * The twelve-month position, over **closed months only**.
+ *
+ * The running month is excluded from both totals rather than from one of them.
+ * Dropping its actual and keeping its design would report a shortfall the size of
+ * the month so far, which is the specific way this comparison goes wrong.
+ */
+export const solarYear = (months: Array<SolarMonth>): SolarYear => {
+  const closed = months.filter((month) => !month.inProgress);
+  const expectedKwh = closed.reduce((sum, month) => sum + month.expectedKwh, 0);
+  const actualKwh = closed.reduce((sum, month) => sum + month.actualKwh, 0);
+
+  // The first month that fell more than a tenth short and never recovered — the
+  // step, read back off the series rather than off the seed that produced it, so
+  // the label and the bars cannot disagree.
+  const onset = closed.findIndex(
+    (month, index) =>
+      month.actualKwh < month.expectedKwh * 0.9 &&
+      closed.slice(index).every((later) => later.actualKwh < later.expectedKwh * 0.95),
+  );
+
+  return {
+    expectedKwh,
+    actualKwh,
+    variance: expectedKwh > 0 ? (actualKwh - expectedKwh) / expectedKwh : 0,
+    onsetLabel: onset > 0 ? closed[onset].label : undefined,
+  };
+};
+
 /** One site's energy by id, for callers holding only the id. */
 export const siteEnergyById = (
   siteId: string,
