@@ -99,6 +99,33 @@ const DIRECT_SHARE = 0.35;
 /** Loading a genset holds while charging a battery bank — near its best point. */
 const CHARGING_LOAD_FRACTION = 0.78;
 
+/**
+ * A poor year as a share of the design year.
+ *
+ * The P90 is the yield exceeded in nine years out of ten, and 0.9 of the P50 is
+ * the ratio this group's own design work uses. It is a **band**, not a second
+ * target: an array between the two is having ordinary weather.
+ */
+const P90_OF_P50 = 0.9;
+
+/**
+ * How much of its design yield this array is actually achieving, `0`–`1`+.
+ *
+ * The one figure here that is **not** derived from anything, because in a real
+ * deployment it is not derived either: it is the gap between a simulation and a
+ * roof, and every cause of it is site-specific. Soiling nobody has washed off, a
+ * string that tripped in March, a tree that has grown, an inverter derating in
+ * the heat, or a design that was simply optimistic about the shading.
+ *
+ * Spread 0.76–1.06 from the site id, so the estate has arrays over their number
+ * as well as under it, and two of the four fall below the P90 band. That spread
+ * is the whole reason the column is worth having: a page where every array reads
+ * 100% of design is a page reporting the design, and the array is what somebody
+ * has to go and look at.
+ */
+const solarPerformance = (seed: SiteSeed, role: SitePowerRole): number =>
+  hasSolar(role) ? spreadBetween(seed.id, 'hybrid/array-health', 0.76, 1.06) : 1;
+
 export type HybridPlant = {
   /** PV array nameplate, kWp. `0` where no array is fitted. */
   pvKwp: number;
@@ -244,7 +271,32 @@ export type SiteEnergy = {
   loadKwh: number;
   /** Generation that had to be raised to serve it, load plus storage losses. */
   generationKwh: number;
+  /**
+   * What the design says this array should make in the window — the **P50**.
+   *
+   * The benchmark, and the reason it is a separate field from `solarKwh` below.
+   * An array's output on its own says nothing: 8,700 kWh is excellent from a
+   * 24 kWp array in Kedah and poor from a 40 kWp one. The figure only becomes a
+   * judgement beside the yield the array was bought on, which is the design
+   * simulation's — the same P50 an EPC's PVSyst report quotes and the same one
+   * SolarIQ benchmarks a rooftop against.
+   *
+   * Monthly rather than hourly, deliberately: a design yield is a monthly figure
+   * and quoting one by the hour claims a resolution the simulation never had.
+   */
+  expectedSolarKwh: number;
+  /**
+   * The same design, in a poor year — **P90**, taken as 0.9 of the P50.
+   *
+   * Carried because an array running below its P50 is only a fault if it is also
+   * below this. One dull month inside the P50–P90 band is weather; below P90 is
+   * something on the roof.
+   */
+  p90SolarKwh: number;
+  /** What the array actually made, kWh — the meter, not the design. */
   solarKwh: number;
+  /** `(actual − P50) ÷ P50`. Negative is a shortfall. */
+  solarVariance: number;
   gensetKwh: number;
   /** Grid import, kWh — only ever non-zero at a grid-backed site. */
   mainsKwh: number;
@@ -304,13 +356,31 @@ export const siteEnergy = (
 
   const plant = hybridPlant(seed, role);
   const sunHours = customer(seed.customer).peakSunHours;
-  // Capped at what the site can actually use. Spill is real at a solar site and
-  // reporting it as generation would flatter the array — this is energy served,
-  // not energy that fell on the roof.
-  const solarKwh = Math.min(
+
+  // The design's own number: nameplate × sun hours × performance ratio × days.
+  // Capped at what the site can actually use, because spill is real at a solar
+  // site and counting it would flatter the array — this is energy the tower could
+  // take, not energy that fell on the roof.
+  const expectedSolarKwh = Math.min(
     generationKwh,
     Math.round(plant.pvKwp * sunHours * PERFORMANCE_RATIO * WINDOW_DAYS),
   );
+
+  // What it actually made. `solarPerformance` is the gap between a design and a
+  // roof — see its own note — and the genset below picks up whatever the array
+  // did not, so an underperforming site burns more diesel and its payback moves.
+  // That chain is the point of measuring against a benchmark at all.
+  // Clamped at the generation the site can absorb, for the same reason the design
+  // figure above it is: an array beating its number at a site with no headroom is
+  // spilling the difference, and counting spill would report generation no meter
+  // downstream of it ever saw.
+  const solarKwh =
+    expectedSolarKwh === 0
+      ? 0
+      : Math.min(
+          generationKwh,
+          Math.round(expectedSolarKwh * solarPerformance(seed, role)),
+        );
 
   // The grid carries a backed-up site apart from the few hours a year it doesn't.
   // 0.4% is roughly a day and a half of outage across a month, which is the order
@@ -342,7 +412,11 @@ export const siteEnergy = (
   return {
     loadKwh: Math.round(loadKwh),
     generationKwh,
+    expectedSolarKwh,
+    p90SolarKwh: Math.round(expectedSolarKwh * P90_OF_P50),
     solarKwh,
+    solarVariance:
+      expectedSolarKwh === 0 ? 0 : (solarKwh - expectedSolarKwh) / expectedSolarKwh,
     gensetKwh,
     mainsKwh,
     litres,
@@ -353,11 +427,15 @@ export const siteEnergy = (
 };
 
 export type EstateEnergy = {
-  /** Sites carrying a battery — the ones this screen has anything to say about. */
+  /** Sites with a battery — the ones this screen has anything to say about. */
   hybridSites: number;
   solarSites: number;
   dieselSites: number;
   solarKwh: number;
+  /** The design yield those arrays were bought on, over the same window. */
+  expectedSolarKwh: number;
+  /** Actual against design, `0`–`1`+. Below 0.9 is below the P90 band. */
+  solarYield: number;
   gensetKwh: number;
   litres: number;
   baselineLitres: number;
@@ -380,6 +458,7 @@ export const estateEnergy = (
   ratedKwBySite: Record<string, number>,
 ): EstateEnergy => {
   let solarKwh = 0;
+  let expectedSolarKwh = 0;
   let gensetKwh = 0;
   let litres = 0;
   let baselineLitres = 0;
@@ -397,6 +476,7 @@ export const estateEnergy = (
 
     const energy = siteEnergy(seed, role, ratedKwBySite[seed.id] ?? 0);
     solarKwh += energy.solarKwh;
+    expectedSolarKwh += energy.expectedSolarKwh;
     gensetKwh += energy.gensetKwh;
     litres += energy.litres;
     baselineLitres += energy.baselineLitres;
@@ -409,6 +489,8 @@ export const estateEnergy = (
     solarSites,
     dieselSites,
     solarKwh,
+    expectedSolarKwh,
+    solarYield: expectedSolarKwh > 0 ? solarKwh / expectedSolarKwh : 0,
     gensetKwh,
     litres,
     baselineLitres,

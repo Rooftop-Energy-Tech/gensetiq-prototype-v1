@@ -1,5 +1,9 @@
 import {Link} from '@tanstack/react-router';
+import {InfoIcon} from 'lucide-react';
 import {useMemo, useState} from 'react';
+import type {ReactNode} from 'react';
+
+import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 
 import {cn} from '@/lib/utils';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
@@ -66,16 +70,40 @@ import {siteSearch} from '@/modules/site/types/view.type';
  * one number serves neither.
  */
 
-const COLUMNS = [
+const COLUMNS: Array<{label: string; width: string; note?: ReactNode}> = [
   {label: 'Site', width: '17%'},
   {label: 'Configuration', width: '12%'},
-  {label: 'Plant', width: '13%'},
-  {label: 'Solar share', width: '14%'},
-  {label: 'Genset hours', width: '10%'},
-  {label: 'Diesel', width: '10%'},
-  {label: 'Saving / yr', width: '12%'},
-  {label: 'Payback', width: '12%'},
-] as const;
+  {
+    label: 'Plant',
+    width: '13%',
+    note: 'Array size and usable storage. The array is sized to cover about two thirds to three quarters of the annual energy, which is why the genset stays; the bank is sized in hours of autonomy at the tower load, 10 to 14 on a diesel hybrid and 16 to 20 on a solar one.',
+  },
+  {
+    label: 'Solar share',
+    width: '14%',
+    note: 'Solar as a share of generation, not of the load. A battery is a delay rather than a source, so it appears in neither half: yellow is what the array made, violet is what the genset made. The line underneath is that generation against the design yield the array was bought on.',
+  },
+  {
+    label: 'Genset hours',
+    width: '10%',
+    note: 'Engine hours over the same thirty days, from the energy the genset had to raise and the loading it holds while raising it. A diesel-prime site reads 720 because the engine never stops.',
+  },
+  {
+    label: 'Diesel',
+    width: '10%',
+    note: 'Litres burned over thirty days, costed on the same fuel curve the run log and the tank chart use. A lightly loaded engine pays more per kilowatt-hour, which is most of what a hybrid fixes.',
+  },
+  {
+    label: 'Saving / yr',
+    width: '12%',
+    note: 'Diesel at the delivered price for this region, plus the service visits an engine running a third as many hours no longer needs. Against running the same site on diesel alone.',
+  },
+  {
+    label: 'Payback',
+    width: '12%',
+    note: 'Plant cost divided by the annual saving. A site still on diesel shows what converting it would cost and how long it would take to pay back. A converted one shows what it has returned since commissioning, or, where its array is short of its design yield, the payback it would have hit at P50.',
+  },
+];
 
 /**
  * The two ends of the delivered-diesel spread, for the rate line under the
@@ -101,13 +129,61 @@ const percent = (fraction: number): string => `${Math.round(fraction * 100)}%`;
  *
  * No status colour on any of them: these are quantities, not verdicts, and a
  * coloured number would rank what is only a tally.
+ *
+ * ## Every figure explains itself
+ *
+ * `note` is not optional and there is no tile without one. This page is the only
+ * screen in the app whose numbers are **modelled** rather than read off an
+ * instrument, and a modelled number a reader cannot interrogate is one they will
+ * either believe too readily or dismiss. The glyph carries what it was derived
+ * from, in the one place somebody wondering will look.
  */
-const Tile = ({label, value, detail}: {label: string; value: string; detail: string}) => (
+const Tile = ({
+  label,
+  value,
+  detail,
+  note,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  /** How this figure was arrived at, for the info glyph beside its label. */
+  note: ReactNode;
+}) => (
   <div className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5">
-    <span className="truncate text-xs font-medium text-secondary">{label}</span>
+    <span className="flex items-center gap-1.5">
+      <span className="truncate text-xs font-medium text-secondary">{label}</span>
+      <Tooltip>
+        <TooltipTrigger className="shrink-0 cursor-help text-tertiary hover:text-primary">
+          <InfoIcon className="size-3" aria-hidden="true" />
+          <span className="sr-only">How {label} is worked out</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[280px]">
+          {note}
+        </TooltipContent>
+      </Tooltip>
+    </span>
     <span className="text-2xl leading-none font-semibold text-primary tabular-nums">{value}</span>
     <span className="truncate text-xs text-secondary">{detail}</span>
   </div>
+);
+
+/** A column heading with the same glyph, for the columns that are derived too. */
+const ColumnHead = ({label, note}: {label: string; note?: ReactNode}) => (
+  <span className="flex items-center gap-1.5">
+    {label}
+    {note !== undefined && (
+      <Tooltip>
+        <TooltipTrigger className="shrink-0 cursor-help text-tertiary hover:text-primary">
+          <InfoIcon className="size-3" aria-hidden="true" />
+          <span className="sr-only">How {label} is worked out</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[280px]">
+          {note}
+        </TooltipContent>
+      </Tooltip>
+    )}
+  </span>
 );
 
 /**
@@ -236,21 +312,32 @@ export const EnergyPage = () => {
           </p>
         </header>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <Tile
+            label="Solar yield"
+            value={percent(estate.solarYield)}
+            detail={`of ${Math.round(estate.expectedSolarKwh).toLocaleString(
+              'en-MY',
+            )} kWh at P50`}
+            note="What the arrays actually made against the design yield they were bought on. The P90 band sits at 90% of that, so anything below it is the plant rather than the weather, and the per-site column says which arrays."
+          />
           <Tile
             label="Solar share"
             value={percent(estate.solarShare)}
             detail={`${Math.round(estate.solarKwh).toLocaleString('en-MY')} kWh generated`}
+            note="Solar as a share of everything generated off-grid, including at the sites with no array. It is low because only four of the thirteen have one, and it is the figure that rises with every conversion."
           />
           <Tile
             label="Diesel burned"
             value={litres(estate.litres)}
             detail={`${Math.round(estate.gensetKwh).toLocaleString('en-MY')} kWh from the gensets`}
+            note="What the gensets at every off-grid site actually burned over thirty days, costed on the loading each one holds while it runs."
           />
           <Tile
             label="Diesel displaced"
             value={litres(estate.displacedLitres)}
             detail={`against ${litres(estate.baselineLitres)} on diesel prime`}
+            note="The difference between what these sites burned and what the same sites would have burned running on diesel alone. Two things make it up: less energy from the engine, and the engine running nearer its efficient point when it does."
           />
           <Tile
             label="Saving"
@@ -258,6 +345,7 @@ export const EnergyPage = () => {
               estate.baselineLitres > 0 ? estate.displacedLitres / estate.baselineLitres : 0,
             )}
             detail="of what the same sites would have burned"
+            note="Displaced litres as a share of the diesel-only figure. It blends converted and unconverted sites, so it is the estate's position rather than any one plant's performance."
           />
         </div>
       </section>
@@ -283,16 +371,19 @@ export const EnergyPage = () => {
             label="Saving a year"
             value={ringgit(money.annualSavingRm)}
             detail={`on ${ringgit(money.capexDeployedRm)} of plant built`}
+            note="Displaced diesel at the delivered price for each region, plus the service visits avoided. Built plant only: the sites still on diesel are counted in the fourth tile."
           />
           <Tile
             label="Payback"
             value={payback(money.paybackYears)}
             detail="across every converted site"
+            note="Plant cost divided by the annual saving, across the converted sites together. Individual sites range either side of it, and the table below is sorted on that column."
           />
           <Tile
             label="ROI to date"
             value={`${Math.round(money.roiToDate * 100)}%`}
             detail={`${ringgit(money.savingToDateRm)} banked since commissioning`}
+            note="Saving banked since each site was commissioned, as a share of what its plant cost. It passes 100% at the payback point, and the sites were converted at different times."
           />
           <Tile
             label="Still on diesel"
@@ -300,6 +391,7 @@ export const EnergyPage = () => {
             detail={`a year, for ${ringgit(money.pipelineCapexRm)} across ${
               money.pipelineSites
             } ${money.pipelineSites === 1 ? 'site' : 'sites'}`}
+            note="What converting the remaining diesel sites would save each year, and what the plant would cost. They are the remotest sites on the estate, which is why they pay back faster than the ones already built."
           />
         </div>
       </section>
@@ -332,7 +424,7 @@ export const EnergyPage = () => {
                     scope="col"
                     className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas px-2 text-left font-medium whitespace-nowrap text-secondary"
                   >
-                    {column.label}
+                    <ColumnHead label={column.label} note={column.note} />
                   </th>
                 ))}
               </tr>
@@ -372,6 +464,24 @@ export const EnergyPage = () => {
 
                     <td className="h-13 border-b border-subtle p-2">
                       <MixBar energy={energy} />
+                      {/* The benchmark under the share, because the two answer
+                          different questions about the same array: the bar says how
+                          much of the site it carried, this says whether it is doing
+                          what it was bought to do. A site with no array gets neither
+                          line, which is the honest blank. */}
+                      {energy.expectedSolarKwh > 0 && (
+                        <span
+                          className={cn(
+                            'block truncate pt-1 text-xs tabular-nums',
+                            energy.solarKwh < energy.p90SolarKwh
+                              ? 'text-severity-warning'
+                              : 'text-tertiary',
+                          )}
+                        >
+                          {percent(energy.solarKwh / energy.expectedSolarKwh)} of P50
+                          {energy.solarKwh < energy.p90SolarKwh && ' · below P90'}
+                        </span>
+                      )}
                     </td>
 
                     <td className="h-13 truncate border-b border-subtle p-2 text-primary tabular-nums">
@@ -408,7 +518,17 @@ export const EnergyPage = () => {
                       <span className="block truncate text-xs text-tertiary">
                         {proposed
                           ? `Proposed · ${ringgit(economics.capexRm)}`
-                          : `${Math.round(economics.roiToDate * 100)}% ROI to date`}
+                          : // At an array that is short of its design yield the two
+                            // paybacks differ, and the target is the useful second
+                            // figure: it says how much of the slip is the plant. A
+                            // site on or above its number has one payback and says
+                            // so, because printing "3.1 target" beside "3.1" would
+                            // be a comparison with nothing in it.
+                            economics.paybackYearsAtP50 !== null &&
+                              economics.paybackYears !== null &&
+                              economics.paybackYears - economics.paybackYearsAtP50 > 0.1
+                            ? `${payback(economics.paybackYearsAtP50)} at P50`
+                            : `${Math.round(economics.roiToDate * 100)}% ROI to date`}
                       </span>
                     </td>
                   </tr>

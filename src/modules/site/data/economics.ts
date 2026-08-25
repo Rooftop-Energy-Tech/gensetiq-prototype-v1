@@ -1,3 +1,4 @@
+import {sfcLitresPerKwh} from '@/modules/genset/data/detail';
 import {spreadBetween} from '@/modules/genset/data/spread';
 import {hasBattery} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
@@ -92,6 +93,9 @@ const SERVICE_INTERVAL_HOURS = 500;
  * servicing a tower at Belaga is the same thing that makes its diesel expensive:
  * getting there.
  */
+/** Loading a genset holds while charging — mirrors `hybrid.ts`, and must. */
+const CHARGING_LOAD_FRACTION = 0.78;
+
 const SERVICE_BASE_RM = 900;
 const SERVICE_REMOTE_MULTIPLIER = 320;
 
@@ -143,6 +147,15 @@ export type SiteEconomics = {
   annualSavingRm: number;
   /** Years to pay the plant back at that rate. `null` where there is no saving. */
   paybackYears: number | null;
+  /**
+   * What the payback would be if the array hit its design yield, years.
+   *
+   * SolarIQ's target-against-projected pair, and it earns its place for the same
+   * reason there: a payback that has slipped is a fact about the plant, and one
+   * number cannot say whether it slipped. Equal to `paybackYears` at a site with
+   * no array, where there is no design yield to miss.
+   */
+  paybackYearsAtP50: number | null;
   /** How long the plant has been running, years. `0` where none is fitted. */
   ageYears: number;
   /** Saving banked since it was commissioned, RM. */
@@ -210,12 +223,23 @@ export const siteEconomics = (
   const litresPerYear = Math.round((asDiesel.litres - withPlant.litres) * YEAR_OVER_WINDOW);
   const dieselSavingRm = Math.round(litresPerYear * dieselRm);
 
+  // The same saving with the array on its design yield instead of its actual one.
+  // Every kilowatt-hour the array does not make is one the genset has to, so the
+  // shortfall converts into diesel at the charging loading and straight into the
+  // payback below.
+  const shortfallKwh = Math.max(0, withPlant.expectedSolarKwh - withPlant.solarKwh);
+  const shortfallLitres = shortfallKwh * sfcLitresPerKwh(CHARGING_LOAD_FRACTION);
+  const dieselSavingAtP50Rm = Math.round(
+    (litresPerYear + shortfallLitres * YEAR_OVER_WINDOW) * dieselRm,
+  );
+
   const hoursAvoided = Math.max(0, asDiesel.gensetHours - withPlant.gensetHours);
   const serviceSavingRm = Math.round(
     ((hoursAvoided * YEAR_OVER_WINDOW) / SERVICE_INTERVAL_HOURS) * serviceVisitRm(seed),
   );
 
   const annualSavingRm = dieselSavingRm + serviceSavingRm;
+  const annualSavingAtP50Rm = dieselSavingAtP50Rm + serviceSavingRm;
   const ageYears = plantAgeYears(seed, role);
   const savingToDateRm = Math.round(annualSavingRm * ageYears);
 
@@ -230,6 +254,7 @@ export const siteEconomics = (
     serviceSavingRm,
     annualSavingRm,
     paybackYears: annualSavingRm > 0 ? capexRm / annualSavingRm : null,
+    paybackYearsAtP50: annualSavingAtP50Rm > 0 ? capexRm / annualSavingAtP50Rm : null,
     ageYears,
     savingToDateRm,
     roiToDate: capexRm > 0 ? savingToDateRm / capexRm : 0,

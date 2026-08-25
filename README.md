@@ -57,7 +57,16 @@ Two modules, deliberately not one:
 
 `/energy` is those two as a table, and prices the sites **still on diesel** as
 though the plant they would get were already there, so the bottom of the list is
-a quotation rather than a row of blanks.
+a quotation.
+
+Solar is reported **against its benchmark**, which is the other thing SolarIQ
+gets right. An array's output on its own says nothing, so every solar site
+carries three figures: the **P50** its design was bought on, the **P90** band at
+0.9 of that, and what it actually made. Two of the four arrays are under their
+P90, and the shortfall converts into diesel and moves their payback, so the row
+also carries what the payback would have been at P50. That chain is the reason
+the benchmark is worth holding at all: a number that changes nothing downstream
+is decoration.
 
 `sfcLitresPerKwh` changed on this branch, and it is the one change that reaches
 back into the shared product. It was a straight line, with the full-load figure
