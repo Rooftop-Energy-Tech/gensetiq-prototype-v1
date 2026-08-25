@@ -48,7 +48,7 @@ export type RoleGroup = {
   role: SitePowerRole;
   siteCount: number;
   gensetCount: number;
-  /** Always all four, worst first, so the row's shape never moves. */
+  /** Always all four buckets, worst first, so the row's shape never moves. */
   cells: Array<StatusCell>;
   /** Sites not in the `OK` bucket — the tile row's headline figure. */
   needingAttention: number;
@@ -57,20 +57,30 @@ export type RoleGroup = {
 export type FleetOverview = {
   siteCount: number;
   gensetCount: number;
-  /** Sites in any bucket but `OK`, across both duties. */
+  /** Sites in any bucket but `OK`, across every configuration. */
   needingAttention: number;
   groups: Array<RoleGroup>;
 };
 
-/** Standby first: it is the larger half of every estate this app is built for. */
-const ROLE_ORDER: Array<SitePowerRole> = ['STANDBY', 'PRIME'];
+/**
+ * Configuration order, and it is the estate's own upgrade path rather than a
+ * count: grid-backed sites first because they are the ones that were never a
+ * power problem, then diesel prime, then the two hybrids the prime sites are
+ * being converted into. Reading the row left to right is reading the programme.
+ */
+const ROLE_ORDER: Array<SitePowerRole> = [
+  'GRID_BACKUP',
+  'DIESEL_PRIME',
+  'DIESEL_HYBRID',
+  'SOLAR_HYBRID',
+];
 
 export const fleetOverview = (
   summaries: Array<SiteSummary>,
   roles: Record<string, SitePowerRole>,
 ): FleetOverview => {
   const groups = ROLE_ORDER.map((role) => {
-    const inRole = summaries.filter((summary) => (roles[summary.site.id] ?? 'STANDBY') === role);
+    const inRole = summaries.filter((summary) => (roles[summary.site.id] ?? 'GRID_BACKUP') === role);
 
     const cells = FLEET_STATUSES.map((status) => {
       const sites = inRole.filter((summary) => siteStatus(summary) === status);

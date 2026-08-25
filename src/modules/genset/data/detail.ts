@@ -56,25 +56,59 @@ import {spread} from './spread';
 export const LITRES_PER_KWH = 0.28;
 
 /**
+ * Fraction of a set's full-load fuel rate that it burns producing **nothing**.
+ *
+ * A diesel spends fuel keeping itself turning before it delivers a watt:
+ * friction, the water pump, the fan, the excitation. On a small set that floor is
+ * about a fifth of what the same engine burns flat out, which is the single most
+ * important fact about running one lightly loaded.
+ */
+const NO_LOAD_FRACTION = 0.2;
+
+/**
  * Litres per kWh a set actually achieves at a given load, as a fraction of
  * nameplate.
  *
- * A diesel's specific fuel consumption is flattest near rated output and worse
- * the lighter the load — the engine spends a larger share of each litre keeping
- * itself turning. `LITRES_PER_KWH` is the figure at 75% load and above; below
- * that the burn worsens by 0.4% of itself per point of load given up, so a set
- * loafing at 20% pays roughly a fifth more per kWh than one properly loaded.
+ * ## The model
+ *
+ * The standard two-term one: an engine's hourly burn is a **fixed part plus a
+ * part proportional to output**, so
+ *
+ *   litres/hour = a · P_rated + b · P_output
+ *
+ * and dividing through by the output gives the figure this function returns:
+ *
+ *   litres/kWh = b + a / loadFraction
+ *
+ * `a` and `b` are pinned by two facts: they sum to `LITRES_PER_KWH` at full
+ * load, and `a` is `NO_LOAD_FRACTION` of that. So a set at 30% of nameplate pays
+ * about 40% more per kilowatt-hour than the same set at 100%, and one at 10% pays
+ * nearly double.
+ *
+ * ## Why the shape matters rather than the constant
+ *
+ * This used to be a straight line — the full-load figure worsened by 0.4% of
+ * itself per point of load given up — which is flat enough that a set idling at
+ * 15% looked only a quarter worse than one properly loaded. It is not; it is
+ * roughly twice as bad. The straight line was wrong in exactly the region this
+ * estate lives in, because a 20 kVA genset carrying a 4 kW tower **is** the
+ * lightly-loaded case, and every argument for putting a battery beside it rests
+ * on how much that costs. A model that flattered part load would have quietly
+ * argued against the plant the estate is being converted to.
  *
  * One function, used by **every** place fuel is derived from energy — the run
- * log, the current-run card, the fuel ladder and the metered-burn integral —
- * so the tank chart, the flow meter and the run totals all tell one story. It
- * is also what makes efficiency comparable across runs at all: before it,
- * every run returned the same kWh per litre and the SFC column would have been
- * a constant pretending to be a measurement.
+ * log, the current-run card, the fuel ladder, the metered-burn integral and the
+ * hybrid saving on `/energy` — so the tank chart, the flow meter, the run totals
+ * and the business case all tell one story.
+ *
+ * Clamped at 5% of nameplate: below that the curve heads for infinity, and a set
+ * carrying almost nothing is a state to describe rather than a divisor.
  */
 export const sfcLitresPerKwh = (loadFraction: number): number => {
-  const partLoad = Math.max(0, 0.75 - Math.min(Math.max(loadFraction, 0), 1));
-  return LITRES_PER_KWH * (1 + 0.4 * partLoad);
+  const fixed = LITRES_PER_KWH * NO_LOAD_FRACTION;
+  const variable = LITRES_PER_KWH - fixed;
+  const fraction = Math.min(Math.max(loadFraction, 0.05), 1);
+  return variable + fixed / fraction;
 };
 
 /**

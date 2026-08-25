@@ -4,6 +4,7 @@ import type {Tally} from '@/modules/genset/data/fleetSummary';
 import {CUSTOMERS} from './customers';
 import type {CustomerId} from './customers';
 import type {SiteSummary} from './sites';
+import {SITE_POWER_ROLE_LABEL, SITE_POWER_ROLES} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 
 /**
@@ -13,7 +14,7 @@ import type {SitePowerRole} from '../types/site.type';
  * The two are deliberately separate functions rather than one generic over
  * "thing with a customer and a role". They count **different objects**, and the
  * difference is the point of having both: the fleet card says how many *machines*
- * belong to Maxis, this one says how many *yards*. Collapsing them would make the
+ * belong to Sarawak, this one says how many *sites*. Collapsing them would make the
  * caller supply four accessors to save twenty lines, and the reader would have to
  * hold both meanings at once.
  *
@@ -47,13 +48,17 @@ export type EstateSummary = {
   byCustomer: Array<Tally<CustomerId>>;
 };
 
-const ROLE_LABEL: Record<SitePowerRole, string> = {STANDBY: 'Standby', PRIME: 'Prime'};
 
 export const estateSummary = (
   summaries: Array<SiteSummary>,
   roles: Record<string, SitePowerRole>,
 ): EstateSummary => {
-  const roleCounts: Record<SitePowerRole, number> = {STANDBY: 0, PRIME: 0};
+  const roleCounts: Record<SitePowerRole, number> = {
+    GRID_BACKUP: 0,
+    DIESEL_PRIME: 0,
+    DIESEL_HYBRID: 0,
+    SOLAR_HYBRID: 0,
+  };
   const customerCounts = new Map<CustomerId, number>();
   const statusCounts: Record<FleetStatus, number> = {EMPTY: 0, ALARM: 0, REFUEL: 0, OK: 0};
   let gensetCount = 0;
@@ -64,7 +69,7 @@ export const estateSummary = (
     // A site always has a role — seeded, and overridable — so there is no depot
     // case here. That asymmetry with the fleet card is real rather than an
     // oversight: a machine can be between yards, a yard cannot.
-    roleCounts[roles[summary.site.id] ?? 'STANDBY'] += 1;
+    roleCounts[roles[summary.site.id] ?? 'GRID_BACKUP'] += 1;
 
     const account = summary.site.customer;
     customerCounts.set(account, (customerCounts.get(account) ?? 0) + 1);
@@ -75,8 +80,11 @@ export const estateSummary = (
   return {
     total: summaries.length,
     gensetCount,
-    byRole: (['STANDBY', 'PRIME'] as const)
-      .map((role) => ({key: role, label: ROLE_LABEL[role], count: roleCounts[role]}))
+    byRole: SITE_POWER_ROLES.map((role) => ({
+      key: role,
+      label: SITE_POWER_ROLE_LABEL[role],
+      count: roleCounts[role],
+    }))
       .filter((tally) => tally.count > 0),
     byStatus: FLEET_STATUSES.map((status) => ({
       key: status,
@@ -110,7 +118,7 @@ export const filterSites = (
 ): Array<SiteSummary> =>
   summaries.filter((summary) => {
     if (filters.customer !== undefined && summary.site.customer !== filters.customer) return false;
-    if (filters.role !== undefined && (roles[summary.site.id] ?? 'STANDBY') !== filters.role) {
+    if (filters.role !== undefined && (roles[summary.site.id] ?? 'GRID_BACKUP') !== filters.role) {
       return false;
     }
     if (filters.status !== undefined && siteStatus(summary) !== filters.status) return false;

@@ -2,12 +2,13 @@ import {Link, Outlet} from '@tanstack/react-router';
 import {InfoIcon, MapPinIcon} from 'lucide-react';
 
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
-import {fuelLevel, relativeTime} from '@/lib/format';
+import {fuelLevel, relativeTime, stampDate} from '@/lib/format';
+import {currentInstallation} from '../../data/installations';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 
 /**
- * The seven tabs across the top of a genset.
+ * The eight tabs across the top of a genset.
  *
  * Real routes rather than local state, for the same reason the fleet screen keeps
  * its view in the URL — a tab is a place, and `/gensets/brf9540/runs` should be
@@ -26,11 +27,15 @@ const TABS = [
   {label: 'Home', to: '/gensets/$gensetId'},
   {label: 'Analysis', to: '/gensets/$gensetId/analysis'},
   {label: 'Runs', to: '/gensets/$gensetId/runs'},
-  // The two logs a mobile set accumulates beyond its runs: where it has been
-  // posted, and the fuel bought for it. Both sit beside Runs because the three
-  // reconcile against each other — a posting's totals are its runs', and a
-  // delivery lands on the fuel chart the moment it is logged.
-  {label: 'Deployments', to: '/gensets/$gensetId/deployments'},
+  // The one log a set accumulates beyond its runs: the fuel bought for it. It
+  // sits beside Runs because the two reconcile against each other — a delivery
+  // lands on the fuel chart the moment it is logged.
+  //
+  // There is no Deployments tab on this estate. A set here is bolted to a
+  // plinth beside the tower it feeds and its posting is its installation: one
+  // record, opened at commissioning and still open. A tab whose whole content
+  // is a single row that never changes is a tab that teaches a reader to stop
+  // opening tabs, so the fact moved to the header tooltip instead.
   {label: 'Refuel', to: '/gensets/$gensetId/refuel'},
   {label: 'Service', to: '/gensets/$gensetId/service'},
   {label: 'Alarms', to: '/gensets/$gensetId/alarms'},
@@ -48,7 +53,10 @@ const TABS = [
  * `Online` beside a hero reading `Idle` invited the reader to look for a
  * distinction the machine does not report.
  */
-export const GensetDetailShell = ({genset}: {genset: Genset}) => (
+export const GensetDetailShell = ({genset}: {genset: Genset}) => {
+  const installation = currentInstallation(genset.id);
+
+  return (
   <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-4 pt-4 pb-2">
       {/* Stacked below `md`. Side by side, the name gives up most of its width to the
@@ -77,6 +85,17 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => (
               <span>Asset tag · {genset.tag}</span>
               <span>Model · {genset.model}</span>
               <span>Tank · {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}</span>
+              {/* Where the Deployments tab used to be. On this estate a set has one
+                  installation and it is years old, so the fact belongs in the line
+                  of nameplate data it now sits in rather than behind a tab of its
+                  own. It is here and not on the site page because it is a fact about
+                  the *machine*: the plinth outlives whatever is bolted to it. */}
+              {installation !== undefined && (
+                <span>
+                  Commissioned · {stampDate(installation.startedAt)} by{' '}
+                  {installation.installer}
+                </span>
+              )}
               <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>
             </TooltipContent>
           </Tooltip>
@@ -116,4 +135,5 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => (
       <Outlet />
     </div>
   </div>
-);
+  );
+};

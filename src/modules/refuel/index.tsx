@@ -5,7 +5,7 @@ import {CheckIcon, ClockIcon, SearchIcon, SearchXIcon} from 'lucide-react';
 import {Badge} from '@/components/ui/badge';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {relativeTime, stampAt} from '@/lib/format';
-import {gensetDeployments} from '@/modules/genset/data/deployments';
+import {gensetInstallations} from '@/modules/genset/data/installations';
 import {gensetById} from '@/modules/genset/data/detail';
 import {REFUEL_ORDERS} from '@/modules/genset/data/refuelOrders';
 import type {RefuelOrder} from '@/modules/genset/types/refuelOrder.type';
@@ -17,7 +17,7 @@ import type {RefuelOrder} from '@/modules/genset/types/refuelOrder.type';
  * order with no posting (a top-up between jobs) or no record falls back.
  */
 const deliveryLocation = (order: RefuelOrder): string | undefined =>
-  gensetDeployments(order.gensetId).find((deployment) => deployment.id === order.deploymentId)
+  gensetInstallations(order.gensetId).find((deployment) => deployment.id === order.deploymentId)
     ?.locationLabel;
 
 /**

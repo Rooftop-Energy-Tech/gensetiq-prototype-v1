@@ -1,6 +1,6 @@
 import type {RefuelOrder} from '../types/refuelOrder.type';
 import {GENSETS} from './fleet';
-import {gensetDeployments} from './deployments';
+import {gensetInstallations} from './installations';
 import {gensetStatus} from './fleetStatus';
 import {historyStart, refuelsIn} from './history';
 import {spread, spreadBetween} from './spread';
@@ -42,7 +42,7 @@ const issuer = (gensetId: string, salt: string): string =>
 
 /** The posting whose window contains an instant, or `null` between postings. */
 const deploymentAt = (gensetId: string, at: number): string | null => {
-  for (const deployment of gensetDeployments(gensetId)) {
+  for (const deployment of gensetInstallations(gensetId)) {
     const from = new Date(deployment.startedAt).getTime();
     const to =
       deployment.endedAt === null ? Number.POSITIVE_INFINITY : new Date(deployment.endedAt).getTime();

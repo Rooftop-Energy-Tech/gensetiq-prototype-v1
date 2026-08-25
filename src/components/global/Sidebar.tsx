@@ -3,11 +3,11 @@ import {
   BoomBoxIcon,
   FuelIcon,
   GaugeIcon,
-  LandPlotIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  RadioTowerIcon,
   SettingsIcon,
-  TruckIcon,
+  SunMediumIcon,
 } from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
@@ -16,19 +16,32 @@ import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {sessionInitial, signOut, useSession} from '@/modules/auth/session';
 
-import sesbMark from '@/assets/sesb-mark-white.png';
+import celcomdigiMark from '@/assets/celcomdigi-mark.svg';
 
+/**
+ * The rail, and the one place this white-label's estate changes the order.
+ *
+ * The mobile-fleet build put **Deployment** second and **Sites** fourth, because
+ * for plant that moves the posting is the fact about a machine and a yard is only
+ * where it happens to be standing this week. This estate is the other way round: a
+ * tower site is a permanent installation, its genset is bolted to a plinth beside
+ * it, and nobody asks where a set has been sent. So **Sites leads** — the site is
+ * the asset, and the plant on it is a property of the site — and Deployment is
+ * gone rather than demoted, because a destination nobody visits is worse than one
+ * that isn't there.
+ *
+ * **Energy** takes the slot it left. On an estate of hybrid sites the question that
+ * replaces "where is it" is "what carried the load today", and that has nowhere
+ * else to live: the overview summarises it, and this is the screen that shows the
+ * working site by site.
+ */
 const NAV_ITEMS: Array<NavItem> = [
-  // First, and the app's landing screen: the estate's state before any one machine
+  // First, and the app's landing screen: the estate's state before any one site
   // in it. Everything below is a way of narrowing what this page counts.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
+  {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
+  {label: 'Energy', icon: SunMediumIcon, link: '/energy'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
-  // Directly under Gensets, because for a mobile fleet a posting is a fact about a
-  // machine: this is the same plant the screen above lists, read by where it has
-  // been sent rather than by what it is doing. It sits above Sites for the same
-  // reason — a yard is where a set happens to be standing, not what owns it.
-  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
-  {label: 'Sites', icon: LandPlotIcon, link: '/sites'},
   // After Sites, because a meter is fitted to a site's circuit and reads nothing on
   // its own — the order of the rail follows what each destination is about.
   {label: 'Meters', icon: GaugeIcon, link: '/meters'},
@@ -50,20 +63,26 @@ export const Sidebar = () => {
     // have mobile layouts are the two the floating bar offers.
     <aside className="hidden h-full w-[94px] flex-col items-center pt-2 md:flex">
       <div className="flex w-full items-center justify-center py-3.5">
-        {/* The customer's mountain mark, cropped from their own logo — the rail
-            is 94px and the full wordmark has no legible form at that width, the
-            same call the IQ mark made for the product's own brand. The crop is
-            210 × 93; both dimensions are set so the flex row can't stretch it.
+        {/* The customer's own mark, cropped out of their official lockup — the
+            rail is 94px and the full wordmark has no legible form at that width,
+            the same call the IQ mark made for the product's own brand. The crop
+            is the artwork's own left edge to the start of the "c", viewBox
+            `-6 0 408 439.61`; both dimensions are set so the flex row can't
+            stretch it.
 
-            The all-white cut, not the two-colour one: the rail is SESB blue
-            (`--sidebar`) and the mark's own blue is #0D4C94, so on the colour
-            version the left peak disappeared into the background and the logo
-            read as a lone green chevron. Cropped from SESB's official reversed
-            logo — `sesb-white.png` in the gensetiq-sesb-deck assets — reframed
-            onto the same 210 × 93 canvas as the colour mark, so the geometry
-            above is unchanged. The colour crop stays in `assets/` for any
-            surface that is light; the login screen uses the full colour logo. */}
-        <img src={sesbMark} alt="Sabah Electricity" width={44} height={19.5} className="shrink-0" />
+            The full-colour cut, not the reversed one. CelcomDigi's inverted
+            artwork only whitens the *wordmark* — the mark itself is the same
+            blue-to-yellow in both files — and the wordmark is exactly what this
+            crop drops. So the two cuts are identical here, and the rail is navy
+            (`--sidebar`, #001871) precisely so the mark's own #009BDF → #0064DC
+            gradient has a ground to sit on. */}
+        <img
+          src={celcomdigiMark}
+          alt="CelcomDigi"
+          width={40}
+          height={43}
+          className="shrink-0"
+        />
       </div>
 
       <nav aria-label="Main" className="flex w-full flex-1 flex-col items-center gap-2 px-2 py-2">

@@ -8,9 +8,9 @@ import type {Genset} from '../types/genset.type';
 
 /** What the chips above the list narrow by. Every field is optional and ANDs. */
 export type GensetFilters = {
-  /** A `CustomerId`, or `DEPOT` for sets standing at no site. */
+  /** A `CustomerId`, or `WORKSHOP` for sets standing at no site. */
   customer?: string;
-  role?: SitePowerRole | 'DEPOT';
+  role?: SitePowerRole | 'WORKSHOP';
   status?: FleetStatus;
   /**
    * Sets inside their service window.
@@ -70,10 +70,10 @@ export const filterGensets = (
 ): Array<Genset> =>
   gensets.filter((genset) => {
     if (filters.customer !== undefined) {
-      if ((gensetCustomer(genset) ?? 'DEPOT') !== filters.customer) return false;
+      if ((gensetCustomer(genset) ?? 'WORKSHOP') !== filters.customer) return false;
     }
     if (filters.role !== undefined) {
-      if ((gensetPowerRole(genset, roles) ?? 'DEPOT') !== filters.role) return false;
+      if ((gensetPowerRole(genset, roles) ?? 'WORKSHOP') !== filters.role) return false;
     }
     if (filters.status !== undefined && gensetStatus(genset) !== filters.status) return false;
     if (filters.service === 'due' && !isDueForService(genset.id)) return false;

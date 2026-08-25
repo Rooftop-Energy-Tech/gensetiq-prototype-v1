@@ -5,7 +5,7 @@ import maplibregl from 'maplibre-gl';
  *
  * Zoomed out, a cluster collapses N pins into one number and throws away the one
  * thing the pins were carrying — their colour. This puts it back: a ring around
- * the count, split by the mix of whatever is underneath it, so "14" in Sandakan
+ * the count, split by the mix of whatever is underneath it, so "14" in the Klang Valley
  * reads as "14, three of them faulted" without expanding the cluster.
  *
  * It's a DOM overlay rather than another circle layer because MapLibre's `circle`

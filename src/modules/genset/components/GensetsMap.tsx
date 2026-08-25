@@ -32,9 +32,15 @@ const LAYER = {
  */
 const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
 
-/** Sabah and Labuan, for the moment before any data has been fitted. */
-const INITIAL_CENTER: LngLatLike = [116.9, 5.5];
-const INITIAL_ZOOM = 7;
+/**
+ * Malaysia, for the moment before any data has been fitted.
+ *
+ * Centred on the South China Sea rather than on either landmass, because the
+ * estate spans both: a peninsular centre puts Kapit and Belaga off the right edge
+ * on arrival, and a Bornean one loses the Klang Valley cluster the other way.
+ */
+const INITIAL_CENTER: LngLatLike = [109.5, 3.8];
+const INITIAL_ZOOM = 5;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 

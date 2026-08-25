@@ -1,5 +1,11 @@
 import {useRef} from 'react';
-import {BoomBoxIcon, FactoryIcon, UtilityPoleIcon} from 'lucide-react';
+import {
+  BatteryChargingIcon,
+  BoomBoxIcon,
+  FactoryIcon,
+  SunMediumIcon,
+  UtilityPoleIcon,
+} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import type {RunState} from '@/modules/genset/types/genset.type';
@@ -7,8 +13,10 @@ import type {RunState} from '@/modules/genset/types/genset.type';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
-import {isolatorStateOf, mainsContactorStateOf} from '../types/site.type';
+import {hasBattery, hasMains, hasSolar, isolatorStateOf, mainsContactorStateOf} from '../types/site.type';
 import type {MainsSupply, SitePowerRole, SwitchState} from '../types/site.type';
+import {hybridState} from '../data/hybrid';
+import {siteSeed} from '../data/siteSeed';
 import type {MeterFeed} from '@/modules/meter/types/meter.type';
 import {siteFeed, siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
@@ -55,19 +63,27 @@ import type {SiteSummary} from '../data/sites';
  * Both are additive. The boxes keep their designed 88 × 74 and the captions sit in
  * the 64px gap between them.
  *
- * ## The mains
+ * ## The other sources
  *
- * A `STANDBY` site draws a **mains source above its gensets**, on its own contactor,
- * onto the same bus. The frame has no such node — it draws only gensets, which
- * quietly makes every site look like it has nothing else feeding it — and a page
- * about *backup* power that never shows what is being backed up is missing its
- * subject.
+ * A `GRID_BACKUP` site draws a **mains source above its gensets**, on its own
+ * contactor, onto the same bus. The frame has no such node — it draws only
+ * gensets, which quietly makes every site look like it has nothing else feeding
+ * it — and a page about *backup* power that never shows what is being backed up is
+ * missing its subject.
  *
- * It costs no new geometry, and that is the argument for putting it in this column
- * rather than opposite the gensets: a transfer switch **is** a changeover between
- * two sources onto one bus, so the mains is a source row like any other and every
- * measurement above applies to it unchanged. A `PRIME` site has no incomer and draws
- * exactly what it drew before this existed.
+ * The two hybrid configurations add an **array** and a **bank** the same way, and
+ * that is the argument for putting all of them in this column rather than
+ * inventing a second one: a bus is a bus, so every source is a row, and every
+ * measurement above applies to each of them unchanged. Four sources at a solar
+ * hybrid with two sets is the same drawing as one source at a diesel-prime site
+ * with one — taller, and not otherwise different.
+ *
+ * The order down the column is the order the site uses its sources in: grid,
+ * array, bank, then gensets. Reading it downwards is reading the control strategy,
+ * which is why the bank sits above the machine that charges it.
+ *
+ * A `DIESEL_PRIME` site has no incomer and no plant, and draws exactly what it
+ * drew before any of this existed.
  */
 
 // ─── The design's measurements ───────────────────────────────────────────────
@@ -377,7 +393,8 @@ const sourcesOf = (
   dutyId: string | undefined,
   role: SitePowerRole,
 ): Array<DiagramSource> => {
-  const gensetCarrying = siteFeed(summary, dutyId, role).source === 'GENSET';
+  const feed = siteFeed(summary, dutyId, role);
+  const gensetCarrying = feed.source === 'GENSET';
 
   const gensets: Array<DiagramSource> = summary.gensets.map(({genset, detail}) => {
     const switchState = isolatorStateOf(genset.runState, genset.id === dutyId);
@@ -391,19 +408,63 @@ const sourcesOf = (
     };
   });
 
-  if (role === 'PRIME') return gensets;
+  const sources: Array<DiagramSource> = [];
 
-  return [
-    {
+  if (hasMains(role)) {
+    sources.push({
       key: 'mains',
       icon: UtilityPoleIcon,
       label: 'MAINS',
       caption: 'Grid supply',
-      power: mainsPowerLabel(summary.mains, mainsContactorStateOf(summary.mains, gensetCarrying).live),
+      power: mainsPowerLabel(
+        summary.mains,
+        mainsContactorStateOf(summary.mains, gensetCarrying).live,
+      ),
       switchState: mainsContactorStateOf(summary.mains, gensetCarrying),
-    },
-    ...gensets,
-  ];
+    });
+  }
+
+  if (hasBattery(role)) {
+    const seed = siteSeed(summary.site.id);
+    const state =
+      seed === undefined ? {solarKw: 0, soc: 0, batteryKw: 0} : hybridState(seed, role);
+
+    if (hasSolar(role)) {
+      // An array is connected whenever it is making anything, and disconnected at
+      // night. There is no third state: a PV converter that is exporting nothing is
+      // off, not idling, so `night` is the word rather than `0 kW`. The same rule
+      // the genset captions follow — a measurement of zero and an absence of one
+      // are different claims.
+      const generating = state.solarKw > 0;
+      sources.push({
+        key: 'solar',
+        icon: SunMediumIcon,
+        label: 'SOLAR',
+        caption: 'PV array',
+        power: generating ? amount(state.solarKw, 'kW', 1) : 'night',
+        switchState: {closed: generating, live: generating && !gensetCarrying},
+      });
+    }
+
+    // Charging and discharging are one node and two directions, which is why the
+    // caption carries the state of charge and the power line carries the sign. A
+    // bank drawn as two nodes would suggest the site has two of them.
+    const discharging = state.batteryKw > 0 && !gensetCarrying;
+    sources.push({
+      key: 'battery',
+      icon: BatteryChargingIcon,
+      label: 'BATTERY',
+      caption: `${Math.round(state.soc * 100)}% charged`,
+      power: gensetCarrying
+        ? 'charging'
+        : discharging
+          ? amount(state.batteryKw, 'kW', 1)
+          : 'charging',
+      switchState: {closed: true, live: discharging},
+    });
+  }
+
+  return [...sources, ...gensets];
 };
 
 // ─── The diagram ─────────────────────────────────────────────────────────────
@@ -413,7 +474,7 @@ export const SiteDiagram = ({
   /** The set the changeover has on the bus. Drives every isolator in the drawing. */
   dutyId,
   /**
-   * `STANDBY` draws the mains above the gensets; `PRIME` draws gensets alone.
+   * `GRID_BACKUP` draws the mains above the gensets; `DIESEL_PRIME` draws gensets alone.
    *
    * Passed in rather than read from the config store here, so this stays a pure
    * function of its inputs — which is what lets the settings page render it twice,
@@ -494,13 +555,19 @@ export const SiteDiagram = ({
       style={{maxWidth: WIDTH, height: height * scale}}
       role="img"
       aria-label={`${summary.site.name} single-line diagram: ${
-        role === 'STANDBY' ? 'mains supply and ' : ''
-      }${summary.gensets.length} genset${summary.gensets.length === 1 ? '' : 's'}, ${
+        hasMains(role) ? 'mains supply, ' : ''
+      }${hasSolar(role) ? 'PV array, ' : ''}${hasBattery(role) ? 'battery, ' : ''}${
+        summary.gensets.length
+      } genset${summary.gensets.length === 1 ? '' : 's'}, ${
         feed.source === 'GENSET'
           ? `${summary.gensets.find(({genset}) => genset.id === feed.gensetId)?.genset.tag} feeding the load`
           : feed.source === 'MAINS'
             ? 'on mains'
-            : 'nothing feeding the load'
+            : feed.source === 'SOLAR'
+              ? 'on solar'
+              : feed.source === 'BATTERY'
+                ? 'on battery'
+                : 'nothing feeding the load'
       }${loadKw === null ? '' : ` at ${amount(loadKw, 'kW')}`}`}
     >
       {/* The canvas: always the measured 398px wide, and scaled as one piece. Every

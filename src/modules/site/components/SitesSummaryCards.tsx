@@ -113,7 +113,7 @@ export const SitesSummaryCards = ({
           </div>
         </SummaryCard>
 
-        <SummaryCard label="By zone">
+        <SummaryCard label="By region">
           <div className="flex flex-wrap gap-x-1 gap-y-0.5">
             {summary.byCustomer.map((tally) => (
               <CountChip

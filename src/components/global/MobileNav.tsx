@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, LandPlotIcon, LayoutDashboardIcon} from 'lucide-react';
+import {BoomBoxIcon, LayoutDashboardIcon, RadioTowerIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 /**
@@ -14,10 +14,12 @@ import type {LucideIcon} from 'lucide-react';
  *
  * ## Three destinations, not seven
  *
- * Only the screens that have a mobile layout are here. `Deployment`, `Meters`,
+ * Only the screens that have a mobile layout are here. `Energy`, `Meters`,
  * `Refuel` and `Settings` are desktop-only in this prototype, and a nav item that
  * lands on a screen laid out for 1,280px would be worse than no item at all — the
- * point of a limited bar is that everything it offers works.
+ * point of a limited bar is that everything it offers works. `Energy` is the
+ * clearest case: it is a seven-column table whose whole job is comparison down a
+ * column, and there is no phone-width form of that worth offering.
  *
  * The routes themselves are untouched and still resolve if a URL is typed or
  * followed from a desktop link. What is withheld is *navigation to* them, which is
@@ -27,7 +29,7 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/overview' | '/gensets' | '/sites';
+  link: '/overview' | '/sites' | '/gensets';
   /**
    * The list's own default view state, for the two items that have one.
    *
@@ -41,13 +43,13 @@ type MobileNavItem = {
 };
 
 const ITEMS: Array<MobileNavItem> = [
-  // The overview is here where `Deployment` and the rest are not, because it
+  // The overview is here where `Energy` and the rest are not, because it
   // genuinely has a phone layout: its tiles are a two-column grid at this width
   // rather than a desktop screen squeezed. It is also where `/` now lands, so
   // leaving it out would strand a phone on a screen with no way back to it.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
+  {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
-  {label: 'Sites', icon: LandPlotIcon, link: '/sites', search: {view: 'list'}},
 ];
 
 export const MobileNav = () => (

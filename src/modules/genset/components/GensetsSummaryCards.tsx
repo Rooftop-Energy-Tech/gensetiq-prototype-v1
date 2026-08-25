@@ -121,7 +121,7 @@ export const GensetsSummaryCards = ({
           </div>
         </SummaryCard>
 
-        <SummaryCard label="By zone">
+        <SummaryCard label="By region">
           {/* Chips wrap rather than the card scrolling: seven accounts is a sentence
               you read across, and a scroll area would hide the tail of the estate
               behind an interaction. */}

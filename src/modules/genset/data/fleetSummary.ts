@@ -1,3 +1,4 @@
+import {SITE_POWER_ROLE_LABEL, SITE_POWER_ROLES} from '@/modules/site/types/site.type';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import {CUSTOMERS} from '@/modules/site/data/customers';
 import type {CustomerId} from '@/modules/site/data/customers';
@@ -54,21 +55,27 @@ export type FleetSummary = {
   /** Distinct sites with at least one set standing on them. Not the estate's size. */
   siteCount: number;
   depotCount: number;
-  byRole: Array<Tally<SitePowerRole | 'DEPOT'>>;
+  byRole: Array<Tally<SitePowerRole | 'WORKSHOP'>>;
   /** The four buckets, worst first — see `fleetStatus.ts`. Always all four. */
   byStatus: Array<Tally<FleetStatus>>;
   /** Customers with at least one set, in roster order. Depot last, if occupied. */
-  byCustomer: Array<Tally<CustomerId | 'DEPOT'>>;
+  byCustomer: Array<Tally<CustomerId | 'WORKSHOP'>>;
 };
 
-const ROLE_LABEL: Record<SitePowerRole, string> = {STANDBY: 'Standby', PRIME: 'Prime'};
+const ROLE_LABEL = SITE_POWER_ROLE_LABEL;
 
 export const fleetSummary = (
   gensets: Array<Genset>,
   roles: Record<string, SitePowerRole>,
 ): FleetSummary => {
-  const roleCounts: Record<string, number> = {STANDBY: 0, PRIME: 0, DEPOT: 0};
-  const customerCounts = new Map<CustomerId | 'DEPOT', number>();
+  const roleCounts: Record<string, number> = {
+    GRID_BACKUP: 0,
+    DIESEL_PRIME: 0,
+    DIESEL_HYBRID: 0,
+    SOLAR_HYBRID: 0,
+    WORKSHOP: 0,
+  };
+  const customerCounts = new Map<CustomerId | 'WORKSHOP', number>();
   const statusCounts: Record<FleetStatus, number> = {EMPTY: 0, ALARM: 0, REFUEL: 0, OK: 0};
   const sites = new Set<string>();
 
@@ -76,27 +83,30 @@ export const fleetSummary = (
     if (genset.siteId !== null) sites.add(genset.siteId);
 
     const role = gensetPowerRole(genset, roles);
-    roleCounts[role ?? 'DEPOT'] += 1;
+    roleCounts[role ?? 'WORKSHOP'] += 1;
 
-    const account = gensetCustomer(genset) ?? 'DEPOT';
+    const account = gensetCustomer(genset) ?? 'WORKSHOP';
     customerCounts.set(account, (customerCounts.get(account) ?? 0) + 1);
 
     statusCounts[gensetStatus(genset)] += 1;
   }
 
-  const depotCount = roleCounts.DEPOT;
+  const workshopCount = roleCounts.WORKSHOP;
 
   return {
     total: gensets.length,
     siteCount: sites.size,
-    depotCount,
-    // Empty buckets are dropped rather than shown as zero. "Depot 0" is a row that
-    // never says anything on a fleet that is fully deployed, and a card whose
+    depotCount: workshopCount,
+    // Empty buckets are dropped rather than shown as zero. "Workshop 0" is a row
+    // that never says anything on an estate that is fully fitted, and a card whose
     // shape changes with the data reads faster than one padded to a fixed height.
     byRole: [
-      {key: 'STANDBY' as const, label: ROLE_LABEL.STANDBY, count: roleCounts.STANDBY},
-      {key: 'PRIME' as const, label: ROLE_LABEL.PRIME, count: roleCounts.PRIME},
-      {key: 'DEPOT' as const, label: 'Depot', count: depotCount},
+      ...SITE_POWER_ROLES.map((role) => ({
+        key: role as SitePowerRole | 'WORKSHOP',
+        label: ROLE_LABEL[role],
+        count: roleCounts[role],
+      })),
+      {key: 'WORKSHOP' as SitePowerRole | 'WORKSHOP', label: 'Workshop', count: workshopCount},
     ].filter((tally) => tally.count > 0),
     // Every bucket is kept, zero or not. Unlike the role and customer rows, these
     // four are a fixed scale a reader learns once — dropping "Tank empty" on a good
@@ -108,11 +118,11 @@ export const fleetSummary = (
     })),
     byCustomer: [
       ...CUSTOMERS.map((account) => ({
-        key: account.id as CustomerId | 'DEPOT',
+        key: account.id as CustomerId | 'WORKSHOP',
         label: account.shortName,
         count: customerCounts.get(account.id) ?? 0,
       })),
-      {key: 'DEPOT' as const, label: 'Depot', count: customerCounts.get('DEPOT') ?? 0},
+      {key: 'WORKSHOP' as const, label: 'Workshop', count: customerCounts.get('WORKSHOP') ?? 0},
     ].filter((tally) => tally.count > 0),
   };
 };

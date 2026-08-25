@@ -67,7 +67,7 @@ export type Genset = {
   fuelLitres: number;
   fuelCapacityLitres: number;
   /**
-   * The site this unit is installed at, e.g. `ppu-001` — or `null` when it is in
+   * The site this unit is installed at, e.g. `wpkl-0207` — or `null` when it is in
    * the depot, owned but not deployed.
    *
    * The relationship is held **here rather than as a member list on the site**, and

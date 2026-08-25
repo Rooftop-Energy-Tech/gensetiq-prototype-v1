@@ -22,7 +22,7 @@ import {SITE_SEED, siteSeed} from './siteSeed';
  *
  * ## Why only overrides are stored
  *
- * Every site defaults to `STANDBY`, which is what the whole app assumed before this
+ * Every site defaults to `GRID_BACKUP`, which is what the whole app assumed before this
  * setting existed — so a fresh browser renders exactly the screens the design was
  * drawn against, and clearing site data restores them. Only sites a reader has
  * actually changed take up a key, which also means adding a site to `SITE_SEED`
@@ -41,7 +41,7 @@ const STORAGE_KEY = 'gensetiq.siteConfig';
 /**
  * What a site is until somebody says otherwise: **whatever its seed says.**
  *
- * This used to be the constant `STANDBY`, on the grounds that the fleet's own data
+ * This used to be the constant `GRID_BACKUP`, on the grounds that the fleet's own data
  * says standby throughout — every set's activity feed is written around utility
  * outages. That held while the role only chose which single-line diagram to draw.
  * It stopped holding when the fleet summary began counting by it: a blanket default
@@ -50,13 +50,13 @@ const STORAGE_KEY = 'gensetiq.siteConfig';
  *
  * So the default is per-site and lives in `siteSeed.ts` with the other facts about
  * the place, and the seam it opens is the one `SitePowerRole` already describes and
- * accepts: a set at a seeded-`PRIME` yard still logs "started on utility outage",
+ * accepts: a set at a seeded-`DIESEL_PRIME` yard still logs "started on utility outage",
  * because that feed is the machine's history and this setting does not rewrite it.
  *
- * An id with no seed behind it falls back to `STANDBY` — the app's original
+ * An id with no seed behind it falls back to `GRID_BACKUP` — the app's original
  * assumption, and the safe reading for a site we know nothing about.
  */
-export const FALLBACK_POWER_ROLE: SitePowerRole = 'STANDBY';
+export const FALLBACK_POWER_ROLE: SitePowerRole = 'GRID_BACKUP';
 
 export const seededPowerRole = (siteId: string): SitePowerRole =>
   siteSeed(siteId)?.powerRole ?? FALLBACK_POWER_ROLE;

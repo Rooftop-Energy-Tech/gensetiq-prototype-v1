@@ -1,10 +1,12 @@
 import {Link, useNavigate} from '@tanstack/react-router';
 import {Suspense, lazy, useMemo, useState} from 'react';
-import {FuelIcon, TruckIcon, WrenchIcon} from 'lucide-react';
+import {BatteryChargingIcon, FuelIcon, SunMediumIcon, WrenchIcon} from 'lucide-react';
+import type {LucideIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
 import {useIsCompact} from '@/lib/useIsCompact';
-import {allDeployments} from '@/modules/genset/data/deployments';
+import {estateEnergy} from '@/modules/site/data/hybrid';
+import {estateEconomics, payback, ringgit} from '@/modules/site/data/economics';
 import {FLEET_STATUSES, STATUS_META, gensetStatus} from '@/modules/genset/data/fleetStatus';
 import type {FleetStatus, StatusTone} from '@/modules/genset/data/fleetStatus';
 import {REFUEL_ORDERS} from '@/modules/genset/data/refuelOrders';
@@ -17,31 +19,42 @@ import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
 import {siteSearch} from '@/modules/site/types/view.type';
 
 /**
- * `/overview` — the screen the app opens on, and an overview **of a mobile fleet**.
+ * `/overview` — the screen the app opens on, and an overview **of a permanent
+ * estate**.
  *
- * It exists because the two list screens answered the wrong question first. A fleet
- * manager arriving in the morning is asking three things, in order: *is everything
- * that is out there working*, *what is out there and where*, and *what does today's
- * tanker run owe*. A list makes them read thirty-seven rows to find that out.
+ * It exists because the two list screens answered the wrong question first. A
+ * network power team arriving in the morning is asking three things, in order: *is
+ * every site up*, *is the hybrid programme working*, and *where are they*. A list
+ * makes them read twenty-five rows to find that out.
  *
  * So the page is those three questions, as three bands: **readiness** (the four
- * worst-wins buckets across the whole fleet), **the dispatch position** (postings
- * open, the record behind them, the refuel orders outstanding), and **where** (the map).
- * The stationary product cuts readiness by how each yard is fed — standby against
- * an incomer, prime with none — but for a fleet whose machines *move*, the posting
- * is the organising fact and the duty split is a site detail, read on the site's
- * own page.
+ * worst-wins buckets across the estate), **energy** (what carried the load and
+ * what the plant saved), and **where** (the map).
  *
- * **Sites in the readiness tiles.** A yard is what somebody drives to. The genset
+ * ## Why the middle band is energy and not dispatch
+ *
+ * The mobile-fleet build puts the *dispatch position* here — postings open,
+ * machines moved this week, tanker runs owed — because on a fleet of hire sets
+ * that is the morning's work. Nothing moves on this estate. A genset is bolted to
+ * a plinth beside the tower it feeds and has been for years, so "how many moved
+ * this week" is a tile that reads zero every day, and a tile that never changes
+ * teaches a reader to stop looking at the row it is in.
+ *
+ * What replaces it is the question this estate actually has: sites are being
+ * converted from diesel prime to hybrid one at a time, and somebody has to be able
+ * to say whether it is paying. The refuel figure stays, because a tanker to Kapit
+ * is still the largest single thing this team organises.
+ *
+ * **Sites in the readiness tiles.** A site is what somebody drives to. The genset
  * figure sits under it because two dry sets at one site is one journey and two
  * jobs, and a site count alone cannot say which of those you are looking at.
  *
  * Every number on this page is a link into the screen that shows its working —
- * `/sites` for the buckets, `/deployment` and `/refuel` for the dispatch band —
- * so there is no figure here the reader cannot go and check.
+ * `/sites` for the buckets, `/energy` and `/refuel` for the middle band — so there
+ * is no figure here the reader cannot go and check.
  *
  * **At phone width the map is withheld and the tiles are the whole screen.** Not a
- * shrunken map: a 375px basemap of Sabah puts Semporna and Kudat within a thumb's
+ * shrunken map: a 375px basemap of Malaysia puts Kapit and Ipoh within a thumb's
  * width of each other, so panning and pinching become the only way to read it. The
  * counts are what a phone is good for here.
  */
@@ -170,21 +183,21 @@ const ServiceTile = ({gensetCount, siteCount}: {gensetCount: number; siteCount: 
 };
 
 /**
- * One dispatch figure, linked to the page that holds its record.
+ * One figure from the middle band, linked to the page that shows its working.
  *
  * The same tile grammar as the readiness grid — number, label, detail line — so
- * the two bands read as one page. No status dot: these are counts of work in
- * hand, not verdicts, and a colour would rank what is only a tally.
+ * the two bands read as one page. No status dot: these are quantities, not
+ * verdicts, and a colour would rank what is only a tally.
  */
-const DispatchTile = ({
+const EnergyTile = ({
   to,
   icon: Icon,
   label,
   value,
   detail,
 }: {
-  to: '/deployment' | '/refuel';
-  icon: typeof TruckIcon;
+  to: '/energy' | '/refuel';
+  icon: LucideIcon;
   label: string;
   value: string;
   detail: string;
@@ -287,21 +300,26 @@ export const OverviewPage = () => {
   const gensetCount = summaries.reduce((running, summary) => running + summary.gensets.length, 0);
   const needingAttention = summaries.filter((summary) => siteStatus(summary) !== 'OK').length;
 
-  // The dispatch position, from the same records its two pages list.
-  const deployments = useMemo(() => allDeployments(), []);
-  const ongoing = deployments.filter((deployment) => deployment.endedAt === null);
-  const completed = deployments.length - ongoing.length;
-  const WEEK = 7 * 24 * 3_600_000;
-  const movedThisWeek = ongoing.filter(
-    (deployment) => now - new Date(deployment.startedAt).getTime() <= WEEK,
-  ).length;
+  // The energy position, from the same model the energy screen tabulates. The
+  // nameplate map is what makes the fuel curve real — see `hybrid.ts` — so it is
+  // built here rather than assumed there.
+  const ratedKwBySite = useMemo(
+    () =>
+      Object.fromEntries(
+        summaries.map((summary) => [summary.site.id, summary.ratedKw]),
+      ) as Record<string, number>,
+    [summaries],
+  );
+  const energy = useMemo(() => estateEnergy(roles, ratedKwBySite), [roles, ratedKwBySite]);
+  const money = useMemo(() => estateEconomics(roles, ratedKwBySite), [roles, ratedKwBySite]);
+
   const outstandingOrders = REFUEL_ORDERS.filter((order) => order.refueledAt === null);
   const litresOwed = outstandingOrders.reduce((sum, order) => sum + order.litres, 0);
-  // The completed side of the same log. `litres` on a completed order is the
-  // delivery the fuel ladder already draws — see `refuelOrders.ts` — so this total
-  // is the diesel that actually went into tanks, not what was booked for them.
+  // The completed side of the same log — a count only. It used to carry its litres
+  // as well, and the pair had to go when the fourth tile became the saving: a band
+  // that spends half its width on the tanker run, on an estate whose interesting
+  // question is what the plant displaced, is weighted for the wrong product.
   const completedOrders = REFUEL_ORDERS.filter((order) => order.refueledAt !== null);
-  const litresDelivered = completedOrders.reduce((sum, order) => sum + order.litres, 0);
 
   const customerName = (id: string) =>
     CUSTOMERS.find((account) => account.id === id)?.name ?? id;
@@ -330,8 +348,8 @@ export const OverviewPage = () => {
           </span>
         </p>
         <p className="text-sm text-secondary">
-          {ongoing.length} deployed across {summaries.length}{' '}
-          {summaries.length === 1 ? 'site' : 'sites'}
+          across {summaries.length} {summaries.length === 1 ? 'site' : 'sites'},{' '}
+          {energy.hybridSites} of them hybrid
         </p>
         <p className="text-sm text-secondary">
           {needingAttention === 0
@@ -344,7 +362,7 @@ export const OverviewPage = () => {
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <h2 className="text-sm font-medium text-primary">Readiness</h2>
           <p className="text-xs text-tertiary">
-            Every deployed genset, by what needs doing. The first four are
+            Every genset on the estate, by what needs doing. The first four are
             worst-wins and add up to the fleet; service is counted across them, so
             a genset can appear in both
           </p>
@@ -361,49 +379,56 @@ export const OverviewPage = () => {
         </div>
       </section>
 
-      <section aria-label="Dispatch" className="flex min-w-0 flex-col gap-2">
+      <section aria-label="Energy" className="flex min-w-0 flex-col gap-2">
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <h2 className="text-sm font-medium text-primary">Dispatch</h2>
+          <h2 className="text-sm font-medium text-primary">Energy</h2>
           <p className="text-xs text-tertiary">
-            What is out, what has moved, and what the tanker run owes
+            Thirty days across every site with no grid connection, and what the tanker
+            run owes
           </p>
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <DispatchTile
-            to="/deployment"
-            icon={TruckIcon}
-            label="Deployed now"
-            value={String(ongoing.length)}
-            detail={
-              movedThisWeek === 0
-                ? 'none moved this week'
-                : `${movedThisWeek} moved this week`
-            }
+          <EnergyTile
+            to="/energy"
+            icon={SunMediumIcon}
+            label="Solar share"
+            value={`${Math.round(energy.solarShare * 100)}%`}
+            detail={`${Math.round(energy.solarKwh).toLocaleString('en-MY')} kWh generated`}
           />
-          <DispatchTile
-            to="/deployment"
-            icon={TruckIcon}
-            label="Completed deployments"
-            value={String(completed)}
-            detail="last 60 days"
+          <EnergyTile
+            to="/energy"
+            icon={BatteryChargingIcon}
+            label="Diesel displaced"
+            value={`${Math.round(energy.displacedLitres).toLocaleString('en-MY')} L`}
+            detail={`${energy.hybridSites} hybrid ${
+              energy.hybridSites === 1 ? 'site' : 'sites'
+            } · ${energy.dieselSites} still on diesel`}
           />
-          <DispatchTile
+          {/* The money, once, and at the level a morning actually needs it: a rate
+              and a payback. The rate build-up, the site-by-site case and the
+              quotation for the sites still on diesel are all a click away, which is
+              the same rule the readiness tiles follow — a figure here, its working
+              on the screen it links to. */}
+          <EnergyTile
+            to="/energy"
+            icon={BatteryChargingIcon}
+            label="Saving a year"
+            value={ringgit(money.annualSavingRm)}
+            detail={`${payback(money.paybackYears)} payback · ${Math.round(
+              money.roiToDate * 100,
+            )}% ROI to date`}
+          />
+          <EnergyTile
             to="/refuel"
             icon={FuelIcon}
             label="Refuel order outstanding"
             value={String(outstandingOrders.length)}
-            detail={`${litresOwed.toLocaleString('en-MY')} L to deliver`}
-          />
-          <DispatchTile
-            to="/refuel"
-            icon={FuelIcon}
-            label="Refuels completed"
-            value={String(completedOrders.length)}
-            // Litres first, matching the outstanding tile beside it: the two read
-            // as one sentence about the tanker run — what went in, what is still
-            // owed — and putting the window first would bury the figure that pairs.
-            detail={`${litresDelivered.toLocaleString('en-MY')} L delivered · last 60 days`}
+            // Litres first, matching the completed tile: the two read as one
+            // sentence about the tanker run — what is owed, what went in.
+            detail={`${litresOwed.toLocaleString('en-MY')} L to deliver · ${
+              completedOrders.length
+            } completed`}
           />
         </div>
       </section>
@@ -423,8 +448,8 @@ export const OverviewPage = () => {
         {/*
           A fixed height rather than the remaining space: this page scrolls, and a
           map told to fill a scrolling column either collapses to nothing or grows
-          past the viewport. 26rem is enough for Sabah to read at the zoom the
-          estate fits into.
+          past the viewport. 26rem is enough for the peninsula and Borneo to read at
+          the zoom the estate fits into.
         */}
         <div className="h-[26rem] overflow-hidden rounded-md border border-subtle bg-element">
           <Suspense
@@ -446,15 +471,15 @@ export const OverviewPage = () => {
       </section>
       )}
 
-      <section aria-label="By zone" className="flex min-w-0 flex-col gap-2">
+      <section aria-label="By region" className="flex min-w-0 flex-col gap-2">
         <header>
-          <h2 className="text-sm font-medium text-primary">By zone</h2>
+          <h2 className="text-sm font-medium text-primary">By region</h2>
           <p className="text-xs text-tertiary">Sites held, and the plant standing on them</p>
         </header>
 
         {/* A plain row of links rather than tiles: this is a directory, not a
             verdict, and giving it the same weight as the status grids would say the
-            zone matters as much as the fault. */}
+            region matters as much as the fault. */}
         <div className="flex flex-wrap gap-2">
           {estate.byCustomer.map((tally) => (
             <Link

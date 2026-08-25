@@ -7,6 +7,85 @@ A clickable prototype of gensetIQ, built from the
 and the
 [site page](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2478-7187).
 
+## This branch: the CelcomDigi white label
+
+`feat/celcomdigi-demo`, branched off `feat/sesb-demo`. Same product, a different
+customer and, the part that matters, **a different kind of estate**.
+
+The SESB build is a **mobile fleet**: hire sets dropped at an injection point for
+a fortnight, collected, and dropped somewhere else. The organising fact is the
+posting, so the rail leads with Deployment and the overview's middle band is the
+dispatch position.
+
+This one is a **permanent estate**. Twenty-five base stations across Malaysia,
+each with a genset bolted to a plinth beside the tower it feeds, commissioned
+years ago and going nowhere. That single change works through the whole app:
+
+| | SESB | CelcomDigi |
+| --- | --- | --- |
+| Rail leads with | Gensets, then Deployment | **Sites**, then **Energy** |
+| A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
+| `/deployment` screen | the dispatch feed | **gone**, see `Sidebar.tsx` |
+| Overview's middle band | dispatch | **energy and the saving** |
+| Site load | 40–740 kW substations | **3–205 kW**, mostly 4–6 kW towers |
+| Genset plant | 250–1,250 kVA | **15–60 kVA**, two 500/1,000 kVA at the switching centres |
+| Site configurations | standby, prime | **grid-backed, diesel prime, diesel hybrid, solar hybrid** |
+
+### The four configurations
+
+`SitePowerRole` in `site/types/site.type.ts` holds all four, and everything
+downstream reads the three predicates beside it rather than comparing to a
+string. The single-line diagram treats an array and a battery as **rows on the
+bus like any other source**, so a solar hybrid with two sets is the same drawing
+as a diesel-prime site with one, taller.
+
+### The hybrid model, and the money
+
+Two modules, deliberately not one:
+
+- **`site/data/hybrid.ts`** is physics. Load → daily energy → array size →
+  generation → what the genset still owes → litres → what the same site would
+  have burned on diesel alone. Every link derives from the one before it, and the
+  fuel arithmetic reuses `sfcLitresPerKwh`, the same curve the run log and the
+  tank ladder cost their fuel with.
+- **`site/data/economics.ts`** is prices, and takes its shape from **SolarIQ**:
+  what one displaced unit is *actually* worth, savings to date, payback, ROI to
+  date. The substitution is that SolarIQ displaces a bought kilowatt-hour and this
+  displaces a burned litre, including the haulage that makes a litre at Belaga
+  cost most of half as much again as one in Shah Alam. Every price is a mock
+  benchmark in one labelled block at the top of the file.
+
+`/energy` is those two as a table, and prices the sites **still on diesel** as
+though the plant they would get were already there, so the bottom of the list is
+a quotation rather than a row of blanks.
+
+`sfcLitresPerKwh` changed on this branch, and it is the one change that reaches
+back into the shared product. It was a straight line, with the full-load figure
+worsened by 0.4% of itself per point of load given up, and it is now the standard
+two-term fuel model, `litres/kWh = b + a / loadFraction`, with a no-load floor of
+a fifth of the full-load rate. The old line was flat enough that a set idling at
+15% looked only a quarter worse than a properly loaded one; it is roughly twice as
+bad. That region is where this estate lives, and every argument for putting a
+battery beside a 20 kVA genset carrying a 4 kW tower rests on it.
+
+### The seam, stated
+
+`history.ts` deals every genset a run log from a hash of its id and knows nothing
+about arrays or banks, so a solar-hybrid site's genset has a history in which it
+ran like any other machine while the energy screen says it barely ran at all. The
+two models are **not** reconciled, and the rule until they are is that they never
+appear on one screen: `/energy` and the site pages read `hybrid.ts`, the run log
+and the tank chart read `history.ts`.
+
+### Brand
+
+Colours are read off CelcomDigi's own stylesheet: navy `#001871`, bright blue
+`#0064DC`, yellow `#FFE000`. They live in `styles/colors.ts` with a `divergent`
+note on each override, so the Figma drift check reports them as intended. The rail
+mark is their official artwork cropped to the symbol; the login lockup is the full
+one. Yellow earns a token of its own as `solar`, which is both their colour and
+the one a reader expects daylight generation in.
+
 **[docs/how-it-works.md](docs/how-it-works.md) explains what the product is for
 and the concepts it is built on** — genset, site, run, reading, alert, tag, control
 mode, fuel reconciliation and the rest — and the rules between them. Read that before changing behaviour;
@@ -49,7 +128,8 @@ Any email and password gets you in.
 | Meters | `/meters` | The metering estate — 16 devices, where each is fitted and what it reads. Not a Figma frame — see [below](#metering-is-a-device-not-a-number). |
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
 | Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
-| Deployment / Refuel / Settings | `/deployment`, … | Named in the sidebar but not designed — same treatment. |
+| Energy | `/energy` | What carried the load at every off-grid site over thirty days, what the plant saved, and what converting the rest would cost. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
+| Refuel / Settings | `/refuel`, … | Named in the sidebar but not designed — same treatment. |
 
 Getting from the fleet into a genset: click its **name** in the list, or the `→`
 in the preview panel's header. Clicking a row or a map pin still only *selects*
@@ -120,7 +200,7 @@ What changes below `md`:
 
 - **the 94px rail becomes a floating bottom bar** — `components/global/MobileNav.tsx`,
   centred, with the page scrolling underneath it. Two destinations, Gensets and
-  Sites, because those are the two with mobile layouts. Deployment, Meters, Refuel
+  Sites, because those are the two with mobile layouts. Energy, Meters, Refuel
   and Settings are desktop-only here, and a nav item landing on a screen laid out
   for 1,280px is worse than no item. The same rule hides the genset's and site's
   tab strips, where only `Home` is built for a phone. Every route still resolves if
@@ -158,7 +238,8 @@ instead — see `GensetHome` band 1, `SiteHome`'s top band and `SiteGensetRow`.
 ## Relationship to rooftopiq-frontend-v3
 
 Separate app, deliberately: gensetIQ has its own login, its own mark, and a
-completely different sidebar (Gensets / Deployment / Sites / Refuel). Nothing in
+completely different sidebar (Gensets / Deployment / Sites / Refuel; this branch
+ships Overview / Sites / Energy / Gensets / Meters / Refuel). Nothing in
 `rooftopiq-frontend-v3` was touched.
 
 It shares that app's **design system**, though. `src/styles/colors.ts` is lifted

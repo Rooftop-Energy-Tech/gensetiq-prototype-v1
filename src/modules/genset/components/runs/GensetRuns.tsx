@@ -1,7 +1,7 @@
 import {useMemo, useState} from 'react';
 
 import {downloadText} from '@/lib/download';
-import {gensetDeployments} from '../../data/deployments';
+import {gensetInstallations} from '../../data/installations';
 import {gensetDetail} from '../../data/detail';
 import {gensetRuns, historyStart} from '../../data/history';
 import {runsCsv, runsCsvFilename} from '../../data/runsCsv';
@@ -10,7 +10,7 @@ import type {Genset} from '../../types/genset.type';
 import type {RunRange} from '../../types/runsView.type';
 import {clearedRunsRange, runTotals, runsOverlapping, runsRange} from '../../types/runsView.type';
 import type {RunWindow, RunsSearch} from '../../types/runsView.type';
-import {DeploymentPicker} from './DeploymentPicker';
+import {InstallationPicker} from './InstallationPicker';
 import {RunsPanel} from './RunsPanel';
 
 /**
@@ -42,7 +42,7 @@ export const GensetRuns = ({
   // thing the URL can name, and its window is exact — the totals under it have
   // to reconcile with the same posting's row on the dispatch feed, which a
   // day-granular custom range cannot promise.
-  const deployments = useMemo(() => gensetDeployments(genset.id), [genset.id]);
+  const deployments = useMemo(() => gensetInstallations(genset.id), [genset.id]);
   const deployment = deployments.find((candidate) => candidate.id === search.dep);
   const range: RunRange =
     deployment === undefined
@@ -92,7 +92,7 @@ export const GensetRuns = ({
       showAsset={false}
       energyNote={undefined}
       deploymentPicker={
-        <DeploymentPicker
+        <InstallationPicker
           deployments={deployments}
           selectedId={deployment?.id}
           onSelect={(dep) => onSearchChange({...search, from: undefined, to: undefined, dep})}

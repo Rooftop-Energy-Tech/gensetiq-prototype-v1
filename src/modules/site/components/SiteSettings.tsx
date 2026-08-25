@@ -1,4 +1,4 @@
-import {BoomBoxIcon, UtilityPoleIcon} from 'lucide-react';
+import {BatteryChargingIcon, BoomBoxIcon, SunMediumIcon, UtilityPoleIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
@@ -24,11 +24,12 @@ import {SiteMetering} from './SiteMetering';
  *
  * ## What the setting is
  *
- * Whether this yard has a **mains incomer the gensets back up**, or whether the
- * gensets **are** the supply. It is a *display* choice — it selects which circuit
- * the single-line diagram draws — and the copy below says so in as many words,
- * because a control on a page called Settings will otherwise be read as
- * reconfiguring plant. See `SitePowerRole` for where that line is drawn and why.
+ * Which of the estate's four power configurations this site is: grid-backed,
+ * diesel prime, diesel hybrid, or solar hybrid. It is a *display* choice — it
+ * selects which sources the single-line diagram draws onto the bus — and the copy
+ * below says so in as many words, because a control on a page called Settings will
+ * otherwise be read as reconfiguring plant. See `SitePowerRole` for where that
+ * line is drawn and why.
  *
  * ## Why it applies on click, with no Save
  *
@@ -49,17 +50,33 @@ type RoleCopy = {
 };
 
 const ROLE_COPY: Record<SitePowerRole, RoleCopy> = {
-  STANDBY: {
-    label: 'Backup to mains',
+  GRID_BACKUP: {
+    label: 'Grid, backed by genset',
     icon: UtilityPoleIcon,
-    claim: 'There is a mains incomer. The gensets start when it fails and hand the load back when it returns.',
-    effect: 'The diagram draws the mains above the gensets, on its own transfer contactor.',
+    claim:
+      'There is a utility incomer. The genset starts when it fails and hands the load back when it returns.',
+    effect: 'The diagram draws the grid above the gensets, on its own transfer contactor.',
   },
-  PRIME: {
-    label: 'Main power source',
+  DIESEL_PRIME: {
+    label: 'Diesel prime',
     icon: BoomBoxIcon,
-    claim: 'There is no mains supply. The gensets carry the load continuously, and a second set is a spare rather than a backup.',
+    claim:
+      'No incomer and no storage. The genset carries the tower continuously, and a second set is a spare rather than a backup.',
     effect: 'The diagram draws the gensets alone, and a site with none feeding reads as an outage.',
+  },
+  DIESEL_HYBRID: {
+    label: 'Diesel hybrid',
+    icon: BatteryChargingIcon,
+    claim:
+      'No incomer. A battery carries the tower and the genset runs in blocks to recharge it, near its efficient loading rather than idling at what the tower draws.',
+    effect: 'The diagram adds the battery to the bus, above the gensets.',
+  },
+  SOLAR_HYBRID: {
+    label: 'Solar hybrid',
+    icon: SunMediumIcon,
+    claim:
+      'No incomer. Solar carries the day and charges the battery, the battery carries the night, and the genset is the backstop for a run of dull days.',
+    effect: 'The diagram adds the array and the battery to the bus, above the gensets.',
   },
 };
 
@@ -134,16 +151,19 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
             Power configuration
           </h2>
           <p className="max-w-2xl text-sm text-secondary">
-            How {summary.site.name} is fed. This selects the circuit the site page draws — it
-            does not reconfigure a genset, and nothing about how the sets here behave depends
-            on it.
+            How {summary.site.name} is powered. This selects the circuit the site page draws.
+            It does not reconfigure a genset, and nothing about how the sets here behave
+            depends on it.
           </p>
         </div>
 
+        {/* A two-column grid rather than a flex row: four options at `flex-1`
+            each squeeze to a column too narrow for the sentence that makes them
+            worth choosing between. */}
         <div
           role="radiogroup"
           aria-labelledby="power-configuration"
-          className="flex max-w-3xl flex-wrap gap-3"
+          className="grid max-w-3xl gap-3 sm:grid-cols-2"
         >
           {SITE_POWER_ROLES.map((option) => (
             <RoleOption
@@ -181,10 +201,10 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
           {summary.site.name} as {ROLE_COPY[role].label.toLowerCase()}
         </h2>
 
-        {summary.gensets.length === 0 && role === 'PRIME' ? (
+        {summary.gensets.length === 0 && role === 'DIESEL_PRIME' ? (
           <p className="text-sm text-secondary">
             Nothing supplies this site. It is set to run on its own gensets and none are
-            installed.
+            fitted.
           </p>
         ) : (
           <SiteDiagram summary={summary} dutyId={summary.defaultDutyId} role={role} />

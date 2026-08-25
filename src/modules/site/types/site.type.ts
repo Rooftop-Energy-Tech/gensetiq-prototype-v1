@@ -18,35 +18,48 @@ import type {MeterFeed} from '@/modules/meter/types/meter.type';
 import type {CustomerId} from '../data/customers';
 
 /**
- * What kind of network asset the injection point is.
+ * What kind of network asset this site is.
  *
- * Not decoration: it is the reason the site tolerates an outage or doesn't. An
- * intake substation and a rural mini-grid with identical hardware are not
- * equally covered by one working genset, and the kind is the only thing on the
- * page that says so.
+ * Not decoration: it is the reason the site tolerates an outage or doesn't. A
+ * switching centre and a rural coverage site with identical plant are not equally
+ * covered by one working genset — one of them carries traffic for a whole state —
+ * and the kind is the only thing on the page that says so.
+ *
+ * It also sets the scale a reader should expect the load in. A macro base station
+ * is 4–6 kW and a switching centre is a few hundred, so "is 216 kW a lot here" has
+ * no answer without this field.
  */
-export const SITE_KINDS = ['PMU', 'PPU', 'PE', 'FEEDER', 'MINI_GRID'] as const;
+export const SITE_KINDS = ['CORE', 'HUB', 'MACRO', 'RURAL', 'IBS'] as const;
 
 export type SiteKind = (typeof SITE_KINDS)[number];
 
 /**
- * How this yard is fed — and therefore **which circuit the site page draws**.
+ * How this site is powered — and therefore **which circuit the site page draws**.
  *
- * - `STANDBY` — there is a mains incomer, and the gensets back it up. The load
- *   normally sits on the grid; a set picks it up when the grid drops. Every site
- *   in this prototype is this, which is the assumption the whole app was written
- *   under before this setting existed.
- * - `PRIME` — there is no mains incomer. The gensets *are* the supply and carry
- *   the load continuously; a second set at a prime site is a spare, not a backup
- *   to something else.
+ * Four configurations, because this estate genuinely runs four. The mobile-fleet
+ * build had two, mains-backed and genset-only, and adding storage to that
+ * vocabulary as a flag would have produced a fifth state nobody could name.
+ *
+ * - `GRID_BACKUP` — there is a utility incomer, and a genset backs it up. The
+ *   load normally sits on the grid; the set picks it up when the grid drops.
+ *   Town and suburban sites.
+ * - `DIESEL_PRIME` — no incomer, no storage. The genset *is* the supply and runs
+ *   continuously. The oldest configuration on the estate and the one every other
+ *   entry here is measured against.
+ * - `DIESEL_HYBRID` — no incomer. A battery carries the load and the genset runs
+ *   in blocks to recharge it, near its efficient loading rather than idling at
+ *   the 4 kW a tower draws. Fewer engine hours, less diesel, same supply.
+ * - `SOLAR_HYBRID` — no incomer. Solar carries the day and charges the battery,
+ *   the battery carries the night, and the genset is the backstop for a run of
+ *   dull days. The genset is still fitted, which is the point: this is a hybrid,
+ *   not an off-grid solar site.
  *
  * ## This is a display choice, and only a display choice
  *
- * It selects a **layout**: whether the single-line diagram includes a mains
- * source above the gensets. It does not configure a machine, does not command
- * anything, and nothing about how a genset behaves depends on it —
- * `isolatorStateOf` below, the changeover, `defaultDutyId` and every control pad
- * are all untouched by it.
+ * It selects a **layout**: which sources the single-line diagram draws above the
+ * bus. It does not configure a machine, does not command anything, and nothing
+ * about how a genset behaves depends on it — `isolatorStateOf` below, the
+ * changeover, `defaultDutyId` and every control pad are all untouched by it.
  *
  * That boundary is deliberate rather than a shortcut. A control that both redrew
  * a diagram *and* silently changed which sets could take load would be two
@@ -54,13 +67,47 @@ export type SiteKind = (typeof SITE_KINDS)[number];
  * prototype has no business issuing.
  *
  * One visible consequence of holding that line: a set's activity feed is the
- * *machine's* history, so at a site declared `PRIME` it may still read "Engine
- * started on utility outage". The setting redraws the yard; it does not rewrite
- * what the controllers did.
+ * *machine's* history, so at a site declared `SOLAR_HYBRID` it may still read
+ * "Engine started on utility outage". The setting redraws the site; it does not
+ * rewrite what the controllers did.
  */
-export const SITE_POWER_ROLES = ['STANDBY', 'PRIME'] as const;
+export const SITE_POWER_ROLES = [
+  'GRID_BACKUP',
+  'DIESEL_PRIME',
+  'DIESEL_HYBRID',
+  'SOLAR_HYBRID',
+] as const;
 
 export type SitePowerRole = (typeof SITE_POWER_ROLES)[number];
+
+/**
+ * Is there a utility incomer at this site.
+ *
+ * One predicate rather than `role === 'GRID_BACKUP'` at each call site, because
+ * the question every caller is actually asking is "is there a grid here", and
+ * writing it as an equality invites the next configuration to be added by
+ * forgetting one of them. Three of the four have no incomer, and the day a
+ * grid-tied hybrid joins the list this is the only line that changes.
+ */
+export const hasMains = (role: SitePowerRole): boolean => role === 'GRID_BACKUP';
+
+/** Is a battery fitted — the two hybrid configurations, and only those. */
+export const hasBattery = (role: SitePowerRole): boolean =>
+  role === 'DIESEL_HYBRID' || role === 'SOLAR_HYBRID';
+
+/** Is a PV array fitted. */
+export const hasSolar = (role: SitePowerRole): boolean => role === 'SOLAR_HYBRID';
+
+/** Is this one of the two configurations the energy screen has anything to say about. */
+export const isHybrid = (role: SitePowerRole): boolean => hasBattery(role);
+
+/** How the configuration is written in a heading or a chip. */
+export const SITE_POWER_ROLE_LABEL: Record<SitePowerRole, string> = {
+  GRID_BACKUP: 'Grid + genset',
+  DIESEL_PRIME: 'Diesel prime',
+  DIESEL_HYBRID: 'Diesel hybrid',
+  SOLAR_HYBRID: 'Solar hybrid',
+};
 
 /**
  * The mains incomer, as its meter reports it.
@@ -97,9 +144,9 @@ export type MainsSupply = {
 };
 
 export type Site = {
-  /** e.g. `ppu-001`. Matches `Genset.siteId`. */
+  /** e.g. `wpkl-0207`. Matches `Genset.siteId`. */
   id: string;
-  /** e.g. `PPU-001` — the label the design puts in the header. */
+  /** e.g. `WPKL-0207` — the label the design puts in the header. */
   name: string;
   kind: SiteKind;
   /** Shared by every genset here, because they stand in the same yard. */
@@ -118,7 +165,7 @@ export type Site = {
   /**
    * Whose yard this is — see `data/customers.ts`.
    *
-   * On the site and not on the genset, which is what makes "how many sets at Maxis"
+   * On the site and not on the genset, which is what makes "how many sets in Sarawak"
    * answerable without a machine having to carry an owner around with it.
    *
    * The **power role is deliberately not here.** It is seeded beside this one, but a

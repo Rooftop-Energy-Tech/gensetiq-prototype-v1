@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {ArrowRightIcon, PlugZapIcon, UtilityPoleIcon} from 'lucide-react';
+import {ArrowRightIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
 import {Badge} from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import type {GensetCondition} from '@/modules/genset/types/alert.type';
 import {SITE_KIND_LABEL, siteFeed} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 import {useSitePowerRole} from '../data/siteConfig';
+import {supplyMeta} from './supplyMeta';
 
 const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
   <div className="flex items-center gap-px">
@@ -47,14 +48,7 @@ const SupplyBadge = ({summary}: {summary: SiteSummary}) => {
   const role = useSitePowerRole(summary.site.id);
   const feed = siteFeed(summary, summary.defaultDutyId, role);
 
-  const supply =
-    feed.source === 'MAINS'
-      ? {label: 'On mains', icon: UtilityPoleIcon, live: true}
-      : feed.source === 'GENSET'
-        ? {label: 'On generator', icon: PlugZapIcon, live: true}
-        : // Both roles reach this and it is an outage in both — the grid is down and
-          // no set picked the load up, or there is no grid and nothing is generating.
-          {label: 'Not served', icon: PlugZapIcon, live: false};
+  const supply = supplyMeta(feed, role, summary.gensets.length);
 
   const SupplyIcon = supply.icon;
 

@@ -1,7 +1,7 @@
 import {useMemo, useState} from 'react';
 
 import {relativeTime} from '@/lib/format';
-import {gensetDeployments} from '../../../data/deployments';
+import {gensetInstallations} from '../../../data/installations';
 import {PLOTTABLE_READING_KEYS} from '../../../data/detail';
 import type {GensetDetail} from '../../../data/detail';
 import {gensetRuns, historyStart, readingSeries, runsInWindow} from '../../../data/history';
@@ -16,7 +16,7 @@ import {
   toggleKey,
 } from '../../../types/analysisView.type';
 import type {AnalysisSearch, AnalysisWindow} from '../../../types/analysisView.type';
-import {DeploymentPicker} from '../../runs/DeploymentPicker';
+import {InstallationPicker} from '../../runs/InstallationPicker';
 import {RangePicker} from './RangePicker';
 import {SeriesPicker} from './SeriesPicker';
 import {TimeSeriesChart} from './TimeSeriesChart';
@@ -53,7 +53,7 @@ export const GensetAnalysis = ({
   const [now] = useState(() => Date.now());
 
   const runs = useMemo(() => gensetRuns(genset.id), [genset.id]);
-  const deployments = useMemo(() => gensetDeployments(genset.id), [genset.id]);
+  const deployments = useMemo(() => gensetInstallations(genset.id), [genset.id]);
   const keys = selectedKeys(search);
   const earliest = historyStart();
   const range = analysisRange(search, runs, now, earliest, deployments);
@@ -107,7 +107,7 @@ export const GensetAnalysis = ({
             onRunChange={(run) => onSearchChange({...clearedRange(search), run})}
             onCustomChange={(from, to) => onSearchChange({...clearedRange(search), from, to})}
           />
-          <DeploymentPicker
+          <InstallationPicker
             deployments={deployments}
             selectedId={range.kind === 'deployment' ? search.dep : undefined}
             onSelect={(dep) => onSearchChange({...clearedRange(search), dep})}

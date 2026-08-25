@@ -5,6 +5,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, fuelHeadline} from '@/lib/format';
 import {SITE_KIND_LABEL} from '../data/sites';
 import {useSitePowerRole} from '../data/siteConfig';
+import {supplyLabel} from './supplyMeta';
 import type {SiteSummary} from '../data/sites';
 
 /**
@@ -66,13 +67,11 @@ export const SiteDetailShell = ({summary}: {summary: SiteSummary}) => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="flex flex-col gap-1">
                 <span>Load · {SITE_KIND_LABEL[site.kind]}</span>
-                {/* Above the genset count on purpose: whether the yard has a mains
-                    incomer decides what "2 installed" is *for*. Two sets backing up a
-                    grid and two sets that are the grid are different installations. */}
-                <span>
-                  Supply ·{' '}
-                  {role === 'STANDBY' ? 'Mains, backed by gensets' : 'Gensets, no mains supply'}
-                </span>
+                {/* Above the genset count on purpose: how the site is powered
+                    decides what "2 installed" is *for*. Two sets backing up a grid,
+                    two sets that are the grid, and one set that tops up a battery
+                    are three different installations. */}
+                <span>Supply · {supplyLabel(role, gensets.length)}</span>
                 <span>
                   Gensets · {gensets.length} installed, {summary.onlineCount} reporting
                 </span>

@@ -4,7 +4,7 @@ import {CheckIcon, ClockIcon} from 'lucide-react';
 import {Badge} from '@/components/ui/badge';
 import {amount, stampAt} from '@/lib/format';
 import {DEFAULT_RUN_WINDOW} from '../../types/runsView.type';
-import {gensetDeployments} from '../../data/deployments';
+import {gensetInstallations} from '../../data/installations';
 import {gensetRefuelOrders} from '../../data/refuelOrders';
 import type {Genset} from '../../types/genset.type';
 
@@ -21,7 +21,7 @@ import type {Genset} from '../../types/genset.type';
  */
 export const GensetRefuelLog = ({genset}: {genset: Genset}) => {
   const orders = gensetRefuelOrders(genset.id);
-  const deployments = gensetDeployments(genset.id);
+  const deployments = gensetInstallations(genset.id);
 
   const outstanding = orders.filter((order) => order.refueledAt === null);
   const owedLitres = outstanding.reduce((sum, order) => sum + order.litres, 0);

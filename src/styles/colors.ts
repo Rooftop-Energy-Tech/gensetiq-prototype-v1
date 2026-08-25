@@ -25,6 +25,9 @@
  *     than Rooftop Energy's gold `#D1AA51`. This is a deliberate product-level
  *     override of `bg-brand`, recorded in the token's `divergent` field so the
  *     drift check reports it as intended rather than as a defect.
+ *   - a `SOLAR` and a `BATTERY` group are added for the hybrid plant this
+ *     white-label's estate carries. Diesel already had its own hue; solar and
+ *     storage need theirs for the same reason. See each group's own comment.
  *   - a `STATUS` group is added for genset run states — this product needs
  *     state colour in a way the CRM never did. None of it is in the design
  *     system's semantic collection; see the group's own comment.
@@ -87,10 +90,11 @@ const BACKGROUND: ColorMap = {
   // GensetIQ teal — primary accents, brand moments. The IQ mark's accent stroke
   // and the login CTA both use this exact value.
   brand: {
-    // SESB electric blue in the light mode this white-label ships in — the
-    // value their own site's stylesheet names `--electric-blue`. The teal
-    // stays in dark mode, which this build never shows.
-    light: '#0E4393',
+    // CelcomDigi bright blue in the light mode this white-label ships in — the
+    // value their own site's stylesheet names `--colour--cd-bright-blue-500`,
+    // and the fill their primary button carries. The teal stays in dark mode,
+    // which this build never shows.
+    light: '#0064DC',
     dark: '#21B0B0',
     figma: 'bg-brand',
     divergent:
@@ -199,14 +203,20 @@ const BORDER: ColorMap = {
  * of the palette still flips.
  */
 const SIDEBAR: ColorMap = {
-  // SESB blue, the customer's request for this build. A dark surface in the
-  // light mode this app actually ships, hence the mode-invariant foregrounds.
+  // CelcomDigi navy, `--colour--cd-navy-blue-500` in their own stylesheet and
+  // the colour their wordmark is set in. A dark surface in the light mode this
+  // app actually ships, hence the mode-invariant foregrounds.
+  //
+  // Navy rather than the bright blue beside it, deliberately: the rail carries
+  // the brand mark, whose own gradient runs #009BDF → #0064DC, and a rail
+  // painted the mark's own blue would swallow it. Navy is the ground that
+  // gradient was drawn to sit on.
   sidebar: {
-    light: '#0F4586',
-    dark: '#0F4586',
+    light: '#001871',
+    dark: '#001871',
     figma: 'bg-sidebar',
     divergent:
-      "The white-label's rail is SESB blue in both modes, not the design system's #E2E4E9 / #040710. Customer-level override — do not sync this value from Figma's bg-sidebar.",
+      "The white-label's rail is CelcomDigi navy in both modes, not the design system's #E2E4E9 / #040710. Customer-level override — do not sync this value from Figma's bg-sidebar.",
   },
   // Active / hovered nav item. Overlay — layer over the sidebar background.
   'sidebar-highlight': {
@@ -280,6 +290,40 @@ const FUEL: ColorMap = {
 };
 
 /**
+ * Solar — `bg-solar`, `bg-solar-tip`.
+ *
+ * CelcomDigi's own yellow, `--colour--cd-yellow-500` in their stylesheet and the
+ * warm half of their brand mark. It earns the slot twice over: it is the
+ * customer's colour, and yellow is what a reader already expects daylight
+ * generation to be drawn in.
+ *
+ * Distinct in lightness as well as hue from `fuel` and `battery`, because the
+ * energy-mix bar on the overview stacks all three and a monochrome screenshot of
+ * it still has to be readable.
+ */
+const SOLAR: ColorMap = {
+  solar: {light: '#FFE000', dark: '#FFE000', figma: ''},
+  // A step lighter, for the topmost segment of a stacked bar.
+  'solar-tip': {light: '#FFED66', dark: '#FFED66', figma: ''},
+};
+
+/**
+ * Battery — `bg-battery`, `bg-battery-tip`.
+ *
+ * `--colour--celcom-blue` from the same stylesheet, the lighter blue their mark's
+ * gradient starts at. Storage sits between generation and load in the diagram, and
+ * it sits between solar and diesel here.
+ *
+ * It is *not* `brand`: the brand blue is a control colour on this build — the
+ * login CTA, the primary button — and a battery drawn in it would read as
+ * something to click.
+ */
+const BATTERY: ColorMap = {
+  battery: {light: '#009BDF', dark: '#009BDF', figma: ''},
+  'battery-tip': {light: '#4FBCEA', dark: '#4FBCEA', figma: ''},
+};
+
+/**
  * Alert severities — `text-severity-critical`, `text-severity-ok`, …
  *
  * Pinned by the design: the bell and gauge glyphs in the alerts section are
@@ -310,13 +354,13 @@ const SEVERITY: ColorMap = {
 const MISC: ColorMap = {
   // Foreground that sits on `bg-brand`.
   'brand-text': {
-    // White in light mode on this build: the brand ground is SESB's dark
-    // electric blue, and the near-black that sat on the teal disappears on it.
+    // White in light mode on this build: the brand ground is CelcomDigi's
+    // bright blue, and the near-black that sat on the teal disappears on it.
     light: '#FFFFFF',
     dark: '#161D27',
     figma: 'text-brand',
     divergent:
-      "White-label build: text on the brand button must be white on SESB electric blue #0E4393 — do not sync from Figma's text-brand.",
+      "White-label build: text on the brand button must be white on CelcomDigi bright blue #0064DC — do not sync from Figma's text-brand.",
   },
   'scroll-bar': {light: '#9EA6B2', dark: '#4D5561', figma: 'scroll-bar'},
   // Focus ring. Figma carries a single translucent value for both modes —
@@ -364,6 +408,16 @@ export const fuel = (): ColorMap => {
   return FUEL;
 };
 
+/** Solar color tokens (the yellow the hybrid plant's PV is drawn in). */
+export const solar = (): ColorMap => {
+  return SOLAR;
+};
+
+/** Battery color tokens. */
+export const battery = (): ColorMap => {
+  return BATTERY;
+};
+
 /** Alert-severity color tokens. */
 export const severity = (): ColorMap => {
   return SEVERITY;
@@ -382,6 +436,8 @@ const GROUPS: Array<ColorMap> = [
   SIDEBAR,
   STATUS,
   FUEL,
+  SOLAR,
+  BATTERY,
   SEVERITY,
   MISC,
 ];

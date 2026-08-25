@@ -5,11 +5,11 @@ import type {FormEvent} from 'react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {isSignedIn, signIn} from '@/modules/auth/session';
-import {DEFAULT_GENSET_ID} from '@/modules/genset/data/fleet';
-import {gensetSearch} from '@/modules/genset/types/view.type';
+import {DEFAULT_SITE_ID} from '@/modules/site/data/sites';
+import {siteSearch} from '@/modules/site/types/view.type';
 
 import gensetiqWordmark from '@/assets/gensetiq-wordmark-light.svg';
-import sesbLogo from '@/assets/sesb-logo.png';
+import celcomdigiLogo from '@/assets/celcomdigi-logo.svg';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -34,7 +34,9 @@ const LoginPage = () => {
       void navigate({href: redirectTo});
       return;
     }
-    void navigate({to: '/gensets', search: gensetSearch({id: DEFAULT_GENSET_ID})});
+    // Sites, not gensets. On a permanent estate the site is the asset a reader
+    // arrives asking about, and the rail is ordered the same way.
+    void navigate({to: '/sites', search: siteSearch({id: DEFAULT_SITE_ID})});
   };
 
   return (
@@ -46,11 +48,11 @@ const LoginPage = () => {
             inversion (teal "genset", white "IQ") and half of it vanishes here. */}
         <div className="flex flex-col items-center gap-3">
           <img
-            src={sesbLogo}
-            alt="Sabah Electricity"
+            src={celcomdigiLogo}
+            alt="CelcomDigi"
             width={240}
-            height={80}
-            className="h-20 w-60 object-contain"
+            height={74}
+            className="w-60 object-contain"
           />
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-tertiary">Powered by</span>
@@ -110,7 +112,7 @@ export const Route = createFileRoute('/login')({
   beforeLoad: ({search}) => {
     if (!isSignedIn()) return;
     if (search.redirect !== undefined) throw redirect({href: search.redirect});
-    throw redirect({to: '/gensets', search: gensetSearch({id: DEFAULT_GENSET_ID})});
+    throw redirect({to: '/sites', search: siteSearch({id: DEFAULT_SITE_ID})});
   },
   component: LoginPage,
 });

@@ -10,7 +10,9 @@ import {gensetCondition} from '@/modules/genset/data/fuelIntegrity';
 import {meterAt, meters, subscribeMeters} from '@/modules/meter/data/meters';
 import {meteredKw} from '@/modules/meter/types/meter.type';
 import type {MeterFeed, MeterPoint, PowerMeter} from '@/modules/meter/types/meter.type';
+import {hasBattery, hasMains} from '../types/site.type';
 import type {MainsSupply, Site, SitePowerRole} from '../types/site.type';
+import {hybridState} from './hybrid';
 import {SITE_KIND_LABEL, SITE_SEED} from './siteSeed';
 import type {SiteSeed} from './siteSeed';
 
@@ -76,7 +78,7 @@ export type SiteSummary = {
    * two are different kinds of thing: the meter is a **reading**, fixed mock data
    * like a tank level, and the role is a **display choice** a reader can flip at
    * any moment. Every site therefore carries a reading, including one declared
-   * `PRIME` — where it simply goes undrawn, which is what lets the settings page
+   * `DIESEL_PRIME` — where it simply goes undrawn, which is what lets the settings page
    * preview the standby layout without inventing a figure for it.
    */
   mains: MainsSupply;
@@ -128,13 +130,17 @@ export const siteDrawKw = (
  * beside it, which is what keeps a **test run** from reading as an outage.
  *
  * `NONE` is a real state at both kinds of site and means different things at each —
- * at a `PRIME` site, nothing is generating; at a `STANDBY` site, the grid is down
+ * at a `DIESEL_PRIME` site, nothing is generating; at a `GRID_BACKUP` site, the grid is down
  * *and* no set has picked the load up. Both are outages. Callers get to say so in
  * their own words; this only reports that nobody is feeding.
  */
 export type SiteFeed =
   | {source: 'GENSET'; gensetId: string}
   | {source: 'MAINS'}
+  /** The array is making more than the tower draws — it is carrying, and charging. */
+  | {source: 'SOLAR'}
+  /** The bank is carrying: night at a solar site, between blocks at a diesel one. */
+  | {source: 'BATTERY'}
   | {source: 'NONE'};
 
 export const siteFeed = (
@@ -150,9 +156,28 @@ export const siteFeed = (
   // load whether or not anybody measures it, and an earlier version of this required
   // a reading — which made every unmetered site report itself as unserved.
   //
-  // A `PRIME` yard has no incomer to fall back to, which is the whole of what the
-  // role changes.
-  if (role === 'STANDBY' && summary.mains.live) return {source: 'MAINS'};
+  // A site with no incomer has no grid to fall back to, which is the whole of what
+  // `hasMains` changes.
+  if (hasMains(role) && summary.mains.live) return {source: 'MAINS'};
+
+  // Then the hybrid plant, in the order it actually takes precedence: an array
+  // making more than the tower draws is carrying it and charging with the rest,
+  // and otherwise the bank is. Both sit *below* the genset above, which is the
+  // right way round rather than a preference — a set that has been given the load
+  // has it, and a controller that let the bank fight a running genset for the bus
+  // would be a fault, not a strategy.
+  //
+  // The bank is treated as always able to carry. This prototype has no state of
+  // charge history, so a flat bank is a state it cannot reach or represent, and
+  // claiming an outage the model has no evidence for would be worse than the
+  // simplification.
+  if (hasBattery(role)) {
+    const seed = SITE_SEED.find((candidate) => candidate.id === summary.site.id);
+    if (seed !== undefined) {
+      const state = hybridState(seed, role);
+      return state.solarKw > summary.site.loadKw ? {source: 'SOLAR'} : {source: 'BATTERY'};
+    }
+  }
 
   return {source: 'NONE'};
 };
@@ -207,6 +232,11 @@ export const siteLoadKw = (
   const feed = siteFeed(summary, dutyId, role);
   if (feed.source === 'GENSET') return siteDrawKw(summary, dutyId);
   if (feed.source === 'MAINS') return meteredKw(summary.mains.feed);
+  // A hybrid site's converter is an instrument in its own right and reports what
+  // it is putting out, whether that came from the array or the bank. So the site's
+  // own seeded load is a reading here rather than an assumption — unlike the grid,
+  // which needs a meter fitted to it before anybody can say what is flowing.
+  if (feed.source === 'SOLAR' || feed.source === 'BATTERY') return summary.site.loadKw;
   return null;
 };
 
@@ -301,7 +331,7 @@ const buildSummary = (
       longitude: seed.longitude,
       loadKw: seed.loadKw,
       // Whose yard it is. Carried through from the seed rather than derived,
-      // because there is nothing on a diesel engine that says "Maxis".
+      // because there is nothing on a diesel engine that says "Sarawak".
       customer: seed.customer,
     },
     gensets,

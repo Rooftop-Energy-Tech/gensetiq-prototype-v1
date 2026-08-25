@@ -2,7 +2,7 @@ import {useSyncExternalStore} from 'react';
 
 import type {Genset, GensetActivity} from '../types/genset.type';
 import type {ServiceRecord} from '../types/service.type';
-import {gensetDeployments} from './deployments';
+import {gensetInstallations} from './installations';
 import {gensetRefuelOrders} from './refuelOrders';
 
 /**
@@ -20,7 +20,7 @@ import {gensetRefuelOrders} from './refuelOrders';
  *  - **Controller** — the machine's own event stream: starts with their
  *    reason, stops, faults. Seeded in `fleet.ts`, as telemetry would be.
  *  - **Dispatch** — one line when a posting opens, one when it closes, read
- *    off the same `DeploymentSession` rows the dispatch feed lists.
+ *    off the same `Installation` rows the dispatch feed lists.
  *  - **Refuel order** — issue and completion, read off the same orders the
  *    Refuel pages list. The seeded "Refuelled to full" controller line is
  *    dropped in favour of these: two records of one delivery would drift.
@@ -94,25 +94,36 @@ export const useActivityNotes = (): Array<ActivityNote> =>
 
 // ─── The merged log ───────────────────────────────────────────────────────────
 
-const dispatchEntries = (genset: Genset): Array<GensetActivity> =>
-  gensetDeployments(genset.id).flatMap((deployment) => {
+/**
+ * The installation's own two entries: commissioned here, and removed if it ever
+ * was.
+ *
+ * On this estate the first of those is years old and the second has not
+ * happened, so a set's feed opens with one line at the very bottom and nothing
+ * else from this source. That is the correct amount of noise for a fact that
+ * changes once a decade — and it is still worth a line, because "since when has
+ * this machine been the one on this plinth" is the question a fault report
+ * starts with.
+ */
+const installationEntries = (genset: Genset): Array<GensetActivity> =>
+  gensetInstallations(genset.id).flatMap((installation) => {
     const entries: Array<GensetActivity> = [
       {
-        id: `${deployment.id}-open`,
+        id: `${installation.id}-open`,
         kind: 'DEPLOY',
-        message: `Deployed to ${deployment.locationLabel} — carried by ${deployment.lorryPlate}`,
-        at: deployment.startedAt,
-        source: 'Dispatch',
+        message: `Commissioned at ${installation.locationLabel} by ${installation.installer}`,
+        at: installation.startedAt,
+        source: 'Asset register',
       },
     ];
 
-    if (deployment.endedAt !== null) {
+    if (installation.endedAt !== null) {
       entries.push({
-        id: `${deployment.id}-close`,
+        id: `${installation.id}-close`,
         kind: 'DEPLOY',
-        message: `Recalled from ${deployment.locationLabel}`,
-        at: deployment.endedAt,
-        source: 'Dispatch',
+        message: `Removed from ${installation.locationLabel}`,
+        at: installation.endedAt,
+        source: 'Asset register',
       });
     }
 
@@ -185,7 +196,7 @@ export const gensetActivityLog = (
 
   return [
     ...controller,
-    ...dispatchEntries(genset),
+    ...installationEntries(genset),
     ...refuelEntries(genset),
     ...serviceEntries(genset, records),
     ...noteEntries(genset, allNotes),

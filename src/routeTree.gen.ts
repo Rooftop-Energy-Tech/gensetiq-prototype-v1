@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthenticatedDeploymentRouteImport } from './routes/_authenticated/deployment'
+import { Route as AuthenticatedEnergyRouteImport } from './routes/_authenticated/energy'
 import { Route as AuthenticatedGensetsRouteImport } from './routes/_authenticated/gensets'
 import { Route as AuthenticatedMetersRouteImport } from './routes/_authenticated/meters'
 import { Route as AuthenticatedOverviewRouteImport } from './routes/_authenticated/overview'
@@ -24,7 +24,6 @@ import { Route as AuthenticatedSitesSiteIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedGensetsGensetIdIndexRouteImport } from './routes/_authenticated/gensets_.$gensetId.index'
 import { Route as AuthenticatedGensetsGensetIdAlarmsRouteImport } from './routes/_authenticated/gensets_.$gensetId.alarms'
 import { Route as AuthenticatedGensetsGensetIdAnalysisRouteImport } from './routes/_authenticated/gensets_.$gensetId.analysis'
-import { Route as AuthenticatedGensetsGensetIdDeploymentsRouteImport } from './routes/_authenticated/gensets_.$gensetId.deployments'
 import { Route as AuthenticatedGensetsGensetIdEquipmentRouteImport } from './routes/_authenticated/gensets_.$gensetId.equipment'
 import { Route as AuthenticatedGensetsGensetIdRefuelRouteImport } from './routes/_authenticated/gensets_.$gensetId.refuel'
 import { Route as AuthenticatedGensetsGensetIdRunsRouteImport } from './routes/_authenticated/gensets_.$gensetId.runs'
@@ -50,9 +49,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedDeploymentRoute = AuthenticatedDeploymentRouteImport.update({
-  id: '/deployment',
-  path: '/deployment',
+const AuthenticatedEnergyRoute = AuthenticatedEnergyRouteImport.update({
+  id: '/energy',
+  path: '/energy',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedGensetsRoute = AuthenticatedGensetsRouteImport.update({
@@ -113,12 +112,6 @@ const AuthenticatedGensetsGensetIdAnalysisRoute =
   AuthenticatedGensetsGensetIdAnalysisRouteImport.update({
     id: '/analysis',
     path: '/analysis',
-    getParentRoute: () => AuthenticatedGensetsGensetIdRoute,
-  } as any)
-const AuthenticatedGensetsGensetIdDeploymentsRoute =
-  AuthenticatedGensetsGensetIdDeploymentsRouteImport.update({
-    id: '/deployments',
-    path: '/deployments',
     getParentRoute: () => AuthenticatedGensetsGensetIdRoute,
   } as any)
 const AuthenticatedGensetsGensetIdEquipmentRoute =
@@ -185,7 +178,7 @@ const AuthenticatedSitesSiteIdSettingsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/deployment': typeof AuthenticatedDeploymentRoute
+  '/energy': typeof AuthenticatedEnergyRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/meters': typeof AuthenticatedMetersRoute
   '/overview': typeof AuthenticatedOverviewRoute
@@ -196,7 +189,6 @@ export interface FileRoutesByFullPath {
   '/sites/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
-  '/gensets/$gensetId/deployments': typeof AuthenticatedGensetsGensetIdDeploymentsRoute
   '/gensets/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
   '/gensets/$gensetId/refuel': typeof AuthenticatedGensetsGensetIdRefuelRoute
   '/gensets/$gensetId/runs': typeof AuthenticatedGensetsGensetIdRunsRoute
@@ -212,7 +204,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/deployment': typeof AuthenticatedDeploymentRoute
+  '/energy': typeof AuthenticatedEnergyRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/meters': typeof AuthenticatedMetersRoute
   '/overview': typeof AuthenticatedOverviewRoute
@@ -221,7 +213,6 @@ export interface FileRoutesByTo {
   '/sites': typeof AuthenticatedSitesRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
-  '/gensets/$gensetId/deployments': typeof AuthenticatedGensetsGensetIdDeploymentsRoute
   '/gensets/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
   '/gensets/$gensetId/refuel': typeof AuthenticatedGensetsGensetIdRefuelRoute
   '/gensets/$gensetId/runs': typeof AuthenticatedGensetsGensetIdRunsRoute
@@ -239,7 +230,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
-  '/_authenticated/deployment': typeof AuthenticatedDeploymentRoute
+  '/_authenticated/energy': typeof AuthenticatedEnergyRoute
   '/_authenticated/gensets': typeof AuthenticatedGensetsRoute
   '/_authenticated/meters': typeof AuthenticatedMetersRoute
   '/_authenticated/overview': typeof AuthenticatedOverviewRoute
@@ -250,7 +241,6 @@ export interface FileRoutesById {
   '/_authenticated/sites_/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
   '/_authenticated/gensets_/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/_authenticated/gensets_/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
-  '/_authenticated/gensets_/$gensetId/deployments': typeof AuthenticatedGensetsGensetIdDeploymentsRoute
   '/_authenticated/gensets_/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
   '/_authenticated/gensets_/$gensetId/refuel': typeof AuthenticatedGensetsGensetIdRefuelRoute
   '/_authenticated/gensets_/$gensetId/runs': typeof AuthenticatedGensetsGensetIdRunsRoute
@@ -268,7 +258,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/deployment'
+    | '/energy'
     | '/gensets'
     | '/meters'
     | '/overview'
@@ -279,7 +269,6 @@ export interface FileRouteTypes {
     | '/sites/$siteId'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
-    | '/gensets/$gensetId/deployments'
     | '/gensets/$gensetId/equipment'
     | '/gensets/$gensetId/refuel'
     | '/gensets/$gensetId/runs'
@@ -295,7 +284,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/deployment'
+    | '/energy'
     | '/gensets'
     | '/meters'
     | '/overview'
@@ -304,7 +293,6 @@ export interface FileRouteTypes {
     | '/sites'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
-    | '/gensets/$gensetId/deployments'
     | '/gensets/$gensetId/equipment'
     | '/gensets/$gensetId/refuel'
     | '/gensets/$gensetId/runs'
@@ -321,7 +309,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
-    | '/_authenticated/deployment'
+    | '/_authenticated/energy'
     | '/_authenticated/gensets'
     | '/_authenticated/meters'
     | '/_authenticated/overview'
@@ -332,7 +320,6 @@ export interface FileRouteTypes {
     | '/_authenticated/sites_/$siteId'
     | '/_authenticated/gensets_/$gensetId/alarms'
     | '/_authenticated/gensets_/$gensetId/analysis'
-    | '/_authenticated/gensets_/$gensetId/deployments'
     | '/_authenticated/gensets_/$gensetId/equipment'
     | '/_authenticated/gensets_/$gensetId/refuel'
     | '/_authenticated/gensets_/$gensetId/runs'
@@ -375,11 +362,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/deployment': {
-      id: '/_authenticated/deployment'
-      path: '/deployment'
-      fullPath: '/deployment'
-      preLoaderRoute: typeof AuthenticatedDeploymentRouteImport
+    '/_authenticated/energy': {
+      id: '/_authenticated/energy'
+      path: '/energy'
+      fullPath: '/energy'
+      preLoaderRoute: typeof AuthenticatedEnergyRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/gensets': {
@@ -459,13 +446,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedGensetsGensetIdAnalysisRouteImport
       parentRoute: typeof AuthenticatedGensetsGensetIdRoute
     }
-    '/_authenticated/gensets_/$gensetId/deployments': {
-      id: '/_authenticated/gensets_/$gensetId/deployments'
-      path: '/deployments'
-      fullPath: '/gensets/$gensetId/deployments'
-      preLoaderRoute: typeof AuthenticatedGensetsGensetIdDeploymentsRouteImport
-      parentRoute: typeof AuthenticatedGensetsGensetIdRoute
-    }
     '/_authenticated/gensets_/$gensetId/equipment': {
       id: '/_authenticated/gensets_/$gensetId/equipment'
       path: '/equipment'
@@ -542,7 +522,6 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedGensetsGensetIdRouteChildren {
   AuthenticatedGensetsGensetIdAlarmsRoute: typeof AuthenticatedGensetsGensetIdAlarmsRoute
   AuthenticatedGensetsGensetIdAnalysisRoute: typeof AuthenticatedGensetsGensetIdAnalysisRoute
-  AuthenticatedGensetsGensetIdDeploymentsRoute: typeof AuthenticatedGensetsGensetIdDeploymentsRoute
   AuthenticatedGensetsGensetIdEquipmentRoute: typeof AuthenticatedGensetsGensetIdEquipmentRoute
   AuthenticatedGensetsGensetIdRefuelRoute: typeof AuthenticatedGensetsGensetIdRefuelRoute
   AuthenticatedGensetsGensetIdRunsRoute: typeof AuthenticatedGensetsGensetIdRunsRoute
@@ -557,8 +536,6 @@ const AuthenticatedGensetsGensetIdRouteChildren: AuthenticatedGensetsGensetIdRou
       AuthenticatedGensetsGensetIdAlarmsRoute,
     AuthenticatedGensetsGensetIdAnalysisRoute:
       AuthenticatedGensetsGensetIdAnalysisRoute,
-    AuthenticatedGensetsGensetIdDeploymentsRoute:
-      AuthenticatedGensetsGensetIdDeploymentsRoute,
     AuthenticatedGensetsGensetIdEquipmentRoute:
       AuthenticatedGensetsGensetIdEquipmentRoute,
     AuthenticatedGensetsGensetIdRefuelRoute:
@@ -603,7 +580,7 @@ const AuthenticatedSitesSiteIdRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedDeploymentRoute: typeof AuthenticatedDeploymentRoute
+  AuthenticatedEnergyRoute: typeof AuthenticatedEnergyRoute
   AuthenticatedGensetsRoute: typeof AuthenticatedGensetsRoute
   AuthenticatedMetersRoute: typeof AuthenticatedMetersRoute
   AuthenticatedOverviewRoute: typeof AuthenticatedOverviewRoute
@@ -615,7 +592,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedDeploymentRoute: AuthenticatedDeploymentRoute,
+  AuthenticatedEnergyRoute: AuthenticatedEnergyRoute,
   AuthenticatedGensetsRoute: AuthenticatedGensetsRoute,
   AuthenticatedMetersRoute: AuthenticatedMetersRoute,
   AuthenticatedOverviewRoute: AuthenticatedOverviewRoute,

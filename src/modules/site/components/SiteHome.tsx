@@ -75,15 +75,16 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
       >
         <SiteSummaryPanel summary={summary} dutyId={dutyId} role={role} />
 
-        {/* An empty **standby** site still has a circuit, and it is worth drawing:
-            mains straight to the load says "on the grid, no plant installed", which
-            is a real and reassuring state. An empty **prime** site has no incomer and
-            no machines, so there is nothing to draw — the diagram would be a load box
-            with a conductor arriving from nowhere. */}
-        {summary.gensets.length === 0 && role === 'PRIME' ? (
+        {/* A **grid-backed** site with no set still has a circuit, and it is worth
+            drawing: mains straight to the load says "on the grid, no plant fitted",
+            which is a real and reassuring state. So does a **hybrid** — the array and
+            the bank are still there and still carrying. A **diesel-prime** site with
+            no set has no incomer and no machines, so there is nothing to draw: the
+            diagram would be a load box with a conductor arriving from nowhere. */}
+        {summary.gensets.length === 0 && role === 'DIESEL_PRIME' ? (
           <p className="max-w-sm text-sm text-secondary">
             Nothing supplies this site. It is set to run on its own gensets and none are
-            installed.
+            fitted.
           </p>
         ) : (
           // Handed straight to the band, with nothing wrapped around it: the diagram
