@@ -1,5 +1,7 @@
 import {z} from 'zod';
 
+import {solarRangeSchema} from './range.type';
+
 /**
  * How the arrays are listed: as **cards** with a chart each, or as a **table**.
  *
@@ -50,6 +52,9 @@ export const solarSearchSchema = z.object({
   q: z.string().optional().catch(undefined),
   /** How many cards are shown. Absent is the first page. */
   shown: z.number().int().positive().optional().catch(undefined),
+  // The chart's period, in the URL like everything else here, so a colleague
+  // sent "the July dip" opens the same window rather than the default one.
+  ...solarRangeSchema,
 });
 
 export type SolarSearch = z.infer<typeof solarSearchSchema>;

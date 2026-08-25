@@ -15,12 +15,14 @@ import {
   solarRecent,
   solarYear,
 } from '@/modules/site/data/hybrid';
+import {estateSeries, resolveRange} from './data/series';
+import {SolarRangeTabs} from './components/SolarRangeTabs';
+import {DEFAULT_SOLAR_RANGE} from './types/range.type';
 import type {SolarMonth, SolarYear} from '@/modules/site/data/hybrid';
 import {useSiteSummaries} from '@/modules/site/data/sites';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
 import type {SiteSummary} from '@/modules/site/data/sites';
-import {siteSearch} from '@/modules/site/types/view.type';
 import {SOLAR_CARD_THRESHOLD, SOLAR_PAGE, SOLAR_VIEWS} from './types/view.type';
 import type {SolarSearch, SolarView} from './types/view.type';
 
@@ -134,18 +136,24 @@ const share = (year: SolarYear): number =>
 /**
  * One array as a card: the twelve months, and the two figures that read it.
  *
- * The card links into the site rather than opening something here. Everything a
- * reader wants after seeing a short array — the plant, the battery, the genset
- * that has been covering for it, its runs — is on that page already, and a second
- * detail surface here would be a copy of it.
+ * The card links **into the site's own page**, not into the sites list with that
+ * row selected. The list hop was there because `/energy` inherited it from the
+ * map, where a pin has nowhere to put a link and selecting into a panel is the
+ * only way in. Nothing on this page is a pin. A reader who has picked an array
+ * out of a list of arrays has already chosen; sending them to a second list to
+ * choose again is a step that asks the same question twice.
+ *
+ * Everything they want next — the plant, the battery, the genset that has been
+ * covering for it, its runs, and this array's own twelve months — is on that page
+ * already, which is why there is no detail surface here.
  */
 const ArrayCard = ({row}: {row: ArrayRow}) => {
   const short = isShort(row);
 
   return (
     <Link
-      to="/sites"
-      search={siteSearch({id: row.summary.site.id, panel: true})}
+      to="/sites/$siteId"
+      params={{siteId: row.summary.site.id}}
       className={cn(
         'flex min-w-0 flex-col gap-2 rounded-md border bg-element px-3 py-3 transition-colors outline-none',
         'hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline',
@@ -231,8 +239,8 @@ const ArrayTable = ({rows}: {rows: Array<ArrayRow>}) => (
             <tr key={row.summary.site.id}>
               <td className="h-13 truncate border-b border-subtle p-2 font-medium">
                 <Link
-                  to="/sites"
-                  search={siteSearch({id: row.summary.site.id, panel: true})}
+                  to="/sites/$siteId"
+                  params={{siteId: row.summary.site.id}}
                   className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                 >
                   {row.summary.site.name}
@@ -316,6 +324,32 @@ export const SolarPage = ({
   const estateMonths = useMemo(() => estateSolarMonths(roles, now), [roles, now]);
   const estateYear = useMemo(() => solarYear(estateMonths), [estateMonths]);
   const estateRecent = useMemo(() => solarRecent(estateMonths), [estateMonths]);
+
+  /**
+   * The portfolio chart's own window.
+   *
+   * Only the chart moves with it. The five tiles above stay on the twelve months
+   * whatever the chart is showing, and that is deliberate rather than an
+   * oversight: they are the estate's *position*, which does not become a
+   * different fact because somebody looked at last week. A tile row that
+   * rewrote itself under a chart control would make "91% of design" a figure the
+   * reader has to check the tab strip to interpret.
+   */
+  const chartRange = search.range ?? DEFAULT_SOLAR_RANGE;
+  const resolved = useMemo(
+    () => resolveRange(chartRange, search.from, search.to, now),
+    [chartRange, search.from, search.to, now],
+  );
+  const chartSeries = useMemo(
+    () => estateSeries(roles, resolved, now),
+    [roles, resolved, now],
+  );
+
+  /** The oldest day the model has, so the calendar cannot be walked past it. */
+  const earliest = useMemo(() => {
+    const first = estateMonths[0];
+    return first === undefined ? now : new Date(first.at).getTime();
+  }, [estateMonths, now]);
 
   const installedKwp = rows.reduce((sum, row) => sum + row.kwp, 0);
   const short = rows.filter(isShort);
@@ -407,16 +441,40 @@ export const SolarPage = ({
       </section>
 
       <section aria-label="Portfolio generation" className="flex min-w-0 flex-col gap-2">
-        <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <h2 className="text-sm font-medium text-primary">Portfolio</h2>
-          <p className="text-xs text-tertiary">
-            Every array summed, against the P50 each was bought on. Monthly is the design's own
-            resolution. The running month is hatched and counts towards nothing
-          </p>
+        <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <h2 className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-primary">
+              Portfolio
+              <span className="text-xs font-normal text-tertiary">{resolved.caption}</span>
+            </h2>
+            <p className="text-xs text-tertiary">
+              {resolved.benchmark
+                ? 'Every array summed, against the P50 each was bought on. The running month is hatched and counts towards nothing'
+                : 'Every array summed. A design P50 is a monthly figure, so a window this short has none to measure against. Generation on its own'}
+            </p>
+          </div>
+
+          <SolarRangeTabs
+            range={chartRange}
+            from={search.from}
+            to={search.to}
+            earliest={earliest}
+            now={now}
+            onRangeChange={(next) => onSearchChange({...search, range: next})}
+            onCustomChange={(from, to) =>
+              onSearchChange({...search, range: 'custom', from, to})
+            }
+          />
         </header>
 
         <div className="rounded-md border border-subtle bg-element px-3 py-3">
-          <SolarYieldChart months={estateMonths} />
+          {chartSeries.length === 0 ? (
+            <p className="py-10 text-center text-sm text-secondary">
+              Nothing generated in this window.
+            </p>
+          ) : (
+            <SolarYieldChart months={chartSeries} />
+          )}
         </div>
       </section>
 

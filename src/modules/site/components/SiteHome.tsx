@@ -4,6 +4,10 @@ import {cn} from '@/lib/utils';
 import {isolatorStateOf} from '../types/site.type';
 import {useSitePowerRole} from '../data/siteConfig';
 import {solarMonths, solarYear} from '../data/hybrid';
+import {resolveRange, siteSeries} from '@/modules/solar/data/series';
+import {SolarRangeTabs} from '@/modules/solar/components/SolarRangeTabs';
+import {DEFAULT_SOLAR_RANGE} from '@/modules/solar/types/range.type';
+import type {SolarRange} from '@/modules/solar/types/range.type';
 import {siteSeed} from '../data/siteSeed';
 import type {SiteSummary} from '../data/sites';
 import {SiteChangeover} from './SiteChangeover';
@@ -67,13 +71,39 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
   const role = useSitePowerRole(summary.site.id);
 
   // The array's series, and the summary its heading reads. Both from `hybrid.ts`,
-  // so this page and `/energy` cannot disagree about the same array.
+  // so this page and `/solar` cannot disagree about the same array.
   const seed = siteSeed(summary.site.id);
   const months = useMemo(
     () => (seed === undefined ? [] : solarMonths(seed, role, now)),
     [seed, role, now],
   );
   const year = useMemo(() => solarYear(months), [months]);
+
+  /**
+   * The chart's period, and it is **local state here where `/solar` keeps it in
+   * the URL**.
+   *
+   * The difference is what the URL is for on each screen. `/solar` is a screen
+   * somebody links to — "look at the July dip" — so its window has to survive
+   * being sent. This is one band on a site's page, reached from a dozen places,
+   * and putting a chart control into that page's address would mean every link to
+   * a site carried a chart setting the sender never chose.
+   *
+   * The heading above the chart still reads the twelve months whatever the chart
+   * shows, for the reason the portfolio tiles do: it is the array's position, not
+   * a caption on the current view.
+   */
+  const [range, setRange] = useState<SolarRange>(DEFAULT_SOLAR_RANGE);
+  const [custom, setCustom] = useState<{from?: string; to?: string}>({});
+  const resolved = useMemo(
+    () => resolveRange(range, custom.from, custom.to, now),
+    [range, custom.from, custom.to, now],
+  );
+  const series = useMemo(
+    () => (seed === undefined ? [] : siteSeries(seed, role, resolved, now)),
+    [seed, role, resolved, now],
+  );
+  const earliest = months[0] === undefined ? now : new Date(months[0].at).getTime();
 
   return (
     <div className="flex flex-col gap-2.5 px-4 pt-1 pb-24 md:pb-6">
@@ -124,30 +154,56 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
         <>
           <hr className="border-subtle" />
 
-          <section aria-label="Generated against design" className="flex flex-col gap-2 px-1 py-4 md:px-6">
-            <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-              <div>
-                <h2 className="text-sm font-medium text-primary">Generated against design</h2>
+          <section aria-label="Generated against design" className="flex flex-col gap-3 px-1 py-4 md:px-6">
+            <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+              <div className="min-w-0">
+                <h2 className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-primary">
+                  Generated against design
+                  <span className="text-xs font-normal text-tertiary">{resolved.caption}</span>
+                </h2>
                 <p className="text-xs text-tertiary">
-                  Twelve months against the P50 this array was bought on. The running month is
-                  hatched and counts towards nothing
+                  {resolved.benchmark
+                    ? 'Against the P50 this array was bought on. The running month is hatched and counts towards nothing'
+                    : 'A design P50 is a monthly figure, so a window this short has none to measure against. Generation on its own'}
                 </p>
               </div>
-              <span
-                className={cn(
-                  'text-sm tabular-nums',
-                  year.variance < -0.1 ? 'text-severity-warning' : 'text-secondary',
-                )}
-              >
-                {Math.round(
-                  year.expectedKwh > 0 ? (year.actualKwh / year.expectedKwh) * 100 : 0,
-                )}
-                % of design
-                {year.onsetLabel !== undefined && ` · stepped down in ${year.onsetLabel}`}
-              </span>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={cn(
+                    'text-sm tabular-nums',
+                    year.variance < -0.1 ? 'text-severity-warning' : 'text-secondary',
+                  )}
+                >
+                  {Math.round(
+                    year.expectedKwh > 0 ? (year.actualKwh / year.expectedKwh) * 100 : 0,
+                  )}
+                  % of design over twelve months
+                  {year.onsetLabel !== undefined && ` · stepped down in ${year.onsetLabel}`}
+                </span>
+
+                <SolarRangeTabs
+                  range={range}
+                  from={custom.from}
+                  to={custom.to}
+                  earliest={earliest}
+                  now={now}
+                  onRangeChange={setRange}
+                  onCustomChange={(from, to) => {
+                    setCustom({from, to});
+                    setRange('custom');
+                  }}
+                />
+              </div>
             </header>
 
-            <SolarYieldChart months={months} />
+            {series.length === 0 ? (
+              <p className="py-10 text-center text-sm text-secondary">
+                Nothing generated in this window.
+              </p>
+            ) : (
+              <SolarYieldChart months={series} />
+            )}
           </section>
         </>
       )}

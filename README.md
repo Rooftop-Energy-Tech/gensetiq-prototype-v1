@@ -74,6 +74,34 @@ stay **separate series** rather than merging into one; and the **running month i
 excluded** from every total, since a month eleven days old has made eleven days
 of energy against a whole month of design.
 
+### The chart's period
+
+`7D · 30D · 12M · Custom`, on the portfolio chart and on each site's own, taken
+from the Raeo investor dashboard's `RangeTabs`: Custom is a tab rather than a
+button beside the tabs, because the options are alternatives and belong in one
+control. The strip is this app's own segmented track and the calendar behind
+Custom is the analysis tab's `RangeCalendar`, so a reader who has set a window on
+a genset already knows how to set one here.
+
+**The benchmark is not on every range, because it does not exist on every range.**
+A P50 is simulated month by month and fixed at design stage, so below a whole
+month there is nothing to compare against and drawing one would mean interpolating
+a figure nobody published. SolarIQ recorded that as "benchmark fidelity capped at
+monthly" after trying; Raeo carries it as a per-range `HAS_DESIGN_BENCHMARK`
+table, and so does `solar/types/range.type.ts`. When a range has none the chart
+drops to a single series: no design bar, no shortfall hatch, no legend entries for
+either, and the caption says why.
+
+The daily series is derived from the monthly one rather than dealt beside it —
+each day is a weight, normalised so the days sum back to their month's total to
+within a kilowatt-hour of rounding. That is what lets a reader switch from 12M to
+30D and still be looking at the figure on the tile above.
+
+`/solar` keeps the window in the URL, so "look at the July dip" is a link. The
+site page keeps it in local state: it is one band on a page reached from a dozen
+places, and putting a chart control in that page's address would make every link
+to a site carry a setting the sender never chose.
+
 ### Nothing on either screen grows with the estate
 
 This demo has four arrays and the carrier has thousands of sites, so both screens

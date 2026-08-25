@@ -22,7 +22,6 @@ import {SITE_KIND_LABEL} from '@/modules/site/data/siteSeed';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {SITE_POWER_ROLE_LABEL, hasBattery} from '@/modules/site/types/site.type';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
-import {siteSearch} from '@/modules/site/types/view.type';
 
 /**
  * `/energy` — what carried the load, site by site.
@@ -544,9 +543,12 @@ export const EnergyPage = () => {
                 return (
                   <tr key={summary.site.id}>
                     <td className="h-13 truncate border-b border-subtle p-2 font-medium">
+                      {/* Straight to the site, not to the sites list with this
+                          row selected. The list hop belongs to the map, where a
+                          pin has nowhere to put a link; a table row has one. */}
                       <Link
-                        to="/sites"
-                        search={siteSearch({id: summary.site.id, panel: true})}
+                        to="/sites/$siteId"
+                        params={{siteId: summary.site.id}}
                         className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                       >
                         {summary.site.name}

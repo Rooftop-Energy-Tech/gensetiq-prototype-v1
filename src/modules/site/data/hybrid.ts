@@ -521,6 +521,29 @@ const MONTH_FACTOR = [0.98, 1.06, 1.07, 1.03, 1.01, 1.02, 1.03, 1.02, 0.99, 0.97
 const DAYS_IN_MONTH = (year: number, month: number): number =>
   new Date(year, month + 1, 0).getDate();
 
+/**
+ * One bar on a generation chart, at whatever grain the chart is drawn at.
+ *
+ * `expectedKwh` is **nullable and that is the whole point of this type.** The
+ * design benchmark is a monthly figure — a PVSyst run reports twelve numbers for
+ * a year and nothing finer — so at a daily grain there is no design to compare
+ * against, and the honest answer is a chart with one series on it rather than a
+ * second series interpolated to fill the space. SolarIQ settled this the same way
+ * after trying to draw a daily benchmark line, and the Raeo dashboard carries it
+ * as a per-range `HAS_DESIGN_BENCHMARK` flag.
+ *
+ * `SolarMonth` is the monthly case, where the figure always exists, so a
+ * `SolarMonth` is usable anywhere a `SolarBucket` is asked for.
+ */
+export type SolarBucket = {
+  at: string;
+  label: string;
+  /** The design's figure for this bucket, or `null` where the design has none. */
+  expectedKwh: number | null;
+  actualKwh: number;
+  inProgress: boolean;
+};
+
 export type SolarMonth = {
   /** First of the month, ISO — the key, and what a tooltip stamps. */
   at: string;
@@ -706,6 +729,119 @@ export const solarYear = (months: Array<SolarMonth>): SolarYear => {
  */
 export const solarRecent = (months: Array<SolarMonth>, window = 3): SolarYear =>
   solarYear(months.filter((month) => !month.inProgress).slice(-window));
+
+// ─── The daily grain ─────────────────────────────────────────────────────────
+
+/**
+ * How a month's generation is spread across its days.
+ *
+ * A weight per day from the site id and the date, then **normalised so the days
+ * sum back to the month's own total**, to within the rounding of a whole
+ * kilowatt-hour per day. The normalisation is the rule that matters: it means a
+ * reader can switch the chart from 12M to 30D and the bars they are looking at
+ * still belong to the same figure on the tile above. A daily series dealt
+ * independently of the monthly one would drift by a real margin, and the first
+ * person to add up a week would find the two disagreeing.
+ *
+ * The spread is wide — a day can be a third of a good one — because that is what
+ * daily solar in this climate does. A monsoon afternoon is not a rounding error,
+ * and a daily chart drawn with monthly smoothness would tell a reader their
+ * inverter was faultless on a day it was rained off.
+ */
+const dayWeight = (siteId: string, at: Date): number =>
+  spreadBetween(
+    siteId,
+    `hybrid/day-${at.getFullYear()}-${at.getMonth()}-${at.getDate()}`,
+    0.35,
+    1.25,
+  );
+
+/**
+ * Daily generation across a window, oldest first.
+ *
+ * `expectedKwh` is `null` on every bucket, and deliberately: see `SolarBucket`.
+ * The design has no daily figure, so this chart is one series and says so by
+ * drawing one.
+ *
+ * Today is marked `inProgress` for the same reason the running month is — the sun
+ * has not finished setting on it — so it is hatched and left out of any total.
+ */
+export const solarDays = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  fromMs: number,
+  toMs: number,
+  now: number = Date.now(),
+): Array<SolarBucket> => {
+  const months = solarMonths(seed, role, now);
+  if (months.length === 0) return [];
+
+  // The month's actual, by `year-month`, so each day can be scaled into its own
+  // month's total rather than into an average one.
+  const monthTotal = new Map<string, number>();
+  for (const month of months) {
+    const at = new Date(month.at);
+    monthTotal.set(`${at.getFullYear()}-${at.getMonth()}`, month.actualKwh);
+  }
+
+  const buckets: Array<SolarBucket> = [];
+  const today = new Date(now);
+  const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+
+  for (let cursor = new Date(fromMs); cursor.getTime() <= toMs; cursor.setDate(cursor.getDate() + 1)) {
+    const day = new Date(cursor);
+    const key = `${day.getFullYear()}-${day.getMonth()}`;
+    const total = monthTotal.get(key);
+    if (total === undefined) continue;
+
+    // Normalise against every day of *this* month, not against the window, so the
+    // same day reads the same whether the reader asked for a week or a month.
+    const days = DAYS_IN_MONTH(day.getFullYear(), day.getMonth());
+    let weightSum = 0;
+    for (let index = 1; index <= days; index += 1) {
+      weightSum += dayWeight(seed.id, new Date(day.getFullYear(), day.getMonth(), index));
+    }
+
+    const isToday = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}` === todayKey;
+    // A month still running has already been prorated to the days it has had, so
+    // its daily total has to be shared over those days rather than over all of
+    // them, or every day of the current month reads short by the same fraction.
+    const elapsed = day.getFullYear() === today.getFullYear() && day.getMonth() === today.getMonth()
+      ? today.getDate() / days
+      : 1;
+
+    buckets.push({
+      at: day.toISOString(),
+      label: day.toLocaleDateString('en-MY', {day: 'numeric', month: 'short'}),
+      expectedKwh: null,
+      actualKwh: Math.round(
+        (total / elapsed / weightSum) * dayWeight(seed.id, day) * (isToday ? 0.55 : 1),
+      ),
+      inProgress: isToday,
+    });
+  }
+
+  return buckets;
+};
+
+/** Every array's days added together, for the portfolio chart. */
+export const estateSolarDays = (
+  roles: Record<string, SitePowerRole>,
+  fromMs: number,
+  toMs: number,
+  now: number = Date.now(),
+): Array<SolarBucket> => {
+  const series = SITE_SEED.map((seed) =>
+    solarDays(seed, roles[seed.id] ?? seed.powerRole, fromMs, toMs, now),
+  ).filter((days) => days.length > 0);
+
+  if (series.length === 0) return [];
+
+  return series[0].map((day, index) => ({
+    ...day,
+    actualKwh: series.reduce((sum, days) => sum + (days[index]?.actualKwh ?? 0), 0),
+  }));
+};
 
 /** One site's energy by id, for callers holding only the id. */
 export const siteEnergyById = (

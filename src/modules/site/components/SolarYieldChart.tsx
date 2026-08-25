@@ -2,7 +2,7 @@ import {useRef, useState} from 'react';
 
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
-import type {SolarMonth} from '../data/hybrid';
+import type {SolarBucket} from '../data/hybrid';
 
 /**
  * Twelve months of design against measurement, as **paired bars**.
@@ -47,7 +47,16 @@ import type {SolarMonth} from '../data/hybrid';
  * days of energy against a whole month of design, and drawing it solid alongside
  * eleven closed months reports a plant in trouble that is fine. The hatch is the
  * chart saying "not yet comparable" in the only place a reader is doing the
- * comparison.
+ * comparison. Today gets the same treatment on a daily chart, for the same reason.
+ *
+ * ## A bucket with no design behind it
+ *
+ * At a daily grain there is no P50 — a design simulation reports months and
+ * nothing finer — so `SolarBucket.expectedKwh` is `null` and this chart draws one
+ * series instead of two. The design bar, the shortfall hatch and their two legend
+ * entries all disappear together, which is the honest picture: the reader is
+ * looking at generation, not at generation against a target, and nothing on
+ * screen should suggest otherwise.
  */
 
 const PAD_TOP = 16;
@@ -131,7 +140,7 @@ export const SolarYieldChart = ({
   /** `compact` drops the axis, the labels and the legend. See `COMPACT_HEIGHT`. */
   variant = 'full',
 }: {
-  months: Array<SolarMonth>;
+  months: Array<SolarBucket>;
   variant?: 'full' | 'compact';
 }) => {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -152,7 +161,13 @@ export const SolarYieldChart = ({
   const plotWidth = width - axisWidth;
   const plotHeight = height - padTop - padBottom;
 
-  const top = niceMax(Math.max(...plotted.map((m) => Math.max(m.expectedKwh, m.actualKwh)), 1));
+  // Some ranges carry no design at all — see the note above — and the chart drops
+  // to one series rather than inventing a second. Read once here so the scale, the
+  // bars and the legend cannot disagree about it.
+  const benchmarked = plotted.some((bucket) => bucket.expectedKwh !== null);
+  const top = niceMax(
+    Math.max(...plotted.map((m) => Math.max(m.expectedKwh ?? 0, m.actualKwh)), 1),
+  );
   const y = (value: number) => padTop + plotHeight * (1 - value / top);
   const column = plotWidth / Math.max(1, plotted.length);
   const centre = (index: number) => axisWidth + column * (index + 0.5);
@@ -268,9 +283,14 @@ export const SolarYieldChart = ({
         {plotted.map((month, index) => {
           const x = centre(index);
           const designWidth = column * DESIGN_SHARE;
-          const actualWidth = column * ACTUAL_SHARE;
-          const short = !month.inProgress && month.actualKwh < month.expectedKwh * 0.9;
-          const ratio = month.expectedKwh > 0 ? month.actualKwh / month.expectedKwh : 0;
+          // A lone series takes the design bar's width. Drawn at the narrow
+          // in-front width with nothing behind it, a daily chart reads as though
+          // the other half of every pair had failed to load.
+          const actualWidth = column * (benchmarked ? ACTUAL_SHARE : DESIGN_SHARE);
+          const expected = month.expectedKwh;
+          const short =
+            !month.inProgress && expected !== null && month.actualKwh < expected * 0.9;
+          const ratio = expected !== null && expected > 0 ? month.actualKwh / expected : 0;
 
           if (compact) {
             const end = deviationY(ratio - 1);
@@ -328,26 +348,28 @@ export const SolarYieldChart = ({
                   because a flat tint at this lightness is indistinguishable from
                   the gridline it sits on at the months where the array met its
                   number and the two bars are the same height. */}
-              <rect
-                x={x - designWidth / 2}
-                y={y(month.expectedKwh)}
-                width={designWidth}
-                height={Math.max(1, plotHeight - (y(month.expectedKwh) - padTop))}
-                rx={2}
-                className="fill-inset stroke-current text-default"
-                strokeWidth={1}
-              />
+              {expected !== null && (
+                <rect
+                  x={x - designWidth / 2}
+                  y={y(expected)}
+                  width={designWidth}
+                  height={Math.max(1, plotHeight - (y(expected) - padTop))}
+                  rx={2}
+                  className="fill-inset stroke-current text-default"
+                  strokeWidth={1}
+                />
+              )}
 
               {/* The shortfall, drawn: from where the design says the array should
                   have got to, down to where it did. Only where the gap is worth a
                   reader's attention — every month is a percent or two off its
                   simulation, and hatching all twelve would be hatching the weather. */}
-              {short && (
+              {short && expected !== null && (
                 <rect
                   x={x - actualWidth / 2}
-                  y={y(month.expectedKwh)}
+                  y={y(expected)}
                   width={actualWidth}
-                  height={Math.max(1, y(month.actualKwh) - y(month.expectedKwh))}
+                  height={Math.max(1, y(month.actualKwh) - y(expected))}
                   rx={2}
                   fill="url(#solar-shortfall)"
                 />
@@ -400,7 +422,10 @@ export const SolarYieldChart = ({
             <span className="text-tertiary">&nbsp;</span>
           ) : (
             <span className="text-secondary tabular-nums">
-              {shown.label} · {Math.round((shown.actualKwh / shown.expectedKwh) * 100)}% of design
+              {shown.label} ·{' '}
+              {shown.expectedKwh === null
+                ? kwh(shown.actualKwh)
+                : `${Math.round((shown.actualKwh / shown.expectedKwh) * 100)}% of design`}
             </span>
           )
         ) : (
@@ -409,26 +434,36 @@ export const SolarYieldChart = ({
           <span className="h-2 w-3 rounded-[2px] bg-solar" aria-hidden="true" />
           Generated
         </span>
-        <span className="flex items-center gap-1.5 text-secondary">
-          <span
-            className="h-2 w-3 rounded-[2px] border border-default bg-inset"
-            aria-hidden="true"
-          />
-          Design P50
-        </span>
-        <span className="flex items-center gap-1.5 text-secondary">
-          <span
-            className="h-2 w-3 rounded-[2px] bg-severity-warning/25 ring-1 ring-severity-warning/60"
-            aria-hidden="true"
-          />
-          Short of design
-        </span>
+        {/* The design's two keys go together, and they go when it does. A legend
+            naming a series the chart is not drawing sends the reader looking for
+            it. */}
+        {benchmarked && (
+          <>
+            <span className="flex items-center gap-1.5 text-secondary">
+              <span
+                className="h-2 w-3 rounded-[2px] border border-default bg-inset"
+                aria-hidden="true"
+              />
+              Design P50
+            </span>
+            <span className="flex items-center gap-1.5 text-secondary">
+              <span
+                className="h-2 w-3 rounded-[2px] bg-severity-warning/25 ring-1 ring-severity-warning/60"
+                aria-hidden="true"
+              />
+              Short of design
+            </span>
+          </>
+        )}
         {shown !== undefined && (
           <span className="text-primary tabular-nums">
-            {shown.label} · {kwh(shown.actualKwh)} of {kwh(shown.expectedKwh)}
+            {shown.label} · {kwh(shown.actualKwh)}
+            {shown.expectedKwh !== null && ` of ${kwh(shown.expectedKwh)}`}
             {shown.inProgress
-              ? ' · month still running'
-              : ` · ${Math.round((shown.actualKwh / shown.expectedKwh) * 100)}% of design`}
+              ? ' · still running'
+              : shown.expectedKwh !== null
+                ? ` · ${Math.round((shown.actualKwh / shown.expectedKwh) * 100)}% of design`
+                : ''}
           </span>
         )}
           </>
