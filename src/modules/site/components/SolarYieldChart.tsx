@@ -157,6 +157,8 @@ export const SolarYieldChart = ({
   const column = plotWidth / Math.max(1, plotted.length);
   const centre = (index: number) => axisWidth + column * (index + 0.5);
 
+  // 26px is `Sept` at 10px plus the gap either side of it.
+  const labelEvery = column >= 26 ? 1 : 2;
   const ticks = Array.from({length: TICK_ROWS + 1}, (_, index) => (top / TICK_ROWS) * index);
   const shown = hovered === null ? undefined : plotted[hovered];
 
@@ -364,7 +366,12 @@ export const SolarYieldChart = ({
                 strokeWidth={month.inProgress ? 1 : undefined}
               />
 
-              {!compact && (
+              {/* Every other label once the columns are narrower than a
+                  three-letter month plus its gap. Twelve labels in 320px overlap
+                  into a grey smear, and a smear is worse than half a scale: the
+                  bars are still in month order, so a reader who can see Sept, Nov
+                  and Jan can place the ones between them. */}
+              {!compact && (index % labelEvery === 0) && (
                 <text
                   x={x}
                   y={height - 7}
@@ -387,7 +394,10 @@ export const SolarYieldChart = ({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs">
         {compact ? (
           shown === undefined ? (
-            <span className="text-tertiary">Each month against its own design</span>
+            // Nothing while idle. The encoding is explained once in the section
+            // that holds these charts; repeating it under every card is the same
+            // sentence three, twelve or four hundred times.
+            <span className="text-tertiary">&nbsp;</span>
           ) : (
             <span className="text-secondary tabular-nums">
               {shown.label} · {Math.round((shown.actualKwh / shown.expectedKwh) * 100)}% of design

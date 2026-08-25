@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, LayoutDashboardIcon, RadioTowerIcon} from 'lucide-react';
+import {BoomBoxIcon, LayoutDashboardIcon, RadioTowerIcon, SunMediumIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 /**
@@ -18,8 +18,15 @@ import type {LucideIcon} from 'lucide-react';
  * `Refuel` and `Settings` are desktop-only in this prototype, and a nav item that
  * lands on a screen laid out for 1,280px would be worse than no item at all — the
  * point of a limited bar is that everything it offers works. `Energy` is the
- * clearest case: it is a seven-column table whose whole job is comparison down a
+ * clearest case: it is an eight-column table whose whole job is comparison down a
  * column, and there is no phone-width form of that worth offering.
+ *
+ * `Solar` **is** here, and it is the one addition to the original three. Its
+ * cards are an `auto-fill` grid that resolves to a single column at this width,
+ * and its charts were drawn for a 44px slot, so the phone layout is the desktop
+ * one narrowed rather than a desktop screen squeezed. Withholding it would have
+ * been withholding the screen most likely to be opened by somebody standing at
+ * the foot of a tower.
  *
  * The routes themselves are untouched and still resolve if a URL is typed or
  * followed from a desktop link. What is withheld is *navigation to* them, which is
@@ -29,7 +36,7 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/overview' | '/sites' | '/gensets';
+  link: '/overview' | '/sites' | '/solar' | '/gensets';
   /**
    * The list's own default view state, for the two items that have one.
    *
@@ -49,6 +56,7 @@ const ITEMS: Array<MobileNavItem> = [
   // leaving it out would strand a phone on a screen with no way back to it.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
+  {label: 'Solar', icon: SunMediumIcon, link: '/solar'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
 ];
 
@@ -72,10 +80,18 @@ export const MobileNav = () => (
           // routes are siblings of the list rather than children — see `TopNav` —
           // so this is matched on the path prefix and `/gensets/brf9540` counts.
           activeOptions={{exact: false, includeSearch: false}}
-          className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-secondary transition-colors data-[status=active]:bg-highlight data-[status=active]:text-primary"
+          className="group flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-secondary transition-colors data-[status=active]:bg-highlight data-[status=active]:text-primary"
         >
           <Icon className="size-4 shrink-0" aria-hidden="true" />
-          {item.label}
+          {/* Four destinations with four labels overflow a 375px screen, and the
+              fourth was clipped by the bezel. Below 400px only the item you are
+              standing on is named: the other three are a glyph each, which is
+              enough to aim at and is what a phone tab bar does anyway. The name
+              is still in the accessible label at every width. */}
+          <span className="hidden group-data-[status=active]:inline min-[400px]:inline">
+            {item.label}
+          </span>
+          <span className="sr-only">{item.label}</span>
         </Link>
       );
     })}

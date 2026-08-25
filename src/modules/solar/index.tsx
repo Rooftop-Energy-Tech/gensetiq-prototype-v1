@@ -1,10 +1,11 @@
 import {Link, useNavigate} from '@tanstack/react-router';
-import {LayoutGridIcon, SearchIcon, SearchXIcon, TableIcon} from 'lucide-react';
+import {InfoIcon, LayoutGridIcon, SearchIcon, SearchXIcon, TableIcon} from 'lucide-react';
 import {useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
 
 import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
+import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
 import {SolarYieldChart} from '@/modules/site/components/SolarYieldChart';
 import {
@@ -66,21 +67,43 @@ const kwh = (value: number): string => {
   return `${Math.round(value).toLocaleString('en-MY')} kWh`;
 };
 
-/** One portfolio figure, in the tile grammar `/energy` and `/overview` share. */
+/**
+ * One portfolio figure, in the tile grammar `/energy` and `/overview` share —
+ * including its info glyph, which is not optional there and is not here.
+ *
+ * Every number on this page is **modelled against a design simulation** rather
+ * than read off an instrument, and a modelled number a reader cannot interrogate
+ * is one they will either believe too readily or dismiss. The glyph carries what
+ * the figure was derived from, in the one place somebody wondering will look.
+ */
 const Tile = ({
   label,
   value,
   detail,
+  note,
   tone,
 }: {
   label: string;
   value: string;
   detail: ReactNode;
+  /** How this figure was arrived at, for the info glyph beside its label. */
+  note: ReactNode;
   /** `warning` is used by one tile only — see its own note at the call site. */
   tone?: 'warning';
 }) => (
   <div className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5">
-    <span className="truncate text-xs font-medium text-secondary">{label}</span>
+    <span className="flex items-center gap-1.5">
+      <span className="truncate text-xs font-medium text-secondary">{label}</span>
+      <Tooltip>
+        <TooltipTrigger className="shrink-0 cursor-help text-tertiary hover:text-primary">
+          <InfoIcon className="size-3" aria-hidden="true" />
+          <span className="sr-only">How {label} is worked out</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[280px]">
+          {note}
+        </TooltipContent>
+      </Tooltip>
+    </span>
     <span
       className={cn(
         'text-2xl leading-none font-semibold tabular-nums',
@@ -350,21 +373,25 @@ export const SolarPage = ({
             label="Generated"
             value={kwh(estateYear.actualKwh)}
             detail="twelve closed months"
+            note="What every array on the estate actually made, added together. The month still running is excluded: it has made part of a month against a whole month of design, and counting it would report a shortfall the size of the days left."
           />
           <Tile
             label="Design P50"
             value={kwh(estateYear.expectedKwh)}
             detail="the same twelve months"
+            note="What the design simulations say those arrays should make in an average year, month by month. Fixed when each site was designed and never re-derived from what the array went on to do."
           />
           <Tile
             label="Yield against design"
             value={percent(share(estateYear))}
-            detail={`P90 band starts at 90%`}
+            detail="P90 band starts at 90%"
+            note="Generated over design across the twelve months. A P50 is the average year, so an estate a few points either side of it is having ordinary weather; the P90 at 90% is where weather stops being the explanation."
           />
           <Tile
             label="Last three months"
             value={percent(share(estateRecent))}
-            detail="the window a fault shows in"
+            detail="where a fault shows"
+            note="The same comparison over a shorter window. An array that stepped down in March is still inside its band for the year while being short every month since, so the recent window is what the array list is ranked on."
           />
           {/* The only tile on the page that takes a colour, and it takes it
               conditionally: a count of nothing wrong is not a warning, and a tile
@@ -373,6 +400,7 @@ export const SolarPage = ({
             label="Under design"
             value={String(short.length)}
             detail={short.length === 0 ? 'nothing needs a visit' : 'arrays below their P90'}
+            note="Arrays under 90% of their design over the last three months. Every array is a point or two off its simulation in any year, so the P90 rather than the P50 is the line: ranking on the P50 would put the whole estate on a list headed as though something were wrong."
             tone={short.length > 0 ? 'warning' : undefined}
           />
         </div>
@@ -395,9 +423,14 @@ export const SolarPage = ({
       <section aria-label="Arrays" className="flex min-h-0 min-w-0 flex-col gap-2">
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <h2 className="text-sm font-medium text-primary">Arrays</h2>
+          {/* The card view's encoding needs explaining and the table's does not,
+              so the line follows the view. A sentence about charts printed over a
+              table is the reader's first evidence that the page is not paying
+              attention. */}
           <p className="text-xs text-tertiary">
-            Furthest under design first. The last three months is what a fault shows in; the
-            twelve-month figure is what gets reported
+            {view === 'cards'
+              ? 'Furthest under design first. Each card plots the month’s distance from its own design, so an array meeting its number is a flat line and a shortfall hangs below it. The percentage is the last three months'
+              : 'Furthest under design first. The last three months is the window a fault shows in; the twelve-month figure is what gets reported'}
           </p>
         </header>
 

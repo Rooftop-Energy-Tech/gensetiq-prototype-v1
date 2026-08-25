@@ -387,9 +387,14 @@ export const EnergyPage = () => {
           {/* The one figure from `/solar` that belongs on a page about diesel:
               an array short of its number is a genset covering for it. The tile
               links across rather than restating the argument. */}
+          {/* "Against design", not "Solar yield". It sits beside "Solar share"
+              and the two are different percentages about the same arrays — one is
+              how much of the generation was solar, the other is how much of the
+              design was met — so neither label may be one a reader has to open a
+              tooltip to tell apart. */}
           <Tile
             to="/solar"
-            label="Solar yield"
+            label="Against design"
             value={percent(estate.solarYield)}
             detail={`of ${Math.round(estate.expectedSolarKwh).toLocaleString(
               'en-MY',
@@ -419,8 +424,8 @@ export const EnergyPage = () => {
             value={percent(
               estate.baselineLitres > 0 ? estate.displacedLitres / estate.baselineLitres : 0,
             )}
-            detail="of what the same sites would have burned"
-            note="Displaced litres as a share of the diesel-only figure. It blends converted and unconverted sites, so it is the estate's position rather than any one plant's performance."
+            detail="of the diesel-only figure"
+            note="Displaced litres as a share of what the same sites would have burned on diesel alone. It blends converted and unconverted sites, so it is the estate's position rather than any one plant's performance."
           />
         </div>
       </section>

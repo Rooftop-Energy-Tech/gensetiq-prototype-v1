@@ -1016,6 +1016,30 @@ const severityRank = (rule: AlertRule): number =>
  * carries at least one critical, so the run-state badge and the alerts section
  * agree about whether something is wrong. `BRF9540` carries `PINNED_RULE_IDS`, to
  * reproduce the design's chip counts.
+ *
+ * ## A critical alarm belongs to a set that has actually stopped
+ *
+ * It did not, and the estate read as though it were on fire: fourteen of
+ * twenty-five sites led with `Critical`, so the sites list was a column of
+ * identical red badges and the status meant nothing. That was not a tuning
+ * problem with the seed, it was a rule the model was missing.
+ *
+ * Both critical alarm classes are shutdown-level — `Shutdown Alarm` and `Alarm`
+ * in `SEVERITY_OF_ALARM_TYPE` — and a controller raising one of them **stops the
+ * engine**. So a `RUNNING` set carrying a critical was a contradiction on its own
+ * page before it was a nuisance on the list: a shutdown alarm beside a run-state
+ * badge reading Running, on a machine that had plainly not shut down.
+ *
+ * Criticals are therefore reserved for the states that have one by definition —
+ * `FAULT`, which is a set that tripped, and `OFFLINE`, whose comms alarm is its
+ * own kind of critical. Everything still turning draws from warnings and info
+ * only, which is what a genset carrying a high coolant temperature at 103 °C
+ * actually is: a machine to look at this week, running fine today.
+ *
+ * The count comes down as well, and deliberately. A quarter of sets carried
+ * nothing before; a half do now. An estate where most machines are fine is both
+ * the truth of a real one and the only condition under which the ones that are
+ * not stand out.
  */
 const rulesFor = (genset: Genset): Array<AlertRule> => {
   if (genset.runState === 'OFFLINE') return [COMMS_RULE];
@@ -1023,16 +1047,21 @@ const rulesFor = (genset: Genset): Array<AlertRule> => {
 
   const draw = spread(genset.id, 'alerts');
   const wanted =
-    genset.runState === 'FAULT' ? 2 + Math.floor(draw * 3) : Math.floor(draw * 4);
+    genset.runState === 'FAULT' ? 2 + Math.floor(draw * 3) : Math.max(0, Math.floor(draw * 4) - 1);
   if (wanted === 0) return [];
 
   // A cleanly stopped set can only be carrying rules that survive the engine
   // being off. A faulted one keeps them all: the fault is *why* it stopped, and
   // the tripping value is latched by the controller.
+  const running = ALERT_RULES.filter(
+    (rule) => genset.runState !== 'IDLE' || rule.requiresEngine !== true,
+  );
+
+  // Criticals only where a set has actually tripped. See the note above.
   const eligible =
-    genset.runState === 'IDLE'
-      ? ALERT_RULES.filter((rule) => rule.requiresEngine !== true)
-      : ALERT_RULES;
+    genset.runState === 'FAULT'
+      ? running
+      : running.filter((rule) => SEVERITY_OF_ALARM_TYPE[rule.type] !== 'CRITICAL');
 
   // Faulted units are dealt worst-first, so they always pick up a critical.
   // Everyone else gets a per-unit shuffle, so two idle sets don't carry the same

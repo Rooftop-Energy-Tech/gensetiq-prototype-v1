@@ -102,7 +102,11 @@ export const Sidebar = () => {
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              className="size-8 rounded-full bg-teal p-0 text-sm font-normal text-element hover:bg-teal"
+              // The brand blue, not the product's teal. On a navy rail the teal
+              // avatar was the one mark on screen belonging to neither the
+              // customer nor the estate, and a green disc under a blue-and-yellow
+              // mark reads as something the page forgot to style.
+              className="size-8 rounded-full bg-brand p-0 text-sm font-normal text-brand-text hover:bg-brand"
               onClick={handleSignOut}
               aria-label={`Sign out ${session?.email ?? ''}`.trim()}
             >
