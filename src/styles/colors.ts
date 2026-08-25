@@ -292,19 +292,32 @@ const FUEL: ColorMap = {
 /**
  * Solar — `bg-solar`, `bg-solar-tip`.
  *
- * CelcomDigi's own yellow, `--colour--cd-yellow-500` in their stylesheet and the
- * warm half of their brand mark. It earns the slot twice over: it is the
- * customer's colour, and yellow is what a reader already expects daylight
- * generation to be drawn in.
+ * A deep amber, and **not** CelcomDigi's own `#FFE000`, which is what this token
+ * started as. Their yellow is a brand colour and it is superb at brand jobs: it
+ * is one of the two halves of the mark, it sits on navy, it fills a hero. It is
+ * unusable as a data mark on a light ground. Against the `element` surface every
+ * chart in this app draws on, `#FFE000` measures **1.2:1** — below the 3:1 floor
+ * a graphic element needs to be seen at all — so a bar in it reads as an absence
+ * where a reader is trying to compare heights.
+ *
+ * `#C2660C` measures 3.8:1 on that surface and 3.5:1 on the canvas, holds the
+ * warm gold a reader expects daylight generation in, and stays 1.9:1 clear of
+ * `severity-warning` so the two are still separable when they appear together.
+ * The brand yellow keeps every job it was good at; it just stops being asked to
+ * be a bar.
  *
  * Distinct in lightness as well as hue from `fuel` and `battery`, because the
- * energy-mix bar on the overview stacks all three and a monochrome screenshot of
- * it still has to be readable.
+ * energy-mix bar stacks all three and a monochrome screenshot of it still has to
+ * be readable.
+ *
+ * The dark value is the inverse problem and takes the inverse answer: on
+ * `#151C28` the deep amber is the one that disappears, so dark mode keeps a
+ * bright one.
  */
 const SOLAR: ColorMap = {
-  solar: {light: '#FFE000', dark: '#FFE000', figma: ''},
+  solar: {light: '#C2660C', dark: '#FBBF24', figma: ''},
   // A step lighter, for the topmost segment of a stacked bar.
-  'solar-tip': {light: '#FFED66', dark: '#FFED66', figma: ''},
+  'solar-tip': {light: '#E08A2E', dark: '#FCD34D', figma: ''},
 };
 
 /**

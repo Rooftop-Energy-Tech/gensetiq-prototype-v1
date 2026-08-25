@@ -8,6 +8,7 @@ import {
   RadioTowerIcon,
   SettingsIcon,
   SunMediumIcon,
+  ZapIcon,
 } from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
@@ -30,17 +31,21 @@ import celcomdigiMark from '@/assets/celcomdigi-mark.svg';
  * gone rather than demoted, because a destination nobody visits is worse than one
  * that isn't there.
  *
- * **Energy** takes the slot it left. On an estate of hybrid sites the question that
- * replaces "where is it" is "what carried the load today", and that has nowhere
- * else to live: the overview summarises it, and this is the screen that shows the
- * working site by site.
+ * **Energy** and **Solar** take the slot it left, and they are two destinations
+ * rather than one because they answer two questions. Energy is *what carried the
+ * load and what the plant saved*, which is a question about diesel. Solar is *is
+ * the generation what it was bought on*, which is a question about the arrays.
+ * They moved apart after sharing a screen, because one page carrying two headline
+ * figures that move independently is the reliable way to make a reader distrust
+ * both.
  */
 const NAV_ITEMS: Array<NavItem> = [
   // First, and the app's landing screen: the estate's state before any one site
   // in it. Everything below is a way of narrowing what this page counts.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
-  {label: 'Energy', icon: SunMediumIcon, link: '/energy'},
+  {label: 'Energy', icon: ZapIcon, link: '/energy'},
+  {label: 'Solar', icon: SunMediumIcon, link: '/solar'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
   // After Sites, because a meter is fitted to a site's circuit and reads nothing on
   // its own — the order of the rail follows what each destination is about.

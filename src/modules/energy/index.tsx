@@ -1,21 +1,15 @@
 import {Link} from '@tanstack/react-router';
-import {InfoIcon} from 'lucide-react';
+import {InfoIcon, SearchIcon, SearchXIcon} from 'lucide-react';
 import {useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
 
+import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 
 import {cn} from '@/lib/utils';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
-import {
-  estateEnergy,
-  hybridPlant,
-  siteEnergy,
-  solarMonths,
-  solarYear,
-} from '@/modules/site/data/hybrid';
+import {estateEnergy, hybridPlant, siteEnergy} from '@/modules/site/data/hybrid';
 import type {SiteEnergy} from '@/modules/site/data/hybrid';
-import {SolarYieldChart} from '@/modules/site/components/SolarYieldChart';
 import {
   deliveredDieselRm,
   estateEconomics,
@@ -75,6 +69,26 @@ import {siteSearch} from '@/modules/site/types/view.type';
  * plant that is not. A blended payback across the two answers a question nobody
  * asked: the reader is either reporting on what was spent or asking for more, and
  * one number serves neither.
+ *
+ * ## Nothing on this page grows with the estate
+ *
+ * This demo has four arrays and the carrier has thousands of sites, so every band
+ * here is built to draw the same at either end. That ruled out the obvious first
+ * version, which was **one chart per array in a grid**: at four it is a page, at
+ * forty it is a wall of thumbnails nobody compares, and at four hundred it does
+ * not render. The page is fixed-size by construction instead:
+ *
+ *  - the **tiles** are nine, always;
+ *  - the **table** is the only unbounded thing, and it is a table — sorted,
+ *    searchable, and scrolled. That is what a list of four hundred sites should
+ *    be.
+ *
+ * Generation used to be drawn here too, one chart per array in a grid, and it is
+ * the reason `/solar` exists. At four arrays that grid was a page; at forty it
+ * was a wall of thumbnails nobody compares. It also put two headline figures on
+ * one screen — the saving and the yield — that move for unrelated reasons, which
+ * is the reliable way to make a reader distrust both. The **Solar yield** tile
+ * below is what remains of it, and it links to the screen that shows its working.
  */
 
 const COLUMNS: Array<{label: string; width: string; note?: ReactNode}> = [
@@ -150,14 +164,17 @@ const Tile = ({
   value,
   detail,
   note,
+  to,
 }: {
   label: string;
   value: string;
   detail: string;
   /** How this figure was arrived at, for the info glyph beside its label. */
   note: ReactNode;
+  /** Where the figure's working lives, when it is not on this page. */
+  to?: '/solar';
 }) => (
-  <div className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5">
+  <TileShell to={to}>
     <span className="flex items-center gap-1.5">
       <span className="truncate text-xs font-medium text-secondary">{label}</span>
       <Tooltip>
@@ -172,8 +189,31 @@ const Tile = ({
     </span>
     <span className="text-2xl leading-none font-semibold text-primary tabular-nums">{value}</span>
     <span className="truncate text-xs text-secondary">{detail}</span>
-  </div>
+  </TileShell>
 );
+
+/**
+ * The tile's box, as a link where the figure has a screen behind it and a plain
+ * div where it does not.
+ *
+ * Split out rather than branched inline because the two have to be visually
+ * identical: a tile that grew a border or a shade because it happened to be
+ * clickable would say the figure was more important than its neighbours, which is
+ * not what a link means.
+ */
+const TileShell = ({to, children}: {to?: '/solar'; children: ReactNode}) =>
+  to === undefined ? (
+    <div className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5">
+      {children}
+    </div>
+  ) : (
+    <Link
+      to={to}
+      className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5 transition-colors outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline"
+    >
+      {children}
+    </Link>
+  );
 
 /** A column heading with the same glyph, for the columns that are derived too. */
 const ColumnHead = ({label, note}: {label: string; note?: ReactNode}) => (
@@ -286,28 +326,34 @@ export const EnergyPage = () => {
   );
 
   const [now] = useState(() => Date.now());
+  const [q, setQ] = useState('');
 
-  /**
-   * The arrays, each with its twelve-month series.
-   *
-   * Built here rather than inside the chart so the heading beside each one can
-   * read the same `solarYear` the bars are drawn from. A component that computed
-   * its own summary would be a second answer to a question already asked.
-   */
-  const solarSites = useMemo(
-    () =>
-      rows
-        .map(({summary, role, seed}) => {
-          const months = solarMonths(seed, role, now);
-          return months.length === 0 ? null : {summary, months, year: solarYear(months)};
-        })
-        .filter((entry): entry is NonNullable<typeof entry> => entry !== null),
-    [rows, now],
-  );
+  /** `26 Jul`, the day the thirty-day window opened. */
   const windowLabel = new Date(now - 30 * 24 * 3_600_000).toLocaleDateString('en-MY', {
     day: 'numeric',
     month: 'short',
   });
+
+  /**
+   * The table's rows after the search box.
+   *
+   * Matches what the row actually shows — the site's name, its placename, its
+   * configuration and its kind — which is the rule `searchSites` already follows
+   * one module over, for the reason it gives there: a reader searching a table
+   * expects to find the words they can see in it.
+   */
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (needle === '') return rows;
+    return rows.filter(({summary, role}) =>
+      [
+        summary.site.name,
+        summary.site.locationLabel,
+        SITE_POWER_ROLE_LABEL[role],
+        SITE_KIND_LABEL[summary.site.kind],
+      ].some((field) => field.toLowerCase().includes(needle)),
+    );
+  }, [rows, q]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-4 pt-3 pb-24 md:pb-6">
@@ -338,13 +384,17 @@ export const EnergyPage = () => {
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {/* The one figure from `/solar` that belongs on a page about diesel:
+              an array short of its number is a genset covering for it. The tile
+              links across rather than restating the argument. */}
           <Tile
+            to="/solar"
             label="Solar yield"
             value={percent(estate.solarYield)}
             detail={`of ${Math.round(estate.expectedSolarKwh).toLocaleString(
               'en-MY',
             )} kWh at P50`}
-            note="What the arrays actually made against the design yield they were bought on. The P90 band sits at 90% of that, so anything below it is the plant rather than the weather, and the per-site column says which arrays."
+            note="What the arrays actually made against the design yield they were bought on, over the same thirty days. The P90 band sits at 90% of it. Solar has its own screen, where the twelve-month series says which arrays are short and since when."
           />
           <Tile
             label="Solar share"
@@ -374,63 +424,6 @@ export const EnergyPage = () => {
           />
         </div>
       </section>
-
-      {/* The benchmark, drawn. The tiles above say the estate is at 91% of its
-          design; this is the only thing on the page that says *when* it stopped
-          being at 100%, which is the difference between a commissioning problem
-          and a fault somebody can go and find. One chart per array rather than an
-          estate total: four arrays averaged together would hide the one that
-          stepped down behind the three that did not. */}
-      {solarSites.length > 0 && (
-        <section aria-label="Solar against design" className="flex min-w-0 flex-col gap-2">
-          <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <h2 className="text-sm font-medium text-primary">Generated against design</h2>
-            <p className="text-xs text-tertiary">
-              Twelve months per array, against the P50 its design was bought on. Monthly is the
-              design's own resolution. The running month is hatched and counts towards nothing
-            </p>
-          </header>
-
-          <div className="grid gap-3 xl:grid-cols-2">
-            {solarSites.map(({summary, months, year}) => (
-              <div
-                key={summary.site.id}
-                className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3"
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                  <Link
-                    to="/sites"
-                    search={siteSearch({id: summary.site.id, panel: true})}
-                    className="rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-                  >
-                    {summary.site.name}
-                    <span className="pl-2 text-xs font-normal text-tertiary">
-                      {summary.site.locationLabel}
-                    </span>
-                  </Link>
-                  <span
-                    className={cn(
-                      'text-xs tabular-nums',
-                      year.variance < -0.1 ? 'text-severity-warning' : 'text-secondary',
-                    )}
-                  >
-                    {percent(
-                      year.expectedKwh > 0 ? year.actualKwh / year.expectedKwh : 0,
-                    )}{' '}
-                    of design
-                    {/* Named only where the series actually steps. An onset month
-                        printed for an array whose variance is weather would put a
-                        date on noise, which is worse than saying nothing. */}
-                    {year.onsetLabel !== undefined && ` · stepped down in ${year.onsetLabel}`}
-                  </span>
-                </div>
-
-                <SolarYieldChart months={months} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <section aria-label="Investment" className="flex min-w-0 flex-col gap-2">
         <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
@@ -487,6 +480,34 @@ export const EnergyPage = () => {
           </p>
         </header>
 
+        {/* The one band on this page that grows with the estate, so it gets the
+            control the other list screens have: the same search box, matching the
+            same fields, with the count of what it left standing. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <InputGroup className="w-full max-w-[373px]">
+            <InputGroupAddon>
+              <SearchIcon aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+              placeholder="Site, place or configuration"
+              aria-label="Search sites"
+            />
+          </InputGroup>
+
+          <p className="text-sm text-secondary tabular-nums">
+            {filtered.length} of {rows.length} {rows.length === 1 ? 'site' : 'sites'}
+          </p>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+            <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
+            <p className="text-sm text-secondary">No sites match “{q}”.</p>
+          </div>
+        ) : (
         <div className="min-h-0 overflow-auto">
           <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
@@ -512,7 +533,7 @@ export const EnergyPage = () => {
               </tr>
             </thead>
             <tbody>
-              {rows.map(({summary, role, energy, economics}) => {
+              {filtered.map(({summary, role, energy, economics}) => {
                 const proposed = !isBuilt(role);
 
                 return (
@@ -619,6 +640,7 @@ export const EnergyPage = () => {
             </tbody>
           </table>
         </div>
+        )}
       </section>
     </div>
   );

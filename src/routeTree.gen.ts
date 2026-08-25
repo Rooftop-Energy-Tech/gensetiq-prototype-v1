@@ -19,6 +19,7 @@ import { Route as AuthenticatedOverviewRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedRefuelRouteImport } from './routes/_authenticated/refuel'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
+import { Route as AuthenticatedSolarRouteImport } from './routes/_authenticated/solar'
 import { Route as AuthenticatedGensetsGensetIdRouteImport } from './routes/_authenticated/gensets_.$gensetId'
 import { Route as AuthenticatedSitesSiteIdRouteImport } from './routes/_authenticated/sites_.$siteId'
 import { Route as AuthenticatedGensetsGensetIdIndexRouteImport } from './routes/_authenticated/gensets_.$gensetId.index'
@@ -82,6 +83,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedSitesRoute = AuthenticatedSitesRouteImport.update({
   id: '/sites',
   path: '/sites',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSolarRoute = AuthenticatedSolarRouteImport.update({
+  id: '/solar',
+  path: '/solar',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedGensetsGensetIdRoute =
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/refuel': typeof AuthenticatedRefuelRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
+  '/solar': typeof AuthenticatedSolarRoute
   '/gensets/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
   '/sites/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/refuel': typeof AuthenticatedRefuelRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
+  '/solar': typeof AuthenticatedSolarRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/gensets/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/_authenticated/refuel': typeof AuthenticatedRefuelRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/sites': typeof AuthenticatedSitesRoute
+  '/_authenticated/solar': typeof AuthenticatedSolarRoute
   '/_authenticated/gensets_/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
   '/_authenticated/sites_/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
   '/_authenticated/gensets_/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/refuel'
     | '/settings'
     | '/sites'
+    | '/solar'
     | '/gensets/$gensetId'
     | '/sites/$siteId'
     | '/gensets/$gensetId/alarms'
@@ -291,6 +301,7 @@ export interface FileRouteTypes {
     | '/refuel'
     | '/settings'
     | '/sites'
+    | '/solar'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
     | '/gensets/$gensetId/equipment'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/_authenticated/refuel'
     | '/_authenticated/settings'
     | '/_authenticated/sites'
+    | '/_authenticated/solar'
     | '/_authenticated/gensets_/$gensetId'
     | '/_authenticated/sites_/$siteId'
     | '/_authenticated/gensets_/$gensetId/alarms'
@@ -409,6 +421,13 @@ declare module '@tanstack/react-router' {
       path: '/sites'
       fullPath: '/sites'
       preLoaderRoute: typeof AuthenticatedSitesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/solar': {
+      id: '/_authenticated/solar'
+      path: '/solar'
+      fullPath: '/solar'
+      preLoaderRoute: typeof AuthenticatedSolarRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/gensets_/$gensetId': {
@@ -587,6 +606,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedRefuelRoute: typeof AuthenticatedRefuelRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
+  AuthenticatedSolarRoute: typeof AuthenticatedSolarRoute
   AuthenticatedGensetsGensetIdRoute: typeof AuthenticatedGensetsGensetIdRouteWithChildren
   AuthenticatedSitesSiteIdRoute: typeof AuthenticatedSitesSiteIdRouteWithChildren
 }
@@ -599,6 +619,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedRefuelRoute: AuthenticatedRefuelRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSitesRoute: AuthenticatedSitesRoute,
+  AuthenticatedSolarRoute: AuthenticatedSolarRoute,
   AuthenticatedGensetsGensetIdRoute:
     AuthenticatedGensetsGensetIdRouteWithChildren,
   AuthenticatedSitesSiteIdRoute: AuthenticatedSitesSiteIdRouteWithChildren,

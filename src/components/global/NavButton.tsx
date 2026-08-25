@@ -19,6 +19,7 @@ export type NavItem = {
     | '/overview'
     | '/gensets'
     | '/energy'
+    | '/solar'
     | '/sites'
     | '/meters'
     | '/refuel'

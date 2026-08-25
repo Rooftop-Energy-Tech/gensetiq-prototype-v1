@@ -23,7 +23,7 @@ years ago and going nowhere. That single change works through the whole app:
 
 | | SESB | CelcomDigi |
 | --- | --- | --- |
-| Rail leads with | Gensets, then Deployment | **Sites**, then **Energy** |
+| Rail leads with | Gensets, then Deployment | **Sites**, then **Energy** and **Solar** |
 | A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
 | `/deployment` screen | the dispatch feed | **gone**, see `Sidebar.tsx` |
 | Overview's middle band | dispatch | **energy and the saving** |
@@ -61,14 +61,36 @@ a quotation.
 
 Solar is reported **against its benchmark**, which is the other thing SolarIQ
 gets right, and it is drawn as well as tabulated. `SolarYieldChart` puts twelve
-months of measurement in front of the design's own monthly P50 as paired bars,
-on `/energy` for every array and on each solar site's own page. Three of
+months of measurement in front of the design's own monthly P50 as paired bars.
+The same generation is readable at three levels and all three read `hybrid.ts`,
+so they cannot disagree: **one array** on its site's own page, where somebody
+sent to look at a site finds it without knowing the rest exists; **the
+portfolio** at the top of `/solar`; and **array by array** below that, which is
+where the portfolio figure's working lives. Three of
 SolarIQ's decisions carry over intact: the benchmark's fidelity is capped at
 **monthly**, because that is what a design simulation produces and a daily
 benchmark line would be a resolution the report never had; design and measurement
 stay **separate series** rather than merging into one; and the **running month is
 excluded** from every total, since a month eleven days old has made eleven days
 of energy against a whole month of design.
+
+### Nothing on either screen grows with the estate
+
+This demo has four arrays and the carrier has thousands of sites, so both screens
+are built to draw the same at either end. That ruled out the first version of the
+solar band, which was one chart per array in a grid: at four it is a page, at
+forty a wall of thumbnails nobody compares, at four hundred it does not render.
+What is there instead is fixed by construction — the tiles are five, the
+portfolio chart is one whatever it sums — and the array list has **two views**,
+cards with a chart each and a table, opening in whichever suits the count with
+the choice always available. Cards page in blocks of twelve; both views search.
+
+The compact chart on a card is **not** a shrunken version of the full one, and
+the first attempt at it was. At 44px the gap between an array at 100% of design
+and one at 84% is under two pixels, so every card looked the same. The compact
+form plots **deviation from design** instead: a line at 100% and a bar hanging
+below it by however far the month missed. An array meeting its number draws
+almost nothing, which is the right amount of ink for nothing being wrong.
 
 The chart earns its place over the column beside it by saying *when*. An array at
 84% of design all year is a commissioning problem; one at 100% until March and
@@ -152,6 +174,7 @@ Any email and password gets you in.
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
 | Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
 | Energy | `/energy` | What carried the load at every off-grid site over thirty days, what the plant saved, and what converting the rest would cost. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
+| Solar | `/solar` | The portfolio's generation against design, and every array in it as cards or a table. Not a Figma frame — same. |
 | Refuel / Settings | `/refuel`, … | Named in the sidebar but not designed — same treatment. |
 
 Getting from the fleet into a genset: click its **name** in the list, or the `→`

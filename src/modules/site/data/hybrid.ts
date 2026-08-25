@@ -619,6 +619,39 @@ export const solarMonths = (
   return months;
 };
 
+/**
+ * Every array's twelve months added together, as one series.
+ *
+ * The estate chart, and the reason it exists is scale. One chart per array works
+ * at four and is unreadable at forty: a page of thumbnails nobody can compare is
+ * a worse answer than no chart. The summed series always draws in one frame,
+ * whatever the estate does, and it answers the question the estate level actually
+ * has — is the solar programme delivering what it was bought on — leaving *which
+ * array* to the ranked strip beside it.
+ *
+ * Months are keyed by position rather than by date, which is safe because every
+ * site's series is built from the same clock in the same call and is therefore
+ * the same twelve months. `inProgress` rides on the last one for all of them.
+ */
+export const estateSolarMonths = (
+  roles: Record<string, SitePowerRole>,
+  now: number = Date.now(),
+): Array<SolarMonth> => {
+  const series = SITE_SEED.map((seed) =>
+    solarMonths(seed, roles[seed.id] ?? seed.powerRole, now),
+  ).filter((months) => months.length > 0);
+
+  if (series.length === 0) return [];
+
+  return series[0].map((month, index) => ({
+    at: month.at,
+    label: month.label,
+    inProgress: month.inProgress,
+    expectedKwh: series.reduce((sum, months) => sum + months[index].expectedKwh, 0),
+    actualKwh: series.reduce((sum, months) => sum + months[index].actualKwh, 0),
+  }));
+};
+
 export type SolarYear = {
   expectedKwh: number;
   actualKwh: number;
@@ -656,6 +689,23 @@ export const solarYear = (months: Array<SolarMonth>): SolarYear => {
     onsetLabel: onset > 0 ? closed[onset].label : undefined,
   };
 };
+
+/**
+ * The same position over the **last few closed months** rather than the year.
+ *
+ * The operational question and the reporting question are different, and only one
+ * of them is answered by an annual figure. An array that ran at its number until
+ * March and has been at 84% since is at **92% for the year**, which is inside the
+ * P90 band and therefore invisible to any annual test — while the fault is
+ * present, ongoing and costing diesel every month.
+ *
+ * So "which arrays need a visit" is asked of the recent window and "how did the
+ * programme do" is asked of the year. Three months is the shortest window that
+ * survives one dull month: two would put an array on the list for weather, and
+ * six would take half a year to notice a string tripping.
+ */
+export const solarRecent = (months: Array<SolarMonth>, window = 3): SolarYear =>
+  solarYear(months.filter((month) => !month.inProgress).slice(-window));
 
 /** One site's energy by id, for callers holding only the id. */
 export const siteEnergyById = (
