@@ -12,7 +12,7 @@ import type {FleetStatus, StatusTone} from '@/modules/genset/data/fleetStatus';
 import {REFUEL_ORDERS} from '@/modules/genset/data/refuelOrders';
 import {isDueForService, useServiceRecords} from '@/modules/genset/data/services';
 import {gensetSearch} from '@/modules/genset/types/view.type';
-import {CUSTOMERS} from '@/modules/site/data/customers';
+import {CUSTOMERS, CUSTOMER_GROUPING_LABEL} from '@/modules/site/data/customers';
 import {estateSummary, siteStatus} from '@/modules/site/data/estateSummary';
 import {useSiteSummaries} from '@/modules/site/data/sites';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
@@ -474,9 +474,9 @@ export const OverviewPage = () => {
       </section>
       )}
 
-      <section aria-label="By region" className="flex min-w-0 flex-col gap-2">
+      <section aria-label={CUSTOMER_GROUPING_LABEL} className="flex min-w-0 flex-col gap-2">
         <header>
-          <h2 className="text-sm font-medium text-primary">By region</h2>
+          <h2 className="text-sm font-medium text-primary">{CUSTOMER_GROUPING_LABEL}</h2>
           <p className="text-xs text-tertiary">Sites held, and the plant standing on them</p>
         </header>
 

@@ -1,3 +1,4 @@
+import {DATASET} from '@/brands';
 import type {
   Genset,
   GensetActivity,
@@ -78,60 +79,29 @@ type FleetSeed = {
   staleMinutes: number;
 };
 
-// prettier-ignore
-const FLEET_SEED: Array<FleetSeed> = [
-  // — The two switching centres (4) — the estate's heavy plant, and the only
-  //   sites here that hold a pair. `BRF9540` and its twin are the Figma frame's
-  //   two identical genset cards, one running and one faulted.
-  {tag: 'BRF9540', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1105, longitude: 101.6634, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57},
-  {tag: 'KLN3355', model: 'Cummins 1000 kVa',    runState: 'FAULT',   siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1113, longitude: 101.6646, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45},
-  {tag: 'JHB5503', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4923, longitude: 103.7408, fuelLitres: 1088, fuelCapacityLitres: 1200, staleMinutes: 3},
-  {tag: 'JHB5744', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4931, longitude: 103.7420, fuelLitres: 936,  fuelCapacityLitres: 1200, staleMinutes: 8},
-
-  // — The aggregation hubs (3) — 60 kVA against a 22–27 kW load.
-  {tag: 'SHA7731', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'sel-0318',  locationLabel: 'Shah Alam, Selangor',          latitude: 3.0733, longitude: 101.5185, fuelLitres: 612,  fuelCapacityLitres: 900,  staleMinutes: 12},
-  {tag: 'PNG6015', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'png-0255',  locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, fuelLitres: 774,  fuelCapacityLitres: 900,  staleMinutes: 2},
-  {tag: 'KKB8856', model: 'Perkins 60 kVa',      runState: 'RUNNING', siteId: 'sbh-1204',  locationLabel: 'Kota Kinabalu, Sabah',         latitude: 5.9804, longitude: 116.0735, fuelLitres: 220,  fuelCapacityLitres: 900,  staleMinutes: 12},
-
-  // — The grid-backed towers (7) — 20 kVA on a plinth, idle most of the year.
-  //   `SPG2093` is one of the two sets pinned to a test exercise: turning beside
-  //   a perfectly healthy incomer, which is the case that distinction exists for.
-  {tag: 'KLC1027', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'wpkl-0142', locationLabel: 'Bukit Bintang, Kuala Lumpur',  latitude: 3.1466, longitude: 101.7108, fuelLitres: 288,  fuelCapacityLitres: 400,  staleMinutes: 3},
-  {tag: 'KLG2214', model: 'FG Wilson 30 kVa',    runState: 'IDLE',    siteId: 'wpkl-0355', locationLabel: 'KLCC, Kuala Lumpur',           latitude: 3.1578, longitude: 101.7117, fuelLitres: 430,  fuelCapacityLitres: 600,  staleMinutes: 4},
-  {tag: 'SPG2093', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sel-0491',  locationLabel: 'Puchong, Selangor',            latitude: 3.0319, longitude: 101.6169, fuelLitres: 364,  fuelCapacityLitres: 400,  staleMinutes: 5,  startReason: 'TEST'},
-  {tag: 'RWG3471', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sel-0664',  locationLabel: 'Rawang, Selangor',             latitude: 3.3210, longitude: 101.5770, fuelLitres: 141,  fuelCapacityLitres: 400,  staleMinutes: 8},
-  {tag: 'IPH7724', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'prk-0713',  locationLabel: 'Ipoh, Perak',                  latitude: 4.5975, longitude: 101.0901, fuelLitres: 352,  fuelCapacityLitres: 400,  staleMinutes: 7},
-  {tag: 'SRB6644', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'nsn-0492',  locationLabel: 'Seremban, Negeri Sembilan',    latitude: 2.7297, longitude: 101.9381, fuelLitres: 305,  fuelCapacityLitres: 400,  staleMinutes: 4,  startReason: 'TEST'},
-  {tag: 'KTN1970', model: 'FG Wilson 20 kVa',    runState: 'OFFLINE', siteId: 'trg-0512',  locationLabel: 'Kuala Terengganu, Terengganu', latitude: 5.3302, longitude: 103.1408, fuelLitres: 96,   fuelCapacityLitres: 400,  staleMinutes: 2_890},
-
-  // — The diesel-prime sites (4) — no incomer, no storage, a duty set and a
-  //   spare, and the machines that have burned the most diesel on the estate.
-  //   The two dry tanks are here, which is the point: a prime site's tank is the
-  //   only thing between the tower and silence.
-  {tag: 'CAM4471', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'phg-0788',  locationLabel: 'Cameron Highlands, Pahang',    latitude: 4.4710, longitude: 101.3770, fuelLitres: 108,  fuelCapacityLitres: 800,  staleMinutes: 9},
-  {tag: 'CAM4629', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'phg-0788',  locationLabel: 'Cameron Highlands, Pahang',    latitude: 4.4716, longitude: 101.3778, fuelLitres: 546,  fuelCapacityLitres: 800,  staleMinutes: 26},
-  {tag: 'GMS2218', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'kel-0339',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8820, longitude: 101.9670, fuelLitres: 402,  fuelCapacityLitres: 800,  staleMinutes: 11},
-  {tag: 'GMS2404', model: 'Denyo 15 kVa',        runState: 'FAULT',   siteId: 'kel-0339',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8826, longitude: 101.9678, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95},
-  {tag: 'NBW7756', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0620, longitude: 116.4370, fuelLitres: 168,  fuelCapacityLitres: 800,  staleMinutes: 38},
-  {tag: 'KPT8033', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0170, longitude: 112.9330, fuelLitres: 96,   fuelCapacityLitres: 800,  staleMinutes: 27},
-  {tag: 'BLG4884', model: 'Denyo 15 kVa',        runState: 'OFFLINE', siteId: 'swk-0851',  locationLabel: 'Belaga, Sarawak',              latitude: 2.7000, longitude: 113.7830, fuelLitres: 172,  fuelCapacityLitres: 800,  staleMinutes: 1_615},
-
-  // — The diesel-hybrid sites (4) — the same 20 kVA machine, running in blocks
-  //   to recharge a battery instead of idling all day at what a tower draws.
-  //   Their tanks are the fullest on the estate for exactly that reason.
-  {tag: 'SPG7712', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sel-0977',  locationLabel: 'Sepang, Selangor',             latitude: 2.7150, longitude: 101.7060, fuelLitres: 348,  fuelCapacityLitres: 400,  staleMinutes: 16},
-  {tag: 'GRK0846', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'prk-0846',  locationLabel: 'Grik, Perak',                  latitude: 5.4290, longitude: 101.1290, fuelLitres: 502,  fuelCapacityLitres: 600,  staleMinutes: 6},
-  {tag: 'KLG1064', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'jhr-1064',  locationLabel: 'Kluang, Johor',                latitude: 2.0250, longitude: 103.3180, fuelLitres: 331,  fuelCapacityLitres: 400,  staleMinutes: 44},
-  {tag: 'LDU7588', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1612',  locationLabel: 'Lahad Datu, Sabah',            latitude: 5.0269, longitude: 118.3270, fuelLitres: 488,  fuelCapacityLitres: 600,  staleMinutes: 21},
-
-  // — The solar-hybrid sites (4) — the same set again, and the least-used
-  //   machines on the estate. A full tank on one of these is not neglect; it is
-  //   the array having carried the site since the last delivery.
-  {tag: 'HLG0812', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sel-0812',  locationLabel: 'Hulu Langat, Selangor',        latitude: 3.1590, longitude: 101.8710, fuelLitres: 392,  fuelCapacityLitres: 400,  staleMinutes: 31},
-  {tag: 'SGP0431', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'kdh-0431',  locationLabel: 'Sungai Petani, Kedah',         latitude: 5.6470, longitude: 100.4870, fuelLitres: 566,  fuelCapacityLitres: 600,  staleMinutes: 2},
-  {tag: 'SIK0588', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'kdh-0588',  locationLabel: 'Sik, Kedah',                   latitude: 5.8210, longitude: 100.7420, fuelLitres: 448,  fuelCapacityLitres: 600,  staleMinutes: 73},
-  {tag: 'BGI1495', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1495',  locationLabel: 'Pulau Banggi, Kudat',          latitude: 7.2717, longitude: 117.1782, fuelLitres: 588,  fuelCapacityLitres: 600,  staleMinutes: 5},
-];
+/**
+ * The active estate's machines.
+ *
+ * The rows live in `brands/datasets/*.ts` beside the sites they stand on, because
+ * every `siteId` below has to name a site in the same estate or the fleet and the
+ * site rollups disagree by a machine and nothing says so. `assertDatasetIntegrity`
+ * checks exactly that pairing on load, which is only possible while the two arrays
+ * are in one file.
+ *
+ * The two casts are the dataset layer declining to import the genset module: a
+ * dataset states `runState` and `startReason` as plain strings so a dataset file
+ * can be read on its own, and they are asserted back to their unions here. The
+ * integrity check does not cover them — those vocabularies are the product's — so
+ * use the names in `RunState` and `StartReason`.
+ */
+const FLEET_SEED: Array<FleetSeed> = DATASET.gensets.map((seed) => ({
+  ...seed,
+  runState: seed.runState as RunState,
+  startReason: seed.startReason as StartReason | undefined,
+  // A machine in the workshop stands at no site. The seeds here all name one, but
+  // the dataset shape allows the workshop case and this column is not optional.
+  siteId: seed.siteId ?? '',
+}));
 
 const MINUTE = 60_000;
 
@@ -224,4 +194,4 @@ const buildFleet = (): Array<Genset> => {
 export const GENSETS: Array<Genset> = buildFleet();
 
 /** The unit the design opens on, and this app's default selection. */
-export const DEFAULT_GENSET_ID = 'brf9540';
+export const DEFAULT_GENSET_ID = DATASET.defaultGensetId;

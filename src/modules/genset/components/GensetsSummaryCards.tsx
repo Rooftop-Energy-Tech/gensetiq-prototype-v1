@@ -11,6 +11,7 @@ import {
 import {STATUS_META} from '../data/fleetStatus';
 import type {FleetSummary} from '../data/fleetSummary';
 import type {GensetSearch} from '../types/view.type';
+import {CUSTOMER_GROUPING_LABEL} from '@/modules/site/data/customers';
 
 /**
  * The four cards above the fleet list: how much plant there is, what duty it is on,
@@ -121,7 +122,7 @@ export const GensetsSummaryCards = ({
           </div>
         </SummaryCard>
 
-        <SummaryCard label="By region">
+        <SummaryCard label={CUSTOMER_GROUPING_LABEL}>
           {/* Chips wrap rather than the card scrolling: seven accounts is a sentence
               you read across, and a scroll area would hide the tail of the estate
               behind an interaction. */}

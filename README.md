@@ -7,21 +7,69 @@ A clickable prototype of gensetIQ, built from the
 and the
 [site page](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2478-7187).
 
-## This branch: the CelcomDigi white label
+## Brands: one build, three customers
 
-`feat/celcomdigi-demo`, branched off `feat/sesb-demo`. Same product, a different
-customer and, the part that matters, **a different kind of estate**.
+The brand is **configuration, not a branch**. `VITE_BRAND` picks it, and the three
+run on separate ports so you can have them open side by side:
 
-The SESB build is a **mobile fleet**: hire sets dropped at an injection point for
-a fortnight, collected, and dropped somewhere else. The organising fact is the
-posting, so the rail leads with Deployment and the overview's middle band is the
-dispatch position.
+```bash
+npm run dev            # CelcomDigi   :3100  (the default)
+npm run dev:sesb       # SESB         :3101
+npm run dev:unbranded  # gensetIQ     :3102
+```
 
-This one is a **permanent estate**. Twenty-five base stations across Malaysia,
+| Brand | Estate | Rail | Tab |
+| --- | --- | --- | --- |
+| `celcomdigi` | carrier — 25 towers, 29 sets | CelcomDigi navy `#001871` | CelcomDigi Site Power |
+| `sesb` | utility — 25 substations, 37 sets | SESB blue `#0F4586` | SESB Genset Monitoring |
+| `gensetiq` | carrier | design-system near-black | gensetIQ |
+
+Everything a brand may change is in **`src/brands/`**, and
+[`src/brands/types.ts`](src/brands/types.ts) is the file to read first — it states
+the line between *whose app this is* (name, marks, four colours, which estate) and
+*what the product is* (everything else). Adding a customer is a file in
+`src/brands/`, reviewed on its own, and no branch.
+
+### How this used to work, and why it doesn't now
+
+`feat/fleet-cards-split-map`, `feat/sesb-demo` and `feat/celcomdigi-demo` are one
+straight line of history, and two of those forks happened for no reason but a
+different customer's colours and a different customer's sites. The costs compounded:
+
+- every feature built after a fork existed only on that fork, so the **unbranded
+  product was the one configuration nobody could show** — it had to be
+  reconstructed for this refactor;
+- `main` went stale, so each new branch started from someone's demo rather than
+  from the product, and the branch names stopped describing their contents;
+- the SESB estate was **stranded three months behind**: no hybrid plant, no solar
+  benchmark, no energy screen, no refuel log.
+
+A branch is for work in progress. A brand is a thing that permanently exists and
+has to keep working after the next feature lands — which makes it config.
+
+### The SESB brand is not the SESB branch restored
+
+Worth knowing before you show it. `feat/sesb-demo` had a two-entry power vocabulary
+(`STANDBY` / `PRIME`) and a `/deployment` screen for hire sets on the move. The
+current product replaced the first with four configurations and removed the second.
+
+So the `sesb` brand is **SESB's places and machines under today's product**, not a
+rebuild of their old demo. The mapping is in
+[`src/brands/datasets/utility.ts`](src/brands/datasets/utility.ts): `STANDBY`
+became `GRID_BACKUP` unchanged, and the five rural mini-grids — all `PRIME`, all
+running trucked diesel — were given three solar hybrids, one diesel hybrid, and one
+left on diesel prime so a conversion still has something to be compared against.
+**Those five roles are a plausible estate, not a recorded one.** Don't quote them
+back to SESB as their plan.
+
+### The estate the default brand carries
+
+CelcomDigi is a **permanent estate**. Twenty-five base stations across Malaysia,
 each with a genset bolted to a plinth beside the tower it feeds, commissioned
-years ago and going nowhere. That single change works through the whole app:
+years ago and going nowhere. That differs from the mobile-fleet build the app
+started as, and the difference works through the whole app:
 
-| | SESB | CelcomDigi |
+| | Mobile fleet (as built) | CelcomDigi (now) |
 | --- | --- | --- |
 | Rail leads with | Gensets, then Deployment | **Sites**, then **Energy** and **Solar** |
 | A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
@@ -194,12 +242,34 @@ looked at the picture.
 
 ### Brand
 
-Colours are read off CelcomDigi's own stylesheet: navy `#001871`, bright blue
-`#0064DC`, yellow `#FFE000`. They live in `styles/colors.ts` with a `divergent`
-note on each override, so the Figma drift check reports them as intended. The rail
-mark is their official artwork cropped to the symbol; the login lockup is the full
-one. Yellow earns a token of its own as `solar`, which is both their colour and
-the one a reader expects daylight generation in.
+**Four colours** are the customer's, and every other token in `styles/colors.ts` is
+the design system's, shared by all three brands: `brand` (the login CTA and primary
+button), `brand-text` (what stays legible on it), `sidebar` (the rail), and
+optionally `battery`. Each is declared per brand in
+[`src/brands/identity.ts`](src/brands/identity.ts) with the variable name the
+customer's own stylesheet uses, so the next person can check a value rather than
+re-eyedrop it. `colors.ts` reads them through `BRAND.theme` and keeps a `divergent`
+note on each, so the Figma drift check still reports them as intended overrides.
+
+A customer does **not** get their own `bg-canvas`, and does not get to make chart
+marks invisible: CelcomDigi's `#FFE000` measures 1.2:1 on the surface every chart
+draws on, so `solar` is a deep amber that clears 3:1 and the brand yellow keeps
+every job it was actually good at. The one hard constraint on adding a brand is
+that its `sidebar` must be dark enough to carry white foregrounds — the rail does
+not follow the app's light/dark polarity, because it carries the customer's mark.
+
+The tab is the one place a brand appears outside React, so the title, description
+and favicon live in [`src/brands/tab.ts`](src/brands/tab.ts) — a module with no
+asset imports, shared by the app and by the `brandHtml` plugin in `vite.config.ts`
+that fills `index.html`. One statement of each string, rather than one for the app
+and a stale one for the build.
+
+An unknown `VITE_BRAND` is a **hard error at boot**, not a fallback. The failure
+mode of a quiet default is one customer's branding over another customer's estate
+in a live meeting. Each dataset is also checked on load
+(`assertDatasetIntegrity`) — a genset standing at a site id that doesn't exist used
+to be a compile error and is now a thrown one, because the per-brand `CustomerId`
+union was exactly what stopped two estates coexisting in one build.
 
 **[docs/how-it-works.md](docs/how-it-works.md) explains what the product is for
 and the concepts it is built on** — genset, site, run, reading, alert, tag, control
@@ -213,7 +283,7 @@ localStorage — see [Caveats](#caveats).
 git clone git@github.com:tristanlim0303/gensetiq-prototype-1.git
 cd gensetiq-prototype-1
 bun install
-bun run dev     # http://localhost:3100
+bun run dev     # http://localhost:3100 — CelcomDigi
 ```
 
 Needs [Bun](https://bun.sh) (`curl -fsSL https://bun.sh/install | bash`); the

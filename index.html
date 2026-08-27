@@ -3,16 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Site power monitoring for CelcomDigi, powered by gensetIQ" />
+    <!-- The four %BRAND_*% placeholders are filled at build time by the `brandHtml`
+         plugin in vite.config.ts, from the active brand's entry in
+         src/brands/tab.ts. This file is not JavaScript and cannot read the brand
+         registry itself; the plugin is the bridge.
+
+         Left as literal placeholders if you open this file directly rather than
+         through Vite — that is the intended failure. A default customer's name
+         baked in here is how the previous build ended up with one in every branch. -->
+    <meta name="description" content="%BRAND_DESCRIPTION%" />
     <meta name="theme-color" content="#EEEFF2" />
-    <!-- CelcomDigi's own mark, the 256px cut their site serves as its
-         apple-touch-icon. One file rather than a set: it is transparent PNG,
-         every browser downscales it to 16 and 32, and a hand-redrawn SVG was
-         what this replaced — an approximation of a logo is a worse asset than
-         the logo, whatever it costs in bytes. -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
-    <title>CelcomDigi Site Power</title>
+    <link rel="icon" href="%BRAND_FAVICON%" />
+    <link rel="apple-touch-icon" href="%BRAND_FAVICON%" />
+    <title>%BRAND_TITLE%</title>
   </head>
   <body>
     <div id="app"></div>

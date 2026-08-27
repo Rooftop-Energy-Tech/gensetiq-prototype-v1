@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- The SESB mountain mark, simplified to favicon scale: the blue peak in
+       front carries the lightning notch, the green peak sits behind it. -->
+  <rect x="0" y="0" width="32" height="32" rx="6" fill="#FFFFFF"/>
+  <path d="M13 25 L21 9 L29 25 Z" fill="#48B971"/>
+  <path d="M3 25 L10 11 L13 17 L11 17 L14 21 L12 21 L16 25 Z" fill="#0E4393"/>
+</svg>

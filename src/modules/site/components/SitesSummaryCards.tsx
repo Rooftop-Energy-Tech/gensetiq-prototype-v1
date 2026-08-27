@@ -11,6 +11,7 @@ import {
 import {STATUS_META} from '@/modules/genset/data/fleetStatus';
 import type {EstateSummary} from '../data/estateSummary';
 import type {SiteSearch} from '../types/view.type';
+import {CUSTOMER_GROUPING_LABEL} from '@/modules/site/data/customers';
 
 /**
  * The fleet screen's cards, counting yards instead of machines.
@@ -113,7 +114,7 @@ export const SitesSummaryCards = ({
           </div>
         </SummaryCard>
 
-        <SummaryCard label="By region">
+        <SummaryCard label={CUSTOMER_GROUPING_LABEL}>
           <div className="flex flex-wrap gap-x-1 gap-y-0.5">
             {summary.byCustomer.map((tally) => (
               <CountChip

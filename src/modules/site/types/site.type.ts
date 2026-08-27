@@ -15,7 +15,7 @@
 
 import type {RunState} from '@/modules/genset/types/genset.type';
 import type {MeterFeed} from '@/modules/meter/types/meter.type';
-import type {CustomerId} from '../data/customers';
+import type {CustomerId, SiteKindId} from '@/brands';
 
 /**
  * What kind of network asset this site is.
@@ -28,10 +28,15 @@ import type {CustomerId} from '../data/customers';
  * It also sets the scale a reader should expect the load in. A macro base station
  * is 4–6 kW and a switching centre is a few hundred, so "is 216 kW a lot here" has
  * no answer without this field.
+ *
+ * **The vocabulary belongs to the dataset, not to this file.** It used to be a
+ * five-entry union of tower classes, which is a fact about carriers: a utility's
+ * estate is intake substations and feeder points, and there is no union that
+ * covers both without meaning nothing. Each dataset declares its own kinds and
+ * their labels, and `assertDatasetIntegrity` checks every site names one of them.
+ * See `brands/types.ts` for where that line is drawn.
  */
-export const SITE_KINDS = ['CORE', 'HUB', 'MACRO', 'RURAL', 'IBS'] as const;
-
-export type SiteKind = (typeof SITE_KINDS)[number];
+export type SiteKind = SiteKindId;
 
 /**
  * How this site is powered — and therefore **which circuit the site page draws**.

@@ -42,6 +42,8 @@
  * the overlay on top — never substitute one for the other.
  */
 
+import {BRAND} from '@/brands/identity';
+
 export type ColorMode = 'light' | 'dark';
 
 export type ColorToken = {
@@ -90,11 +92,11 @@ const BACKGROUND: ColorMap = {
   // GensetIQ teal — primary accents, brand moments. The IQ mark's accent stroke
   // and the login CTA both use this exact value.
   brand: {
-    // CelcomDigi bright blue in the light mode this white-label ships in — the
-    // value their own site's stylesheet names `--colour--cd-bright-blue-500`,
-    // and the fill their primary button carries. The teal stays in dark mode,
-    // which this build never shows.
-    light: '#0064DC',
+    // The active brand's own control colour — see `brands/identity.ts`, where each
+    // customer's value is recorded with the variable name their own stylesheet
+    // uses. The product's teal stays in dark mode, which these light-only
+    // white-label builds never show.
+    light: BRAND.theme.brand,
     dark: '#21B0B0',
     figma: 'bg-brand',
     divergent:
@@ -196,27 +198,31 @@ const BORDER: ColorMap = {
 /**
  * Sidebar surfaces and text — `bg-sidebar`, `text-sidebar-primary`, …
  *
- * The rail is the one surface in this white-label that does not follow the
- * app's light/dark polarity: it is painted in SESB's own blue in both modes, so
- * everything layered on it is light-on-dark either way. That is why the four
- * foreground tokens below carry the same value in both columns while the rest
+ * The rail is the one surface in these builds that does not follow the app's
+ * light/dark polarity: it is painted in the active brand's own colour in both
+ * modes, so everything layered on it is light-on-dark either way. That is why the
+ * four foreground tokens below carry the same value in both columns while the rest
  * of the palette still flips.
+ *
+ * Every brand's rail colour is therefore required to be dark enough to carry white
+ * foregrounds. That is a real constraint on adding a customer, and the reason the
+ * unbranded build uses the design system's own near-black rather than the teal.
  */
 const SIDEBAR: ColorMap = {
-  // CelcomDigi navy, `--colour--cd-navy-blue-500` in their own stylesheet and
-  // the colour their wordmark is set in. A dark surface in the light mode this
-  // app actually ships, hence the mode-invariant foregrounds.
+  // The active brand's rail colour, from `brands/identity.ts`. A dark surface in
+  // the light mode this app actually ships, hence the mode-invariant foregrounds.
   //
-  // Navy rather than the bright blue beside it, deliberately: the rail carries
-  // the brand mark, whose own gradient runs #009BDF → #0064DC, and a rail
-  // painted the mark's own blue would swallow it. Navy is the ground that
+  // On CelcomDigi that is navy rather than the bright blue beside it,
+  // deliberately: the rail carries the brand mark, whose own gradient runs
+  // #009BDF → #0064DC, and a rail painted the mark's own blue would swallow it.
+  // Navy is the ground that
   // gradient was drawn to sit on.
   sidebar: {
-    light: '#001871',
-    dark: '#001871',
+    light: BRAND.theme.sidebar,
+    dark: BRAND.theme.sidebar,
     figma: 'bg-sidebar',
     divergent:
-      "The white-label's rail is CelcomDigi navy in both modes, not the design system's #E2E4E9 / #040710. Customer-level override — do not sync this value from Figma's bg-sidebar.",
+      "The rail is the active brand's own colour in both modes, not the design system's #E2E4E9 / #040710. Customer-level override, set per brand in brands/identity.ts — do not sync this value from Figma's bg-sidebar.",
   },
   // Active / hovered nav item. Overlay — layer over the sidebar background.
   'sidebar-highlight': {
@@ -331,9 +337,22 @@ const SOLAR: ColorMap = {
  * login CTA, the primary button — and a battery drawn in it would read as
  * something to click.
  */
+const PRODUCT_BATTERY = {base: '#009BDF', tip: '#4FBCEA'};
+
+/**
+ * Optional per brand, unlike the three above.
+ *
+ * A brand that has a storage colour of its own gets it; a brand that does not
+ * keeps the product's. CelcomDigi is the first case — `--colour--celcom-blue`
+ * happens to be a good storage hue — and SESB is the second, which is the normal
+ * one. Storage is a *data* colour, and a customer with no opinion about it should
+ * not be made to invent one.
+ */
+const BATTERY_COLORS = BRAND.theme.battery ?? PRODUCT_BATTERY;
+
 const BATTERY: ColorMap = {
-  battery: {light: '#009BDF', dark: '#009BDF', figma: ''},
-  'battery-tip': {light: '#4FBCEA', dark: '#4FBCEA', figma: ''},
+  battery: {light: BATTERY_COLORS.base, dark: BATTERY_COLORS.base, figma: ''},
+  'battery-tip': {light: BATTERY_COLORS.tip, dark: BATTERY_COLORS.tip, figma: ''},
 };
 
 /**
@@ -367,13 +386,15 @@ const SEVERITY: ColorMap = {
 const MISC: ColorMap = {
   // Foreground that sits on `bg-brand`.
   'brand-text': {
-    // White in light mode on this build: the brand ground is CelcomDigi's
-    // bright blue, and the near-black that sat on the teal disappears on it.
-    light: '#FFFFFF',
+    // Moves with `brand`, and has to: the near-black that reads on the product's
+    // teal disappears on a mid-blue, so each brand states the foreground its own
+    // control colour can actually carry. See `BrandTheme` for why it is declared
+    // rather than derived.
+    light: BRAND.theme.brandForeground,
     dark: '#161D27',
     figma: 'text-brand',
     divergent:
-      "White-label build: text on the brand button must be white on CelcomDigi bright blue #0064DC — do not sync from Figma's text-brand.",
+      "Text on the brand button is the active brand's declared foreground, paired with its own brand colour in brands/identity.ts — do not sync from Figma's text-brand.",
   },
   'scroll-bar': {light: '#9EA6B2', dark: '#4D5561', figma: 'scroll-bar'},
   // Focus ring. Figma carries a single translucent value for both modes —

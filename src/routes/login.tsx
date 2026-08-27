@@ -9,7 +9,8 @@ import {DEFAULT_SITE_ID} from '@/modules/site/data/sites';
 import {siteSearch} from '@/modules/site/types/view.type';
 
 import gensetiqWordmark from '@/assets/gensetiq-wordmark-light.svg';
-import celcomdigiLogo from '@/assets/celcomdigi-logo.svg';
+
+import {BRAND} from '@/brands';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -45,25 +46,32 @@ const LoginPage = () => {
         {/* The customer's own mark carries the door; the product signs underneath.
             The wordmark is the brand SVG from the deck assets — black "genset", teal
             "IQ", drawn for a light ground. The prototype's own PNG is the dark-ground
-            inversion (teal "genset", white "IQ") and half of it vanishes here. */}
+            inversion (teal "genset", white "IQ") and half of it vanishes here.
+
+            On the unbranded build the customer's mark *is* the gensetIQ wordmark, so
+            the sign-off is dropped rather than printed twice. A door that read
+            "gensetIQ, powered by gensetIQ" is the failure mode of a white label with
+            nobody in the white. */}
         <div className="flex flex-col items-center gap-3">
           <img
-            src={celcomdigiLogo}
-            alt="CelcomDigi"
-            width={240}
-            height={74}
+            src={BRAND.logo}
+            alt={BRAND.name}
+            width={BRAND.logoSize.width}
+            height={BRAND.logoSize.height}
             className="w-60 object-contain"
           />
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-tertiary">Powered by</span>
-            <img
-              src={gensetiqWordmark}
-              alt="gensetIQ"
-              width={67}
-              height={16}
-              className="h-4 w-auto"
-            />
-          </div>
+          {BRAND.id !== 'gensetiq' && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-tertiary">Powered by</span>
+              <img
+                src={gensetiqWordmark}
+                alt="gensetIQ"
+                width={67}
+                height={16}
+                className="h-4 w-auto"
+              />
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="flex w-full flex-col items-center gap-8" noValidate>

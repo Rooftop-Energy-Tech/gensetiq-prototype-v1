@@ -1,0 +1,217 @@
+/**
+ * What a brand is, and what a brand is allowed to change.
+ *
+ * This file exists because the prototype spent three branches learning the wrong
+ * lesson. `feat/fleet-cards-split-map`, `feat/sesb-demo` and
+ * `feat/celcomdigi-demo` are one straight line of history, and two of those three
+ * forks happened for no reason other than **a different customer's colours and a
+ * different customer's estate**. Every feature built after a fork was then only
+ * available on that fork, and the branch name stopped describing its contents:
+ * `celcomdigi-demo` was really "everything anyone built since 17 August".
+ *
+ * A branch is for work in progress. A brand is not work in progress — it is a
+ * thing that permanently exists, alongside the others, and every one of them has
+ * to keep working after the next feature lands. That makes it configuration.
+ *
+ * ## The line this file draws
+ *
+ * A brand owns **whose app this is**: the name on the door, the mark on the rail,
+ * the four colours that are the customer's rather than the product's, and the
+ * estate the demo walks through.
+ *
+ * A brand does **not** own the product model. `SitePowerRole` is the clearest
+ * case: `feat/sesb-demo` shipped a two-role vocabulary (`STANDBY` / `PRIME`) and
+ * the CelcomDigi branch replaced it with four (`GRID_BACKUP`, `DIESEL_PRIME`,
+ * `DIESEL_HYBRID`, `SOLAR_HYBRID`) because the hybrid plant needed to be nameable.
+ * Reviving the two-role version as "the SESB way" would fork the model again in
+ * config instead of in git, and every hybrid feature would be dark on that brand.
+ * So the utility dataset is **re-expressed in today's model** rather than restored
+ * — see `datasets/utility.ts`. The vocabulary is the product's; which sites use
+ * which entry is the dataset's.
+ *
+ * The same rule settles anything else that comes up: if two brands disagreeing
+ * about it would mean two versions of a *feature*, it does not belong here.
+ *
+ * ## Identity and dataset are separate axes
+ *
+ * A brand names a dataset rather than containing one. Datasets are the expensive
+ * half — twenty-five sites and thirty-odd machines each — and the pairing is not
+ * one-to-one: the unbranded `gensetiq` build shows the carrier estate under
+ * product colours, because what it is for is showing the product without a
+ * customer's name on it, not inventing a third estate. Keeping the axes apart also
+ * means the next customer in a sector we already have data for is an identity file
+ * and nothing else.
+ *
+ * Splitting the registry in two (`identity.ts`, `dataset.ts`) is deliberate for a
+ * second reason: `styles/colors.ts` runs before first paint and needs the theme.
+ * It should not drag forty-five kilobytes of site seed along with it.
+ */
+
+/** The brands this build can be compiled as. Add a customer by adding an entry. */
+export const BRAND_IDS = ['celcomdigi', 'sesb', 'gensetiq'] as const;
+
+export type BrandId = (typeof BRAND_IDS)[number];
+
+export const DATASET_IDS = ['carrier', 'utility'] as const;
+
+export type DatasetId = (typeof DATASET_IDS)[number];
+
+/**
+ * The four colours that are the customer's and not the product's.
+ *
+ * Deliberately four, and not "the palette". Every other token in `colors.ts` is
+ * the design system's and is shared by every brand — a customer who wanted their
+ * own `bg-canvas` would be asking for a different product, and a customer whose
+ * yellow fails contrast as a data mark does not get to make bars invisible (see
+ * the `SOLAR` group's comment for the case where exactly that was refused).
+ *
+ * These four are the ones that carry an identity rather than a meaning:
+ *
+ * - `brand` — the login CTA and the primary button. A control colour.
+ * - `brandForeground` — what stays legible *on* `brand`. It moves with it or the
+ *   button loses its label, which is why it is here and not derived.
+ * - `sidebar` — the rail, in both modes. The one surface that does not follow the
+ *   app's light/dark polarity, because it carries the customer's mark.
+ * - `battery` — the storage series in charts, as a base and a lighter tip.
+ *   Optional: a brand that does not supply one gets the product's own.
+ */
+export type BrandTheme = {
+  brand: string;
+  brandForeground: string;
+  sidebar: string;
+  battery?: {base: string; tip: string};
+};
+
+/** Whose app this is: the name, the marks, and the tab. */
+export type BrandIdentity = {
+  id: BrandId;
+  /** The customer's name, as they write it. Used in `alt` text and copy. */
+  name: string;
+  /** The browser tab. */
+  documentTitle: string;
+  /** The `<meta name="description">`. */
+  documentDescription: string;
+  /** Path under `public/`, for the favicon link. Build-time, not an import. */
+  faviconPath: string;
+  /** The wide lockup, for the login door. Imported asset URL. */
+  logo: string;
+  /** The square mark, for the rail. Imported asset URL. */
+  mark: string;
+  /** Pixel dimensions of `logo`, so the login screen reserves the right box. */
+  logoSize: {width: number; height: number};
+  /** Pixel dimensions of `mark`. */
+  markSize: {width: number; height: number};
+  theme: BrandTheme;
+  /** Which estate this brand's demo walks through. */
+  dataset: DatasetId;
+};
+
+/**
+ * A region, zone, or account — whatever this dataset's estate is divided into.
+ *
+ * Was a per-brand string union (`'northern' | 'central' | …` on the carrier,
+ * `'west-coast' | 'kudat' | …` on the utility), which is exactly the kind of type
+ * that cannot survive a swappable dataset: the union was the reason the two
+ * estates could not coexist in one build. It is a plain `string` now, checked at
+ * load by `assertDatasetIntegrity` instead of by the compiler.
+ *
+ * That is a real loss and worth naming. A typo in a seed row's `customer` was a
+ * red squiggle and is now a thrown error on boot. The trade is deliberate — the
+ * error fires on every dev server start and names the row — but if this app ever
+ * gains a *fixed* roster again, this is the line to narrow.
+ */
+export type CustomerId = string;
+
+/** What kind of asset a site is — `MACRO` on a carrier, `PPU` on a utility. */
+export type SiteKindId = string;
+
+export type BrandCustomer = {
+  id: CustomerId;
+  /** Written in full, for a tooltip or a detail line. */
+  name: string;
+  /** The short form the chips and cards use. */
+  shortName: string;
+  /**
+   * Daily peak sun hours, the P50 design figure every solar figure is built from.
+   *
+   * Regional rather than per-site: twenty-five copies of six numbers is twenty-five
+   * chances for them to disagree. Required on every dataset, including estates with
+   * no solar on them today, because `hybridPlant` reads it the moment a reader flips
+   * one site to `SOLAR_HYBRID` on its settings tab — and a dataset that answered
+   * `undefined` there would put `NaN` kWp on the diagram.
+   */
+  peakSunHours: number;
+};
+
+/**
+ * An estate: the places, the machines standing on them, and what they are called.
+ *
+ * The seed rows are typed here rather than in the site and genset modules so a
+ * dataset file can be read on its own. The shapes are unchanged from where they
+ * used to live — this is a move, not a redesign.
+ */
+export type BrandSiteSeed = {
+  id: string;
+  /** e.g. `WPKL-0207` — the label the design puts in the header. */
+  name: string;
+  kind: SiteKindId;
+  /** The yard's placename. Gensets deployed here take it as their own. */
+  locationLabel: string;
+  latitude: number;
+  longitude: number;
+  /** What the injection point carries. A fact about the network, not the plant. */
+  loadKw: number;
+  customer: CustomerId;
+  /**
+   * The seeded power configuration. One of `SITE_POWER_ROLES` — the product's
+   * vocabulary, not the brand's. `siteConfig.ts` lets a reader override it live.
+   */
+  powerRole: string;
+};
+
+export type BrandFleetSeed = {
+  tag: string;
+  model: string;
+  runState: string;
+  /**
+   * Why this unit last cranked — `'OUTAGE'` when omitted, the ordinary reason on a
+   * grid-backed site. Set `'TEST'` to seed the case that distinction exists for: a
+   * set turning beside a healthy incomer. Both estates pin two units to it.
+   */
+  startReason?: string;
+  /** Must match a `BrandSiteSeed.id` in the same dataset, or `undefined` for the workshop. */
+  siteId: string | undefined;
+  locationLabel: string;
+  latitude: number;
+  longitude: number;
+  fuelLitres: number;
+  fuelCapacityLitres: number;
+  staleMinutes: number;
+};
+
+export type BrandDataset = {
+  id: DatasetId;
+  /** For error messages and the integrity check. */
+  label: string;
+  /**
+   * How this estate's divisions are named in a card heading — "By region" on a
+   * carrier's network, "By zone" on a utility's distribution area. Three summary
+   * cards show it and they should not all have to know which brand is loaded.
+   */
+  groupingLabel: string;
+  customers: ReadonlyArray<BrandCustomer>;
+  /** The kind vocabulary, and how each entry is written in a chip. */
+  siteKindLabels: Readonly<Record<SiteKindId, string>>;
+  sites: ReadonlyArray<BrandSiteSeed>;
+  gensets: ReadonlyArray<BrandFleetSeed>;
+  /**
+   * The site the app opens on.
+   *
+   * Pick the configuration the demo is *about*, not the first row: landing on a
+   * grid-backed rooftop opens the app on the one page that shows none of what is
+   * new.
+   */
+  defaultSiteId: string;
+  /** The genset the app opens on, lowercased tag. */
+  defaultGensetId: string;
+};

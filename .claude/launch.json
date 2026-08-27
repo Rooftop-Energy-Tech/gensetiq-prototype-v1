@@ -2,10 +2,22 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "gensetiq",
+      "name": "gensetiq-celcomdigi",
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "dev"],
       "port": 3100
+    },
+    {
+      "name": "gensetiq-sesb",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev:sesb"],
+      "port": 3101
+    },
+    {
+      "name": "gensetiq-unbranded",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev:unbranded"],
+      "port": 3102
     }
   ]
 }

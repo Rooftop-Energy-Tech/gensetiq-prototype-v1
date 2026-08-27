@@ -19,7 +19,7 @@ import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {sessionInitial, signOut, useSession} from '@/modules/auth/session';
 
-import celcomdigiMark from '@/assets/celcomdigi-mark.svg';
+import {BRAND} from '@/brands';
 
 /**
  * The rail, and the one place this white-label's estate changes the order.
@@ -103,10 +103,10 @@ export const Sidebar = () => {
             (`--sidebar`, #001871) precisely so the mark's own #009BDF → #0064DC
             gradient has a ground to sit on. */}
         <img
-          src={celcomdigiMark}
-          alt="CelcomDigi"
-          width={40}
-          height={43}
+          src={BRAND.mark}
+          alt={BRAND.name}
+          width={BRAND.markSize.width}
+          height={BRAND.markSize.height}
           className="shrink-0"
         />
       </div>
