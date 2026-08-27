@@ -31,7 +31,7 @@ import {SOLAR_CARD_THRESHOLD, SOLAR_PAGE, SOLAR_VIEWS} from './types/view.type';
 import type {SolarSearch, SolarView} from './types/view.type';
 
 /**
- * `/solar` — the portfolio's generation, and every array in it.
+ * `/solar-report` — the portfolio's generation, and every array in it.
  *
  * ## Why this is its own screen
  *
@@ -684,7 +684,7 @@ export const SolarRoute = ({search}: {search: SolarSearch}) => {
   return (
     <SolarPage
       search={search}
-      onSearchChange={(next) => void navigate({to: '/solar', search: next, replace: true})}
+      onSearchChange={(next) => void navigate({to: '/solar-report', search: next, replace: true})}
     />
   );
 };

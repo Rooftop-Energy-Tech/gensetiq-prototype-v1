@@ -1,10 +1,12 @@
 import {useNavigate} from '@tanstack/react-router';
 import {
+  BatteryChargingIcon,
   BoomBoxIcon,
   FuelIcon,
   GaugeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  PanelsTopLeftIcon,
   RadioTowerIcon,
   SettingsIcon,
   SunMediumIcon,
@@ -31,13 +33,25 @@ import celcomdigiMark from '@/assets/celcomdigi-mark.svg';
  * gone rather than demoted, because a destination nobody visits is worse than one
  * that isn't there.
  *
- * **Energy** and **Solar** take the slot it left, and they are two destinations
- * rather than one because they answer two questions. Energy is *what carried the
- * load and what the plant saved*, which is a question about diesel. Solar is *is
- * the generation what it was bought on*, which is a question about the arrays.
- * They moved apart after sharing a screen, because one page carrying two headline
- * figures that move independently is the reliable way to make a reader distrust
- * both.
+ * **Energy** and **Solar report** take the slot it left, and they are two
+ * destinations rather than one because they answer two questions. Energy is *what
+ * carried the load and what the plant saved*, which is a question about diesel.
+ * Solar report is *is the generation what it was bought on*, which is a question
+ * about the arrays. They moved apart after sharing a screen, because one page
+ * carrying two headline figures that move independently is the reliable way to
+ * make a reader distrust both.
+ *
+ * ## Reports, then registers
+ *
+ * The rail now falls into two halves and the order says so. Above, four
+ * destinations that *count the estate* — Overview, Sites, Energy, Solar report.
+ * Below, three that *list its plant* — Solar, Battery, Gensets — one per thing
+ * bolted to a site. Meters and Refuel close it out as the two operational logs.
+ *
+ * `Solar report` carries a qualifier the other reports do not, and it is the
+ * honest cost of the split: the report was at `/solar` and the register took the
+ * name, because a register named `Solar` sits beside `Battery` and `Gensets`
+ * without explanation while a report named `Solar` does not.
  */
 const NAV_ITEMS: Array<NavItem> = [
   // First, and the app's landing screen: the estate's state before any one site
@@ -45,7 +59,14 @@ const NAV_ITEMS: Array<NavItem> = [
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
   {label: 'Energy', icon: ZapIcon, link: '/energy'},
-  {label: 'Solar', icon: SunMediumIcon, link: '/solar'},
+  {label: 'Solar report', icon: SunMediumIcon, link: '/solar-report'},
+  // The three plant registers, grouped and ordered by what each one is: the
+  // array, the bank it charges, and the engine that backs both up. Solar and
+  // Battery are scaffolds — six empty tabs each — and they are in the rail
+  // anyway, because a destination that says what it will hold is how the shape
+  // of the estate gets agreed before a table is drawn for it.
+  {label: 'Solar', icon: PanelsTopLeftIcon, link: '/solar'},
+  {label: 'Battery', icon: BatteryChargingIcon, link: '/battery'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
   // After Sites, because a meter is fitted to a site's circuit and reads nothing on
   // its own — the order of the rail follows what each destination is about.
@@ -64,8 +85,8 @@ export const Sidebar = () => {
 
   return (
     // Gone entirely below `md`, where `MobileNav` takes over. Not merely narrowed:
-    // a rail of seven destinations has no phone-width form, and the two that do
-    // have mobile layouts are the two the floating bar offers.
+    // a rail of nine destinations has no phone-width form, and the handful that
+    // do have mobile layouts are the ones the floating bar offers.
     <aside className="hidden h-full w-[94px] flex-col items-center pt-2 md:flex">
       <div className="flex w-full items-center justify-center py-3.5">
         {/* The customer's own mark, cropped out of their official lockup — the
@@ -90,7 +111,17 @@ export const Sidebar = () => {
         />
       </div>
 
-      <nav aria-label="Main" className="flex w-full flex-1 flex-col items-center gap-2 px-2 py-2">
+      {/* `min-h-0` and its own scroll, added when the rail went from seven
+          destinations to nine. Without them the item list simply grows past the
+          bottom of the aside and takes Settings and the sign-out avatar with it —
+          at a 720px viewport the footer started 69px below the fold and neither
+          control could be reached at all. Flex items floor at their content size
+          unless told otherwise, so `flex-1` alone was never going to shrink this.
+          The footer below is outside the scroller and stays put. */}
+      <nav
+        aria-label="Main"
+        className="flex w-full min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto px-2 py-2"
+      >
         {NAV_ITEMS.map((item) => (
           <NavButton key={item.label} item={item} />
         ))}

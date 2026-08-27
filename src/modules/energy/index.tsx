@@ -171,7 +171,7 @@ const Tile = ({
   /** How this figure was arrived at, for the info glyph beside its label. */
   note: ReactNode;
   /** Where the figure's working lives, when it is not on this page. */
-  to?: '/solar';
+  to?: '/solar-report';
 }) => (
   <TileShell to={to}>
     <span className="flex items-center gap-1.5">
@@ -200,7 +200,7 @@ const Tile = ({
  * clickable would say the figure was more important than its neighbours, which is
  * not what a link means.
  */
-const TileShell = ({to, children}: {to?: '/solar'; children: ReactNode}) =>
+const TileShell = ({to, children}: {to?: '/solar-report'; children: ReactNode}) =>
   to === undefined ? (
     <div className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5">
       {children}
@@ -383,7 +383,7 @@ export const EnergyPage = () => {
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          {/* The one figure from `/solar` that belongs on a page about diesel:
+          {/* The one figure from `/solar-report` that belongs on a page about diesel:
               an array short of its number is a genset covering for it. The tile
               links across rather than restating the argument. */}
           {/* "Against design", not "Solar yield". It sits beside "Solar share"
@@ -392,7 +392,7 @@ export const EnergyPage = () => {
               design was met — so neither label may be one a reader has to open a
               tooltip to tell apart. */}
           <Tile
-            to="/solar"
+            to="/solar-report"
             label="Against design"
             value={percent(estate.solarYield)}
             detail={`of ${Math.round(estate.expectedSolarKwh).toLocaleString(

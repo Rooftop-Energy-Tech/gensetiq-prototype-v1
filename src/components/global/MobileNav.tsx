@@ -21,7 +21,12 @@ import type {LucideIcon} from 'lucide-react';
  * clearest case: it is an eight-column table whose whole job is comparison down a
  * column, and there is no phone-width form of that worth offering.
  *
- * `Solar` **is** here, and it is the one addition to the original three. Its
+ * `Solar` **is** here — the report at `/solar-report`, not the array register
+ * that took the `/solar` path — and it is the one addition to the original
+ * three. The register is withheld for the ordinary reason: its six tabs are
+ * empty and none has a phone layout. The bar keeps the short label, because at
+ * this width it is the only solar screen on offer and there is nothing to
+ * disambiguate it from. Its
  * cards are an `auto-fill` grid that resolves to a single column at this width,
  * and its charts were drawn for a 44px slot, so the phone layout is the desktop
  * one narrowed rather than a desktop screen squeezed. Withholding it would have
@@ -36,7 +41,7 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/overview' | '/sites' | '/solar' | '/gensets';
+  link: '/overview' | '/sites' | '/solar-report' | '/gensets';
   /**
    * The list's own default view state, for the two items that have one.
    *
@@ -56,7 +61,7 @@ const ITEMS: Array<MobileNavItem> = [
   // leaving it out would strand a phone on a screen with no way back to it.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
-  {label: 'Solar', icon: SunMediumIcon, link: '/solar'},
+  {label: 'Solar', icon: SunMediumIcon, link: '/solar-report'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
 ];
 

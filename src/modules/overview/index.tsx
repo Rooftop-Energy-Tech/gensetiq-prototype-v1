@@ -196,7 +196,7 @@ const EnergyTile = ({
   value,
   detail,
 }: {
-  to: '/energy' | '/solar' | '/refuel';
+  to: '/energy' | '/solar-report' | '/refuel';
   icon: LucideIcon;
   label: string;
   value: string;
@@ -389,11 +389,11 @@ export const OverviewPage = () => {
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {/* To `/solar`, not `/energy`. Every tile on this page links to the
+          {/* To `/solar-report`, not `/energy`. Every tile on this page links to the
               screen that shows its working, and this figure's working is a
               twelve-month series against each array's design. */}
           <EnergyTile
-            to="/solar"
+            to="/solar-report"
             icon={SunMediumIcon}
             label="Solar share"
             value={`${Math.round(energy.solarShare * 100)}%`}
