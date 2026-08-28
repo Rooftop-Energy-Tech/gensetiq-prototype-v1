@@ -1,6 +1,6 @@
+import {DATASETS} from 'virtual:brands';
+
 import {BRAND} from './identity';
-import {CARRIER_DATASET} from './datasets/carrier';
-import {UTILITY_DATASET} from './datasets/utility';
 import type {BrandDataset, DatasetId} from './types';
 
 /**
@@ -8,11 +8,13 @@ import type {BrandDataset, DatasetId} from './types';
  *
  * Imported by the site and genset data modules, which is most of the app — so
  * unlike `identity.ts`, this module is heavy and is not on the pre-paint path.
+ *
+ * The estates come from the generated registry, which carries only the ones the
+ * included brands name. A CelcomDigi deployment therefore has no utility dataset
+ * in it at all: not hidden, absent. Twenty-five substation names and thirty-seven
+ * machine tags are the most identifiable thing a bundle could leak about another
+ * customer, and a UI flag cannot un-ship them.
  */
-const DATASETS: Record<DatasetId, BrandDataset> = {
-  carrier: CARRIER_DATASET,
-  utility: UTILITY_DATASET,
-};
 
 /**
  * Everything the compiler used to catch, checked at boot instead.
@@ -87,12 +89,31 @@ const assertDatasetIntegrity = (dataset: BrandDataset): void => {
 
 const active = DATASETS[BRAND.dataset];
 
+if (active === undefined) {
+  // Only reachable if the generator included a brand without its estate.
+  throw new Error(
+    `Brand "${BRAND.id}" names dataset "${BRAND.dataset}", which is not in this build.`,
+  );
+}
+
 assertDatasetIntegrity(active);
 
 /** The estate this build walks through. Constant for the life of the process. */
 export const DATASET: BrandDataset = active;
 
-/** For tests that want to walk every estate rather than the active one. */
-export const dataset = (id: DatasetId): BrandDataset => DATASETS[id];
+/**
+ * An estate by id — for the Settings picker, which states what each brand brings.
+ *
+ * Throws on an estate this build does not carry, for the same reason
+ * `brandIdentity` does: the caller got the id off an included brand, so an absent
+ * one is a generator bug rather than a reader's typo.
+ */
+export const dataset = (id: DatasetId): BrandDataset => {
+  const found = DATASETS[id];
+  if (found === undefined) {
+    throw new Error(`Dataset "${id}" is not in this build.`);
+  }
+  return found;
+};
 
 export {assertDatasetIntegrity};

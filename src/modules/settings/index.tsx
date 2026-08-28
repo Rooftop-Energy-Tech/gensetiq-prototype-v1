@@ -1,7 +1,6 @@
 import {CheckIcon} from 'lucide-react';
 
-import {BRAND_IDS, brandIdentity, dataset} from '@/brands';
-import {ACTIVE_BRAND_ID, BUILD_BRAND_ID} from '@/brands/active';
+import {ACTIVE_BRAND_ID, BUILD_BRAND_ID, brandIdentity, dataset, INCLUDED_BRAND_IDS} from '@/brands';
 import {setStoredBrandId, storedBrandId} from '@/brands/selection';
 import type {BrandId} from '@/brands';
 import {cn} from '@/lib/utils';
@@ -18,7 +17,7 @@ import {cn} from '@/lib/utils';
  * scan. That is a two-second loop with a control and a forty-second one with a
  * terminal.
  *
- * ## Why it is hidden on a customer's own deployment
+ * ## Why it is absent from a customer's own deployment
  *
  * A dropdown offering "Sabah Electricity" on a CelcomDigi demo is a small leak of
  * an account, and the person who notices it is the customer. So the rule is:
@@ -27,10 +26,16 @@ import {cn} from '@/lib/utils';
  *  - **in a production build**, shown only on the unbranded `gensetiq` build, which
  *    is the one for prospects and decks and has no customer to leak.
  *
- * A deployed `celcomdigi` or `sesb` build therefore never lists another customer.
- * The check is against `BUILD_BRAND_ID` rather than the active brand deliberately:
- * a customer build stays a customer build even after somebody has switched it in
- * their own browser, so the picker cannot let itself back in.
+ * That rule is enforced by the `brands` plugin at build time, not here: a customer
+ * build has exactly one brand *in the bundle*, so there is nothing to offer and
+ * nothing to find in devtools either. This flag reads the consequence rather than
+ * restating the rule — the picker appears when the build carries more than one
+ * brand — so what is shown and what is shipped cannot drift apart.
+ *
+ * The earlier version of this was a UI check against `BUILD_BRAND_ID`, which hid
+ * the control while the bundle still carried every customer's name, marks and
+ * twenty-five site names. Hiding a picker is not the same as not shipping the data,
+ * and only the second one is true now.
  *
  * ## Why switching reloads
  *
@@ -39,14 +44,7 @@ import {cn} from '@/lib/utils';
  * one estate's site names over another's totals, which reviews fine and demos
  * badly.
  */
-export const BRAND_PICKER_VISIBLE = import.meta.env.DEV || BUILD_BRAND_ID === 'gensetiq';
-
-/** What each brand is, in the one line a reader needs to choose between them. */
-const BRAND_BLURB: Record<BrandId, string> = {
-  celcomdigi: 'A mobile carrier’s tower network, in their navy and bright blue.',
-  sesb: 'A state utility’s substations and rural mini-grids, in their electric blue.',
-  gensetiq: 'The product with no customer on it — teal, the IQ mark, and no lockup.',
-};
+export const BRAND_PICKER_VISIBLE = INCLUDED_BRAND_IDS.length > 1;
 
 const BrandOption = ({
   id,
@@ -103,7 +101,7 @@ const BrandOption = ({
             </span>
           )}
         </span>
-        <span className="text-sm text-secondary">{BRAND_BLURB[id]}</span>
+        <span className="text-sm text-secondary">{brand.blurb}</span>
         <span className="pt-1 text-[13px] leading-[18px] text-secondary">
           {estate.label} · {estate.sites.length} sites, {estate.gensets.length} gensets ·{' '}
           {estate.groupingLabel.replace(/^By /, '')}s
@@ -140,7 +138,7 @@ export const SettingsPage = () => {
           aria-labelledby="brand"
           className="grid max-w-3xl gap-3"
         >
-          {BRAND_IDS.map((id) => (
+          {INCLUDED_BRAND_IDS.map((id) => (
             <BrandOption
               key={id}
               id={id}

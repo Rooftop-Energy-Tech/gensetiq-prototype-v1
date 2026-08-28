@@ -6,49 +6,131 @@ import {tanstackRouter} from '@tanstack/router-plugin/vite';
 import viteReact from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-import {brandTab} from './src/brands/tab';
+import {BRAND_MANIFEST, DATASET_MANIFEST, resolveBrandId} from './src/brands/manifest';
+import type {BrandId} from './src/brands/types';
 
 /**
- * Fill `index.html`'s `%BRAND_*%` placeholders from the active brand.
- *
- * The `<head>` is the one place a brand shows up outside the React tree — the tab
- * title, the description and the favicon are read by the browser before any of our
- * code runs — so they cannot come from `brands/identity.ts` the way every other
- * brand value does. This plugin is the bridge, and `src/brands/tab.ts` is the
- * module both sides share so neither has to restate the strings.
- *
- * ## Why the brand is read in `configResolved` and not from `process.env`
- *
- * Because `.env.local` exists. Vite loads `.env` files into `import.meta.env` for
- * client code, and **not** into `process.env` — so a plugin reading
- * `process.env.VITE_BRAND` sees a shell variable and misses a file. Setting
- * `VITE_BRAND=sesb` in `.env.local` would then render the whole app as SESB while
- * leaving "CelcomDigi Site Power" in the tab: one customer's name over another
- * customer's estate, which is precisely the failure `brands/active.ts` throws to
- * prevent.
- *
- * `config.env` is the resolved client env, so it agrees with what
- * `import.meta.env.VITE_BRAND` will be at runtime by construction. Both sources
- * work, and they cannot disagree.
- *
- * `brandTab` throws on an unknown brand, which fails the dev server and the
- * production build rather than shipping a tab that says the wrong customer's name.
- * Unset is fine and matches `brands/active.ts`'s fallback — keep the two in step.
+ * The default when `VITE_BRAND` is unset — a developer running `npm run dev`,
+ * not a typo. Kept in step with nothing else: this is the only statement of it.
  */
-const FALLBACK_BRAND = 'celcomdigi';
+const FALLBACK_BRAND: BrandId = 'celcomdigi';
 
-const brandHtml = (): PluginOption => {
-  let brandId = FALLBACK_BRAND;
+const VIRTUAL_ID = 'virtual:brands';
+const RESOLVED_VIRTUAL_ID = '\0virtual:brands';
+
+/**
+ * Generate the brand registry, and fill `index.html`, for the brand being built.
+ *
+ * ## Why the registry is generated rather than written
+ *
+ * A hand-written `Record` of all three brands ships all three. That was the state
+ * before this plugin: a production CelcomDigi bundle contained Sabah Electricity's
+ * name, their logo as an emitted asset, and all twenty-five of their substation
+ * names — hidden behind a UI flag and one devtools tab away from being read.
+ *
+ * Hiding the picker is a product decision. Leaving the data out of the bundle is
+ * what makes it true. So this emits static imports for **only the brands a build is
+ * allowed to show**, and the others never enter the module graph: no strings, no
+ * estates, no assets emitted.
+ *
+ * ## Which brands a build includes
+ *
+ *  - **dev** — all of them. This is where designers compare brands, and nothing is
+ *    being handed to a customer.
+ *  - **production, unbranded (`gensetiq`)** — all of them. It is the build for
+ *    prospects and decks, and it has no customer to leak.
+ *  - **production, a customer's brand** — that brand alone.
+ *
+ * The app never restates this rule. `INCLUDED_BRAND_IDS.length > 1` is what the
+ * Settings picker keys off, so what is shown and what is shipped cannot drift.
+ *
+ * ## Why the imports are static
+ *
+ * The brand has to resolve synchronously at module load — `styles/colors.ts` needs
+ * the theme before the first paint, and the site and genset modules build their
+ * whole graph off the estate at import time. A dynamic `import()` would make all of
+ * that async, which is a far larger change than the leak is worth.
+ */
+const brands = (): PluginOption => {
+  let buildBrand: BrandId = FALLBACK_BRAND;
+  let included: Array<BrandId> = [];
 
   return {
-    name: 'brand-html',
+    name: 'brands',
+
     configResolved: (config) => {
-      const requested = config.env.VITE_BRAND;
-      brandId =
-        typeof requested === 'string' && requested !== '' ? requested : FALLBACK_BRAND;
+      // `config.env` is the resolved *client* env, so it agrees with what
+      // `import.meta.env.VITE_BRAND` will be at runtime by construction. Reading
+      // `process.env` instead would see a shell variable and miss a `.env.local`,
+      // which is how a build ends up rendering one customer with another's name in
+      // the tab.
+      buildBrand = resolveBrandId(config.env.VITE_BRAND, FALLBACK_BRAND);
+
+      const showsEveryBrand = config.command === 'serve' || buildBrand === 'gensetiq';
+
+      included = showsEveryBrand
+        ? (Object.keys(BRAND_MANIFEST) as Array<BrandId>)
+        : [buildBrand];
     },
+
+    resolveId: (id) => (id === VIRTUAL_ID ? RESOLVED_VIRTUAL_ID : undefined),
+
+    load: (id) => {
+      if (id !== RESOLVED_VIRTUAL_ID) return undefined;
+
+      const entries = included.map((brandId) => ({brandId, ...BRAND_MANIFEST[brandId]}));
+
+      // Only the estates the included brands actually name. On a customer build
+      // that is one, so the other estate's file is never imported.
+      const datasetIds = [...new Set(entries.map((entry) => entry.dataset))];
+
+      const imports = [
+        ...entries.map(
+          (entry) => `import {${entry.binding}} from '${entry.module}';`,
+        ),
+        ...datasetIds.map((datasetId) => {
+          const {module, binding} = DATASET_MANIFEST[datasetId];
+          return `import {${binding}} from '${module}';`;
+        }),
+      ];
+
+      const identities = entries
+        .map((entry) => `  ${entry.brandId}: ${entry.binding},`)
+        .join('\n');
+
+      const datasets = datasetIds
+        .map((datasetId) => `  ${datasetId}: ${DATASET_MANIFEST[datasetId].binding},`)
+        .join('\n');
+
+      // Tab strings are inlined as literals rather than imported, so `manifest.ts`
+      // — which names every customer — stays out of the client module graph.
+      const tabs = entries
+        .map((entry) => `  ${entry.brandId}: ${JSON.stringify(entry.tab)},`)
+        .join('\n');
+
+      return [
+        '// Generated by the `brands` plugin in vite.config.ts. Do not edit.',
+        `// This build carries: ${included.join(', ')}.`,
+        ...imports,
+        '',
+        `export const INCLUDED_BRAND_IDS = ${JSON.stringify(included)};`,
+        `export const BUILD_BRAND_ID = ${JSON.stringify(buildBrand)};`,
+        `export const IDENTITIES = {\n${identities}\n};`,
+        `export const DATASETS = {\n${datasets}\n};`,
+        `export const TABS = {\n${tabs}\n};`,
+      ].join('\n');
+    },
+
+    /**
+     * Fill `index.html`'s `%BRAND_*%` placeholders.
+     *
+     * Always the **build** brand, never a stored choice — this is the first paint,
+     * before any JavaScript has run, so it is the only thing that can be known. A
+     * session that switches brand in Settings has its tab reconciled by `main.tsx`
+     * afterwards; between the two, no reader sees the wrong customer's name.
+     */
     transformIndexHtml: (html: string) => {
-      const tab = brandTab(brandId);
+      const {tab} = BRAND_MANIFEST[buildBrand];
 
       return html
         .replace(/%BRAND_TITLE%/g, tab.title)
@@ -76,6 +158,6 @@ export default defineConfig({
     tanstackRouter({target: 'react', autoCodeSplitting: true}),
     tailwindcss(),
     viteReact(),
-    brandHtml(),
+    brands(),
   ],
 });

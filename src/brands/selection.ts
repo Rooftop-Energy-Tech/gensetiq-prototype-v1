@@ -66,6 +66,22 @@ export const storedBrandId = (): BrandId | undefined => {
 };
 
 /**
+ * Drop the stored choice without reloading.
+ *
+ * For `active.ts`, which calls this when a build cannot honour what is stored —
+ * a key left over from a dev session, on a customer build that carries one brand.
+ * It has already resolved to the build's own brand by then, so a reload would only
+ * land the reader on the same screen a beat later.
+ */
+export const clearStoredBrandId = (): void => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* Private mode — there was nothing readable to clear. */
+  }
+};
+
+/**
  * Pick a brand, or pass `undefined` to go back to the one the build was compiled
  * as. Reloads either way — see the header.
  */

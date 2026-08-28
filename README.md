@@ -28,7 +28,34 @@ Everything a brand may change is in **`src/brands/`**, and
 [`src/brands/types.ts`](src/brands/types.ts) is the file to read first — it states
 the line between *whose app this is* (name, marks, four colours, which estate) and
 *what the product is* (everything else). Adding a customer is a file in
-`src/brands/`, reviewed on its own, and no branch.
+`src/brands/catalog/`, an entry in `manifest.ts`, and no branch.
+
+Settings carries a **brand picker** wherever more than one brand is in the build,
+so comparing them is a click rather than a dev-server restart. Switching reloads
+the page: a brand names a dataset, and the estate is built once at startup.
+
+### A build only contains the brands it may show
+
+The registry is **generated per build** by the `brands` plugin in `vite.config.ts`,
+which emits static imports for those brands alone:
+
+| Build | Carries | Picker |
+| --- | --- | --- |
+| dev | all three | yes |
+| production, `gensetiq` | all three | yes |
+| production, a customer's brand | that brand only | no |
+
+This is the difference between hiding a control and not shipping the data. A
+customer's deployment has no other customer's name, mark, logo asset or
+twenty-five site names anywhere in it — not behind a flag, absent. The Settings
+picker keys off `INCLUDED_BRAND_IDS.length > 1`, so what is shown and what is
+shipped cannot drift apart.
+
+Verify it on any build:
+
+```bash
+npm run build && grep -rl "Sabah Electricity" dist/assets/*.js   # expect no matches
+```
 
 ### How this used to work, and why it doesn't now
 
@@ -259,12 +286,15 @@ that its `sidebar` must be dark enough to carry white foregrounds — the rail d
 not follow the app's light/dark polarity, because it carries the customer's mark.
 
 The tab is the one place a brand appears outside React, so the title, description
-and favicon live in [`src/brands/tab.ts`](src/brands/tab.ts) — a module with no
-asset imports, shared by the app and by the `brandHtml` plugin in `vite.config.ts`
-that fills `index.html`. One statement of each string, rather than one for the app
-and a stale one for the build.
+and favicon live in [`src/brands/manifest.ts`](src/brands/manifest.ts) — a
+Node-only module that nothing in `src/` imports. The plugin reads it to fill
+`index.html`, and inlines the included brands' entries as literals into the
+generated registry, so the map that names every customer never reaches the client.
+`main.tsx` then reconciles the document to the running brand, because a build-time
+title cannot know about a Settings choice made later.
 
-An unknown `VITE_BRAND` is a **hard error at boot**, not a fallback. The failure
+An unknown `VITE_BRAND` is a **hard error at build time**, not a fallback — the
+build produces no output at all, so it cannot be deployed by mistake. The failure
 mode of a quiet default is one customer's branding over another customer's estate
 in a live meeting. Each dataset is also checked on load
 (`assertDatasetIntegrity`) — a genset standing at a site id that doesn't exist used

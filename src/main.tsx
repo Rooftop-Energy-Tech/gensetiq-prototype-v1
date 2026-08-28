@@ -2,7 +2,7 @@ import {RouterProvider} from '@tanstack/react-router';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 
-import {BRAND} from './brands';
+import {BRAND_TAB} from './brands';
 import {createRouter} from './router';
 import {colorThemeCss} from './styles/colors';
 import './styles/styles.css';
@@ -33,19 +33,20 @@ document.head.append(style);
  * on a bad `VITE_BRAND` to prevent.
  *
  * So the plugin gets the first paint right and this gets the session right. Both
- * read `brands/tab.ts`, so they agree by construction and this is a no-op whenever
+ * read the same `brands/tab.ts` entries — the plugin inlines them into the
+ * generated registry — so they agree by construction, and this is a no-op whenever
  * nobody has picked anything.
  */
-document.title = BRAND.documentTitle;
+document.title = BRAND_TAB.title;
 
 for (const link of document.querySelectorAll<HTMLLinkElement>(
   'link[rel="icon"], link[rel="apple-touch-icon"]',
 )) {
-  link.href = `/${BRAND.faviconPath}`;
+  link.href = `/${BRAND_TAB.faviconPath}`;
 }
 
 const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-if (description !== null) description.content = BRAND.documentDescription;
+if (description !== null) description.content = BRAND_TAB.description;
 
 const router = createRouter();
 

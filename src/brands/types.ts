@@ -45,6 +45,24 @@
  * Splitting the registry in two (`identity.ts`, `dataset.ts`) is deliberate for a
  * second reason: `styles/colors.ts` runs before first paint and needs the theme.
  * It should not drag forty-five kilobytes of site seed along with it.
+ *
+ * ## One brand per file, and the registry is generated
+ *
+ * Each brand is its own module under `catalog/`, each estate its own under
+ * `datasets/`, and the thing that collects them is a **virtual module built per
+ * build** by the `brands` plugin in `vite.config.ts`.
+ *
+ * That is not tidiness. A hand-written `Record` of all three brands ships all
+ * three: a customer's deployment would carry the other customers' names, marks and
+ * twenty-five site names each, hidden behind a UI flag and one devtools tab away
+ * from being read. Hiding the picker is a product decision; leaving the data out
+ * of the bundle is the one that makes it true.
+ *
+ * So a build includes every brand only when it is allowed to show them — in dev,
+ * and on the unbranded `gensetiq` build, which has no customer to leak. Otherwise
+ * it includes exactly one. `INCLUDED_BRAND_IDS` is what the app reads, and the
+ * Settings picker appears precisely when that list has more than one entry, so the
+ * gate and the bundle cannot drift apart.
  */
 
 /** The brands this build can be compiled as. Add a customer by adding an entry. */
@@ -82,17 +100,22 @@ export type BrandTheme = {
   battery?: {base: string; tip: string};
 };
 
-/** Whose app this is: the name, the marks, and the tab. */
+/**
+ * Whose app this is: the name, the marks, and the four colours.
+ *
+ * **No tab strings here.** The title, description and favicon live in `tab.ts`,
+ * which is read by the Vite plugin in Node and inlined into the generated registry
+ * as literals for only the brands a build includes. Putting them on this type
+ * would mean the client importing a map of every brand's title — three short
+ * strings, but three customers' names — which is the leak this whole structure
+ * exists to close.
+ */
 export type BrandIdentity = {
   id: BrandId;
   /** The customer's name, as they write it. Used in `alt` text and copy. */
   name: string;
-  /** The browser tab. */
-  documentTitle: string;
-  /** The `<meta name="description">`. */
-  documentDescription: string;
-  /** Path under `public/`, for the favicon link. Build-time, not an import. */
-  faviconPath: string;
+  /** One line for the Settings picker: what this brand is, in a phrase. */
+  blurb: string;
   /** The wide lockup, for the login door. Imported asset URL. */
   logo: string;
   /** The square mark, for the rail. Imported asset URL. */
@@ -214,4 +237,18 @@ export type BrandDataset = {
   defaultSiteId: string;
   /** The genset the app opens on, lowercased tag. */
   defaultGensetId: string;
+};
+
+/**
+ * The browser tab, per brand.
+ *
+ * Defined here so both sides can name the shape: `tab.ts` states the values in a
+ * module only Node reads, and the generated registry re-emits the included ones as
+ * literals for the client.
+ */
+export type BrandTab = {
+  title: string;
+  description: string;
+  /** Filename under `public/`, no leading slash. */
+  faviconPath: string;
 };
