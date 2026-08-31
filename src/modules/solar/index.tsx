@@ -18,7 +18,6 @@ import {
 import {cumulative, estateSolarIntraday, estateTodaySoFarKwh} from '@/modules/site/data/hybrid';
 import {SolarCumulativeChart} from '@/modules/site/components/SolarCumulativeChart';
 import {SolarTodayChart} from '@/modules/site/components/SolarTodayChart';
-import {deliveredDieselRm, ringgit} from '@/modules/site/data/economics';
 import {estateSeries, resolveRange} from './data/series';
 import {SolarRangeTabs} from './components/SolarRangeTabs';
 import {DEFAULT_SOLAR_RANGE} from './types/range.type';
@@ -367,25 +366,21 @@ export const SolarPage = ({
   const installedKwp = rows.reduce((sum, row) => sum + row.kwp, 0);
 
   /**
-   * What the shortfall against design has cost in diesel, over the window shown.
+   * How far under design the arrays are across the window shown, in kilowatt-hours.
    *
-   * Per array at its **own site's delivered price**, then added up. One estate
-   * rate would be a fiction: a litre into the Sarawak interior costs half again
-   * what one in Selangor does, and the arrays that are short are not evenly spread
-   * across the two. `undefined` where the range carries no design at all, in which
-   * case there is no shortfall to price.
+   * This used to be priced — the shortfall converted to the diesel a genset burned
+   * covering it, at each site's own delivered rate. The money has gone with the
+   * rest of the comparison against diesel; the gap itself is still the point of
+   * the chart, so it stays in the unit the chart is drawn in. `undefined` where
+   * the range carries no design at all, in which case there is no gap to state.
    */
-  const shortfallRm = useMemo(() => {
+  const shortfallKwh = useMemo(() => {
     if (!resolved.benchmark) return undefined;
 
-    return rows.reduce((sum, row) => {
-      const seed = siteSeed(row.summary.site.id);
-      if (seed === undefined) return sum;
-      const short = Math.max(0, row.year.expectedKwh - row.year.actualKwh);
-      // The genset makes up the difference while charging, near its best point —
-      // the same loading `economics.ts` costs a hybrid's diesel at.
-      return sum + short * 0.296 * deliveredDieselRm(seed);
-    }, 0);
+    return rows.reduce(
+      (sum, row) => sum + Math.max(0, row.year.expectedKwh - row.year.actualKwh),
+      0,
+    );
   }, [rows, resolved.benchmark]);
   const short = rows.filter(isShort);
 
@@ -538,19 +533,16 @@ export const SolarPage = ({
         <div className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
             <span className="text-sm font-medium text-primary">Cumulative</span>
-            {/* The gap in ringgit, because the gap is the point.
-                Every kilowatt-hour the arrays did not make is one a genset made
-                instead, at the delivered diesel price for wherever it happened.
-                One estate rate would be a fiction — a litre into Sarawak costs
-                half again what one in Selangor does — so this is the arrays' own
-                sites, weighted by how short each of them is. */}
-            {shortfallRm === undefined ? (
+            {/* The gap against design, because the gap is the point: the distance
+                between the two lines is what the arrays owe their simulation over
+                this window, summed across every one of them. */}
+            {shortfallKwh === undefined ? (
               <span className="text-xs text-tertiary">
                 No design to compare a window this short against
               </span>
             ) : (
               <span className="text-xs text-secondary tabular-nums">
-                {ringgit(shortfallRm)} of diesel burned covering the shortfall
+                {kwh(shortfallKwh)} under design across the window
               </span>
             )}
           </div>

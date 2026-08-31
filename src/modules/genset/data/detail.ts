@@ -98,8 +98,8 @@ const NO_LOAD_FRACTION = 0.2;
  *
  * One function, used by **every** place fuel is derived from energy — the run
  * log, the current-run card, the fuel ladder, the metered-burn integral and the
- * hybrid saving on `/energy` — so the tank chart, the flow meter, the run totals
- * and the business case all tell one story.
+ * per-site litres on `/energy` — so the tank chart, the flow meter and the run
+ * totals all tell one story.
  *
  * Clamped at 5% of nameplate: below that the curve heads for infinity, and a set
  * carrying almost nothing is a state to describe rather than a divisor.

@@ -1,12 +1,11 @@
 import {Link, useNavigate} from '@tanstack/react-router';
 import {Suspense, lazy, useMemo, useState} from 'react';
-import {BatteryChargingIcon, FuelIcon, SunMediumIcon, WrenchIcon} from 'lucide-react';
+import {FuelIcon, SunMediumIcon, WrenchIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
 import {useIsCompact} from '@/lib/useIsCompact';
 import {estateEnergy} from '@/modules/site/data/hybrid';
-import {estateEconomics, payback, ringgit} from '@/modules/site/data/economics';
 import {FLEET_STATUSES, STATUS_META, gensetStatus} from '@/modules/genset/data/fleetStatus';
 import type {FleetStatus, StatusTone} from '@/modules/genset/data/fleetStatus';
 import {REFUEL_ORDERS} from '@/modules/genset/data/refuelOrders';
@@ -28,8 +27,8 @@ import {siteSearch} from '@/modules/site/types/view.type';
  * makes them read twenty-five rows to find that out.
  *
  * So the page is those three questions, as three bands: **readiness** (the four
- * worst-wins buckets across the estate), **energy** (what carried the load and
- * what the plant saved), and **where** (the map).
+ * worst-wins buckets across the estate), **energy** (what carried the load), and
+ * **where** (the map).
  *
  * ## Why the middle band is energy and not dispatch
  *
@@ -42,8 +41,13 @@ import {siteSearch} from '@/modules/site/types/view.type';
  *
  * What replaces it is the question this estate actually has: sites are being
  * converted from diesel prime to hybrid one at a time, and somebody has to be able
- * to say whether it is paying. The refuel figure stays, because a tanker to Kapit
- * is still the largest single thing this team organises.
+ * to see what the converted ones are carrying. The refuel figure stays, because a
+ * tanker to Kapit is still the largest single thing this team organises.
+ *
+ * **The band used to carry the money too** — displaced litres, a saving a year, a
+ * payback. That has been taken out along with the rest of the comparison against
+ * running on diesel alone, and will come back as its own thing. What is left
+ * reports what happened rather than what it was worth.
  *
  * **Sites in the readiness tiles.** A site is what somebody drives to. The genset
  * figure sits under it because two dry sets at one site is one journey and two
@@ -311,14 +315,13 @@ export const OverviewPage = () => {
     [summaries],
   );
   const energy = useMemo(() => estateEnergy(roles, ratedKwBySite), [roles, ratedKwBySite]);
-  const money = useMemo(() => estateEconomics(roles, ratedKwBySite), [roles, ratedKwBySite]);
 
   const outstandingOrders = REFUEL_ORDERS.filter((order) => order.refueledAt === null);
   const litresOwed = outstandingOrders.reduce((sum, order) => sum + order.litres, 0);
   // The completed side of the same log — a count only. It used to carry its litres
-  // as well, and the pair had to go when the fourth tile became the saving: a band
-  // that spends half its width on the tanker run, on an estate whose interesting
-  // question is what the plant displaced, is weighted for the wrong product.
+  // as well, and the pair had to go: a band that spends half its width on the
+  // tanker run, on an estate whose interesting question is what carried the load,
+  // is weighted for the wrong product.
   const completedOrders = REFUEL_ORDERS.filter((order) => order.refueledAt !== null);
 
   const customerName = (id: string) =>
@@ -388,7 +391,7 @@ export const OverviewPage = () => {
           </p>
         </header>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-2">
           {/* To `/solar-report`, not `/energy`. Every tile on this page links to the
               screen that shows its working, and this figure's working is a
               twelve-month series against each array's design. */}
@@ -398,29 +401,6 @@ export const OverviewPage = () => {
             label="Solar share"
             value={`${Math.round(energy.solarShare * 100)}%`}
             detail={`${Math.round(energy.solarKwh).toLocaleString('en-MY')} kWh generated`}
-          />
-          <EnergyTile
-            to="/energy"
-            icon={BatteryChargingIcon}
-            label="Diesel displaced"
-            value={`${Math.round(energy.displacedLitres).toLocaleString('en-MY')} L`}
-            detail={`${energy.hybridSites} hybrid ${
-              energy.hybridSites === 1 ? 'site' : 'sites'
-            } · ${energy.dieselSites} still on diesel`}
-          />
-          {/* The money, once, and at the level a morning actually needs it: a rate
-              and a payback. The rate build-up, the site-by-site case and the
-              quotation for the sites still on diesel are all a click away, which is
-              the same rule the readiness tiles follow — a figure here, its working
-              on the screen it links to. */}
-          <EnergyTile
-            to="/energy"
-            icon={BatteryChargingIcon}
-            label="Saving a year"
-            value={ringgit(money.annualSavingRm)}
-            detail={`${payback(money.paybackYears)} payback · ${Math.round(
-              money.roiToDate * 100,
-            )}% ROI to date`}
           />
           <EnergyTile
             to="/refuel"

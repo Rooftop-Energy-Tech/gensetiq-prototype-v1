@@ -16,11 +16,10 @@ import type {SolarCumulativePoint} from '../data/hybrid';
  * percent off every month for a year is two lines that visibly part company, and
  * the gap between them at the right-hand edge is the energy that never arrived.
  *
- * That gap is also the closest this app gets to drawing a return. Money is not on
- * this axis — a second unit on one plot is how a chart stops being read — but the
- * gap is a quantity of diesel that had to be burned instead, and the line under
- * the chart says what it cost. A reader watching the two lines separate is
- * watching the payback move.
+ * Money is not on this axis — a second unit on one plot is how a chart stops
+ * being read — and the line under the chart states the gap in the same unit the
+ * chart is drawn in. A reader watching the two lines separate is watching an
+ * array fall behind the design it was bought on.
  *
  * ## What is shaded, and what that shading means
  *

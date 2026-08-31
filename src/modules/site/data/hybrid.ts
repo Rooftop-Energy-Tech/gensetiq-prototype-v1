@@ -1,4 +1,4 @@
-import {LITRES_PER_KWH, sfcLitresPerKwh} from '@/modules/genset/data/detail';
+import {sfcLitresPerKwh} from '@/modules/genset/data/detail';
 import {spread, spreadBetween} from '@/modules/genset/data/spread';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
@@ -29,7 +29,12 @@ import type {SiteSeed} from './siteSeed';
  * So the chain runs one way only:
  *
  *   load → daily energy → array size → generation → what the genset still owes →
- *   litres → litres a diesel-only site would have burned → the saving.
+ *   litres.
+ *
+ * The chain used to run one link further, into what the same site would have
+ * burned on diesel alone and what that was worth in ringgit. That comparison has
+ * been taken out and will come back as its own thing; what is left is a
+ * measurement of what happened, with no counterfactual under it.
  *
  * Every figure on the energy screen is a link in that chain, which is why the
  * screen can show its own working.
@@ -38,12 +43,11 @@ import type {SiteSeed} from './siteSeed';
  *
  * `sfcLitresPerKwh` is the module-wide statement that a diesel burns worse the
  * lighter it is loaded, and it is what the run log, the tank ladder and the
- * current-run card all cost their fuel with. The hybrid saving is **that same
- * curve read twice** — once at the loading a genset holds while charging a
- * battery, once at the loading it holds carrying a tower directly — so the saving
- * this module reports and the burn rate a genset's own page shows cannot drift
- * apart. A second constant here would have made the headline number on the demo
- * the one figure in the app that reconciles against nothing.
+ * current-run card all cost their fuel with. Reading it here too — at the loading
+ * a genset actually holds, rather than at a flat litres-per-kilowatt-hour — is
+ * what keeps the litres this module reports and the burn rate a genset's own page
+ * shows from drifting apart. A second constant here would have made the headline
+ * number on the demo the one figure in the app that reconciles against nothing.
  *
  * ## The seam, stated rather than hidden
  *
@@ -363,18 +367,6 @@ export type SiteEnergy = {
   mainsKwh: number;
   /** Diesel the genset actually burned, litres. */
   litres: number;
-  /**
-   * Diesel this site would have burned as a plain diesel-prime site, litres.
-   *
-   * The comparison the whole hybrid case rests on, and it is not simply "more
-   * litres for more kilowatt-hours". A prime genset runs continuously at whatever
-   * a tower happens to draw, which on a 20 kVA set against a 5 kW tower is about a
-   * third of nameplate — well down the part-load curve. A hybrid's genset runs in
-   * blocks near its best point. So the same energy costs materially different
-   * diesel, and most of the saving at a *diesel* hybrid comes from that rather
-   * than from generating less.
-   */
-  baselineLitres: number;
   /** Solar's share of generation, `0`–`1`. */
   solarShare: number;
   /** Engine hours over the window. */
@@ -386,8 +378,8 @@ export type SiteEnergy = {
  *
  * At a hybrid it is charging, so it sits near its best point by design. At a
  * prime or grid-backed site it carries the tower and takes whatever loading that
- * happens to be — which is the number the saving is argued from, so it is derived
- * from the two real figures rather than assumed.
+ * happens to be — which is what makes the litres real, so it is derived from the
+ * two real figures rather than assumed.
  */
 const runningLoadFraction = (seed: SiteSeed, role: SitePowerRole, ratedKw: number): number => {
   if (hasBattery(role)) return CHARGING_LOAD_FRACTION;
@@ -429,7 +421,7 @@ export const siteEnergy = (
 
   // What it actually made. `solarPerformance` is the gap between a design and a
   // roof — see its own note — and the genset below picks up whatever the array
-  // did not, so an underperforming site burns more diesel and its payback moves.
+  // did not, so an underperforming site burns more diesel for the same load.
   // That chain is the point of measuring against a benchmark at all.
   // Clamped at the generation the site can absorb, for the same reason the design
   // figure above it is: an array beating its number at a site with no headroom is
@@ -452,17 +444,6 @@ export const siteEnergy = (
   const loadFraction = runningLoadFraction(seed, role, ratedKw);
   const litres = Math.round(gensetKwh * sfcLitresPerKwh(loadFraction));
 
-  // The baseline is this site as a diesel-prime one: the genset carries the tower
-  // continuously, at the loading the tower actually imposes on it, with no bank to
-  // let it run anywhere better. Where no plant is fitted the fallback is the flat
-  // curve — a figure that is honest about knowing nothing rather than one that
-  // quietly assumes the worst case and inflates the saving.
-  const baselineFraction = ratedKw > 0 ? Math.min(1, seed.loadKw / ratedKw) : 0.75;
-  const baselineLitres =
-    role === 'GRID_BACKUP'
-      ? litres
-      : Math.round(loadKwh * (ratedKw > 0 ? sfcLitresPerKwh(baselineFraction) : LITRES_PER_KWH));
-
   // Engine hours follow from the energy and the loading, which is the only way
   // they can agree with the litres above them.
   const gensetHours =
@@ -481,7 +462,6 @@ export const siteEnergy = (
     gensetKwh,
     mainsKwh,
     litres,
-    baselineLitres,
     solarShare: generationKwh > 0 ? solarKwh / generationKwh : 0,
     gensetHours,
   };
@@ -499,9 +479,6 @@ export type EstateEnergy = {
   solarYield: number;
   gensetKwh: number;
   litres: number;
-  baselineLitres: number;
-  /** Litres the hybrid plant did not burn, over the window. */
-  displacedLitres: number;
   /** Solar's share of off-grid generation, `0`–`1`. */
   solarShare: number;
 };
@@ -510,8 +487,8 @@ export type EstateEnergy = {
  * The same arithmetic across the estate, for the overview's energy band.
  *
  * **Grid-backed sites are excluded from every figure here.** They burn almost no
- * diesel and generate almost nothing, so including them would divide a real
- * saving by a pile of sites the programme was never about and report a number
+ * diesel and generate almost nothing, so including them would dilute the
+ * programme's own figures with a pile of sites it was never about — a solar share
  * that falls every time the carrier builds a tower in a town.
  */
 export const estateEnergy = (
@@ -522,7 +499,6 @@ export const estateEnergy = (
   let expectedSolarKwh = 0;
   let gensetKwh = 0;
   let litres = 0;
-  let baselineLitres = 0;
   let hybridSites = 0;
   let solarSites = 0;
   let dieselSites = 0;
@@ -540,7 +516,6 @@ export const estateEnergy = (
     expectedSolarKwh += energy.expectedSolarKwh;
     gensetKwh += energy.gensetKwh;
     litres += energy.litres;
-    baselineLitres += energy.baselineLitres;
   }
 
   const generation = solarKwh + gensetKwh;
@@ -554,8 +529,6 @@ export const estateEnergy = (
     solarYield: expectedSolarKwh > 0 ? solarKwh / expectedSolarKwh : 0,
     gensetKwh,
     litres,
-    baselineLitres,
-    displacedLitres: Math.max(0, baselineLitres - litres),
     solarShare: generation > 0 ? solarKwh / generation : 0,
   };
 };

@@ -101,7 +101,7 @@ started as, and the difference works through the whole app:
 | Rail leads with | Gensets, then Deployment | **Sites**, then **Energy** and **Solar** |
 | A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
 | `/deployment` screen | the dispatch feed | **gone**, see `Sidebar.tsx` |
-| Overview's middle band | dispatch | **energy and the saving** |
+| Overview's middle band | dispatch | **energy** |
 | Site load | 40–740 kW substations | **3–205 kW**, mostly 4–6 kW towers |
 | Genset plant | 250–1,250 kVA | **15–60 kVA**, two 500/1,000 kVA at the switching centres |
 | Site configurations | standby, prime | **grid-backed, diesel prime, diesel hybrid, solar hybrid** |
@@ -114,25 +114,22 @@ string. The single-line diagram treats an array and a battery as **rows on the
 bus like any other source**, so a solar hybrid with two sets is the same drawing
 as a diesel-prime site with one, taller.
 
-### The hybrid model, and the money
+### The hybrid model
 
-Two modules, deliberately not one:
+**`site/data/hybrid.ts`** is physics. Load → daily energy → array size →
+generation → what the genset still owes → litres. Every link derives from the one
+before it, and the fuel arithmetic reuses `sfcLitresPerKwh`, the same curve the
+run log and the tank ladder cost their fuel with.
 
-- **`site/data/hybrid.ts`** is physics. Load → daily energy → array size →
-  generation → what the genset still owes → litres → what the same site would
-  have burned on diesel alone. Every link derives from the one before it, and the
-  fuel arithmetic reuses `sfcLitresPerKwh`, the same curve the run log and the
-  tank ladder cost their fuel with.
-- **`site/data/economics.ts`** is prices, and takes its shape from **SolarIQ**:
-  what one displaced unit is *actually* worth, savings to date, payback, ROI to
-  date. The substitution is that SolarIQ displaces a bought kilowatt-hour and this
-  displaces a burned litre, including the haulage that makes a litre at Belaga
-  cost most of half as much again as one in Shah Alam. Every price is a mock
-  benchmark in one labelled block at the top of the file.
+`/energy` is that model as a table: what carried the load at each off-grid site,
+how long its engine ran, and what it burned.
 
-`/energy` is those two as a table, and prices the sites **still on diesel** as
-though the plant they would get were already there, so the bottom of the list is
-a quotation.
+> **Removed, and coming back later.** There was a second module,
+> `site/data/economics.ts`, that priced all of this — delivered diesel by region,
+> capex, saving a year, payback, ROI, and a quotation for every site still on
+> diesel — along with the counterfactual underneath it: the litres each site
+> *would* have burned running on diesel alone. All of it has been taken out. What
+> is left measures what happened and makes no claim about what it was worth.
 
 Solar is reported **against its benchmark**, which is the other thing SolarIQ
 gets right, and it is drawn as well as tabulated. `SolarYieldChart` puts twelve
@@ -231,10 +228,7 @@ happened that month. Two of the four arrays step down, and the heading names the
 month only where the series actually steps. An array's output on its own says nothing, so every solar site
 carries three figures: the **P50** its design was bought on, the **P90** band at
 0.9 of that, and what it actually made. Two of the four arrays are under their
-P90, and the shortfall converts into diesel and moves their payback, so the row
-also carries what the payback would have been at P50. That chain is the reason
-the benchmark is worth holding at all: a number that changes nothing downstream
-is decoration.
+P90, which is the test that puts an array on the list of ones worth visiting.
 
 `sfcLitresPerKwh` changed on this branch, and it is the one change that reaches
 back into the shared product. It was a straight line, with the full-load figure

@@ -1,10 +1,7 @@
 import {Badge} from '@/components/ui/badge';
 import {amount, fuelHeadline} from '@/lib/format';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
-import {hasBattery, hasMains} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
-import {payback, ringgit, siteEconomics} from '../data/economics';
-import {siteSeed} from '../data/siteSeed';
 import {siteFeed} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 import {supplyLabel, supplyMeta} from './supplyMeta';
@@ -45,16 +42,6 @@ export const SiteSummaryPanel = ({
   // `supplyMeta`, which the list's preview panel reads too.
   const supply = supplyMeta(feed, role, summary.gensets.length);
 
-  // The money, for off-grid sites only. A site still on diesel is *quoted* rather
-  // than reported, which is what `proposed` switches the two labels below between:
-  // the figures are the same figures and one of them has not happened yet.
-  const seed = siteSeed(summary.site.id);
-  const proposed = !hasBattery(role);
-  const economics =
-    seed === undefined || hasMains(role)
-      ? undefined
-      : siteEconomics(seed, role, summary.ratedKw);
-
   const SupplyIcon = supply.icon;
 
   return (
@@ -91,31 +78,6 @@ export const SiteSummaryPanel = ({
           value={fuelHeadline(summary.fuelLitres, summary.fuelCapacityLitres)}
         />
 
-        {/* The site's own case, on the site's own page.
-            Two rows and no more. The estate's argument belongs on `/energy`, where
-            it can show its rate build-up and its per-site working; what a reader
-            standing on one site needs is the two figures they would quote out loud —
-            what the plant here saves, and what carrying it as diesel would cost.
-            Withheld entirely at a grid-backed site, where both are a rounding error
-            and printing them would invite a comparison that means nothing. */}
-        {economics !== undefined && (
-          <>
-            <MetricRow
-              label={proposed ? 'Would save' : 'Saving a year'}
-              value={`${ringgit(economics.annualSavingRm)} a year`}
-            />
-            <MetricRow
-              label={proposed ? 'Payback' : 'ROI to date'}
-              value={
-                proposed
-                  ? `${payback(economics.paybackYears)} on ${ringgit(economics.capexRm)}`
-                  : `${Math.round(economics.roiToDate * 100)}% · ${payback(
-                      economics.paybackYears,
-                    )} payback`
-              }
-            />
-          </>
-        )}
       </div>
     </div>
   );
