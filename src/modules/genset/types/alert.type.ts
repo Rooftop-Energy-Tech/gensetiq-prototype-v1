@@ -145,6 +145,34 @@ export const conditionOf = (alerts: Array<GensetAlert>): GensetCondition => {
   return 'OPTIMUM';
 };
 
+/** Ordered worst-first, so `find` over it is "worst wins" — as with the severities. */
+export const CONDITION_ORDER = ['CRITICAL', 'ATTENTION', 'OPTIMUM'] as const;
+
+/**
+ * What one alarm at a given severity does to the verdict on its own.
+ *
+ * The same mapping `conditionOf` applies to a list, written down so a verdict can
+ * also be formed from an alarm the app raised rather than the register map — the
+ * fuel leak and the tank level. `NEUTRAL` maps to `OPTIMUM` because a neutral
+ * alert is a note, which is the rule `conditionOf` has always worked to.
+ */
+export const CONDITION_OF_SEVERITY: Record<AlertSeverity, GensetCondition> = {
+  CRITICAL: 'CRITICAL',
+  WARNING: 'ATTENTION',
+  NEUTRAL: 'OPTIMUM',
+};
+
+/**
+ * Worst of several verdicts.
+ *
+ * What lets a genset's condition be assembled from sources that know nothing about
+ * each other — the register map, the leak reconciliation, the tank — without any
+ * of them having to be told the order.
+ */
+export const worstCondition = (
+  ...conditions: Array<GensetCondition>
+): GensetCondition => CONDITION_ORDER.find((rank) => conditions.includes(rank)) ?? 'OPTIMUM';
+
 /** How many alerts sit at each severity — the counts on the three filter chips. */
 export const countBySeverity = (
   alerts: Array<GensetAlert>,
@@ -160,6 +188,12 @@ export const countBySeverity = (
  * Used to colour a tag chip: a tag whose readings are all inside their
  * thresholds gets the green `ok` glyph, and one with a warning behind it gets
  * amber before anybody clicks it.
+ *
+ * Takes anything carrying a severity rather than `GensetAlert` specifically, so
+ * the app's own rows — a leak, a tank below its line — can be ranked alongside the
+ * register map's without being dressed up as alarms to get there.
  */
-export const worstSeverity = (alerts: Array<GensetAlert>): AlertSeverity | undefined =>
+export const worstSeverity = (
+  alerts: Array<{severity: AlertSeverity}>,
+): AlertSeverity | undefined =>
   ALERT_SEVERITIES.find((severity) => alerts.some((alert) => alert.severity === severity));

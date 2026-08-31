@@ -2,6 +2,7 @@ import {useNavigate} from '@tanstack/react-router';
 import {
   BatteryChargingIcon,
   BoomBoxIcon,
+  FileChartColumnIcon,
   FuelIcon,
   GaugeIcon,
   LayoutDashboardIcon,
@@ -9,8 +10,6 @@ import {
   PanelsTopLeftIcon,
   RadioTowerIcon,
   SettingsIcon,
-  SunMediumIcon,
-  ZapIcon,
 } from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
@@ -33,38 +32,47 @@ import {BRAND} from '@/brands';
  * gone rather than demoted, because a destination nobody visits is worse than one
  * that isn't there.
  *
- * **Energy** and **Solar report** take the slot it left, and they are two
- * destinations rather than one because they answer two questions. Energy is *what
- * carried the load and what the plant saved*, which is a question about diesel.
- * Solar report is *is the generation what it was bought on*, which is a question
- * about the arrays. They moved apart after sharing a screen, because one page
- * carrying two headline figures that move independently is the reliable way to
- * make a reader distrust both.
+ * **Report** takes the slot it left, and it is one destination where there were
+ * two. `Energy` and `Solar report` sat here side by side because they answer two
+ * questions — what carried the load and what the plant saved, against whether the
+ * arrays are generating what they were bought on — and those two headline figures
+ * move for unrelated reasons. That is still true, and the tab strip inside
+ * `/report` is what keeps them on separate screens. What it never justified was
+ * two rail items: the rail is a list of *places*, and both of them were the same
+ * place.
+ *
+ * The consolidation also retires a qualifier. `Solar report` had to carry one
+ * because a rail item reading `Solar` next to `Battery` and `Gensets` would have
+ * been read as the plant register — which it now emphatically is, with systems
+ * and inverters under it. Inside a section where every tab is a report there is
+ * nothing to disambiguate, so the tabs read `Overall`, `Solar` and `Genset`, and
+ * the register keeps the short name it always wanted.
  *
  * ## Reports, then registers
  *
- * The rail now falls into two halves and the order says so. Above, four
- * destinations that *count the estate* — Overview, Sites, Energy, Solar report.
- * Below, three that *list its plant* — Solar, Battery, Gensets — one per thing
- * bolted to a site. Meters and Refuel close it out as the two operational logs.
- *
- * `Solar report` carries a qualifier the other reports do not, and it is the
- * honest cost of the split: the report was at `/solar` and the register took the
- * name, because a register named `Solar` sits beside `Battery` and `Gensets`
- * without explanation while a report named `Solar` does not.
+ * The rail falls into two halves and the order says so. Above, three destinations
+ * that *count the estate* — Overview, Sites, Report. Below, three that *list its
+ * plant* — Solar, Battery, Gensets — one per thing bolted to a site. Meters and
+ * Refuel close it out as the two operational logs.
  */
 const NAV_ITEMS: Array<NavItem> = [
   // First, and the app's landing screen: the estate's state before any one site
   // in it. Everything below is a way of narrowing what this page counts.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
-  {label: 'Energy', icon: ZapIcon, link: '/energy'},
-  {label: 'Solar report', icon: SunMediumIcon, link: '/solar-report'},
+  // One item, three tabs. The three reports were consolidated here; see the note
+  // above for why the rail carried two of them and now carries one.
+  {label: 'Report', icon: FileChartColumnIcon, link: '/report'},
   // The three plant registers, grouped and ordered by what each one is: the
-  // array, the bank it charges, and the engine that backs both up. Solar and
-  // Battery are scaffolds — six empty tabs each — and they are in the rail
-  // anyway, because a destination that says what it will hold is how the shape
-  // of the estate gets agreed before a table is drawn for it.
+  // solar system, the bank it charges, and the engine that backs both up.
+  //
+  // Solar was a scaffold — six empty tabs — until it became a register with a
+  // page per system and the six tabs moved down onto each one, which is the shape
+  // `/gensets` has always had. A row there is everything PV at one site; its
+  // inverters are a band on its page. Battery is still the scaffold, and it stays in the
+  // rail for the reason both were put there: a destination that says what it will
+  // hold is how the shape of the estate gets agreed before a table is drawn for
+  // it, and storage is the largest thing this app is missing.
   {label: 'Solar', icon: PanelsTopLeftIcon, link: '/solar'},
   {label: 'Battery', icon: BatteryChargingIcon, link: '/battery'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},

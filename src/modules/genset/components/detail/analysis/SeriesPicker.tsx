@@ -4,7 +4,7 @@ import {Badge} from '@/components/ui/badge';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import type {Reading} from '../../../types/telemetry.type';
+import type {PickableReading} from '../../../types/telemetry.type';
 import {MAX_SERIES, SERIES_SLOTS} from './seriesMeta';
 
 /**
@@ -30,13 +30,13 @@ export const SeriesPicker = ({
   selected,
   onToggle,
 }: {
-  readings: Array<Reading>;
+  readings: Array<PickableReading>;
   selected: Array<string>;
   onToggle: (key: string) => void;
 }) => {
   const chosen = selected
     .map((key) => readings.find((reading) => reading.key === key))
-    .filter((reading): reading is Reading => reading !== undefined);
+    .filter((reading): reading is PickableReading => reading !== undefined);
 
   return (
     <div className="flex flex-wrap items-center gap-2">

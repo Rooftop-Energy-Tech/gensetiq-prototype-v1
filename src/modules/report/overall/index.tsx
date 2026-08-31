@@ -1,12 +1,12 @@
 import {Link} from '@tanstack/react-router';
-import {InfoIcon, SearchIcon, SearchXIcon} from 'lucide-react';
+import {SearchIcon, SearchXIcon} from 'lucide-react';
 import {useMemo, useState} from 'react';
 import type {ReactNode} from 'react';
 
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
-import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 
 import {cn} from '@/lib/utils';
+import {ReportColumnHead, ReportTile} from '@/modules/report/components/ReportTile';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
 import {estateEnergy, hybridPlant, siteEnergy} from '@/modules/site/data/hybrid';
 import type {SiteEnergy} from '@/modules/site/data/hybrid';
@@ -17,7 +17,11 @@ import {SITE_POWER_ROLE_LABEL} from '@/modules/site/types/site.type';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 
 /**
- * `/energy` — what carried the load, site by site.
+ * `/report` — what carried the load, site by site.
+ *
+ * The report section's landing tab, and the page that was `/energy` until the
+ * reports were consolidated. Only the path moved: everything below was written
+ * for this screen and still describes it.
  *
  * ## Why this screen exists on this build and not the mobile one
  *
@@ -63,9 +67,9 @@ import type {SitePowerRole} from '@/modules/site/types/site.type';
  *    be.
  *
  * Generation used to be drawn here too, one chart per array in a grid, and it is
- * the reason `/solar` exists. At four arrays that grid was a page; at forty it
- * was a wall of thumbnails nobody compares. The **Against design** tile below is
- * what remains of it, and it links to the screen that shows its working.
+ * the reason the Solar tab exists. At four arrays that grid was a page; at forty
+ * it was a wall of thumbnails nobody compares. The **Against design** tile below
+ * is what remains of it, and it links to the tab that shows its working.
  */
 
 const COLUMNS: Array<{label: string; width: string; note?: ReactNode}> = [
@@ -97,94 +101,6 @@ const COLUMNS: Array<{label: string; width: string; note?: ReactNode}> = [
 const litres = (value: number): string => `${Math.round(value).toLocaleString('en-MY')} L`;
 
 const percent = (fraction: number): string => `${Math.round(fraction * 100)}%`;
-
-/**
- * One estate figure, in the tile grammar the overview already uses.
- *
- * No status colour on any of them: these are quantities, not verdicts, and a
- * coloured number would rank what is only a tally.
- *
- * ## Every figure explains itself
- *
- * `note` is not optional and there is no tile without one. This page is the only
- * screen in the app whose numbers are **modelled** rather than read off an
- * instrument, and a modelled number a reader cannot interrogate is one they will
- * either believe too readily or dismiss. The glyph carries what it was derived
- * from, in the one place somebody wondering will look.
- */
-const Tile = ({
-  label,
-  value,
-  detail,
-  note,
-  to,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  /** How this figure was arrived at, for the info glyph beside its label. */
-  note: ReactNode;
-  /** Where the figure's working lives, when it is not on this page. */
-  to?: '/solar-report';
-}) => (
-  <TileShell to={to}>
-    <span className="flex items-center gap-1.5">
-      <span className="truncate text-xs font-medium text-secondary">{label}</span>
-      <Tooltip>
-        <TooltipTrigger className="shrink-0 cursor-help text-tertiary hover:text-primary">
-          <InfoIcon className="size-3" aria-hidden="true" />
-          <span className="sr-only">How {label} is worked out</span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[280px]">
-          {note}
-        </TooltipContent>
-      </Tooltip>
-    </span>
-    <span className="text-2xl leading-none font-semibold text-primary tabular-nums">{value}</span>
-    <span className="truncate text-xs text-secondary">{detail}</span>
-  </TileShell>
-);
-
-/**
- * The tile's box, as a link where the figure has a screen behind it and a plain
- * div where it does not.
- *
- * Split out rather than branched inline because the two have to be visually
- * identical: a tile that grew a border or a shade because it happened to be
- * clickable would say the figure was more important than its neighbours, which is
- * not what a link means.
- */
-const TileShell = ({to, children}: {to?: '/solar-report'; children: ReactNode}) =>
-  to === undefined ? (
-    <div className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5">
-      {children}
-    </div>
-  ) : (
-    <Link
-      to={to}
-      className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5 transition-colors outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline"
-    >
-      {children}
-    </Link>
-  );
-
-/** A column heading with the same glyph, for the columns that are derived too. */
-const ColumnHead = ({label, note}: {label: string; note?: ReactNode}) => (
-  <span className="flex items-center gap-1.5">
-    {label}
-    {note !== undefined && (
-      <Tooltip>
-        <TooltipTrigger className="shrink-0 cursor-help text-tertiary hover:text-primary">
-          <InfoIcon className="size-3" aria-hidden="true" />
-          <span className="sr-only">How {label} is worked out</span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[280px]">
-          {note}
-        </TooltipContent>
-      </Tooltip>
-    )}
-  </span>
-);
 
 /**
  * Generation split as one bar: solar, then diesel.
@@ -222,10 +138,10 @@ const plantLabel = (siteId: string, role: SitePowerRole): string => {
   const plant = hybridPlant(seed, role);
   if (plant.batteryKwh === 0) return 'Genset only';
   const bank = `${plant.batteryKwh.toLocaleString('en-MY')} kWh`;
-  return plant.pvKwp === 0 ? bank : `${plant.pvKwp} kWp · ${bank}`;
+  return plant.solarKwp === 0 ? bank : `${plant.solarKwp} kWp · ${bank}`;
 };
 
-export const EnergyPage = () => {
+export const OverallReport = () => {
   const summaries = useSiteSummaries();
   const roles = useSitePowerRoles();
 
@@ -331,7 +247,7 @@ export const EnergyPage = () => {
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {/* The one figure from `/solar-report` that belongs on a page about diesel:
+          {/* The one figure from the Solar tab that belongs on a page about diesel:
               an array short of its number is a genset covering for it. The tile
               links across rather than restating the argument. */}
           {/* "Against design", not "Solar yield". It sits beside "Solar share"
@@ -339,8 +255,8 @@ export const EnergyPage = () => {
               how much of the generation was solar, the other is how much of the
               design was met — so neither label may be one a reader has to open a
               tooltip to tell apart. */}
-          <Tile
-            to="/solar-report"
+          <ReportTile
+            to="/report/solar"
             label="Against design"
             value={percent(estate.solarYield)}
             detail={`of ${Math.round(estate.expectedSolarKwh).toLocaleString(
@@ -348,13 +264,13 @@ export const EnergyPage = () => {
             )} kWh at P50`}
             note="What the arrays actually made against the design yield they were bought on, over the same thirty days. The P90 band sits at 90% of it. Solar has its own screen, where the twelve-month series says which arrays are short and since when."
           />
-          <Tile
+          <ReportTile
             label="Solar share"
             value={percent(estate.solarShare)}
             detail={`${Math.round(estate.solarKwh).toLocaleString('en-MY')} kWh generated`}
             note="Solar as a share of everything generated off-grid, including at the sites with no array. It is low because only four of the thirteen have one, and it is the figure that rises with every conversion."
           />
-          <Tile
+          <ReportTile
             label="Diesel burned"
             value={litres(estate.litres)}
             detail={`${Math.round(estate.gensetKwh).toLocaleString('en-MY')} kWh from the gensets`}
@@ -419,7 +335,7 @@ export const EnergyPage = () => {
                     scope="col"
                     className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas px-2 text-left font-medium whitespace-nowrap text-secondary"
                   >
-                    <ColumnHead label={column.label} note={column.note} />
+                    <ReportColumnHead label={column.label} note={column.note} />
                   </th>
                 ))}
               </tr>

@@ -67,6 +67,43 @@ export type Reading = {
 export type GaugeReading = Reading & {min: number; max: number};
 
 /**
+ * The subset of a reading `SeriesPicker` draws — a name, and the number now.
+ *
+ * Widened out of `Reading` alongside `DialReading` below, and for the same
+ * reason: the solar module's analysis tab needs the same control over a reading
+ * type that differs only in fields the picker never touches. `Reading` is
+ * assignable to this, so nothing that passed the picker a genset reading has
+ * changed.
+ *
+ * The *filtering* stays with the caller either way. The picker's own note is that
+ * it "offers instantaneous readings and nothing else", and that is still true —
+ * both callers pass the instantaneous ones, because both reading types carry
+ * their own `kind` and neither should have to learn about the other's.
+ */
+export type PickableReading = {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+  precision?: number;
+};
+
+/**
+ * The subset of a gauge reading that `TickGauge` actually draws.
+ *
+ * Widened out of `GaugeReading` when the solar module needed the same dial. The
+ * dial reads six fields and cares about none of the rest, and the two modules'
+ * readings differ in exactly the field it never touches — a genset's
+ * `engineOnly` against an array's `daylightOnly`, which assert different things
+ * about different machines and should not be merged into one vaguer boolean just
+ * to share a component.
+ *
+ * `GaugeReading` is assignable to this, so nothing that passed a genset's dial a
+ * genset reading has changed.
+ */
+export type DialReading = PickableReading & {min: number; max: number};
+
+/**
  * A set of readings measured on the same quantity across the three phases —
  * line voltages, or phase currents.
  *

@@ -59,9 +59,14 @@ import type {SiteSeed} from './siteSeed';
  *
  * Reconciling them properly means the run log becoming a function of the site's
  * configuration, which is the right shape and a larger change than this white
- * label. Until then the rule is that the two never appear on one screen: `/energy`
- * and the site pages read this module, the run log and the tank chart read
- * `history.ts`, and no figure is derived from both.
+ * label. Until then the rule is that the two never appear on one screen: the
+ * report's **Overall** and **Solar** tabs and the site pages read this module,
+ * while its **Genset** tab, the run log and the tank chart read `history.ts`, and
+ * no figure is derived from both.
+ *
+ * The three reports sharing a section does not weaken that. A tab strip is a set
+ * of screens, not one screen with three bands — which is most of why the reports
+ * were consolidated as tabs rather than stacked into a single page.
  *
  * These are **mock sites**, the same standing as every other figure in this
  * prototype. The arithmetic is real; the estate is not.
@@ -130,9 +135,50 @@ const P90_OF_P50 = 0.9;
 const solarPerformance = (seed: SiteSeed, role: SitePowerRole): number =>
   hasSolar(role) ? spreadBetween(seed.id, 'hybrid/array-health', 0.76, 1.06) : 1;
 
+/**
+ * The hybrid plant at a site: **a solar system, and a battery.**
+ *
+ * ## Capacities, not assets — and that is the whole point of this type
+ *
+ * Three numbers and no identity. This is a *sizing* answer, and everything
+ * downstream of it is physics: `siteEnergy` turns it into generation, the site
+ * diagram draws it as rows on the bus, `estateCount` sums it. None of those may
+ * know that a system has twenty-two inverters, that one of them stopped
+ * reporting on Tuesday, or that its firmware is out of date.
+ *
+ * The moment this returned the *asset* rather than its size, the energy model
+ * would be able to see a comms failure — and an energy model that knows which
+ * boxes are talking is one that will eventually disagree with the telemetry on
+ * the same screen. That is the seam the README names between `history.ts` and
+ * this file, met from the other side.
+ *
+ * So the layering is: `hybridPlant` says how big, `solarSystem` in the solar
+ * module says what it is and how it is doing. The second is built on the first.
+ *
+ * ## Why there is no array here
+ *
+ * There was briefly a `SolarArray` asset above this, with its own register and
+ * detail page, and it was the wrong unit: an array is the half of a PV system
+ * that has no electronics, so nothing reads from it. Every "array" reading in a
+ * monitoring product — string current, DC bus voltage — is really an inverter
+ * reporting what it sees on its own inputs.
+ *
+ * An array earns a place in a model for exactly one job, and it is **attribution
+ * rather than measurement**: a sub-array is a plane with one tilt and one
+ * azimuth, and naming it is how a shortfall the inverters report gets pinned to a
+ * piece of roof rather than to the boxes. Every site on both estates here is one
+ * plane, so there is nothing to attribute and the level would only ever hold one
+ * child. When a customer turns up with an east and a west roof, the thing to add
+ * is a `plane` under the system — not an `array`, which is too overloaded a word
+ * to reintroduce.
+ *
+ * What survives of it is `solarKwp`, and that is not a leftover. DC nameplate is
+ * the denominator of every performance figure in solar — specific yield is
+ * kWh/kWp, a quote says 1.3 MWp — so the system simply has a size.
+ */
 export type HybridPlant = {
-  /** PV array nameplate, kWp. `0` where no array is fitted. */
-  pvKwp: number;
+  /** The PV system's nameplate, kWp DC. `0` where no system is fitted. */
+  solarKwp: number;
   /** Usable battery energy, kWh. `0` where no bank is fitted. */
   batteryKwh: number;
   /** Hours the bank alone can carry the site from full. */
@@ -163,7 +209,7 @@ export type HybridPlant = {
  * 16–20, because it has to cover a night and part of a dull morning.
  */
 export const hybridPlant = (seed: SiteSeed, role: SitePowerRole): HybridPlant => {
-  if (!hasBattery(role)) return {pvKwp: 0, batteryKwh: 0, autonomyHours: 0};
+  if (!hasBattery(role)) return {solarKwp: 0, batteryKwh: 0, autonomyHours: 0};
 
   const autonomyHours = hasSolar(role)
     ? spreadBetween(seed.id, 'hybrid/autonomy-solar', 16, 20)
@@ -172,15 +218,15 @@ export const hybridPlant = (seed: SiteSeed, role: SitePowerRole): HybridPlant =>
   const batteryKwh = Math.round(seed.loadKw * autonomyHours);
 
   if (!hasSolar(role)) {
-    return {pvKwp: 0, batteryKwh, autonomyHours: Math.round(autonomyHours)};
+    return {solarKwp: 0, batteryKwh, autonomyHours: Math.round(autonomyHours)};
   }
 
   const solarShare = spreadBetween(seed.id, 'hybrid/solar-share', 0.62, 0.78);
   const dailyLoadKwh = seed.loadKw * HOURS_PER_DAY;
   const sunHours = customer(seed.customer).peakSunHours;
-  const pvKwp = Math.round((dailyLoadKwh * solarShare) / (sunHours * PERFORMANCE_RATIO));
+  const solarKwp = Math.round((dailyLoadKwh * solarShare) / (sunHours * PERFORMANCE_RATIO));
 
-  return {pvKwp, batteryKwh, autonomyHours: Math.round(autonomyHours)};
+  return {solarKwp, batteryKwh, autonomyHours: Math.round(autonomyHours)};
 };
 
 /**
@@ -238,8 +284,16 @@ const solarShape = (hour: number): number => {
 const SHAPE_HOURS =
   ((LAST_LIGHT - FIRST_LIGHT) * 4) / (3 * Math.PI);
 
-/** What an array making `dayKwh` across the whole day is putting out at `hour`, kW. */
-const intradayKw = (dayKwh: number, hour: number): number =>
+/**
+ * What an array making `dayKwh` across the whole day is putting out at `hour`, kW.
+ *
+ * Exported because the array's analysis tab draws a *history* of this quantity
+ * and there is exactly one right way to get it: the day's energy over the day's
+ * shape. Rebuilding the curve in the solar module — which is what would have
+ * happened — is how the diagram's live `SOLAR` node came to disagree with the
+ * energy model by a factor of two and a half. One function, one answer.
+ */
+export const intradayKw = (dayKwh: number, hour: number): number =>
   (dayKwh / SHAPE_HOURS) * solarShape(hour);
 
 /**
@@ -285,7 +339,7 @@ export const hybridState = (
   const hour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
   // Read off **today's own energy**, not off nameplate.
   //
-  // This used to be `pvKwp × performanceRatio × shape`, which was a different
+  // This used to be `solarKwp × performanceRatio × shape`, which was a different
   // model from the one every other figure here uses and disagreed with it by a
   // factor of two and a half: the diagram showed a 29 kWp array putting out
   // 22 kW while the energy model had the same array making 70 kWh across the
@@ -416,7 +470,7 @@ export const siteEnergy = (
   // take, not energy that fell on the roof.
   const expectedSolarKwh = Math.min(
     generationKwh,
-    Math.round(plant.pvKwp * sunHours * PERFORMANCE_RATIO * WINDOW_DAYS),
+    Math.round(plant.solarKwp * sunHours * PERFORMANCE_RATIO * WINDOW_DAYS),
   );
 
   // What it actually made. `solarPerformance` is the gap between a design and a
@@ -628,7 +682,7 @@ export const solarMonths = (
   now: number = Date.now(),
 ): Array<SolarMonth> => {
   const plant = hybridPlant(seed, role);
-  if (plant.pvKwp === 0) return [];
+  if (plant.solarKwp === 0) return [];
 
   const sunHours = customer(seed.customer).peakSunHours;
   const health = solarPerformance(seed, role);
@@ -646,7 +700,7 @@ export const solarMonths = (
     const inProgress = index === 11;
 
     const expectedKwh = Math.round(
-      plant.pvKwp * sunHours * PERFORMANCE_RATIO * days * MONTH_FACTOR[month],
+      plant.solarKwp * sunHours * PERFORMANCE_RATIO * days * MONTH_FACTOR[month],
     );
 
     // Weather on top of the design, and health underneath it. The two are
@@ -945,7 +999,7 @@ export const solarIntraday = (
   now: number = Date.now(),
 ): Array<SolarPoint> => {
   const plant = hybridPlant(seed, role);
-  if (plant.pvKwp === 0) return [];
+  if (plant.solarKwp === 0) return [];
 
   const today = new Date(now);
   const nowHour = today.getHours() + today.getMinutes() / 60;

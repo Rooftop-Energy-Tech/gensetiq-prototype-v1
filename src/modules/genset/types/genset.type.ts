@@ -1,20 +1,13 @@
 /**
- * The four states a genset reports. Ordered by how much they want attention —
- * `RUN_STATES` is the sort key used by the "state" column, so a faulted unit
- * surfaces above a healthy one.
+ * The three states a genset reports. Ordered by how much they want attention —
+ * `RUN_STATES` is the sort key used by the "state" column, so a working unit
+ * surfaces above a silent one.
  */
-export const RUN_STATES = ['FAULT', 'RUNNING', 'IDLE', 'OFFLINE'] as const;
+export const RUN_STATES = ['RUNNING', 'IDLE', 'OFFLINE'] as const;
 
 export type RunState = (typeof RUN_STATES)[number];
 
-export type GensetActivityKind =
-  | 'START'
-  | 'STOP'
-  | 'REFUEL'
-  | 'FAULT'
-  | 'SERVICE'
-  | 'DEPLOY'
-  | 'NOTE';
+export type GensetActivityKind = 'START' | 'STOP' | 'REFUEL' | 'SERVICE' | 'DEPLOY' | 'NOTE';
 
 /**
  * Why this unit's run began — the controller's own reason for cranking.

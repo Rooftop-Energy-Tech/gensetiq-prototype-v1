@@ -1,45 +1,57 @@
-import {createFileRoute} from '@tanstack/react-router';
+import {createFileRoute, useNavigate} from '@tanstack/react-router';
 
-import {SectionTabs} from '@/components/global/SectionTabs';
-import type {SectionTab} from '@/components/global/SectionTabs';
-import {usePlantCount} from '@/modules/plant/estateCount';
+import {SolarRegister} from '@/modules/solar/components/register/SolarRegister';
+import {solarRegisterSearchSchema} from '@/modules/solar/types/register.type';
+import type {SolarRegisterSearch} from '@/modules/solar/types/register.type';
 
 /**
- * The solar plant register: `/solar`, `/solar/analysis`, …
+ * `/solar` — the array register.
  *
- * The generation report that used to be at this path is now `/solar-report`. The
- * two split because they answer different questions — the report is about *yield*
- * against a design number, this section is about the *arrays themselves* — and one
- * destination carrying both was the reason the nav item needed a qualifier.
+ * ## What used to be here
  *
- * Six tabs, and every one of them empty. They are the same six a genset has minus
- * `Runs` and `Refuel`, which are facts about an engine: an array does not start,
- * stop or take delivery of anything. What each is *for* is written on its own
- * route file, so the decision about a page is recorded where the page will be.
+ * A `SectionTabs` scaffold: a title, a subtitle counting the estate's plant, and
+ * six empty tabs. It was standing in for two different pages at once, and
+ * `SectionTabs` said as much — *"`/gensets` is a register: a list of machines, and
+ * the tabs live one level down on each machine. These two are scaffolds for pages
+ * that have not been designed yet… standing the strip up first means each page
+ * can be planned in the place it will actually live."*
+ *
+ * That place now exists. The register took this route, the six tabs moved to
+ * `solar_.$systemId.tsx`, and the `ComingSoon` bodies went with them, narrowed
+ * from the estate to one system — which is what each of them was describing.
+ *
+ * A row here is a **solar system**: everything PV at one site, taken together.
+ * Briefly it was an "array", and that was the wrong unit — an array is the half
+ * of a PV system with no electronics, so nothing reads from it. See
+ * `system.type.ts`. `/battery` is untouched and still a scaffold: it has no plant model
+ * to build a register out of, which is the gap it was put in the rail to name.
+ *
+ * ## Why there is no view switch
+ *
+ * The generation report has cards and a table because it draws a chart per array.
+ * A register is a table of facts, and a second view of it would be a control with
+ * no question behind it. Scale is handled by the search box and the sort, the way
+ * `/gensets` handles it.
  */
-const TABS: ReadonlyArray<SectionTab> = [
-  {label: 'Home', to: '/solar', end: true},
-  {label: 'Analysis', to: '/solar/analysis'},
-  {label: 'Service', to: '/solar/service'},
-  {label: 'Alarms', to: '/solar/alarms'},
-  {label: 'Equipment', to: '/solar/equipment'},
-  {label: 'Settings', to: '/solar/settings'},
-];
-
-const SolarSection = () => {
-  const {arrays, kwp} = usePlantCount();
+const SolarRegisterRoute = () => {
+  const search = Route.useSearch();
+  const navigate = useNavigate({from: Route.fullPath});
 
   return (
-    <SectionTabs
-      title="Solar"
-      subtitle={`${arrays} ${arrays === 1 ? 'array' : 'arrays'} · ${Math.round(kwp)} kWp installed`}
-      tabs={TABS}
-      ariaLabel="Solar sections"
+    <SolarRegister
+      search={search}
+      onSearchChange={(next: SolarRegisterSearch) => {
+        // `replace`, so typing in the box does not push a history entry per
+        // keystroke — the rule `/gensets` follows for its own search field.
+        void navigate({search: () => next, replace: true});
+      }}
     />
   );
 };
 
 export const Route = createFileRoute('/_authenticated/solar')({
+  validateSearch: (search: Record<string, unknown>): SolarRegisterSearch =>
+    solarRegisterSearchSchema.parse(search),
   staticData: {crumb: 'Solar'},
-  component: SolarSection,
+  component: SolarRegisterRoute,
 });

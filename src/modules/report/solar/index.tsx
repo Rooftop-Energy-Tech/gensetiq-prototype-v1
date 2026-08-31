@@ -1,12 +1,11 @@
 import {Link, useNavigate} from '@tanstack/react-router';
-import {InfoIcon, LayoutGridIcon, SearchIcon, SearchXIcon, TableIcon} from 'lucide-react';
+import {LayoutGridIcon, SearchIcon, SearchXIcon, TableIcon} from 'lucide-react';
 import {useMemo, useState} from 'react';
-import type {ReactNode} from 'react';
 
 import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
-import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
+import {ReportTile} from '@/modules/report/components/ReportTile';
 import {SolarYieldChart} from '@/modules/site/components/SolarYieldChart';
 import {
   estateSolarMonths,
@@ -18,9 +17,9 @@ import {
 import {cumulative, estateSolarIntraday, estateTodaySoFarKwh} from '@/modules/site/data/hybrid';
 import {SolarCumulativeChart} from '@/modules/site/components/SolarCumulativeChart';
 import {SolarTodayChart} from '@/modules/site/components/SolarTodayChart';
-import {estateSeries, resolveRange} from './data/series';
-import {SolarRangeTabs} from './components/SolarRangeTabs';
-import {DEFAULT_SOLAR_RANGE} from './types/range.type';
+import {estateSeries, resolveRange} from '@/modules/solar/data/series';
+import {SolarRangeTabs} from '@/modules/solar/components/SolarRangeTabs';
+import {DEFAULT_SOLAR_RANGE} from '@/modules/solar/types/range.type';
 import type {SolarMonth, SolarYear} from '@/modules/site/data/hybrid';
 import {useSiteSummaries} from '@/modules/site/data/sites';
 import {siteSeed} from '@/modules/site/data/siteSeed';
@@ -30,13 +29,13 @@ import {SOLAR_CARD_THRESHOLD, SOLAR_PAGE, SOLAR_VIEWS} from './types/view.type';
 import type {SolarSearch, SolarView} from './types/view.type';
 
 /**
- * `/solar-report` — the portfolio's generation, and every array in it.
+ * `/report/solar` — the portfolio's generation, and every array in it.
  *
- * ## Why this is its own screen
+ * ## Why this is its own tab
  *
- * `/energy` answers "what carried the load and what did the plant save", and the
+ * `Overall` answers "what carried the load and what did the plant save", and the
  * arrays are one line of that answer. Generation asks a different set of
- * questions — is the portfolio making what it was bought on, which arrays are
+ * questions — is the portfolio making what it was bought on, which systems are
  * not, and since when — and they need the room to be answered rather than a band
  * borrowed from a page about diesel. Splitting them also stops one screen
  * carrying two headline figures that move independently, which is the reliable
@@ -72,56 +71,7 @@ const kwh = (value: number): string => {
   return `${Math.round(value).toLocaleString('en-MY')} kWh`;
 };
 
-/**
- * One portfolio figure, in the tile grammar `/energy` and `/overview` share —
- * including its info glyph, which is not optional there and is not here.
- *
- * Every number on this page is **modelled against a design simulation** rather
- * than read off an instrument, and a modelled number a reader cannot interrogate
- * is one they will either believe too readily or dismiss. The glyph carries what
- * the figure was derived from, in the one place somebody wondering will look.
- */
-const Tile = ({
-  label,
-  value,
-  detail,
-  note,
-  tone,
-}: {
-  label: string;
-  value: string;
-  detail: ReactNode;
-  /** How this figure was arrived at, for the info glyph beside its label. */
-  note: ReactNode;
-  /** `warning` is used by one tile only — see its own note at the call site. */
-  tone?: 'warning';
-}) => (
-  <div className="flex min-w-0 flex-col gap-1 rounded-md border border-subtle bg-element px-3 py-2.5">
-    <span className="flex items-center gap-1.5">
-      <span className="truncate text-xs font-medium text-secondary">{label}</span>
-      <Tooltip>
-        <TooltipTrigger className="shrink-0 cursor-help text-tertiary hover:text-primary">
-          <InfoIcon className="size-3" aria-hidden="true" />
-          <span className="sr-only">How {label} is worked out</span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[280px]">
-          {note}
-        </TooltipContent>
-      </Tooltip>
-    </span>
-    <span
-      className={cn(
-        'text-2xl leading-none font-semibold tabular-nums',
-        tone === 'warning' ? 'text-severity-warning' : 'text-primary',
-      )}
-    >
-      {value}
-    </span>
-    <span className="truncate text-xs text-secondary">{detail}</span>
-  </div>
-);
-
-type ArrayRow = {
+type SystemRow = {
   summary: SiteSummary;
   kwp: number;
   months: Array<SolarMonth>;
@@ -130,33 +80,35 @@ type ArrayRow = {
 };
 
 /** Under its P90 on the recent window — the test that makes a row a job. */
-const isShort = (row: ArrayRow): boolean =>
+const isShort = (row: SystemRow): boolean =>
   row.recent.actualKwh < row.recent.expectedKwh * 0.9;
 
 const share = (year: SolarYear): number =>
   year.expectedKwh > 0 ? year.actualKwh / year.expectedKwh : 0;
 
 /**
- * One array as a card: the twelve months, and the two figures that read it.
+ * One system as a card: the twelve months, and the two figures that read it.
  *
- * The card links **into the site's own page**, not into the sites list with that
- * row selected. The list hop was there because `/energy` inherited it from the
- * map, where a pin has nowhere to put a link and selecting into a panel is the
- * only way in. Nothing on this page is a pin. A reader who has picked an array
- * out of a list of arrays has already chosen; sending them to a second list to
- * choose again is a step that asks the same question twice.
+ * The card links **into the system's own page**, not into the sites list with that
+ * row selected and no longer into the site page either. The list hop was there
+ * because the Overall report inherited it from the map, where a pin has nowhere to put a
+ * link; nothing on this page is a pin, and a reader who has picked an array out
+ * of a list of systems has already chosen.
  *
- * Everything they want next — the plant, the battery, the genset that has been
- * covering for it, its runs, and this array's own twelve months — is on that page
- * already, which is why there is no detail surface here.
+ * It pointed at `/sites/<id>` for a while after that, on the reasoning that
+ * everything worth seeing next was on the site page and there was no detail
+ * surface for an array to have. There is one now — `/solar/<id>`, with the
+ * system's inverters, its health and its history — and a reader who came here
+ * asking about *a system* should land on the page about it rather than on the page
+ * about the place it stands. The site is still one click away, in the breadcrumb.
  */
-const ArrayCard = ({row}: {row: ArrayRow}) => {
+const SystemCard = ({row}: {row: SystemRow}) => {
   const short = isShort(row);
 
   return (
     <Link
-      to="/sites/$siteId"
-      params={{siteId: row.summary.site.id}}
+      to="/solar/$systemId"
+      params={{systemId: row.summary.site.id}}
       className={cn(
         'flex min-w-0 flex-col gap-2 rounded-md border bg-element px-3 py-3 transition-colors outline-none',
         'hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline',
@@ -202,14 +154,14 @@ const COLUMNS = [
 ] as const;
 
 /**
- * The same arrays as a table.
+ * The same systems as a table.
  *
  * Both yield columns are here and the recent one is last, which is the order a
  * reader works in: the annual figure is what gets reported and the recent figure
  * is what gets acted on, so the actionable one sits at the end of the row where
  * the eye stops.
  */
-const ArrayTable = ({rows}: {rows: Array<ArrayRow>}) => (
+const SystemTable = ({rows}: {rows: Array<SystemRow>}) => (
   <div className="min-h-0 overflow-auto">
     <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
       <caption className="sr-only">
@@ -242,8 +194,8 @@ const ArrayTable = ({rows}: {rows: Array<ArrayRow>}) => (
             <tr key={row.summary.site.id}>
               <td className="h-13 truncate border-b border-subtle p-2 font-medium">
                 <Link
-                  to="/sites/$siteId"
-                  params={{siteId: row.summary.site.id}}
+                  to="/solar/$systemId"
+                  params={{systemId: row.summary.site.id}}
                   className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                 >
                   {row.summary.site.name}
@@ -288,7 +240,7 @@ const ArrayTable = ({rows}: {rows: Array<ArrayRow>}) => (
   </div>
 );
 
-export const SolarPage = ({
+export const SolarReportPage = ({
   search,
   onSearchChange,
 }: {
@@ -299,7 +251,7 @@ export const SolarPage = ({
   const roles = useSitePowerRoles();
   const [now] = useState(() => Date.now());
 
-  const rows: Array<ArrayRow> = useMemo(
+  const rows: Array<SystemRow> = useMemo(
     () =>
       summaries
         .map((summary) => {
@@ -310,13 +262,13 @@ export const SolarPage = ({
           if (months.length === 0) return null;
           return {
             summary,
-            kwp: hybridPlant(seed, role).pvKwp,
+            kwp: hybridPlant(seed, role).solarKwp,
             months,
             year: solarYear(months),
             recent: solarRecent(months),
           };
         })
-        .filter((row): row is ArrayRow => row !== null)
+        .filter((row): row is SystemRow => row !== null)
         // Worst recent first. This page is read to find work, and an array inside
         // its band is not work — so the ones that are sit at the top whichever
         // view is showing, and the sort is not a column a reader has to discover.
@@ -405,7 +357,7 @@ export const SolarPage = ({
     return (
       <div className={PAGE_PADDING}>
         <p className="max-w-lg pt-6 text-sm text-secondary">
-          No arrays are fitted on this estate. Sites configured as solar hybrid appear here with
+          No solar systems are fitted on this estate. Sites configured as solar hybrid appear here with
           their generation against the design they were bought on.
         </p>
       </div>
@@ -419,7 +371,7 @@ export const SolarPage = ({
           <span className="text-3xl leading-none font-semibold text-primary tabular-nums">
             {rows.length}
           </span>
-          <span className="text-sm text-secondary">{rows.length === 1 ? 'array' : 'arrays'}</span>
+          <span className="text-sm text-secondary">{rows.length === 1 ? 'system' : 'systems'}</span>
         </p>
         <p className="text-sm text-secondary tabular-nums">
           {installedKwp.toLocaleString('en-MY')} kWp installed
@@ -433,25 +385,25 @@ export const SolarPage = ({
 
       <section aria-label="Twelve months" className="flex min-w-0 flex-col gap-2">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Tile
+          <ReportTile
             label="Generated"
             value={kwh(estateYear.actualKwh)}
             detail="twelve closed months"
             note="What every array on the estate actually made, added together. The month still running is excluded: it has made part of a month against a whole month of design, and counting it would report a shortfall the size of the days left."
           />
-          <Tile
+          <ReportTile
             label="Design P50"
             value={kwh(estateYear.expectedKwh)}
             detail="the same twelve months"
-            note="What the design simulations say those arrays should make in an average year, month by month. Fixed when each site was designed and never re-derived from what the array went on to do."
+            note="What the design simulations say those systems should make in an average year, month by month. Fixed when each site was designed and never re-derived from what the plant went on to do."
           />
-          <Tile
+          <ReportTile
             label="Yield against design"
             value={percent(share(estateYear))}
             detail="P90 band starts at 90%"
             note="Generated over design across the twelve months. A P50 is the average year, so an estate a few points either side of it is having ordinary weather; the P90 at 90% is where weather stops being the explanation."
           />
-          <Tile
+          <ReportTile
             label="Last three months"
             value={percent(share(estateRecent))}
             detail="where a fault shows"
@@ -460,10 +412,10 @@ export const SolarPage = ({
           {/* The only tile on the page that takes a colour, and it takes it
               conditionally: a count of nothing wrong is not a warning, and a tile
               that is always amber stops meaning anything. */}
-          <Tile
+          <ReportTile
             label="Under design"
             value={String(short.length)}
-            detail={short.length === 0 ? 'nothing needs a visit' : 'arrays below their P90'}
+            detail={short.length === 0 ? 'nothing needs a visit' : 'systems below their P90'}
             note="Arrays under 90% of their design over the last three months. Every array is a point or two off its simulation in any year, so the P90 rather than the P50 is the line: ranking on the P50 would put the whole estate on a list headed as though something were wrong."
             tone={short.length > 0 ? 'warning' : undefined}
           />
@@ -512,7 +464,7 @@ export const SolarPage = ({
             </div>
 
             {intraday.length === 0 ? (
-              <p className="py-10 text-center text-sm text-secondary">No arrays fitted.</p>
+              <p className="py-10 text-center text-sm text-secondary">No solar systems fitted.</p>
             ) : (
               <SolarTodayChart points={intraday} />
             )}
@@ -589,13 +541,13 @@ export const SolarPage = ({
                 })
               }
               placeholder="Site or place"
-              aria-label="Search arrays"
+              aria-label="Search solar systems"
             />
           </InputGroup>
 
           <div className="flex items-center gap-3">
             <p className="text-sm text-secondary tabular-nums">
-              {filtered.length} of {rows.length} {rows.length === 1 ? 'array' : 'arrays'}
+              {filtered.length} of {rows.length} {rows.length === 1 ? 'system' : 'systems'}
             </p>
 
             {/* The same segmented control the fleet and sites screens use for
@@ -635,10 +587,10 @@ export const SolarPage = ({
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
             <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
-            <p className="text-sm text-secondary">No arrays match “{query}”.</p>
+            <p className="text-sm text-secondary">No systems match “{query}”.</p>
           </div>
         ) : view === 'table' ? (
-          <ArrayTable rows={filtered} />
+          <SystemTable rows={filtered} />
         ) : (
           <>
             {/* `auto-fill` rather than a fixed column count: the grid takes as
@@ -647,7 +599,7 @@ export const SolarPage = ({
                 breakpoint deciding it. */}
             <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))]">
               {paged.map((row) => (
-                <ArrayCard key={row.summary.site.id} row={row} />
+                <SystemCard key={row.summary.site.id} row={row} />
               ))}
             </div>
 
@@ -670,13 +622,13 @@ export const SolarPage = ({
 };
 
 /** Route-level wrapper: the URL is the state, so the page only reads and writes it. */
-export const SolarRoute = ({search}: {search: SolarSearch}) => {
+export const SolarReportRoute = ({search}: {search: SolarSearch}) => {
   const navigate = useNavigate();
 
   return (
-    <SolarPage
+    <SolarReportPage
       search={search}
-      onSearchChange={(next) => void navigate({to: '/solar-report', search: next, replace: true})}
+      onSearchChange={(next) => void navigate({to: '/report/solar', search: next, replace: true})}
     />
   );
 };

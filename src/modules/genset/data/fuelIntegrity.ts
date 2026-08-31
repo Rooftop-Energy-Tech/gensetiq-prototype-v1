@@ -11,7 +11,9 @@ import type {
   FuelWindow,
   InstrumentFeed,
 } from '../types/fuelIntegrity.type';
+import {CONDITION_OF_SEVERITY, worstCondition} from '../types/alert.type';
 import type {GensetCondition} from '../types/alert.type';
+import {SEVERITY_OF_FUEL_LEVEL, fuelLevelKind} from '../types/fuelLevel.type';
 import {gensetById, gensetDetail} from './detail';
 import {
   flowMeterAgeMinutes,
@@ -210,20 +212,23 @@ export const leakNoticeOf = (gensetId: string, now: number = NOW): FuelLeakNotic
   fuelLeakNotice(gensetId, fuelIntegrityOf(gensetId, now));
 
 /**
- * The genset's condition, with the leak alarm counted.
+ * The genset's condition from the **machine** alone — the register map's bits and
+ * the leak reconciliation, and nothing about how full the tank is.
  *
- * **This is the reading every screen should use**, not `detail.condition`. That one
- * is the register map's verdict alone, which was the whole verdict until an alarm
- * existed that the register map does not carry.
+ * Split out from `gensetCondition` when the tank level became an alarm of its own.
+ * One caller wants this narrower reading and only one: `fleetStatus.gensetStatus`,
+ * whose four buckets already say the tank's story in two of them, and which would
+ * drain both into `ALARM` if it asked the wide question. The note there is the full
+ * argument.
  *
- * A leak moves it and an overdue service does not, and the asymmetry is the point.
- * A service falling due is a chore nobody has done yet; a tank losing eighty litres
- * a night is a machine actively spilling its consumable onto the ground. A genset
- * doing that while its page reads `Optimum` would cost the reader their trust in
- * every other verdict on the screen — which is a far more expensive failure than
- * one over-coloured badge.
+ * A leak counts here and a low tank does not, which looks arbitrary until you ask
+ * what each one is. A leak is the machine *failing* — diesel going onto the ground
+ * through a hole somebody has to find. A tank at 20% is the machine working exactly
+ * as designed, having burned what it was asked to burn. The first is a fault, the
+ * second is a delivery, and this function is the one that answers "is anything wrong
+ * with this machine".
  */
-export const gensetCondition = (gensetId: string, now: number = NOW): GensetCondition => {
+export const machineCondition = (gensetId: string, now: number = NOW): GensetCondition => {
   const detail = gensetDetail(gensetId);
   if (detail === undefined) return 'OPTIMUM';
 
@@ -232,6 +237,43 @@ export const gensetCondition = (gensetId: string, now: number = NOW): GensetCond
   if (state.kind === 'warning' && detail.condition === 'OPTIMUM') return 'ATTENTION';
 
   return detail.condition;
+};
+
+/**
+ * The genset's condition, with the leak alarm **and the tank level** counted.
+ *
+ * **This is the reading every screen should use**, not `detail.condition`. That one
+ * is the register map's verdict alone, which was the whole verdict until alarms
+ * existed that the register map does not carry. There are now two of them, and both
+ * are the app's own arithmetic rather than the panel's.
+ *
+ * A leak moves it and an overdue service does not, and the asymmetry is the point.
+ * A service falling due is a chore nobody has done yet; a tank losing eighty litres
+ * a night is a machine actively spilling its consumable onto the ground. A genset
+ * doing that while its page reads `Optimum` would cost the reader their trust in
+ * every other verdict on the screen — which is a far more expensive failure than
+ * one over-coloured badge.
+ *
+ * The tank level is here for exactly that argument, applied to the fact it was
+ * missing from. The estate's most consequential number had no verdict attached to
+ * it: a set at 8% of capacity read `Optimum` on its own page, because the register
+ * map has no bit marked for the dashboard that watches the level and the app had
+ * never drawn the line itself. It draws it in `fuelLevel.type.ts` now, and this is
+ * where the verdict picks it up.
+ *
+ * Worst wins across all three, which is what `CONDITION_ORDER` is for: a set with a
+ * dry tank and a clean register map is `CRITICAL`, and one with a coolant warning
+ * and a full tank still is `ATTENTION`.
+ */
+export const gensetCondition = (gensetId: string, now: number = NOW): GensetCondition => {
+  const genset = gensetById(gensetId);
+  if (genset === undefined) return 'OPTIMUM';
+
+  const machine = machineCondition(gensetId, now);
+  const kind = fuelLevelKind(genset.fuelLitres, genset.fuelCapacityLitres);
+  if (kind === undefined) return machine;
+
+  return worstCondition(machine, CONDITION_OF_SEVERITY[SEVERITY_OF_FUEL_LEVEL[kind]]);
 };
 
 /** Whether this genset is carrying a leak alarm at all — for counts and filters. */

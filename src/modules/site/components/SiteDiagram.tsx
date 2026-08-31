@@ -322,7 +322,7 @@ const Node = ({
  *
  * Only a connected, turning set gets a figure. The rest get a word, because the
  * alternative — `0 kW` — is a *measurement*, and claiming to have measured zero at
- * a machine that is faulted or unreachable is a stronger statement than the page is
+ * a machine that is unreachable is a stronger statement than the page is
  * entitled to make. `off-load` is the interesting one: the set is running, and
  * isolated, so it is producing nothing here by choice.
  */

@@ -113,8 +113,8 @@ const minutesBefore = (now: number, minutes: number): string =>
  * The event feed shown under "Activity".
  *
  * Built from the unit's *current* state backwards, so the story is consistent:
- * a faulted genset's newest event is the fault, a running one's is the start
- * that put it there, and every unit eventually bottoms out at a refuel and a
+ * a running genset's newest event is the start that put it there, a stopped
+ * one's is the stop, and every unit eventually bottoms out at a refuel and a
  * service. Without that the panel would happily show "Engine stopped" as the
  * latest event on a unit whose badge reads Running.
  */
@@ -131,25 +131,20 @@ const buildActivity = (seed: FleetSeed, now: number): Array<GensetActivity> => {
       : 'Engine started on utility outage';
 
   const head: Array<[GensetActivityKind, string, number]> =
-    runState === 'FAULT'
+    runState === 'OFFLINE'
       ? [
-          ['FAULT', 'Low fuel pressure — engine shut down', staleMinutes],
-          ['START', startedBecause, staleMinutes + 96],
+          ['STOP', 'Controller stopped reporting', staleMinutes],
+          ['START', startedBecause, staleMinutes + 240],
         ]
-      : runState === 'OFFLINE'
+      : runState === 'IDLE'
         ? [
-            ['STOP', 'Controller stopped reporting', staleMinutes],
-            ['START', startedBecause, staleMinutes + 240],
+            ['STOP', 'Engine stopped — utility restored', staleMinutes],
+            ['START', startedBecause, staleMinutes + 174],
           ]
-        : runState === 'IDLE'
-          ? [
-              ['STOP', 'Engine stopped — utility restored', staleMinutes],
-              ['START', startedBecause, staleMinutes + 174],
-            ]
-          : [
-              ['START', startedBecause, staleMinutes + 42],
-              ['STOP', 'Engine stopped — utility restored', staleMinutes + 1_290],
-            ];
+        : [
+            ['START', startedBecause, staleMinutes + 42],
+            ['STOP', 'Engine stopped — utility restored', staleMinutes + 1_290],
+          ];
 
   // No `SERVICE` line here. There used to be one — "Scheduled 250-hour service
   // completed", eight days ago, on every unit in the fleet — and it was a claim

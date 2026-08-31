@@ -1,4 +1,4 @@
-import {GaugeIcon, PauseIcon, PlayIcon, PowerOffIcon, TriangleAlertIcon} from 'lucide-react';
+import {GaugeIcon, PauseIcon, PlayIcon, PowerOffIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
@@ -14,19 +14,17 @@ import type {RunState} from '../../types/genset.type';
  * be distinguishable at a glance without turning the table into a traffic light.
  * This is a 32px glyph, alone, and the only thing on the page saying what the
  * machine is doing — so `RUNNING` takes the teal the design gives it here and
- * the rest keep their state colour.
+ * the other two keep their state colour.
  */
 const HERO: Record<RunState, {icon: LucideIcon; className: string}> = {
   RUNNING: {icon: PlayIcon, className: 'text-teal'},
   IDLE: {icon: PauseIcon, className: 'text-status-idle'},
-  FAULT: {icon: TriangleAlertIcon, className: 'text-status-fault'},
   OFFLINE: {icon: PowerOffIcon, className: 'text-status-offline'},
 };
 
 const LABEL: Record<RunState, string> = {
   RUNNING: 'Running',
   IDLE: 'Idle',
-  FAULT: 'Fault',
   OFFLINE: 'Offline',
 };
 
@@ -35,7 +33,7 @@ const LABEL: Record<RunState, string> = {
  *
  * The load badge is present only while the engine is turning. A stopped genset
  * has no load, and "0 kW" would read as a genset running into an open breaker —
- * a real and quite different fault.
+ * a real and quite different problem.
  */
 export const RunStateSummary = ({
   runState,

@@ -18,8 +18,7 @@ export type NavItem = {
   link:
     | '/overview'
     | '/gensets'
-    | '/energy'
-    | '/solar-report'
+    | '/report'
     | '/solar'
     | '/battery'
     | '/sites'

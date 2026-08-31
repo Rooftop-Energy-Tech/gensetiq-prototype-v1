@@ -14,18 +14,16 @@ import type {SiteSummary} from '../data/sites';
  *
  * ## What is enabled, and why
  *
- * Only a set that is already **turning** can be handed the load. The three refusals
- * are all real ones rather than UI caution:
+ * Only a set that is already **turning** can be handed the load. Both refusals are
+ * real ones rather than UI caution:
  *
  * - a **stopped** set has to be started first, and that is a `START` command — one
  *   of the two buttons this prototype deliberately leaves inert;
- * - a **faulted** set is isolated by its own controller; closing onto it is not an
- *   operation the changeover can perform;
  * - an **unreachable** set cannot be commanded at all, and we do not know what its
  *   engine is doing.
  *
  * Each refused option says which of those it is, in a tooltip, rather than simply
- * refusing. On the site the design draws — one running set beside a faulted one —
+ * refusing. On the site the design draws — one running set beside a stopped one —
  * *every* option but the current one is refused, and that is the honest answer:
  * there is nothing to transfer to.
  *
@@ -33,10 +31,10 @@ import type {SiteSummary} from '../data/sites';
  *
  * The design gives the selected option a raised, taller chip with its run-state
  * glyph, and leaves the rest as plain dimmed text. That costs something worth
- * naming: a faulted option and a merely stopped one now look identical, where a red
- * triangle used to tell them apart at a glance. The reason moves entirely into the
- * tooltip — which is where the *specific* reason always lived, and which is now the
- * only place it lives.
+ * naming: an unreachable option and a merely stopped one now look identical, where
+ * their glyphs used to tell them apart at a glance. The reason moves entirely into
+ * the tooltip — which is where the *specific* reason always lived, and which is now
+ * the only place it lives.
  *
  * ## What it does and does not do
  *
@@ -74,9 +72,7 @@ export const SiteChangeover = ({
             ? `Transfer the load to ${genset.tag}`
             : genset.runState === 'IDLE'
               ? `${genset.tag} is stopped — it has to be started before it can take the load`
-              : genset.runState === 'FAULT'
-                ? `${genset.tag} is faulted and isolated by its controller`
-                : `${genset.tag} is not reporting — it cannot be commanded`;
+              : `${genset.tag} is not reporting — it cannot be commanded`;
 
         const inert = !available || selected;
 

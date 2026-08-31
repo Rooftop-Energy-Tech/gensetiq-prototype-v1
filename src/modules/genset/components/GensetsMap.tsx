@@ -251,7 +251,7 @@ export const GensetsMap = ({
           // 9 at rest, 13.5 selected — both scaled up by half from the 6/9 the
           // pins started at. The fill is what carries run state, and at a 6px
           // radius behind a 2px stroke there was barely any of it left to read:
-          // a fault pin and a running pin were distinguishable by inspection but
+          // an offline pin and a running pin were distinguishable by inspection but
           // not at a glance, which is the only thing a pin is for. The selected
           // pin scales with it so the pair keeps its 1.5× relationship, and
           // separation stays a matter of size rather than of stroke alone.
@@ -339,7 +339,7 @@ export const GensetsMap = ({
     }
 
     // The run-state ring inside each cluster's count. Segments run in
-    // `RUN_STATES` order — fault first, from twelve o'clock — so the same fleet
+    // `RUN_STATES` order — running first, from twelve o'clock — so the same fleet
     // always draws the same ring and the eye learns where to look for trouble.
     const detachDonuts = attachClusterDonuts(map, {
       sourceId: SOURCE,

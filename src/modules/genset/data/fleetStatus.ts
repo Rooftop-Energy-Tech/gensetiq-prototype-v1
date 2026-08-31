@@ -1,6 +1,7 @@
 import {lightToken} from '@/styles/colors';
-import {gensetCondition} from './fuelIntegrity';
-import {RESERVE_FRACTION, gensetDetail} from './detail';
+import {machineCondition} from './fuelIntegrity';
+import {gensetDetail} from './detail';
+import {EMPTY_FRACTION, RESERVE_FRACTION, fuelLevelKind} from '../types/fuelLevel.type';
 import type {Genset} from '../types/genset.type';
 
 /**
@@ -10,11 +11,16 @@ import type {Genset} from '../types/genset.type';
  *
  * Those three each answer a different question well and none of them answers this
  * one. Run state says what the engine is doing; a set can be idle and perfectly
- * healthy. `GensetCondition` ranks the *alarms*, and knows nothing about a tank
- * running down on a machine with a clean register map. `FuelIntegrityState` is
- * about diesel that went missing, which is a different problem from diesel that was
- * legitimately burned. An operator planning a day's callouts is asking across all
- * three at once, and this is that question written down.
+ * healthy. `GensetCondition` ranks the *alarms* — how bad is the worst thing this
+ * machine is reporting — which is not the same as what van to send.
+ * `FuelIntegrityState` is about diesel that went missing, which is a different
+ * problem from diesel that was legitimately burned. An operator planning a day's
+ * callouts is asking across all three at once, and this is that question written
+ * down.
+ *
+ * The condition now counts the tank, so the two overlap where they did not before:
+ * a set below its reserve line raises a fuel-level alarm *and* lands in `REFUEL`.
+ * That is handled once, in `gensetStatus` — see the note there.
  *
  * ## Worst wins, and these four are exhaustive
  *
@@ -39,19 +45,6 @@ import type {Genset} from '../types/genset.type';
 export const FLEET_STATUSES = ['EMPTY', 'ALARM', 'REFUEL', 'OK'] as const;
 
 export type FleetStatus = (typeof FLEET_STATUSES)[number];
-
-/**
- * Where the tank stops being a scheduling problem and becomes an outage.
- *
- * A third of the reserve line. Below this a set will pick up air in the fuel system
- * before it finishes a long callout, and bleeding it is a second visit — so the
- * distinction being drawn is not "less fuel" but "a different job".
- *
- * Deliberately not zero. A gauge reading exactly zero is a sensor fault as often as
- * it is an empty tank, and waiting for it would mean the bucket fires after the
- * machine has already failed to start.
- */
-export const EMPTY_FRACTION = 0.1;
 
 /**
  * How a bucket is coloured, everywhere it appears.
@@ -116,25 +109,34 @@ export const STATUS_META: Record<
   },
 };
 
-const fuelFraction = (genset: Genset): number =>
-  genset.fuelCapacityLitres > 0 ? genset.fuelLitres / genset.fuelCapacityLitres : 0;
-
 /**
  * One genset's bucket.
  *
- * The alarm test is `gensetCondition`, matching the fleet table's Health column and
- * the sites list's Condition — a set losing fuel carries an alarm the register map
- * has no bit for, which `detail.condition` alone would miss. A set with no detail
- * entry has no alarms to judge and is not called faulty for it; its tank is still
- * checked, because fuel is a fact about the machine rather than about the alarm map.
+ * The alarm test is `machineCondition` and **not** `gensetCondition`, which is the
+ * one place in the app that deliberately reads the narrower verdict. The wide one
+ * now counts the tank — a set below its reserve line carries a fuel-level alarm, so
+ * a genset's own page can stop showing a green `Optimum` over a dry tank. Reading
+ * that here would say the same fact twice: every `REFUEL` set would test true for
+ * `ALARM`, `ALARM` outranks `REFUEL`, and the two fuel buckets these tiles exist to
+ * show would both drain into the red one.
+ *
+ * So the tank is tested where it belongs — in the two fuel lines below and above —
+ * and the alarm line asks only about the *machine*: the register map's bits and the
+ * leak reconciliation. The four buckets stay exhaustive and stay non-overlapping,
+ * which is the property an operator reading them as a workload depends on.
+ *
+ * A set with no detail entry has no alarms to judge and is not called faulty for
+ * it; its tank is still checked, because fuel is a fact about the machine rather
+ * than about the alarm map.
  */
 export const gensetStatus = (genset: Genset): FleetStatus => {
-  if (fuelFraction(genset) <= EMPTY_FRACTION) return 'EMPTY';
+  const kind = fuelLevelKind(genset.fuelLitres, genset.fuelCapacityLitres);
+  if (kind === 'empty') return 'EMPTY';
 
   const judged = gensetDetail(genset.id) !== undefined;
-  if (judged && gensetCondition(genset.id) !== 'OPTIMUM') return 'ALARM';
+  if (judged && machineCondition(genset.id) !== 'OPTIMUM') return 'ALARM';
 
-  if (fuelFraction(genset) <= RESERVE_FRACTION) return 'REFUEL';
+  if (kind === 'low') return 'REFUEL';
   return 'OK';
 };
 

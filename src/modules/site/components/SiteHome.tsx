@@ -1,3 +1,4 @@
+import {Link} from '@tanstack/react-router';
 import {useMemo, useState} from 'react';
 
 import {cn} from '@/lib/utils';
@@ -218,6 +219,19 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
                 <h2 className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-primary">
                   Generated against design
                   <span className="text-xs font-normal text-tertiary">{resolved.caption}</span>
+                  {/* The way out to the solar system's own pages — its
+                      inverters, their readings, its health and its history, none
+                      of which belong on a page about a place. A genset row here
+                      links out to that unit's page and this is the same move for
+                      the other kind of plant, so the two registers and the site
+                      meet in both directions rather than one. */}
+                  <Link
+                    to="/solar/$systemId"
+                    params={{systemId: summary.site.id}}
+                    className="rounded-sm text-xs font-normal text-secondary underline-offset-4 outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+                  >
+                    Open the system
+                  </Link>
                 </h2>
                 <p className="text-xs text-tertiary">
                   {resolved.benchmark

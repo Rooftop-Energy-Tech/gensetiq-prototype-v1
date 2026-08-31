@@ -32,9 +32,9 @@ the screens honest.
 ### Genset
 
 A physical machine: an asset tag, a model, a location, a tank, and a **run
-state** — `RUNNING`, `IDLE`, `FAULT` or `OFFLINE`.
+state** — `RUNNING`, `IDLE` or `OFFLINE`.
 
-Those four are the whole of what a genset reports about itself, and `OFFLINE` is
+Those three are the whole of what a genset reports about itself, and `OFFLINE` is
 one of them rather than a second axis beside them. It means **the panel has
 stopped reporting** — we do not know what the engine is doing, which is a worse
 position than knowing it is stopped, and it is why an offline unit carries the
@@ -244,10 +244,9 @@ sets'**. A set that happens to be turning while isolated is off-load and contrib
 nothing to what the customer is pulling; adding it in would report a figure no meter
 at the site could ever read.
 
-The load can only be handed to a set that is **already turning**. The three refusals
+The load can only be handed to a set that is **already turning**. Both refusals
 are real, not caution: a stopped set has to be *started* first (a `START` command,
-and those are inert here), a faulted set is isolated by its own controller, and an
-unreachable set cannot be commanded at all.
+and those are inert here), and an unreachable set cannot be commanded at all.
 
 What a site can say that no genset can is **which of its sets is on the bus**, and
 that is the only site-level verdict the app makes. There is no roll-up of its
@@ -414,10 +413,15 @@ Speed and frequency share a tag on purpose: on a four-pole set at 50 Hz, 1500 rp
 *is* 50 Hz, so underspeed and underfrequency are one event read by two instruments,
 and filing them apart sends somebody chasing two faults.
 
-`Fuel` carries no alarms and stays. A tag answers "how is this subsystem doing",
-and three healthy readings with nothing wrong is a complete answer. It is also a
-question worth asking of the map: the controller *has* `AL Fuel Level Wrn` and
-`AL Fuel Level Sd`, and neither is marked for the dashboard.
+`Fuel` carries no alarms **from this map** and stays at zero in the table above. A
+tag answers "how is this subsystem doing", and three healthy readings with nothing
+wrong is a complete answer. The controller *has* `AL Fuel Level Wrn` and
+`AL Fuel Level Sd`, and neither is marked for the dashboard, so neither may appear
+in `ALERT_RULES` — that rule is what makes the list checkable against the sheet.
+
+The tag is not empty on screen, though. Two alarms reach it, and both are the app's
+own arithmetic rather than the panel's: the fuel **reconciliation** below, and the
+**tank level** below that.
 
 A tag is mostly reading keys, because that is the useful direction — name the
 numbers and the alarms watching them follow. `alarmIds` is the escape hatch for the
@@ -503,6 +507,63 @@ fuel onto the ground is a live fault, and a genset doing that while its page rea
 → `src/modules/genset/types/fuelIntegrity.type.ts`,
 `src/modules/genset/data/fuelIntegrity.ts`
 
+### Tank level
+
+**A number, and two lines drawn on it.** The panel sends a level; the app compares
+it with the tank's capacity and files the result. Two thresholds, both fractions of
+capacity:
+
+| Line | Fraction | What it means |
+| --- | --- | --- |
+| Reserve | `0.30` | Below it, a tanker has to be **booked** — a job with a lead time |
+| Empty | `0.10` | Below it, the set gives **no cover** — it cannot pick the load up |
+
+`EMPTY_FRACTION` is deliberately not zero. A gauge reading exactly zero is a sensor
+fault as often as it is an empty tank, and waiting for it would mean the alarm fires
+after the machine has already failed to start.
+
+**The two lines are read three ways, and are written once.** They are the fleet's
+`EMPTY` and `REFUEL` buckets on the overview, they are the reserve line the refuel
+runway counts down to on the genset's own page, and they are the alarm in the alerts
+section. One pair of numbers, so a tank cannot be low on the overview and fine on
+its own page.
+
+**It is an alarm, not just a bucket.** Fuel level used to be the one
+threshold-crossing reading in the app that raised nothing: a set at 8% of capacity
+showed a green `Optimum` beside a dry tank, because the register map has no bit
+marked for the dashboard that watches the level and the app had never drawn the line
+itself. It draws it now. `Low fuel` is a `WARNING`, `Tank empty` is a `CRITICAL`,
+and both move the condition verdict.
+
+The `CRITICAL` is not the overreach it looks like next to the rule that a critical
+belongs only to a set which has actually stopped. That rule is about *register-map*
+criticals, every one of which is a protection that stops the engine — a running set
+carrying one is a contradiction. A dry tank stops nothing; it is a statement about
+cover, and a running set can perfectly well be about to run out.
+
+**Like the leak, it must never become a register bit.** Its card prints `Tank level`
+where an alarm prints its register and bit, so a reader can still tell the panel
+talking from the app talking. It carries the `fuel-level` reading inside the card,
+because "Low fuel" is an adjective until the litres are in the box with it, and it
+links to Refuel rather than to Settings: unlike a coolant alarm there is something to
+*do* about this one, and it is a booking.
+
+**The fleet buckets read a tank-blind verdict, and that is the one place they must.**
+`gensetStatus` asks `machineCondition` — the register map and the leak, and nothing
+about the tank — because it already tests the tank itself, in `EMPTY` and `REFUEL`.
+Asking the wide `gensetCondition` there would say the same fact twice: every `REFUEL`
+set would test true for `ALARM`, `ALARM` outranks `REFUEL`, and the two fuel buckets
+those tiles exist to show would both drain into the red one.
+
+**The lines are fixed, and not editable.** `GensetSettings` states the rule: a
+setpoint that lives in the panel is not editable from a screen that cannot issue the
+command. These two are the app's own, so they *could* be — but they are also what the
+overview's four buckets are defined as, and a per-genset reserve line would leave the
+fleet tiles counting to a different definition on every row. If they ever move, they
+move for the estate.
+
+→ `src/modules/genset/types/fuelLevel.type.ts`
+
 ### Control mode
 
 `AUTO` or `MANUAL`, and they are exclusive.
@@ -575,7 +636,7 @@ or slow-moving: it is still true if you looked away for an hour.
 
 The load badge is present *only* while the engine turns. A stopped genset has no
 load, and "0 kW" would read as a genset running into an open breaker — a real and
-quite different fault.
+quite different problem.
 
 The fuel runway counts down to a **30% reserve**, not to empty. Empty is not a
 number anybody plans against: a set that runs its tank dry picks up air in the
@@ -909,7 +970,7 @@ exactly what this page drew before the role existed.
 Every node is captioned in two lines — what it is, and what it is putting into the
 bus. Only a connected, energised source gets a **kW figure**; the rest get a word
 (`off-load`, `stopped`, `unavailable`, `failed`), because `0 kW` is a *measurement*,
-and claiming to have measured zero at a machine that is faulted or unreachable is a
+and claiming to have measured zero at a machine that is unreachable is a
 stronger statement than the page is entitled to make. The load's caption is the
 site's draw, stated where the power actually arrives — and on a standby site with the
 grid up, that draw is the **meter's** figure, not a genset's.
@@ -935,11 +996,10 @@ one place that is guaranteed:
 | --- | --- | --- | --- |
 | duty | `RUNNING` | closed, live | this is the set feeding the load |
 | duty | `IDLE` | closed, dead | standby — made up and waiting |
-| duty | `FAULT` | open, dead | the controller isolated it as part of shutting down |
 | duty | `OFFLINE` | open, dead | we cannot hear from it, so it must be drawn as *not* contributing |
 | not duty | anything | open, dead | isolated by the changeover; off-load even if turning |
 
-That fourth row is a safety decision, not a display one. Assuming a silent machine
+That `OFFLINE` row is a safety decision, not a display one. Assuming a silent machine
 is carrying load is the single error on this page that could get somebody hurt.
 
 The **mains contactor** does not appear in that table because it does not obey it —
@@ -951,11 +1011,11 @@ one-option control would imply an operation that does not exist. Picking a set h
 it the load and isolates the others; the diagram, the site's draw and the `off-load`
 badge in each genset row all move together. Options that cannot take the load are
 refused *and say which refusal it is*. On the site the design draws — one running set
-beside a faulted one — every option but the current one is refused, which is the
+beside a stopped one — every option but the current one is refused, which is the
 honest answer: there is nothing to transfer to.
 
 Only the duty set carries a glyph, on a chip the full height of the track; the others
-are shorter, dimmed text. So the *specific* refusal — faulted, unreachable, stopped —
+are shorter, dimmed text. So the *specific* refusal — unreachable, stopped —
 is legible only from the tooltip, which is the trade the design makes for a track
 that reads as one live choice rather than four equal buttons.
 

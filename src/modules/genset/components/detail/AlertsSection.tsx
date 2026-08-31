@@ -1,4 +1,11 @@
-import {ActivityIcon, BellIcon, CircleGaugeIcon, DropletIcon, WrenchIcon} from 'lucide-react';
+import {
+  ActivityIcon,
+  BellIcon,
+  CircleGaugeIcon,
+  DropletIcon,
+  FuelIcon,
+  WrenchIcon,
+} from 'lucide-react';
 import {Link} from '@tanstack/react-router';
 
 import {Badge} from '@/components/ui/badge';
@@ -8,6 +15,8 @@ import {ALERT_SEVERITIES, countBySeverity, worstSeverity} from '../../types/aler
 import type {AlertSeverity, GensetAlert, GensetCondition, GensetTag} from '../../types/alert.type';
 import type {ServiceNotice, ServiceStatus} from '../../types/service.type';
 import type {FuelLeakNotice} from '../../types/fuelIntegrity.type';
+import {FUEL_LEVEL_LABEL, SEVERITY_OF_FUEL_LEVEL} from '../../types/fuelLevel.type';
+import type {FuelLevelNotice} from '../../types/fuelLevel.type';
 import type {Reading} from '../../types/telemetry.type';
 import type {AlertFocus} from '../../types/detailView.type';
 import {CONDITION_META, SEVERITY_META} from './severityMeta';
@@ -17,14 +26,19 @@ import type {GensetDetail} from '../../data/detail';
 const SERVICE_TAG_ID = 'service';
 
 /**
- * And the one a leak is filed under.
+ * And the one a leak and a low tank are filed under.
  *
  * `Fuel` was the tag that deliberately carried no alarms, and the note in
  * `detail.ts` explaining why is still true: the register map's two fuel bits
  * (`AL Fuel Level Wrn`, `AL Fuel Level Sd`) are not marked for the dashboard, so
- * the map contributes nothing here. What has changed is that the *app* now does.
+ * the map contributes nothing here. What has changed is that the *app* now does —
+ * twice. The leak is diesel that went missing; the level is diesel that was
+ * legitimately burned and now needs replacing.
  */
 const FUEL_TAG_ID = 'fuel';
+
+/** The reading the tank-level alarm watches — its own card carries it. */
+const FUEL_LEVEL_READING_KEY = 'fuel-level';
 
 /**
  * An overdue service, in the alert list but not disguised as an alarm.
@@ -180,6 +194,73 @@ const AlertCard = ({alert, reading}: {alert: GensetAlert; reading: Reading | und
 };
 
 /**
+ * The tank below one of its two lines — an alarm the app raises off a number the
+ * panel sends.
+ *
+ * ## Why it looks like `AlertCard` and not like the two notices above it
+ *
+ * Because it *is* one: a threshold on a reading, which is what nearly every row in
+ * this section is. It states the rule on the right and carries the reading that
+ * tripped it underneath, exactly as a register-map alarm does, and for the same
+ * reason — "Low fuel" is an adjective until the litres are in the box with it.
+ *
+ * The one thing it does differently is where it says it came from. An alarm prints
+ * its register and bit; this prints `Tank level`, because no controller raised it.
+ * That line is what a reader already uses to tell the panel talking from the app
+ * talking, and it is the whole reason these rows can sit in one list without the
+ * register map's identity being diluted.
+ *
+ * ## Why it links to Refuel and not to Settings
+ *
+ * Unlike a coolant alarm there is something to *do* about this one, and it is a
+ * booking rather than a callout. The leak card links to the reconciliation because
+ * the useful next step there is to check the arithmetic before sending anyone; here
+ * the arithmetic is a division and the useful next step is a tanker.
+ */
+const FuelLevelNoticeCard = ({
+  notice,
+  reading,
+}: {
+  notice: FuelLevelNotice;
+  reading: Reading | undefined;
+}) => {
+  const severity = SEVERITY_OF_FUEL_LEVEL[notice.kind];
+  const meta = SEVERITY_META[severity];
+
+  return (
+    <div
+      className={cn(
+        'flex w-full flex-col gap-3 rounded-md border bg-element px-3 py-2.5',
+        notice.kind === 'empty'
+          ? 'border-severity-critical/40'
+          : 'border-severity-warning/40',
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-3.5">
+        <Badge variant="element" size="md" className="border-subtle">
+          <FuelIcon className={meta.textClassName} aria-hidden="true" />
+          {FUEL_LEVEL_LABEL[notice.kind]}
+        </Badge>
+        <p className="text-base font-medium text-primary">{notice.message}</p>
+        <p className="ml-auto text-xs text-secondary">
+          {notice.threshold} · {notice.source}
+        </p>
+      </div>
+
+      {reading !== undefined && <ReadingRow reading={reading} severity={severity} />}
+
+      <Link
+        to="/gensets/$gensetId/refuel"
+        params={{gensetId: notice.gensetId}}
+        className="text-sm text-secondary underline-offset-4 hover:text-primary hover:underline"
+      >
+        Order a refuel
+      </Link>
+    </div>
+  );
+};
+
+/**
  * The alerts half of the genset home page.
  *
  * Two rows of chips over a result list. The chips are a **single-select filter**
@@ -206,6 +287,7 @@ export const AlertsSection = ({
   service,
   notice,
   leak,
+  fuelLevel,
   condition,
   focus,
   onFocusChange,
@@ -215,6 +297,14 @@ export const AlertsSection = ({
   service: ServiceStatus;
   notice: ServiceNotice | undefined;
   leak: FuelLeakNotice | undefined;
+  /**
+   * The tank below its reserve or empty line, if it is.
+   *
+   * Passed in rather than derived here for the same reason `condition` is: this
+   * component is a view over what it is given, and the two lines belong to
+   * `types/fuelLevel.type.ts` where the fleet buckets read them too.
+   */
+  fuelLevel: FuelLevelNotice | undefined;
   /**
    * The verdict, passed in rather than read off `detail`.
    *
@@ -232,8 +322,12 @@ export const AlertsSection = ({
   const leakSeverity: AlertSeverity | undefined =
     leak === undefined ? undefined : leak.kind === 'critical' ? 'CRITICAL' : 'WARNING';
 
+  /** And the tank's, which the fuel-level module already ranks the same way. */
+  const fuelLevelSeverity: AlertSeverity | undefined =
+    fuelLevel === undefined ? undefined : SEVERITY_OF_FUEL_LEVEL[fuelLevel.kind];
+
   /**
-   * The chip counts, **including the leak**.
+   * The chip counts, **including the leak and the tank level**.
    *
    * This is where it parts company with the service notice below, and the reason is
    * worth stating because the notice's own comment argues the opposite. A service
@@ -249,6 +343,7 @@ export const AlertsSection = ({
    */
   const counts = countBySeverity(alerts);
   if (leakSeverity !== undefined) counts[leakSeverity] += 1;
+  if (fuelLevelSeverity !== undefined) counts[fuelLevelSeverity] += 1;
 
   /**
    * The readings, with `hours-since-service` taken from the service log rather
@@ -324,11 +419,21 @@ export const AlertsSection = ({
       ALERT_SEVERITIES.indexOf(left.severity) - ALERT_SEVERITIES.indexOf(right.severity),
   );
 
+  /**
+   * The tag's readings with nothing on them, as plain rows.
+   *
+   * `fuel-level` is pulled out when the tank alarm is standing. It has no
+   * register-map alert behind it — nothing in `alertsByKey` reaches it — so
+   * without this it would fall through to the quiet list and be drawn in green,
+   * directly under a card saying the tank is below its line. The alarm's own card
+   * carries the reading instead, which is where it belongs.
+   */
   const quietReadings =
     selectedTag === undefined
       ? []
       : selectedTag.readingKeys
           .filter((key) => (alertsByKey.get(key) ?? []).length === 0)
+          .filter((key) => !(key === FUEL_LEVEL_READING_KEY && fuelLevel !== undefined))
           .map((key) => readings[key])
           .filter((reading) => reading !== undefined);
 
@@ -341,6 +446,15 @@ export const AlertsSection = ({
     (focus.kind === 'none' ||
       (focus.kind === 'tag' && focus.tagId === FUEL_TAG_ID) ||
       (focus.kind === 'severity' && focus.severity === leakSeverity));
+
+  // Same three ways in as the leak. Unlike the service notice, a severity chip
+  // *does* reach it: it is counted in that chip, and a count you cannot click
+  // through to is a number the reader has to take on trust.
+  const showFuelLevel =
+    fuelLevel !== undefined &&
+    (focus.kind === 'none' ||
+      (focus.kind === 'tag' && focus.tagId === FUEL_TAG_ID) ||
+      (focus.kind === 'severity' && focus.severity === fuelLevelSeverity));
 
   const toggleSeverity = (severity: AlertSeverity) =>
     onFocusChange(
@@ -425,8 +539,17 @@ export const AlertsSection = ({
               // type. Colouring the tag is the honest half of the same job: the
               // verdict says something is wrong, and the chip row says where.
               const worst =
-                tag.id === FUEL_TAG_ID && leakSeverity !== undefined
-                  ? leakSeverity
+                tag.id === FUEL_TAG_ID
+                  ? worstSeverity([
+                      ...alertsForTag(tag),
+                      // The leak and the tank reach the chip as bare severities.
+                      // `worstSeverity` ranks anything with a `severity`, which is
+                      // what keeps the app's two rows from having to be dressed up
+                      // as register-map alarms to be ranked beside them.
+                      ...[leakSeverity, fuelLevelSeverity]
+                        .filter((severity) => severity !== undefined)
+                        .map((severity) => ({severity})),
+                    ])
                   : worstSeverity(alertsForTag(tag));
               const selected = focus.kind === 'tag' && focus.tagId === tag.id;
 
@@ -473,11 +596,18 @@ export const AlertsSection = ({
               separate type. */}
           {showNotice && notice !== undefined && <ServiceNoticeCard notice={notice} />}
           {showLeak && leak !== undefined && <FuelLeakNoticeCard notice={leak} />}
+          {showFuelLevel && fuelLevel !== undefined && (
+            <FuelLevelNoticeCard
+              notice={fuelLevel}
+              reading={readings[FUEL_LEVEL_READING_KEY]}
+            />
+          )}
 
           {orderedAlerts.length === 0 &&
           quietReadings.length === 0 &&
           !showNotice &&
-          !showLeak ? (
+          !showLeak &&
+          !showFuelLevel ? (
             <p className="text-sm text-secondary">
               {focus.kind === 'none'
                 ? 'No active alerts on this genset.'

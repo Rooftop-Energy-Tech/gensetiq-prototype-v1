@@ -17,21 +17,27 @@ import type {LucideIcon} from 'lucide-react';
  * Only the screens that have a mobile layout are here. `Energy`, `Meters`,
  * `Refuel` and `Settings` are desktop-only in this prototype, and a nav item that
  * lands on a screen laid out for 1,280px would be worse than no item at all — the
- * point of a limited bar is that everything it offers works. `Energy` is the
- * clearest case: it is an eight-column table whose whole job is comparison down a
- * column, and there is no phone-width form of that worth offering.
+ * point of a limited bar is that everything it offers works. The report's
+ * `Overall` and `Genset` tabs are the clearest case: each is a wide table whose
+ * whole job is comparison down a column, and there is no phone-width form of that
+ * worth offering.
  *
- * `Solar` **is** here — the report at `/solar-report`, not the array register
- * that took the `/solar` path — and it is the one addition to the original
- * three. The register is withheld for the ordinary reason: its six tabs are
- * empty and none has a phone layout. The bar keeps the short label, because at
- * this width it is the only solar screen on offer and there is nothing to
- * disambiguate it from. Its
- * cards are an `auto-fill` grid that resolves to a single column at this width,
- * and its charts were drawn for a 44px slot, so the phone layout is the desktop
- * one narrowed rather than a desktop screen squeezed. Withholding it would have
- * been withholding the screen most likely to be opened by somebody standing at
- * the foot of a tower.
+ * ## The bar points at one tab, not at the section
+ *
+ * `Solar` **is** here, and it links straight to `/report/solar` rather than to
+ * `/report`. That is deliberate. `SectionTabs` hides its strip below `md` for the
+ * same reason this bar is four items long, so a phone sent to `/report` would
+ * land on the one report it cannot read with no way to reach the one it can.
+ * Naming the tab in the link is what keeps the rule — offer no door the app
+ * cannot open — true through a section whose other doors are shut.
+ *
+ * The short label survives the move: at this width it is the only solar screen on
+ * offer, and the plant register at `/solar` is withheld because its system and
+ * inverter pages have no phone layout. The report's cards are an `auto-fill` grid
+ * that resolves to a single column at this width, and its charts were drawn for a
+ * 44px slot, so the phone layout is the desktop one narrowed rather than a
+ * desktop screen squeezed. Withholding it would have been withholding the screen
+ * most likely to be opened by somebody standing at the foot of a tower.
  *
  * The routes themselves are untouched and still resolve if a URL is typed or
  * followed from a desktop link. What is withheld is *navigation to* them, which is
@@ -41,7 +47,7 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/overview' | '/sites' | '/solar-report' | '/gensets';
+  link: '/overview' | '/sites' | '/report/solar' | '/gensets';
   /**
    * The list's own default view state, for the two items that have one.
    *
@@ -55,13 +61,13 @@ type MobileNavItem = {
 };
 
 const ITEMS: Array<MobileNavItem> = [
-  // The overview is here where `Energy` and the rest are not, because it
+  // The overview is here where the other report tabs are not, because it
   // genuinely has a phone layout: its tiles are a two-column grid at this width
   // rather than a desktop screen squeezed. It is also where `/` now lands, so
   // leaving it out would strand a phone on a screen with no way back to it.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
-  {label: 'Solar', icon: SunMediumIcon, link: '/solar-report'},
+  {label: 'Solar', icon: SunMediumIcon, link: '/report/solar'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
 ];
 

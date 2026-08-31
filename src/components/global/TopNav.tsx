@@ -19,21 +19,43 @@ type Crumb = {label: string; to?: string};
  * a *sibling* of `/gensets` rather than a child — it has to be, or it would try to
  * render inside a screen with no `<Outlet />` — so the match chain does not contain
  * the fleet screen and cannot supply "Gensets" on its own.
+ *
+ * ## Every labelled match, not only the deepest
+ *
+ * This used to stop at the first label it found walking back, which was enough
+ * while nothing in the app was more than two deep. An inverter is:
+ * `Solar / MG-012 | 1333 kWp / Inverter 4`, and under the old rule it rendered as
+ * `Inverter 4` alone — the one crumb that says least, since a reader who has
+ * landed on a box needs to know *whose* box before they need its number.
+ *
+ * So the chain is collected in order and every labelled ancestor becomes a link,
+ * using the match's own resolved `pathname` — which is the only thing that can
+ * supply a href for a route whose path has params in it. `crumbParent` is read
+ * from the **first** labelled match only: it exists to bridge a sibling gap at
+ * the top of a trail, and applying it further down would insert the same
+ * ancestor twice.
  */
 const useCrumbs = (): Array<Crumb> => {
   const matches = useMatches();
+  const trail: Array<Crumb> = [];
 
-  for (let index = matches.length - 1; index >= 0; index -= 1) {
-    const match = matches[index];
+  for (const match of matches) {
     const dynamic = (match.loaderData as {crumb?: string} | undefined)?.crumb;
     const label = dynamic ?? match.staticData.crumb;
     if (label === undefined) continue;
 
-    const parent = match.staticData.crumbParent;
-    return parent === undefined ? [{label}] : [{label: parent.label, to: parent.to}, {label}];
+    if (trail.length === 0) {
+      const parent = match.staticData.crumbParent;
+      if (parent !== undefined) trail.push({label: parent.label, to: parent.to});
+    }
+
+    trail.push({label, to: match.pathname});
   }
 
-  return [{label: 'Fleet'}];
+  if (trail.length === 0) return [{label: 'Fleet'}];
+
+  // The page you are standing on is not a link to itself.
+  return trail.map((crumb, index) => (index === trail.length - 1 ? {label: crumb.label} : crumb));
 };
 
 export const TopNav = () => {

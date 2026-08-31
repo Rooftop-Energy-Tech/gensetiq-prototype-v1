@@ -15,7 +15,7 @@ import {usePlantCount} from '@/modules/plant/estateCount';
  * overnight, that is the largest thing missing.
  *
  * This section is deliberately a **sibling** of Solar and Gensets rather than a tab
- * inside either. A bank at a diesel-hybrid site has no array beside it at all, so
+ * inside either. A bank at a diesel-hybrid site has no solar beside it at all, so
  * filing storage under solar would hide half of it; and the bank is the component
  * that decides whether the tower stays up, which is not a subheading of the engine
  * that charges it.

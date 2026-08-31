@@ -51,7 +51,7 @@ export type SiteGenset = {genset: Genset; detail: GensetDetail};
 
 export type SiteSummary = {
   site: Site;
-  /** Attention-ordered, so a faulted set leads the page. */
+  /** Attention-ordered, so a turning set leads the page. */
   gensets: Array<SiteGenset>;
   /**
    * Which set the changeover starts on — the one carrying the load, or the one
@@ -253,8 +253,8 @@ export const siteLoadKw = (
  *
  * "Unfinished" is why `IDLE` doesn't count. An idle set started on an outage too,
  * and then stopped — its own feed says "utility restored" — so its outage is over
- * and the grid is back. `FAULT` and `OFFLINE` do count: those sets went out on an
- * outage and never came home, which is the worst state a standby site has.
+ * and the grid is back. `OFFLINE` does count: that set went out on an outage and
+ * never came home, which is the worst state a standby site has.
  *
  * A second, independent mains flag was the obvious alternative and it is the wrong
  * shape. It could disagree with the activity feed, and the disagreement would land
@@ -307,7 +307,7 @@ const buildSummary = (
 ): SiteSummary => {
   const members: Array<Genset> = all
     .filter((genset) => genset.siteId === seed.id)
-    // `RUN_STATES` is declared worst-first, so a faulted set leads and the tag
+    // `RUN_STATES` is declared attention-first, so a turning set leads and the tag
     // breaks ties — the same order the fleet table uses, for the same reason.
     .sort((left, right) => stateRank(left) - stateRank(right) || left.tag.localeCompare(right.tag));
 

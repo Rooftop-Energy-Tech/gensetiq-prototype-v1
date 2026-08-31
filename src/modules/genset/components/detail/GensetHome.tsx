@@ -9,6 +9,7 @@ import type {GensetDetail} from '../../data/detail';
 import {useServiceRecords, useServiceStatus} from '../../data/services';
 import {gensetCondition, useFuelIntegrity} from '../../data/fuelIntegrity';
 import {fuelLeakNotice} from '../../types/fuelIntegrity.type';
+import {fuelLevelNotice} from '../../types/fuelLevel.type';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {useSession} from '@/modules/auth/session';
@@ -170,6 +171,7 @@ export const GensetHome = ({
         service={service}
         notice={serviceNotice(genset.id, service)}
         leak={fuelLeakNotice(genset.id, integrity)}
+        fuelLevel={fuelLevelNotice(genset)}
         condition={gensetCondition(genset.id, now)}
         focus={focus}
         onFocusChange={onFocusChange}

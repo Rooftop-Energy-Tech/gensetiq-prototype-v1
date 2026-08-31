@@ -1,5 +1,5 @@
 import {amount} from '@/lib/format';
-import {ALERT_SEVERITIES, SEVERITY_OF_ALARM_TYPE, conditionOf} from '../types/alert.type';
+import {SEVERITY_OF_ALARM_TYPE, conditionOf} from '../types/alert.type';
 import type {
   AlarmType,
   AlertComparator,
@@ -7,6 +7,7 @@ import type {
   GensetCondition,
   GensetTag,
 } from '../types/alert.type';
+import {RESERVE_FRACTION} from '../types/fuelLevel.type';
 import {gensetName} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 import type {GensetRun} from '../types/run.type';
@@ -98,7 +99,7 @@ const NO_LOAD_FRACTION = 0.2;
  *
  * One function, used by **every** place fuel is derived from energy — the run
  * log, the current-run card, the fuel ladder, the metered-burn integral and the
- * per-site litres on `/energy` — so the tank chart, the flow meter and the run
+ * per-site litres on `/report` — so the tank chart, the flow meter and the run
  * totals all tell one story.
  *
  * Clamped at 5% of nameplate: below that the curve heads for infinity, and a set
@@ -110,15 +111,6 @@ export const sfcLitresPerKwh = (loadFraction: number): number => {
   const fraction = Math.min(Math.max(loadFraction, 0.05), 1);
   return variable + fixed / fraction;
 };
-
-/**
- * Fraction of the tank the refuel runway counts down to, not to zero.
- *
- * Exported because the fleet status buckets draw the same line: "low fuel" is
- * this line crossed, and a second copy of 0.3 would let a genset's own page and the
- * overview disagree about whether it needs a tanker.
- */
-export const RESERVE_FRACTION = 0.3;
 
 /** Gensets are rated in kVA at a 0.8 power factor; kW is what they deliver. */
 const POWER_FACTOR = 0.8;
@@ -344,11 +336,15 @@ export const PLOTTABLE_READING_KEYS: Array<string> = READING_SPECS.filter(
  * tag — oil pressure matters to Lubrication and to anyone watching the engine —
  * which is the point of tags being lists rather than a partition.
  *
- * Two tags carry no alarms at all, and they stay. A tag answers "how is this
- * subsystem doing", and `Fuel` showing three healthy readings and nothing wrong is
- * a complete answer to that. (It is also a question worth asking of the map: the
- * controller *has* `AL Fuel Level Wrn` and `AL Fuel Level Sd`, and neither is
- * marked for the dashboard.)
+ * One tag carries no alarms from this map at all, and it stays. A tag answers "how
+ * is this subsystem doing", and `Fuel` showing three healthy readings and nothing
+ * wrong is a complete answer to that.
+ *
+ * `Fuel` is no longer empty in practice, but nothing here is what fills it. The
+ * controller *has* `AL Fuel Level Wrn` and `AL Fuel Level Sd` and neither is marked
+ * for the dashboard, so neither may appear in `ALERT_RULES` — that rule is what
+ * makes this list checkable against the sheet. The app raises its own alarm on the
+ * tank instead, in `types/fuelLevel.type.ts`, and says on the card that it did.
  */
 const TAGS: Array<GensetTag> = [
   {
@@ -1004,18 +1000,12 @@ const PINNED_RULE_IDS = [
   'dpf-status', //                     ─┘
 ];
 
-/** Worst-first, for dealing a faulted set its critical before anything else. */
-const severityRank = (rule: AlertRule): number =>
-  ALERT_SEVERITIES.indexOf(SEVERITY_OF_ALARM_TYPE[rule.type]);
-
 /**
  * Which rules a unit is carrying.
  *
  * `OFFLINE` units get the comms alarm and nothing else — a panel that isn't
- * reporting cannot also be telling you its oil pressure. A faulted unit always
- * carries at least one critical, so the run-state badge and the alerts section
- * agree about whether something is wrong. `BRF9540` carries `PINNED_RULE_IDS`, to
- * reproduce the design's chip counts.
+ * reporting cannot also be telling you its oil pressure. `BRF9540` carries
+ * `PINNED_RULE_IDS`, to reproduce the design's chip counts.
  *
  * ## A critical alarm belongs to a set that has actually stopped
  *
@@ -1030,11 +1020,11 @@ const severityRank = (rule: AlertRule): number =>
  * page before it was a nuisance on the list: a shutdown alarm beside a run-state
  * badge reading Running, on a machine that had plainly not shut down.
  *
- * Criticals are therefore reserved for the states that have one by definition —
- * `FAULT`, which is a set that tripped, and `OFFLINE`, whose comms alarm is its
- * own kind of critical. Everything still turning draws from warnings and info
- * only, which is what a genset carrying a high coolant temperature at 103 °C
- * actually is: a machine to look at this week, running fine today.
+ * Criticals are therefore reserved for `OFFLINE`, the one state that has one by
+ * definition: its comms alarm is its own kind of critical. Every set we can still
+ * hear from draws from warnings and info only, which is what a genset carrying a
+ * high coolant temperature at 103 °C actually is: a machine to look at this week,
+ * running fine today.
  *
  * The count comes down as well, and deliberately. A quarter of sets carried
  * nothing before; a half do now. An estate where most machines are fine is both
@@ -1046,32 +1036,22 @@ const rulesFor = (genset: Genset): Array<AlertRule> => {
   if (genset.id === 'brf9540') return PINNED_RULE_IDS.map(ruleById);
 
   const draw = spread(genset.id, 'alerts');
-  const wanted =
-    genset.runState === 'FAULT' ? 2 + Math.floor(draw * 3) : Math.max(0, Math.floor(draw * 4) - 1);
+  const wanted = Math.max(0, Math.floor(draw * 4) - 1);
   if (wanted === 0) return [];
 
   // A cleanly stopped set can only be carrying rules that survive the engine
-  // being off. A faulted one keeps them all: the fault is *why* it stopped, and
-  // the tripping value is latched by the controller.
+  // being off.
   const running = ALERT_RULES.filter(
     (rule) => genset.runState !== 'IDLE' || rule.requiresEngine !== true,
   );
 
-  // Criticals only where a set has actually tripped. See the note above.
-  const eligible =
-    genset.runState === 'FAULT'
-      ? running
-      : running.filter((rule) => SEVERITY_OF_ALARM_TYPE[rule.type] !== 'CRITICAL');
+  // Criticals only where a set has actually stopped reporting. See the note above.
+  const eligible = running.filter((rule) => SEVERITY_OF_ALARM_TYPE[rule.type] !== 'CRITICAL');
 
-  // Faulted units are dealt worst-first, so they always pick up a critical.
-  // Everyone else gets a per-unit shuffle, so two idle sets don't carry the same
-  // two warnings.
-  const pool =
-    genset.runState === 'FAULT'
-      ? [...eligible].sort((left, right) => severityRank(left) - severityRank(right))
-      : [...eligible].sort(
-          (left, right) => spread(genset.id, left.id) - spread(genset.id, right.id),
-        );
+  // A per-unit shuffle, so two idle sets don't carry the same two warnings.
+  const pool = [...eligible].sort(
+    (left, right) => spread(genset.id, left.id) - spread(genset.id, right.id),
+  );
 
   // Two rules on one reading are only compatible if they point the same way. A
   // warning band inside a shutdown band is how a panel is actually configured and

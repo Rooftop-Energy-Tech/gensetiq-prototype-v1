@@ -133,8 +133,8 @@ const INSTRUMENT_SEED: Record<string, InstrumentSeed> = {
   klc1027: {levelSensor: REED_CHAIN, flowMeter: CORIOLIS, lossLitresPerHour: 6},
   amp8890: {levelSensor: CAPACITIVE, flowMeter: GEAR, lossLitresPerHour: 4},
 
-  // — The two theft showcases, on the two sets the fleet list sorts to the top
-  // (both FAULT, so they lead the table and a demo reaches them first).
+  // — The two theft showcases. Both are stopped sets, so their tanks are being
+  // read against an engine that is not burning anything.
   //
   // `bkm4409` is the overnight case: fuel leaving a machine that is not
   // turning. The loss began 20 hours ago and the engine has been stopped for

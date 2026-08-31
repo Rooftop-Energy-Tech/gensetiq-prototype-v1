@@ -3,7 +3,6 @@ import {
   CircleStopIcon,
   FuelIcon,
   PencilLineIcon,
-  TriangleAlertIcon,
   TruckIcon,
   WrenchIcon,
 } from 'lucide-react';
@@ -17,14 +16,13 @@ const ACTIVITY_ICON: Record<GensetActivityKind, LucideIcon> = {
   START: CirclePlayIcon,
   STOP: CircleStopIcon,
   REFUEL: FuelIcon,
-  FAULT: TriangleAlertIcon,
   SERVICE: WrenchIcon,
   DEPLOY: TruckIcon,
   NOTE: PencilLineIcon,
 };
 
 /**
- * The machine's history as a rail of events — starts, stops, refuels, faults
+ * The machine's history as a rail of events — starts, stops, refuels, deployments
  * and services, newest first.
  *
  * Extracted from the fleet page's slide-over panel so the genset's own
@@ -43,13 +41,7 @@ export const ActivityFeed = ({activity}: {activity: Array<GensetActivity>}) => (
               than an absolutely-positioned line, so it stretches with however
               many lines the message wraps to. */}
           <div className="flex flex-col items-center">
-            <Icon
-              className={cn(
-                'size-4 shrink-0',
-                event.kind === 'FAULT' ? 'text-status-fault' : 'text-secondary',
-              )}
-              aria-hidden="true"
-            />
+            <Icon className="size-4 shrink-0 text-secondary" aria-hidden="true" />
             {!last && <div className="w-px flex-1 bg-subtle" />}
           </div>
           <div className={cn('flex min-w-0 flex-col', last ? 'pb-0' : 'pb-4')}>

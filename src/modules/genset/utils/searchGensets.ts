@@ -48,7 +48,7 @@ const stateRank = (genset: Genset) => RUN_STATES.indexOf(genset.runState);
 /**
  * Fleet order: anything demanding attention first, then alphabetical by tag.
  *
- * `RUN_STATES` is declared worst-first for exactly this, so a faulted unit leads
+ * `RUN_STATES` is declared attention-first for exactly this, so a turning unit leads
  * the table instead of hiding on whatever row the seed data happened to put it.
  */
 export const sortGensets = (gensets: Array<Genset>): Array<Genset> =>

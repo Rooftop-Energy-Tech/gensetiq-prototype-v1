@@ -1,4 +1,4 @@
-import {CircleIcon, PauseIcon, PowerOffIcon, TriangleAlertIcon} from 'lucide-react';
+import {CircleIcon, PauseIcon, PowerOffIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {lightToken} from '@/styles/colors';
@@ -18,7 +18,7 @@ type RunStateMeta = {
 
 /**
  * Only `RUNNING` is pinned by the design — Figma puts `blue/500` on its circle
- * glyph and leaves the badge surface neutral. The rest follow that pattern: the
+ * glyph and leaves the badge surface neutral. The other two follow that pattern: the
  * surface stays `bg-inset` and the glyph alone carries state, so a row of mixed
  * badges reads as one family rather than a traffic light.
  */
@@ -34,12 +34,6 @@ export const RUN_STATE_META: Record<RunState, RunStateMeta> = {
     icon: PauseIcon,
     iconClassName: 'text-status-idle',
     mapColor: lightToken['status-idle'],
-  },
-  FAULT: {
-    label: 'Fault',
-    icon: TriangleAlertIcon,
-    iconClassName: 'text-status-fault',
-    mapColor: lightToken['status-fault'],
   },
   OFFLINE: {
     label: 'Offline',

@@ -1,5 +1,5 @@
 import {amount} from '@/lib/format';
-import type {GaugeReading} from '../../types/telemetry.type';
+import type {DialReading} from '../../types/telemetry.type';
 
 /**
  * Geometry lifted off the design's gauge asset.
@@ -53,7 +53,7 @@ const TICK_GEOMETRY: Array<Tick> = Array.from({length: TICKS}, (_, index) => {
  * The scale ends are labelled outside the dial, so the only thing inside the arc
  * is the number itself.
  */
-export const TickGauge = ({reading}: {reading: GaugeReading}) => {
+export const TickGauge = ({reading}: {reading: DialReading}) => {
   const span = reading.max - reading.min;
   const fraction =
     span > 0 ? Math.min(1, Math.max(0, (reading.value - reading.min) / span)) : 0;

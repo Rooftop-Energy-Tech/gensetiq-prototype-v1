@@ -54,7 +54,7 @@ import {siteSearch} from '@/modules/site/types/view.type';
  * jobs, and a site count alone cannot say which of those you are looking at.
  *
  * Every number on this page is a link into the screen that shows its working —
- * `/sites` for the buckets, `/energy` and `/refuel` for the middle band — so there
+ * `/sites` for the buckets, `/report` and `/refuel` for the middle band — so there
  * is no figure here the reader cannot go and check.
  *
  * **At phone width the map is withheld and the tiles are the whole screen.** Not a
@@ -200,7 +200,7 @@ const EnergyTile = ({
   value,
   detail,
 }: {
-  to: '/energy' | '/solar-report' | '/refuel';
+  to: '/report' | '/report/solar' | '/refuel';
   icon: LucideIcon;
   label: string;
   value: string;
@@ -392,11 +392,11 @@ export const OverviewPage = () => {
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-2">
-          {/* To `/solar-report`, not `/energy`. Every tile on this page links to the
-              screen that shows its working, and this figure's working is a
-              twelve-month series against each array's design. */}
+          {/* To the report's Solar tab, not its Overall one. Every tile on this
+              page links to the screen that shows its working, and this figure's
+              working is a twelve-month series against each array's design. */}
           <EnergyTile
-            to="/solar-report"
+            to="/report/solar"
             icon={SunMediumIcon}
             label="Solar share"
             value={`${Math.round(energy.solarShare * 100)}%`}

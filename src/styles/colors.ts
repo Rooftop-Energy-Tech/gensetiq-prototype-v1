@@ -256,13 +256,13 @@ const SIDEBAR: ColorMap = {
 };
 
 /**
- * Genset run states — `text-status-running`, `bg-status-fault`, …
+ * Genset run states — `text-status-running`, `text-status-idle`, …
  *
  * None of these are semantic variables in the design system's "3. Mode"
  * collection, so every `figma` field here is `''`. Only `running` is pinned by
  * the design at all, and it is pinned to a *primitive*
  * (`tailwind colors/blue/500` on the badge's circle glyph) rather than a named
- * role. The other three follow the same Tailwind-500 family so the set reads as
+ * role. The other two follow the same Tailwind-500 family so the set reads as
  * one scale, and they are deliberately distinct in *lightness* as well as hue so
  * the badges survive a monochrome screenshot.
  *
@@ -273,7 +273,6 @@ const SIDEBAR: ColorMap = {
 const STATUS: ColorMap = {
   'status-running': {light: '#3B82F6', dark: '#3B82F6', figma: ''},
   'status-idle': {light: '#94A3B8', dark: '#94A3B8', figma: ''},
-  'status-fault': {light: '#EF4444', dark: '#EF4444', figma: ''},
   'status-offline': {light: '#64748B', dark: '#64748B', figma: ''},
 };
 
@@ -371,10 +370,10 @@ const BATTERY: ColorMap = {
  * `text-primary`. Adding a fourth token would have duplicated that variable and
  * given `figmaMap()` two token keys claiming one Figma name.
  *
- * `severity-critical` and `status-fault` share a value and that is fine — they
- * answer different questions. Run state is "is it turning"; severity is "is a
- * threshold crossed". A running genset can carry a critical alarm, so the two
- * scales have to be legible next to each other rather than collapse into one.
+ * `severity-critical` is the only red in the app. Run state answers "is it
+ * turning" and stays on the blue-grey scale; severity answers "is a threshold
+ * crossed" and owns red on its own, so the two are legible next to each other
+ * rather than collapsing into one.
  */
 const SEVERITY: ColorMap = {
   'severity-critical': {light: '#EF4444', dark: '#EF4444', figma: ''},

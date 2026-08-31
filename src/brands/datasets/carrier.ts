@@ -97,9 +97,9 @@ const SITES = [
 const GENSETS = [
   // — The two switching centres (4) — the estate's heavy plant, and the only
   //   sites here that hold a pair. `BRF9540` and its twin are the Figma frame's
-  //   two identical genset cards, one running and one faulted.
+  //   two identical genset cards, one running and one on standby.
   {tag: 'BRF9540', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1105, longitude: 101.6634, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57},
-  {tag: 'KLN3355', model: 'Cummins 1000 kVa',    runState: 'FAULT',   siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1113, longitude: 101.6646, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45},
+  {tag: 'KLN3355', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1113, longitude: 101.6646, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45},
   {tag: 'JHB5503', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4923, longitude: 103.7408, fuelLitres: 1088, fuelCapacityLitres: 1200, staleMinutes: 3},
   {tag: 'JHB5744', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4931, longitude: 103.7420, fuelLitres: 936,  fuelCapacityLitres: 1200, staleMinutes: 8},
 
@@ -126,7 +126,7 @@ const GENSETS = [
   {tag: 'CAM4471', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'phg-0788',  locationLabel: 'Cameron Highlands, Pahang',    latitude: 4.4710, longitude: 101.3770, fuelLitres: 108,  fuelCapacityLitres: 800,  staleMinutes: 9},
   {tag: 'CAM4629', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'phg-0788',  locationLabel: 'Cameron Highlands, Pahang',    latitude: 4.4716, longitude: 101.3778, fuelLitres: 546,  fuelCapacityLitres: 800,  staleMinutes: 26},
   {tag: 'GMS2218', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'kel-0339',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8820, longitude: 101.9670, fuelLitres: 402,  fuelCapacityLitres: 800,  staleMinutes: 11},
-  {tag: 'GMS2404', model: 'Denyo 15 kVa',        runState: 'FAULT',   siteId: 'kel-0339',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8826, longitude: 101.9678, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95},
+  {tag: 'GMS2404', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'kel-0339',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8826, longitude: 101.9678, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95},
   {tag: 'NBW7756', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0620, longitude: 116.4370, fuelLitres: 168,  fuelCapacityLitres: 800,  staleMinutes: 38},
   {tag: 'KPT8033', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0170, longitude: 112.9330, fuelLitres: 96,   fuelCapacityLitres: 800,  staleMinutes: 27},
   {tag: 'BLG4884', model: 'Denyo 15 kVa',        runState: 'OFFLINE', siteId: 'swk-0851',  locationLabel: 'Belaga, Sarawak',              latitude: 2.7000, longitude: 113.7830, fuelLitres: 172,  fuelCapacityLitres: 800,  staleMinutes: 1_615},

@@ -1,6 +1,6 @@
 import {z} from 'zod';
 
-import {solarRangeSchema} from './range.type';
+import {solarRangeSchema} from '@/modules/solar/types/range.type';
 
 /**
  * How the arrays are listed: as **cards** with a chart each, or as a **table**.

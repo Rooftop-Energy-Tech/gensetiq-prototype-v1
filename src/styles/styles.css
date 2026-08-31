@@ -58,7 +58,6 @@
   /* Genset run states */
   --color-status-running: var(--status-running);
   --color-status-idle: var(--status-idle);
-  --color-status-fault: var(--status-fault);
   --color-status-offline: var(--status-offline);
 
   /* Fuel */

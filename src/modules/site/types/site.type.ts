@@ -210,8 +210,7 @@ export type SwitchState = {
  * - duty + `IDLE` → closed and dead: made up on a dead bus, which is what lets the
  *   controller pick up a mains failure in ten seconds rather than after somebody
  *   drives out.
- * - duty + `FAULT`/`OFFLINE` → open. A faulted set is isolated by the controller as
- *   part of shutting down, and a set we cannot hear from must be drawn as *not*
+ * - duty + `OFFLINE` → open. A set we cannot hear from must be drawn as *not*
  *   contributing — assuming a silent machine is carrying load is the one error on
  *   this page that could get somebody hurt.
  * - not duty → open, whatever it is doing. A set can be turning while isolated (on
@@ -258,7 +257,7 @@ export const mainsContactorStateOf = (mains: MainsSupply, gensetCarrying: boolea
  *
  * Only to a set that is already turning. Transferring to a stopped one means
  * *starting* it first, which is a `START` command — and those are inert in this
- * prototype and say so. Transferring to a faulted or unreachable set is not an
- * operation at all.
+ * prototype and say so. Transferring to an unreachable set is not an operation at
+ * all.
  */
 export const canTakeLoad = (runState: RunState): boolean => runState === 'RUNNING';
