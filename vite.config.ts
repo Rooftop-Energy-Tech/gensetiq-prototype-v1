@@ -140,11 +140,13 @@ const brands = (): PluginOption => {
   };
 };
 
-// Port 3100 rather than 3000: rooftopiq-frontend-v3 pins :3000 with
-// `strictPort`, and the two prototypes should be runnable side by side.
+// Port 3400: this repo was forked from gensetiq-frontend, which keeps :3100.
+// :3000, :3200 and :3300 are taken by rooftopiq-frontend-v3, the mobile
+// prototype and the tagging prototype. Every one of them pins `strictPort`, so
+// each prototype owns a hundred and they are all runnable side by side.
 export default defineConfig({
   server: {
-    port: 3100,
+    port: 3400,
     strictPort: true,
   },
   resolve: {
