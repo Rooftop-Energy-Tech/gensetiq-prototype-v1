@@ -1,0 +1,251 @@
+import {useRef, useState} from 'react';
+
+import {cn} from '@/lib/utils';
+import {useElementSize} from '@/lib/useElementSize';
+import type {SiteTrend} from '../data/siteTrend';
+
+/**
+ * The diagnostics band's chart: one series, drawn the way that series deserves.
+ *
+ * ## Why one component draws two shapes
+ *
+ * Because the band draws two kinds of quantity and they are not interchangeable.
+ * A day is **power at an instant** and its shape is the information — an array
+ * shaded from three o'clock and an array that tripped at three make the same daily
+ * total and completely different curves. A month or a year is **energy over a
+ * bucket**, which has no shape between buckets to draw a line through: joining the
+ * top of Tuesday to the top of Wednesday draws a Tuesday evening that never
+ * happened.
+ *
+ * That is the same split the app already makes between `SolarTodayChart` and
+ * `SolarYieldChart`. It is one component here rather than two because the band
+ * switches between them under a single set of controls, and a reader stepping from
+ * `Day` to `Month` should see the axis, the tick rows and the readout stay exactly
+ * where they were — which is far easier to guarantee inside one layout than across
+ * two files that have to be kept in step.
+ *
+ * ## Colour comes from the metric, not from here
+ *
+ * `colorClassName` is a token class — `text-solar`, `text-battery` — and every
+ * stroke and fill below is `currentColor` through it. So the array's curve is the
+ * same orange as the array's node on the diagram above, without this file knowing
+ * what an array is.
+ */
+
+const HEIGHT = 260;
+const PAD_TOP = 16;
+const PAD_BOTTOM = 28;
+const AXIS_WIDTH = 44;
+const TICK_ROWS = 4;
+
+/** A rounded axis ceiling that lands on `TICK_ROWS` clean divisions. */
+const niceMax = (max: number): number => {
+  if (max <= 0) return 1;
+  const step = 10 ** Math.floor(Math.log10(max / TICK_ROWS));
+  const normalised = max / TICK_ROWS / step;
+  const rounded = (normalised <= 1 ? 1 : normalised <= 2 ? 2 : normalised <= 5 ? 5 : 10) * step;
+  return rounded * TICK_ROWS;
+};
+
+/**
+ * Which labels to print on the x axis.
+ *
+ * Every point would overlap at any real width — a day is 48 half-hours — so this
+ * takes about one label per 90px and always keeps the first and last, which are the
+ * two a reader checks to know what window they are looking at.
+ */
+const labelStride = (count: number, plotWidth: number): number =>
+  Math.max(1, Math.ceil(count / Math.max(2, Math.floor(plotWidth / 90))));
+
+export const SiteTrendChart = ({
+  trend,
+  colorClassName,
+}: {
+  trend: SiteTrend;
+  /** A text token class — the series takes its stroke and fill from it. */
+  colorClassName: string;
+}) => {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const {width: available} = useElementSize(boxRef);
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const {points, unit} = trend;
+  // Bars for bucketed energy, a curve for a continuous reading. See the note above.
+  const bars = trend.period !== 'day';
+
+  const width = Math.max(320, available);
+  const plotWidth = width - AXIS_WIDTH;
+  const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
+
+  const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
+  const top = trend.axisMax ?? niceMax(Math.max(...readings, 1));
+
+  // Bars are centred in their own slot; a curve's points sit on the edges, so the
+  // first and last land on the axis rather than half a slot inside it.
+  const slot = plotWidth / Math.max(1, points.length);
+  const x = (index: number) =>
+    bars
+      ? AXIS_WIDTH + slot * index + slot / 2
+      : AXIS_WIDTH + (plotWidth * index) / Math.max(1, points.length - 1);
+  const y = (value: number) => PAD_TOP + plotHeight * (1 - Math.min(1, value / top));
+
+  const line = points
+    .map((point, index) => (point.value === null ? null : `${x(index)},${y(point.value)}`))
+    .filter((pair): pair is string => pair !== null)
+    .join(' ');
+
+  const measured = points.filter((point) => point.value !== null);
+  const area =
+    measured.length === 0 || bars
+      ? ''
+      : `${AXIS_WIDTH},${y(0)} ${line} ${x(measured.length - 1)},${y(0)}`;
+
+  const ticks = Array.from({length: TICK_ROWS + 1}, (_, index) => (top / TICK_ROWS) * index);
+  const stride = labelStride(points.length, plotWidth);
+  const shown = hovered === null ? undefined : points[hovered];
+
+  return (
+    <div ref={boxRef} className={cn('relative w-full', colorClassName)}>
+      <svg
+        width={width}
+        height={HEIGHT}
+        viewBox={`0 0 ${width} ${HEIGHT}`}
+        className="w-full"
+        role="img"
+        aria-label={`${trend.caption}, in ${unit}`}
+        onPointerLeave={() => setHovered(null)}
+        onPointerMove={(event) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          const ratio = (event.clientX - box.left) / box.width;
+          const at = ratio * width - AXIS_WIDTH;
+          const index = bars
+            ? Math.floor(at / slot)
+            : Math.round((at / plotWidth) * (points.length - 1));
+          setHovered(index >= 0 && index < points.length ? index : null);
+        }}
+      >
+        {/* The unit, where the design puts it: above the axis rather than rotated
+            down its side, which at 260px tall would be unreadable. */}
+        <text
+          x={AXIS_WIDTH - 8}
+          y={PAD_TOP - 5}
+          textAnchor="end"
+          className="fill-current text-[10px] text-tertiary"
+        >
+          {unit}
+        </text>
+
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line
+              x1={AXIS_WIDTH}
+              y1={y(tick)}
+              x2={width}
+              y2={y(tick)}
+              className="stroke-current text-subtle"
+              strokeWidth={1}
+            />
+            <text
+              x={AXIS_WIDTH - 8}
+              y={y(tick) + 3.5}
+              textAnchor="end"
+              className="fill-current text-[10px] text-tertiary tabular-nums"
+            >
+              {Math.round(tick)}
+            </text>
+          </g>
+        ))}
+
+        {bars
+          ? points.map((point, index) =>
+              point.value === null ? null : (
+                <rect
+                  key={point.label}
+                  x={x(index) - Math.max(2, slot * 0.32)}
+                  y={y(point.value)}
+                  width={Math.max(4, slot * 0.64)}
+                  height={Math.max(0, y(0) - y(point.value))}
+                  rx={2}
+                  className="fill-current"
+                  opacity={hovered === null || hovered === index ? 0.85 : 0.4}
+                />
+              ),
+            )
+          : null}
+
+        {area !== '' && <polygon points={area} className="fill-current" opacity={0.16} />}
+
+        {!bars && (
+          <polyline
+            points={line}
+            fill="none"
+            className="stroke-current"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* Where the record ends. Without it the line simply stops and reads as
+            plant that went quiet, rather than as a day that is not over. */}
+        {!bars && measured.length > 0 && measured.length < points.length && (
+          <line
+            x1={x(measured.length - 1)}
+            y1={PAD_TOP}
+            x2={x(measured.length - 1)}
+            y2={PAD_TOP + plotHeight}
+            className="stroke-current text-default"
+            strokeWidth={1}
+            strokeDasharray="2 3"
+          />
+        )}
+
+        {hovered !== null && shown?.value !== null && shown !== undefined && (
+          <line
+            x1={x(hovered)}
+            y1={PAD_TOP}
+            x2={x(hovered)}
+            y2={PAD_TOP + plotHeight}
+            className="stroke-current text-strong"
+            strokeWidth={1}
+          />
+        )}
+
+        {points.map((point, index) =>
+          index % stride === 0 || index === points.length - 1 ? (
+            <text
+              key={point.label}
+              x={x(index)}
+              y={HEIGHT - 10}
+              textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'}
+              className="fill-current text-[10px] text-tertiary"
+            >
+              {point.label}
+            </text>
+          ) : null,
+        )}
+      </svg>
+
+      {/* The design's legend, plus the hovered reading in the same strip. Two rows
+          would put the readout below the fold of a 472px card. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs">
+        <span className="flex items-center gap-1.5 text-secondary">
+          <span className="h-0.5 w-3 rounded-full bg-current" aria-hidden="true" />
+          {trend.caption}
+        </span>
+        <span
+          className={cn(
+            'tabular-nums',
+            shown === undefined ? 'text-tertiary' : 'text-primary',
+          )}
+        >
+          {shown === undefined
+            ? trend.total === undefined
+              ? ''
+              : `${trend.total.label} · ${trend.total.value}`
+            : `${shown.label} · ${shown.value === null ? 'not yet' : `${shown.value} ${unit}`}`}
+        </span>
+      </div>
+    </div>
+  );
+};
