@@ -26,29 +26,37 @@ import type {SiteGenset, SiteSummary} from '../data/sites';
 import {SiteDeviceCard, SiteDeviceFigures} from './SiteDeviceCard';
 
 /**
- * The page's second band: *"the primary devices — not all devices will be shown
- * here, ones that concern the operator the most, and some details."*
+ * The page's last band: the primary devices, stacked.
  *
  * ## What "primary" means, and why it is not "all"
  *
- * One card per **kind of plant on the bus**: the genset that is carrying or would
+ * One row per **kind of plant on the bus**: the genset that is carrying or would
  * carry, the array, the bank. That is the design's three, and the brief's
  * instruction that this is not a device list is the important half — a yard with
- * four sets, two string inverters and a bank is eight devices, and eight cards is
- * an inventory. An inventory is a useful screen and it is not this one.
+ * four sets, two string inverters and a bank is eight devices, and eight rows is an
+ * inventory. An inventory is a useful screen and it is not this one.
  *
  * So a multi-set site shows its **lead set** — `summary.gensets` is
  * attention-ordered, so that is the one turning, or the sickest if none is — and
  * says how many others there are with a way through to them. What it must not do is
- * silently drop them: a card that looks like the whole yard at a site with three
+ * silently drop them: a stack that looks like the whole yard at a site with three
  * more sets standing in it is the one failure mode this band has.
+ *
+ * ## Why they stack
+ *
+ * Because device count varies from one to three and a stack is the one arrangement
+ * that does not care. Seventeen of the twenty-five sites on this estate have
+ * exactly one device; a row of cards has to decide what fills the other two thirds
+ * at every one of them, and every answer is either a stretched card or a hole. Rows
+ * make one device and three devices the same layout at different heights, and the
+ * figures line up down the page between them.
  *
  * ## What the frame's copy actually specifies
  *
- * The design's `Solar` and `Battery` cards both carry the genset's identity string
+ * The design's `Solar` and `Battery` rows both carry the genset's identity string
  * (`BGI1495 | FG Wilson 20 kVa`) and the genset's `Idle` badge, which is a
- * copy-paste of the first card rather than a statement about arrays. Reproducing it
- * literally would put a diesel engine's name on a roof, so each card here names its
+ * copy-paste of the first row rather than a statement about arrays. Reproducing it
+ * literally would put a diesel engine's name on a roof, so each row here names its
  * own plant and reports the state that plant can actually be in — generating or
  * dark for an array, charging or discharging for a bank.
  */
@@ -78,10 +86,10 @@ export const SitePrimaryDevices = ({
 
   return (
     <section aria-label="Primary devices" className="flex flex-col gap-2">
-      {/* A column below `md`, a row above. Wrapping is the wrong instruction at
-          phone width: with three shrinkable cards, "wrap" resolves to three
-          squeezed columns rather than three rows. */}
-      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-stretch">
+      {/* The design's 8px between rows. Tighter than the 16px between bands, and
+          deliberately so: these are one list, and spacing them like separate
+          sections would break the column the figures read down. */}
+      <div className="flex flex-col gap-2">
         {lead !== undefined && (
           <GensetDeviceCard member={lead} onLoad={lead.genset.id === summary.defaultDutyId} now={now} />
         )}
@@ -161,6 +169,7 @@ const GensetDeviceCard = ({
           {gensetName(genset)}
         </Link>
       }
+      aside={<CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />}
       badges={
         <>
           <Badge variant="secondary" className="whitespace-pre">
@@ -227,8 +236,6 @@ const GensetDeviceCard = ({
           <span className="text-secondary">fuel discrepancy detected</span>
         </Badge>
       )}
-
-      <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
     </SiteDeviceCard>
   );
 };
