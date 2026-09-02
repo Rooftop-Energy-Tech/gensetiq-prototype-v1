@@ -2,7 +2,6 @@ import {useNavigate} from '@tanstack/react-router';
 import {
   BatteryChargingIcon,
   BoomBoxIcon,
-  FileChartColumnIcon,
   FuelIcon,
   GaugeIcon,
   LayoutDashboardIcon,
@@ -32,26 +31,18 @@ import {BRAND} from '@/brands';
  * gone rather than demoted, because a destination nobody visits is worse than one
  * that isn't there.
  *
- * **Report** takes the slot it left, and it is one destination where there were
- * two. `Energy` and `Solar report` sat here side by side because they answer two
- * questions — what carried the load and what the plant saved, against whether the
- * arrays are generating what they were bought on — and those two headline figures
- * move for unrelated reasons. That is still true, and the tab strip inside
- * `/report` is what keeps them on separate screens. What it never justified was
- * two rail items: the rail is a list of *places*, and both of them were the same
- * place.
+ * **Report** stood in the slot it left and has since been removed with it. It was
+ * one destination over three tabs — `Overall`, `Solar`, `Genset` — and every
+ * figure on it was a second reading of something a register or the overview
+ * already states. What the estate is generating belongs on `/solar`, what it is
+ * burning belongs on `/gensets` and `/refuel`, and the headline of both is already
+ * on `/overview`. A destination whose whole job is to restate other screens is one
+ * more place for two numbers to disagree.
  *
- * The consolidation also retires a qualifier. `Solar report` had to carry one
- * because a rail item reading `Solar` next to `Battery` and `Gensets` would have
- * been read as the plant register — which it now emphatically is, with systems
- * and inverters under it. Inside a section where every tab is a report there is
- * nothing to disambiguate, so the tabs read `Overall`, `Solar` and `Genset`, and
- * the register keeps the short name it always wanted.
+ * ## Counting, then registers
  *
- * ## Reports, then registers
- *
- * The rail falls into two halves and the order says so. Above, three destinations
- * that *count the estate* — Overview, Sites, Report. Below, three that *list its
+ * The rail falls into two halves and the order says so. Above, two destinations
+ * that *count the estate* — Overview and Sites. Below, three that *list its
  * plant* — Solar, Battery, Gensets — one per thing bolted to a site. Meters and
  * Refuel close it out as the two operational logs.
  */
@@ -60,9 +51,6 @@ const NAV_ITEMS: Array<NavItem> = [
   // in it. Everything below is a way of narrowing what this page counts.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
-  // One item, three tabs. The three reports were consolidated here; see the note
-  // above for why the rail carried two of them and now carries one.
-  {label: 'Report', icon: FileChartColumnIcon, link: '/report'},
   // The three plant registers, grouped and ordered by what each one is: the
   // solar system, the bank it charges, and the engine that backs both up.
   //

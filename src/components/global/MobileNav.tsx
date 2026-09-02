@@ -47,7 +47,7 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/overview' | '/sites' | '/report/solar' | '/gensets';
+  link: '/overview' | '/sites' | '/solar' | '/gensets';
   /**
    * The list's own default view state, for the two items that have one.
    *
@@ -61,13 +61,14 @@ type MobileNavItem = {
 };
 
 const ITEMS: Array<MobileNavItem> = [
-  // The overview is here where the other report tabs are not, because it
-  // genuinely has a phone layout: its tiles are a two-column grid at this width
-  // rather than a desktop screen squeezed. It is also where `/` now lands, so
-  // leaving it out would strand a phone on a screen with no way back to it.
+  // The overview is here because it genuinely has a phone layout: its tiles are a
+  // two-column grid at this width rather than a desktop screen squeezed. It is also
+  // where `/` now lands, so leaving it out would strand a phone on a screen with no
+  // way back to it.
   {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
-  {label: 'Solar', icon: SunMediumIcon, link: '/report/solar'},
+  // The array register, which is where solar lives now that the report is gone.
+  {label: 'Solar', icon: SunMediumIcon, link: '/solar'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
 ];
 

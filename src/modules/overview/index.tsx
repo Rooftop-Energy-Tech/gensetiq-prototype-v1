@@ -200,7 +200,7 @@ const EnergyTile = ({
   value,
   detail,
 }: {
-  to: '/report' | '/report/solar' | '/refuel';
+  to: '/solar' | '/refuel';
   icon: LucideIcon;
   label: string;
   value: string;
@@ -392,11 +392,11 @@ export const OverviewPage = () => {
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-2">
-          {/* To the report's Solar tab, not its Overall one. Every tile on this
-              page links to the screen that shows its working, and this figure's
-              working is a twelve-month series against each array's design. */}
+          {/* To the array register. Every tile on this page links to the screen
+              that shows its working, and with the report gone the arrays' own
+              register is where this figure is accounted for, system by system. */}
           <EnergyTile
-            to="/report/solar"
+            to="/solar"
             icon={SunMediumIcon}
             label="Solar share"
             value={`${Math.round(energy.solarShare * 100)}%`}
