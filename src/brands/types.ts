@@ -66,7 +66,7 @@
  */
 
 /** The brands this build can be compiled as. Add a customer by adding an entry. */
-export const BRAND_IDS = ['redtone', 'celcomdigi', 'sesb', 'gensetiq'] as const;
+export const BRAND_IDS = ['redtone', 'celcomdigi', 'sesb', 'gensetiq', 'telcoiq'] as const;
 
 export type BrandId = (typeof BRAND_IDS)[number];
 

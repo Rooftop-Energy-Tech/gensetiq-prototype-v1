@@ -13,7 +13,9 @@
     "build:sesb": "tsc --noEmit && VITE_BRAND=sesb vite build --outDir dist-sesb",
     "build:unbranded": "tsc --noEmit && VITE_BRAND=gensetiq vite build --outDir dist-unbranded",
     "preview": "vite preview --port 3400",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:telcoiq": "VITE_BRAND=telcoiq vite dev --port 3404",
+    "build:telcoiq": "tsc --noEmit && VITE_BRAND=telcoiq vite build --outDir dist-telcoiq"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

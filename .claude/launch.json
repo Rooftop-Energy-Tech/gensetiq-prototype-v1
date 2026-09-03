@@ -9,6 +9,33 @@
         "dev"
       ],
       "port": 3400
+    },
+    {
+      "name": "telcoiq-sesb",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev:sesb"
+      ],
+      "port": 3401
+    },
+    {
+      "name": "telcoiq-unbranded",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev:unbranded"
+      ],
+      "port": 3402
+    },
+    {
+      "name": "telcoiq-brand",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev:telcoiq"
+      ],
+      "port": 3404
     }
   ]
 }
