@@ -136,7 +136,7 @@ export const systemActivityLog = (
     });
   }
 
-  if (detail.onsetAt !== undefined && system.downStrings > 0) {
+  if (detail.stepAt !== undefined && system.downStrings > 0) {
     // Named to the box, because that is the whole value of the line. "Output
     // stepped down" is a fact; "Output stepped down — 9 of 13 strings on
     // Inverter 4" is somewhere to send a technician.
@@ -147,8 +147,8 @@ export const systemActivityLog = (
       id: `${system.id}-string-out`,
       kind: 'FAULT',
       message: `Output stepped down — ${system.downStrings} of ${system.strings} strings stopped delivering (${where}).`,
-      at: detail.onsetAt,
-      source: 'Design benchmark',
+      at: detail.stepAt,
+      source: 'Generation series',
     });
   }
 

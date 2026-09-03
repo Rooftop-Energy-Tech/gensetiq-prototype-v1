@@ -1,58 +1,75 @@
-import {useState} from 'react';
-import type {FormEvent} from 'react';
+import {MoonIcon} from 'lucide-react';
 
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {stampDate} from '@/lib/format';
-import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
-import {SolarTodayChart} from '@/modules/site/components/SolarTodayChart';
-import {useSession} from '@/modules/auth/session';
-import {addSystemNote, systemActivityLog, useSystemNotes} from '../../data/systemActivity';
+import {DetailBand} from '@/components/global/DetailBand';
+import {MetricStrip} from '@/components/global/MetricStrip';
+import {Badge} from '@/components/ui/badge';
+import {amount, stampDate} from '@/lib/format';
+import {TickGauge} from '@/modules/genset/components/detail/TickGauge';
+import {countBySeverity} from '@/modules/genset/types/alert.type';
+import {siteSeed} from '@/modules/site/data/siteSeed';
+import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {systemHealth} from '../../data/systemHealth';
 import type {SystemDetail} from '../../data/systemDetail';
 import type {SolarSystem} from '../../types/system.type';
-import {InverterList} from './InverterList';
-import {SystemActivityFeed} from './SystemActivityFeed';
 import {SystemHealth} from './SystemHealth';
-import {SystemStateSummary} from './SystemStateSummary';
 
 /**
- * A solar system's home page — four bands, separated by rules.
+ * A solar system's home page, in the five bands the design stacks — the same
+ * bands, in the same order, as a site's and a genset's.
  *
- * ## The order is the genset page's order, and that is the point
+ * 1. **The strip** — solar capacity, what it has made today, and the alarm counts.
+ * 2. **The gauge** — one dial, what it is putting out right now, with a `Dark`
+ *    badge under it when the sun is down.
+ * 3. **The details** — what the system *is*: four nameplate facts, nothing live.
+ * 4. **The chart** — generation, with a day stepper and a period control.
+ * 5. **What is wrong** — the rules, and the numbers behind them.
  *
- * `GensetHome` states it: the bands are the order the questions get asked, and
- * the whole page rests on that decision. A PV system is a different machine and
- * the questions turn out to be the same four:
+ * ## What changed, and why the old shape went
  *
- *  1. **What is it making, and how much has it made.** Output, today's energy,
- *     and the day's curve against the system's own recent normal. Everything here
- *     is cumulative or slow-moving — still true if you looked away for an hour.
- *  2. **What is it made of, and what is each part doing.** The inverters.
- *  3. **What is wrong.** The rules, and the numbers behind them.
- *  4. **What has happened to it.** The feed, newest first.
+ * This page used to open on a state hero, a four-row figure card and today's curve
+ * side by side, then list the inverters and close on an activity feed. What is left
+ * is the design's five bands and nothing else, which is the whole point: an
+ * operator moving between a tower's genset, its array and its bank now finds the
+ * same things in the same places, and the pages differ only in what they are
+ * *about*. Three pages that each invented their own shape was the thing this design
+ * set out to fix.
  *
- * ## Band 2 is a list, where a genset's is a control pad
+ * The one figure with nowhere to go was the day's own curve, and it did not need
+ * one: band 4's `Day` view is that curve, drawn from the same model, with a stepper
+ * that reaches yesterday as well — which the old band could not.
  *
- * This is the one place the parallel breaks, and it breaks for a real reason. A
- * genset is *one machine* — its controls and its live dials belong on its own
- * page because there is nowhere else for them to be. A solar system is a small
- * power station: at a tower it is one inverter, at SESB's largest mini-grid it is
- * ten, and "the DC current" has no answer there. So the dials and the pad live on
- * each box's page and this band is the list that points at them, which is exactly
- * what `SiteHome` does with its genset rows.
+ * ## Where the inverters went
  *
- * It stays a list at one inverter. A band that inlined the dials whenever there
- * happened to be a single box would change shape with the data, and a screen that
- * looks different depending on what is at the site teaches a reader that they
- * cannot trust what they learned last time.
+ * To `Devices`, the section in the rail whose whole subject they are. They had to
+ * go *somewhere*: the rail deliberately does not list the boxes — a mini-grid is
+ * ten of them and a nested list would be an inventory (see `SystemDetailShell`) —
+ * so had the band simply been deleted, `/solar/<id>/inverters/<id>` would have been
+ * reachable by typing it and by nothing else.
+ *
+ * `Devices` is also where a reader would look for them, which the home page never
+ * quite was. The band was here because the page was built before the section
+ * existed.
+ *
+ * ## Where the activity feed went
+ *
+ * Nowhere; it is gone. Unlike the boxes it was not a door to anything — a list of
+ * things that had already happened, with a text field for adding another. Its
+ * components and its note store are still in the module, unreferenced, if it is
+ * wanted back.
+ *
+ * ## Nothing on this page is a verdict
+ *
+ * Every figure here is a measurement or a nameplate. The page reports what the
+ * system is and what it made, and it does not hold either up against a target —
+ * there is no design figure anywhere in this app to hold them against. The one
+ * comparison it does draw is the system against **itself**: band 4's day view
+ * carries the array's own recent normal, and band 5's string rule fires on a step
+ * in its own series.
  *
  * ## At phone width
  *
- * The bands survive intact and stack, for the reason the genset page needed no
- * mobile rewrite: **the reading order is already vertical.** The inverter table
- * scrolls sideways inside its own band rather than pushing the page, which is the
- * one thing on here that cannot reflow.
+ * The bands are already a column, so nothing rearranges, and with the inverter
+ * table gone there is nothing left on the page that cannot reflow.
  */
 
 /** First light and last, the hours `hybrid.ts` builds every solar day between. */
@@ -70,29 +87,10 @@ export const SystemHome = ({
 }) => {
   const hour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
   const daylight = hour >= FIRST_LIGHT && hour <= LAST_LIGHT;
-  const live = system.state === 'GENERATING';
   const reporting = system.state !== 'OFFLINE';
 
   const {alerts, condition} = systemHealth(system, detail, now);
-
-  const notes = useSystemNotes();
-  const activity = systemActivityLog(
-    system,
-    detail,
-    notes.filter((note) => note.systemId === system.id),
-    now,
-  );
-
-  const session = useSession();
-  const [noteDraft, setNoteDraft] = useState('');
-
-  const handleLogNote = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    addSystemNote(system.id, noteDraft, session?.email ?? 'operator');
-    setNoteDraft('');
-  };
-
-  const kwh = (value: number): string => `${Math.round(value).toLocaleString('en-MY')} kWh`;
+  const seed = siteSeed(system.siteId);
 
   /**
    * Today's figures are the plant's, so a system nobody can hear has none.
@@ -102,85 +100,127 @@ export const SystemHome = ({
    * `systemDetail` already refuses to publish the model's day here; this is the
    * same refusal said out loud in the cell.
    */
-  const reported = (value: string): string => (reporting ? value : '—');
-
-  const yieldReading = detail.readings.find((one) => one.key === 'specific-yield');
+  const generatedToday = reporting
+    ? amount(Math.round(detail.today.generatedKwh), 'kWh')
+    : '—';
 
   return (
-    <div className="flex flex-col gap-5 px-4 pb-24 md:pb-6">
-      {/* Band 1 — the state, the day's figures, and the day's curve.
-          A column below `md` rather than a wrapping row, the trade `GensetHome`
-          makes for its run and tank: at 390px both halves *can* squeeze onto one
-          line once they are allowed to shrink, and the result is two narrow
-          columns with the labels truncated away. */}
-      <div className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-stretch">
-        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[420px] md:flex-row md:items-center">
-          <SystemStateSummary state={system.state} outputKw={system.outputKw} />
+    <div className="flex flex-col gap-3.5 px-4 pt-3 pb-24 md:pb-6">
+      <MetricStrip
+        ariaLabel="System summary"
+        // The design's two, and both are facts this page can always answer: an
+        // array has a capacity whether or not anything is talking to it, and the
+        // day's energy says `—` rather than nothing when it is not.
+        metrics={[
+          {label: 'Solar capacity', value: amount(system.kwp, 'kWp')},
+          {label: 'Generation today', value: generatedToday},
+        ]}
+        counts={countBySeverity(alerts)}
+      />
 
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-md border border-subtle bg-element px-3 py-3">
-            <MetricRow
-              label="Generated so far today"
-              value={reported(kwh(detail.today.generatedKwh))}
-            />
-            {/* Today's whole day, not a forecast of tomorrow. `todayFullKwh` is
-                what has arrived divided by the share of the day that has passed,
-                so at nine in the morning it is an extrapolation and says so by
-                being labelled *on course for* rather than *will make*. */}
-            <MetricRow label="On course for" value={reported(kwh(detail.today.fullDayKwh))} />
-            {/* kWh per kWp, and not a performance ratio — `systemDetail` carries
-                the long version. On this estate a nameplate-relative *ratio* reads
-                thirty points below the design's own, because both the design and
-                the measurement are capped at what the tower can absorb and these
-                systems are deliberately bigger than that. */}
-            <MetricRow
-              label="Specific yield today"
-              value={reported(`${(yieldReading?.value ?? 0).toFixed(2)} kWh/kWp`)}
-            />
-            {/* The operational figure, not the annual one — three closed months.
-                `solarRecent` explains the choice: a system that failed in March is
-                at 92% for the year, which is inside the P90 band and invisible to
-                any annual test while the fault is present and costing diesel. */}
-            <MetricRow
-              label="Against design, three months"
-              value={`${Math.round(detail.share * 100)}% of P50`}
-            />
-          </div>
-        </div>
+      {/* Band 2 — one dial, centred, at hero size. The design gives the whole band
+          to a single reading, which is right for the one number on this page that
+          is true only at this instant: everything in the strip above is cumulative
+          and everything below is history.
 
-        {/* The curve, and the system's **own recent normal** behind it — never the
-            design. `SolarPoint` makes the argument: an own-baseline answers "has
-            this thing changed", a benchmark answers "is it meeting what it was
-            sold as", and the second only exists monthly. Drawing a P50 at
-            half-hourly resolution would be the interpolation the whole benchmark
-            rule exists to prevent. */}
-        <div className="flex min-w-[17rem] flex-1 flex-col gap-1.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <span className="text-sm font-medium text-primary">Today</span>
-            <span className="text-xs text-secondary tabular-nums">
-              {reporting ? (
-                <>
-                  {live && `${system.outputKw} kW now · `}
-                  {kwh(detail.today.generatedKwh)} so far
-                </>
-              ) : (
-                `no readings since ${stampDate(system.lastUpdated)}`
-              )}
-            </span>
-          </div>
-          <SolarTodayChart points={detail.today.points} />
-        </div>
-      </div>
+          Scaled to the **AC** rating, not the array's kWp. What the gauge measures
+          is what the inverters are passing, and a dial that could never reach its
+          own full scale — every one of these systems is deliberately oversized to
+          its boxes — would read as a plant permanently underperforming. */}
+      <section aria-label="Generation now" className="flex flex-col items-center gap-3 py-6">
+        <TickGauge
+          size="hero"
+          colorClassName="text-solar"
+          reading={{
+            key: 'output',
+            label: 'Generation',
+            value: reporting ? system.outputKw : 0,
+            unit: 'kW',
+            precision: 1,
+            min: 0,
+            max: Math.max(1, Math.round(system.acKw)),
+          }}
+        />
 
-      <hr className="border-subtle" />
+        {/* Why the sun is not up, said out loud.
 
-      {/* Band 2 — the boxes. */}
-      <div className="py-2">
-        <InverterList system={system} alerts={alerts} now={now} />
-      </div>
+            Without it this is the most misread thing on the page. At nine in the
+            evening the dial reads 0 kW and the state rolls up to `Idle`, which is
+            pixel-for-pixel what a plant that has tripped in the middle of the
+            afternoon looks like — and the health band below raises nothing,
+            because nothing is wrong. A reader who has learned to check this page
+            in a hurry would be checking it at exactly the hour it cannot answer.
 
-      <hr className="border-subtle" />
+            The bank page puts its flow direction here for the same reason: the
+            fact that makes the dial legible belongs beside the dial and not two
+            bands away. */}
+        {!daylight && (
+          <Badge variant="secondary">
+            <MoonIcon className="text-tertiary" aria-hidden="true" />
+            Dark
+            <span className="text-secondary"> | </span>
+            first light {String(FIRST_LIGHT).padStart(2, '0')}:00
+          </Badge>
+        )}
+      </section>
 
-      {/* Band 3 — what is wrong, and the numbers behind it. Every rule, including
+      <div className="border-t border-subtle" />
+
+      {/* Band 3 — what the system *is*, in the `DetailBand` all four detail pages
+          share. Four nameplate facts and nothing live: this band should read the
+          same on a Tuesday morning as it does on a Sunday night.
+
+          **The first two are a pair.** The kWp is the glass on the roof and the kW
+          is the most the inverters can ever pass to the tower, and the ratio
+          between them is what every one of these was specified with — so
+          `Installed capacity` is the AC figure, deliberately, rather than a second
+          statement of the DC one above it. Side by side they answer "why does the
+          dial top out below the nameplate", which is otherwise the second thing a
+          reader asks about band 2.
+
+          **`Commissioned` earns its place by dating everything else.** A system
+          five years old has given up a few points to the glass simply ageing, and
+          a reader comparing this year's chart with last year's needs to know that
+          before they go looking for a fault.
+
+          What is deliberately *not* here: the inverters, the strings and the last
+          wash. Each has a section of its own in the rail — `Devices`, `Devices`,
+          `Service` — and restating them would make this band a second index of the
+          page. It is a description of the system, not a summary of what is under
+          it. */}
+      <DetailBand
+        ariaLabel="System details"
+        rows={[
+          {label: 'System capacity', value: amount(system.kwp, 'kWp')},
+          {label: 'Installed capacity', value: amount(system.acKw, 'kW')},
+          {
+            label: 'Number of panels',
+            value: `${system.modules.toLocaleString('en-MY')} × ${system.moduleWatts} W`,
+          },
+          {label: 'Commissioned', value: stampDate(system.commissionedAt)},
+        ]}
+      />
+
+      <div className="border-t border-subtle" />
+
+      {/* Band 4 — generation over time. `TrendPanel` with one metric, which is the
+          site page's diagnostics band held to the only quantity this page is about;
+          a picker offering the bank and the genset here would be the register's own
+          boundary dissolving. A system whose site has been flipped away from solar
+          cannot reach this page at all, so `seed` is only ever missing for an id
+          the router already 404s. */}
+      {seed !== undefined && (
+        <TrendPanel
+          seed={seed}
+          role={system.role}
+          gensetIds={[]}
+          metrics={['SOLAR']}
+          now={now}
+          ariaLabel="Generation"
+        />
+      )}
+
+      {/* Band 5 — what is wrong, and the numbers behind it. Every rule, including
           the ones that name a box: this is the page somebody opens to find out
           whether anything needs doing, and making them read six inverter pages to
           answer that would be the register's mistake repeated one level down. */}
@@ -194,31 +234,6 @@ export const SystemHome = ({
         now={now}
         heading="The system's own figures"
       />
-
-      <hr className="border-subtle" />
-
-      {/* Band 4 — what the system has been through. Last, because it is the page's
-          only backwards-looking band, which is where `GensetHome` puts its own. */}
-      <section className="flex max-w-xl flex-col gap-3">
-        <h3 className="text-sm font-medium text-primary">Activity</h3>
-        {/* The feed's manual inlet. Everything else in it is derived from a fact
-            drawn elsewhere on this page; this is the one line a person types — a
-            monkey on the fence, a shaded corner at four o'clock — and it files
-            under their own name. */}
-        <form onSubmit={handleLogNote} className="flex items-center gap-2">
-          <Input
-            value={noteDraft}
-            onChange={(event) => setNoteDraft(event.target.value)}
-            placeholder="Log an entry against this system"
-            aria-label="Log an entry against this system"
-            className="h-8"
-          />
-          <Button type="submit" size="sm" variant="outline" disabled={noteDraft.trim() === ''}>
-            Log
-          </Button>
-        </form>
-        <SystemActivityFeed activity={activity} now={now} />
-      </section>
     </div>
   );
 };

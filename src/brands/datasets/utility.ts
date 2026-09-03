@@ -6,7 +6,7 @@ import type {BrandDataset} from '../types';
  * Twenty-five substations, feeder points and rural mini-grids across Sabah and
  * Labuan, with thirty-seven machines standing on them. Recovered from
  * `feat/sesb-demo`, which is where it was stranded — the branch predates the
- * hybrid plant, the solar benchmark, the energy screen and the refuel log, and
+ * hybrid plant, the generation series, the energy screen and the refuel log, and
  * every one of those was invisible on it.
  *
  * ## Why the power roles are re-expressed rather than restored
@@ -43,7 +43,7 @@ import type {BrandDataset} from '../types';
  * The zone list is SESB's own operating divisions, in the order a control room
  * reads the state — west coast first, then the northern tip, the interior, and
  * down the east coast. `peakSunHours` is new here: the branch this came from had
- * no solar in it at all, so the figures are Sabah regional P50 estimates, pulled
+ * no solar in it at all, so the figures are Sabah regional irradiance estimates, pulled
  * back in the interior where the highlands hold cloud and pushed up on the two
  * island-facing zones.
  */
@@ -55,6 +55,31 @@ const CUSTOMERS = [
   {id: 'lahad-datu', name: 'Lahad Datu Distribution', shortName: 'Lahad Datu', peakSunHours: 3.4},
   {id: 'tawau', name: 'Tawau Distribution', shortName: 'Tawau', peakSunHours: 3.4},
   {id: 'labuan', name: 'Labuan Distribution', shortName: 'Labuan', peakSunHours: 3.5},
+] as const;
+
+/**
+ * The capital programmes this estate's sites are filed under.
+ *
+ * Two, and **most sites are in neither** — which is the honest shape of a utility's
+ * capital plan and the reason `program` is optional. A distribution substation that
+ * has been standing in Luyang for thirty years is not part of a programme; it is
+ * just the network. The programmes are the work being *done to* the estate, and
+ * filing every row under one to avoid a blank would make the grouping useless the
+ * moment somebody filtered by it.
+ */
+const PROGRAMS = [
+  {
+    id: 'rural-electrification',
+    name: 'Rural Electrification Programme',
+    shortName: 'Rural Electrification',
+    blurb: 'The off-grid mini-grids — island and interior supply, and the diesel behind it.',
+  },
+  {
+    id: 'east-coast-reinforcement',
+    name: 'East Coast Reinforcement',
+    shortName: 'East Coast Reinforcement',
+    blurb: 'The Sandakan, Lahad Datu and Tawau injection points being reinforced.',
+  },
 ] as const;
 
 /**
@@ -87,12 +112,12 @@ const SITES = [
   {id: 'ppu-009', name: 'PPU-009', kind: 'PPU',       locationLabel: 'Tuaran, Sabah',              latitude: 6.1770, longitude: 116.2330, loadKw: 313, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
   {id: 'ppu-010', name: 'PPU-010', kind: 'PPU',       locationLabel: 'Kota Belud, Sabah',          latitude: 6.3510, longitude: 116.4300, loadKw: 364, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
   {id: 'pe-011',  name: 'PE-011',  kind: 'PE',        locationLabel: 'Kudat, Sabah',               latitude: 6.8830, longitude: 116.8440, loadKw: 71,  customer: 'kudat',      powerRole: 'GRID_BACKUP'},
-  {id: 'mg-012',  name: 'MG-012',  kind: 'MINI_GRID', locationLabel: 'Pulau Banggi, Kudat',        latitude: 7.2717, longitude: 117.1782, loadKw: 248, customer: 'kudat',      powerRole: 'SOLAR_HYBRID'},
+  {id: 'mg-012',  name: 'MG-012',  kind: 'MINI_GRID', locationLabel: 'Pulau Banggi, Kudat',        latitude: 7.2717, longitude: 117.1782, loadKw: 248, customer: 'kudat',      powerRole: 'SOLAR_HYBRID', program: 'rural-electrification'},
   {id: 'ppu-013', name: 'PPU-013', kind: 'PPU',       locationLabel: 'Keningau, Sabah',            latitude: 5.3380, longitude: 116.1600, loadKw: 242, customer: 'interior',   powerRole: 'GRID_BACKUP'},
   {id: 'pe-014',  name: 'PE-014',  kind: 'PE',        locationLabel: 'Victoria, Labuan',           latitude: 5.2767, longitude: 115.2417, loadKw: 218, customer: 'labuan',     powerRole: 'GRID_BACKUP'},
   {id: 'pe-015',  name: 'PE-015',  kind: 'PE',        locationLabel: 'Papar, Sabah',               latitude: 5.7330, longitude: 115.9330, loadKw: 175, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
   {id: 'pmu-016', name: 'PMU-016', kind: 'PMU',       locationLabel: 'Sepanggar Bay, Sabah',       latitude: 6.0830, longitude: 116.1080, loadKw: 281, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'mg-017',  name: 'MG-017',  kind: 'MINI_GRID', locationLabel: 'Kemabong, Tenom',            latitude: 4.9670, longitude: 115.9640, loadKw: 64,  customer: 'interior',   powerRole: 'DIESEL_HYBRID'},
+  {id: 'mg-017',  name: 'MG-017',  kind: 'MINI_GRID', locationLabel: 'Kemabong, Tenom',            latitude: 4.9670, longitude: 115.9640, loadKw: 64,  customer: 'interior',   powerRole: 'DIESEL_HYBRID', program: 'rural-electrification'},
   // — The interior and the east coast — where the mini-grids are.
   //
   // The five `PRIME` yards are isolated schemes: an island off Kudat or an
@@ -101,13 +126,13 @@ const SITES = [
   // distinction for. At east-coast distances the drive is most of any
   // intervention, which is what the buckets are for.
   {id: 'pe-018',  name: 'PE-018',  kind: 'PE',        locationLabel: 'Ranau, Sabah',              latitude: 5.9540, longitude: 116.6640, loadKw: 188, customer: 'interior',   powerRole: 'GRID_BACKUP'},
-  {id: 'mg-019',  name: 'MG-019',  kind: 'MINI_GRID', locationLabel: 'Nabawan, Sabah',            latitude: 5.0620, longitude: 116.4370, loadKw: 42,  customer: 'interior',   powerRole: 'SOLAR_HYBRID'},
-  {id: 'fdr-020', name: 'FDR-020', kind: 'FEEDER',    locationLabel: 'Sandakan, Sabah',           latitude: 5.8402, longitude: 118.1179, loadKw: 132, customer: 'sandakan',   powerRole: 'GRID_BACKUP'},
-  {id: 'fdr-021', name: 'FDR-021', kind: 'FEEDER',    locationLabel: 'Lahad Datu, Sabah',         latitude: 5.0269, longitude: 118.3270, loadKw: 58,  customer: 'lahad-datu', powerRole: 'GRID_BACKUP'},
-  {id: 'ppu-022', name: 'PPU-022', kind: 'PPU',       locationLabel: 'Batu Sapi, Sandakan',       latitude: 5.8560, longitude: 118.0210, loadKw: 296, customer: 'sandakan',   powerRole: 'GRID_BACKUP'},
-  {id: 'ppu-023', name: 'PPU-023', kind: 'PPU',       locationLabel: 'Tawau, Sabah',              latitude: 4.2450, longitude: 117.8840, loadKw: 415, customer: 'tawau',      powerRole: 'GRID_BACKUP'},
-  {id: 'mg-024',  name: 'MG-024',  kind: 'MINI_GRID', locationLabel: 'Kalabakan, Tawau',          latitude: 4.4210, longitude: 117.4750, loadKw: 267, customer: 'tawau',      powerRole: 'DIESEL_PRIME'},
-  {id: 'mg-025',  name: 'MG-025',  kind: 'MINI_GRID', locationLabel: 'Pulau Larapan, Semporna',   latitude: 4.5340, longitude: 118.6540, loadKw: 37,  customer: 'tawau',      powerRole: 'SOLAR_HYBRID'},
+  {id: 'mg-019',  name: 'MG-019',  kind: 'MINI_GRID', locationLabel: 'Nabawan, Sabah',            latitude: 5.0620, longitude: 116.4370, loadKw: 42,  customer: 'interior',   powerRole: 'SOLAR_HYBRID', program: 'rural-electrification'},
+  {id: 'fdr-020', name: 'FDR-020', kind: 'FEEDER',    locationLabel: 'Sandakan, Sabah',           latitude: 5.8402, longitude: 118.1179, loadKw: 132, customer: 'sandakan',   powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
+  {id: 'fdr-021', name: 'FDR-021', kind: 'FEEDER',    locationLabel: 'Lahad Datu, Sabah',         latitude: 5.0269, longitude: 118.3270, loadKw: 58,  customer: 'lahad-datu', powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
+  {id: 'ppu-022', name: 'PPU-022', kind: 'PPU',       locationLabel: 'Batu Sapi, Sandakan',       latitude: 5.8560, longitude: 118.0210, loadKw: 296, customer: 'sandakan',   powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
+  {id: 'ppu-023', name: 'PPU-023', kind: 'PPU',       locationLabel: 'Tawau, Sabah',              latitude: 4.2450, longitude: 117.8840, loadKw: 415, customer: 'tawau',      powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
+  {id: 'mg-024',  name: 'MG-024',  kind: 'MINI_GRID', locationLabel: 'Kalabakan, Tawau',          latitude: 4.4210, longitude: 117.4750, loadKw: 267, customer: 'tawau',      powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
+  {id: 'mg-025',  name: 'MG-025',  kind: 'MINI_GRID', locationLabel: 'Pulau Larapan, Semporna',   latitude: 4.5340, longitude: 118.6540, loadKw: 37,  customer: 'tawau',      powerRole: 'SOLAR_HYBRID', program: 'rural-electrification'},
 ] as const;
 
 /**
@@ -119,7 +144,7 @@ const GENSETS = [
   {tag: 'BRF9540', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9556, longitude: 116.0804, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57},
   {tag: 'KLN3355', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9564, longitude: 116.0816, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45},
   {tag: 'CYB6602', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0666, longitude: 116.1324, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1},
-  {tag: 'KJG9048', model: 'Denyo 250 kVa',       runState: 'OFFLINE', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0674, longitude: 116.1336, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890},
+  {tag: 'KJG9048', model: 'Denyo 250 kVa',       runState: 'OFFLINE', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0674, longitude: 116.1336, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'SB 3190 T'},
   {tag: 'KLG2214', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-003',   locationLabel: 'Penampang, Sabah',           latitude: 5.9370, longitude: 116.1120, fuelLitres: 940,  fuelCapacityLitres: 1200, staleMinutes: 4},
   {tag: 'SHA7731', model: 'Perkins 800 kVa',     runState: 'IDLE',    siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9796, longitude: 116.1284, fuelLitres: 612,  fuelCapacityLitres: 1800, staleMinutes: 12},
   {tag: 'PCH4180', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9804, longitude: 116.1296, fuelLitres: 1338, fuelCapacityLitres: 1600, staleMinutes: 2},
@@ -143,7 +168,7 @@ const GENSETS = [
   {tag: 'MLK3392', model: 'FG Wilson 650 kVa',   runState: 'IDLE',    siteId: 'pe-014',  locationLabel: 'Victoria, Labuan',         latitude: 5.2767, longitude: 115.2417, fuelLitres: 720,  fuelCapacityLitres: 1600, staleMinutes: 26},
   {tag: 'SRB6644', model: 'Kohler 400 kVa',      runState: 'RUNNING', siteId: 'pe-015',     locationLabel: 'Papar, Sabah',             latitude: 5.7330, longitude: 115.9330, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST'},
   {tag: 'KTN1970', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'pmu-016',    locationLabel: 'Sepanggar Bay, Sabah',     latitude: 6.0830, longitude: 116.1080, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9},
-  {tag: 'KBR4128', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-017',   locationLabel: 'Kemabong, Tenom',          latitude: 4.9670, longitude: 115.9640, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73},
+  {tag: 'KBR4128', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-017',   locationLabel: 'Kemabong, Tenom',          latitude: 4.9670, longitude: 115.9640, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'SB 6742 A'},
 
   // — The interior and the east coast (13) —
   //
@@ -166,7 +191,7 @@ const GENSETS = [
   {tag: 'KNU2218', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'mg-019', locationLabel: 'Nabawan, Sabah',         latitude: 5.0620, longitude: 116.4370, fuelLitres: 108,  fuelCapacityLitres: 600,  staleMinutes: 38},
   {tag: 'SDK5847', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'fdr-020', locationLabel: 'Sandakan, Sabah',        latitude: 5.8398, longitude: 118.1173, fuelLitres: 740,  fuelCapacityLitres: 1000, staleMinutes: 7},
   {tag: 'LDU7588', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0273, longitude: 118.3276, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 21},
-  {tag: 'LWS6446', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0265, longitude: 118.3264, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3},
+  {tag: 'LWS6446', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0265, longitude: 118.3264, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3, plateNumber: 'SB 8815 L'},
   {tag: 'KCH8566', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8556, longitude: 118.0204, fuelLitres: 2040, fuelCapacityLitres: 3000, staleMinutes: 1},
   {tag: 'KTG7712', model: 'Caterpillar 1250 kVa',runState: 'IDLE',    siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8564, longitude: 118.0216, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16},
   {tag: 'BTU3941', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-023',  locationLabel: 'Tawau, Sabah',           latitude: 4.2454, longitude: 117.8846, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9},
@@ -181,6 +206,7 @@ export const UTILITY_DATASET: BrandDataset = {
   label: 'Utility distribution estate',
   groupingLabel: 'By zone',
   customers: CUSTOMERS,
+  programs: PROGRAMS,
   siteKindLabels: SITE_KIND_LABELS,
   sites: SITES,
   gensets: GENSETS,

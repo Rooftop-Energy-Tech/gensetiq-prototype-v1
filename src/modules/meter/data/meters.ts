@@ -1,6 +1,6 @@
 import {useSyncExternalStore} from 'react';
 
-import {SITE_SEED} from '@/modules/site/data/siteSeed';
+import {siteSeeds} from '@/modules/site/data/siteSeed';
 import type {MeterFitting, MeterPoint, PowerMeter} from '../types/meter.type';
 
 /**
@@ -194,4 +194,4 @@ export const fitMeter = (meterId: string, fitting: MeterFitting | null) => {
 
 /** `Telco-001`, for the meters list. Site names never change, so the seed is enough. */
 export const meterSiteName = (siteId: string): string =>
-  SITE_SEED.find((seed) => seed.id === siteId)?.name ?? 'Unknown site';
+  siteSeeds().find((seed) => seed.id === siteId)?.name ?? 'Unknown site';

@@ -1,4 +1,4 @@
-import {SITE_SEED} from '@/modules/site/data/siteSeed';
+import {siteSeeds} from '@/modules/site/data/siteSeed';
 import type {Installation} from '../types/installation.type';
 import {GENSETS} from './fleet';
 import {fuelAt, historyStart, meteredBurn, runsInWindow} from './history';
@@ -60,7 +60,7 @@ const installer = (gensetId: string): string => {
 };
 
 const locationOf = (siteId: string): string =>
-  SITE_SEED.find((site) => site.id === siteId)?.locationLabel ?? 'Unknown';
+  siteSeeds().find((site) => site.id === siteId)?.locationLabel ?? 'Unknown';
 
 /**
  * The one open record for a genset: fitted at its current site, commissioned

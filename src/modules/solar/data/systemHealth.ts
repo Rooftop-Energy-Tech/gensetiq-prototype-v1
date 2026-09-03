@@ -24,24 +24,15 @@ import type {SystemDetail} from './systemDetail';
  * 9 of 13 strings" is a job with an address. `inverterId` is `undefined` only on
  * the two rules that really are about the whole system.
  *
- * ## Why `string-out` and `under-design` never both fire
+ * ## `string-out` needs a step behind it
  *
- * They are the same measurement — this system is under its number — split by the
- * one thing that decides what a person should do about it, which the README
- * states and the model implements: *"an array at 84% of design all year is a
- * commissioning problem; one at 100% until March and 70% since is a fault with a
- * date on it."*
- *
- * The first sends somebody up a ladder with a clamp meter this week. The second
- * is an argument with whoever designed or built it, and there is nothing to fix
- * on the roof. Firing both would put the wrong job on the list; firing one vague
- * rule would drop the distinction the whole series exists to make. So the step
- * decides: `year.onsetLabel` present is a fault with a date, absent is a system
- * that never met its number.
+ * A system can be quietly mediocre for its whole life — a shallow roof, a shaded
+ * corner, an optimistic build — and that is not a fault anybody can go and clear.
+ * What *is* a fault is output that dropped on a date and stayed down, which is
+ * what `solarStep` records. So the rule fires only where there is a step, and the
+ * alert carries the month, because that is the half of it that sends somebody up
+ * a ladder rather than into an argument.
  */
-
-/** Below this share of design over the recent window, a system is a job. */
-const P90 = 0.9;
 
 /**
  * A wash is due at four months.
@@ -109,7 +100,7 @@ export const systemAlerts = (
   }
 
   for (const inverter of system.inverters) {
-    if (inverter.downStrings === 0 || detail.onsetAt === undefined) continue;
+    if (inverter.downStrings === 0 || detail.stepAt === undefined) continue;
 
     alerts.push({
       id: `${system.id}-string-out-${inverter.id}`,
@@ -122,33 +113,12 @@ export const systemAlerts = (
       threshold: `${inverter.strings} strings expected`,
       limit: null,
       comparator: '<',
-      message: `${inverter.downStrings} of ${inverter.strings} strings on ${inverter.label} ${inverter.downStrings === 1 ? 'has' : 'have'} stopped delivering — the system has been at ${percent(detail.share)} of design since ${detail.year.onsetLabel}.`,
+      message: `${inverter.downStrings} of ${inverter.strings} strings on ${inverter.label} ${inverter.downStrings === 1 ? 'has' : 'have'} stopped delivering — this system's output stepped down in ${detail.stepLabel} and has stayed there.`,
       // The box can see this and does not tell us: the model has one DC input per
       // system, so the claim is the app's arithmetic over a step in the monthly
       // series, and the card says so.
-      source: 'Design benchmark',
-      raisedAt: detail.onsetAt,
-    });
-  }
-
-  if (detail.onsetAt === undefined && detail.share < P90) {
-    alerts.push({
-      id: `${system.id}-under-design`,
-      ruleId: 'under-design',
-      name: 'Below design',
-      severity: 'WARNING',
-      inverterId: undefined,
-      inverterLabel: undefined,
-      readingKey: 'yield-vs-design',
-      threshold: `< ${percent(P90)} of P50`,
-      limit: P90 * 100,
-      comparator: '<',
-      message: `At ${percent(detail.share)} of design and no step in the series — this system has never made its number rather than having stopped making it.`,
-      source: 'Design benchmark',
-      // No date to give: a system that has always been short was short on the
-      // first day of the window, so the window's start is the earliest thing that
-      // can honestly be claimed.
-      raisedAt: detail.months[0]?.at ?? new Date(now).toISOString(),
+      source: 'Generation series',
+      raisedAt: detail.stepAt,
     });
   }
 
@@ -189,9 +159,9 @@ export const systemAlerts = (
       limit: CLEAN_DUE_DAYS,
       comparator: '>',
       message: `${cleaned.value} days since the modules were last washed.`,
-      // Not the inverter and not the benchmark. This is a chore falling due, the
-      // same kind of row an overdue service is on a genset, and it prints its
-      // origin so a reader can tell it apart from the rules that are measurements.
+      // Not the inverter. This is a chore falling due, the same kind of row an
+      // overdue service is on a genset, and it prints its origin so a reader can
+      // tell it apart from the rules that are measurements.
       source: 'Service schedule',
       raisedAt: new Date(now - cleaned.value * 24 * 60 * 60 * 1000).toISOString(),
     });

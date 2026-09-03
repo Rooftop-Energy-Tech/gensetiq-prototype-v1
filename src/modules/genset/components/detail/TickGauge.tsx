@@ -1,4 +1,5 @@
 import {amount} from '@/lib/format';
+import {cn} from '@/lib/utils';
 import type {DialReading} from '../../types/telemetry.type';
 
 /**
@@ -43,17 +44,51 @@ const TICK_GEOMETRY: Array<Tick> = Array.from({length: TICKS}, (_, index) => {
 });
 
 /**
- * One of the four dials in the genset home page's gauge row.
+ * Two sizes, and only two.
  *
- * A tick ring rather than a needle or a filled arc, which is what the design
- * draws and the right call for the readings it carries: an operator watching
- * engine speed cares that it is *at* 1500 and steady, and a ring of discrete
- * ticks makes a small drift visible in a way a smooth sweep does not.
+ * `row` is the design's genset dial: four or five of them across a band, 97px of
+ * arc each. `hero` is the solar and battery pages', where **one** gauge is the
+ * whole band and the design draws it at roughly twice that — a page with a single
+ * reading on it can afford the room, and at row size a lone dial in a 1,530px band
+ * reads as something that lost its neighbours.
+ *
+ * A pair of measured sets rather than a free width: the tick pitch, the label
+ * sizes and the scale-end gutters were all taken off the asset together, and
+ * letting a caller pick 140px would break their relationship silently.
+ */
+const SIZES = {
+  row: {track: 'w-[153px]', dial: 'w-[97px]', value: 'text-xs', unit: 'text-[10px]'},
+  hero: {track: 'w-[306px]', dial: 'w-[194px]', value: 'text-lg', unit: 'text-xs'},
+} as const;
+
+/**
+ * A dial: a tick ring lit from the left in proportion to its reading.
+ *
+ * A ring rather than a needle or a filled arc, which is what the design draws and
+ * the right call for the readings it carries: an operator watching engine speed
+ * cares that it is *at* 1500 and steady, and a ring of discrete ticks makes a
+ * small drift visible in a way a smooth sweep does not.
  *
  * The scale ends are labelled outside the dial, so the only thing inside the arc
  * is the number itself.
+ *
+ * `colorClassName` is the lit arc's, and it defaults to the teal every genset dial
+ * is drawn in. The solar page's gauge passes `text-solar` and the battery page's
+ * `text-battery`, so a dial is coloured by *what it measures* — which is the rule
+ * the site diagram and every chart in the app already follow, and the reason a
+ * reader can tell a generation curve from a charge curve at a glance.
  */
-export const TickGauge = ({reading}: {reading: DialReading}) => {
+export const TickGauge = ({
+  reading,
+  size = 'row',
+  colorClassName = 'text-teal',
+}: {
+  reading: DialReading;
+  size?: keyof typeof SIZES;
+  colorClassName?: string;
+}) => {
+  const scale = SIZES[size];
+
   const span = reading.max - reading.min;
   const fraction =
     span > 0 ? Math.min(1, Math.max(0, (reading.value - reading.min) / span)) : 0;
@@ -66,13 +101,13 @@ export const TickGauge = ({reading}: {reading: DialReading}) => {
     // column. In the design every caption is one line, so the two arrangements look
     // identical — but "Coolant temperature" does not fit 97px, and with the caption
     // nested the wrap pushed the scale labels down out of line with their dial.
-    <div className="flex w-[153px] flex-col items-center gap-[3px]">
+    <div className={cn('flex flex-col items-center gap-[3px]', scale.track)}>
       <div className="flex w-full items-end justify-center gap-[5px]">
         <span className="w-7 shrink-0 pb-3 text-right text-[10px] font-medium text-secondary">
           {reading.min.toLocaleString('en-MY')}
         </span>
 
-        <div className="relative w-[97px] shrink-0">
+        <div className={cn('relative shrink-0', scale.dial)}>
           <svg
             viewBox={`0 0 97 ${VISIBLE_HEIGHT}`}
             className="block w-full"
@@ -92,7 +127,7 @@ export const TickGauge = ({reading}: {reading: DialReading}) => {
                 y2={tick.y2}
                 stroke="currentColor"
                 strokeWidth={1.6}
-                className={index < lit ? 'text-teal' : 'text-tertiary'}
+                className={index < lit ? colorClassName : 'text-tertiary'}
               />
             ))}
           </svg>
@@ -101,11 +136,11 @@ export const TickGauge = ({reading}: {reading: DialReading}) => {
               puts it. Absolute rather than a flex row under the SVG, because it
               has to overlap the bottom of the dial rather than sit below it. */}
           <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center gap-0.5 whitespace-nowrap">
-            <span className="text-xs font-semibold text-primary">
+            <span className={cn('font-semibold text-primary', scale.value)}>
               {amount(reading.value, '', reading.precision)}
             </span>
             {reading.unit !== '' && (
-              <span className="text-[10px] font-medium text-primary">{reading.unit}</span>
+              <span className={cn('font-medium text-primary', scale.unit)}>{reading.unit}</span>
             )}
           </div>
         </div>

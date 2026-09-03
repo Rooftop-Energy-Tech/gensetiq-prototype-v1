@@ -5,7 +5,7 @@ import {LeakAlarmCard} from './LeakAlarmCard';
 /**
  * The Settings tab — per-genset configuration.
  *
- * The design's tab strip names this tab and draws nothing behind it; its
+ * The design's rail names this section and draws nothing behind it; its
  * placeholder promised "alert thresholds, tags, who gets notified". One of those
  * three is built, and the page says so at the bottom rather than implying by
  * silence that a tab with one section on it is finished.
@@ -33,7 +33,7 @@ export const GensetSettings = ({genset}: {genset: Genset}) => {
       <hr className="border-subtle" />
 
       <p className="max-w-prose text-sm text-tertiary">
-        Tags and notification routing are named in the design's tab strip and not
+        Tags and notification routing are named in the design's rail and not
         drawn. The controller's own alarm setpoints are not editable here and will
         not be: they live in the panel, and a screen that let you type a different
         breaker limit would be claiming a command this app cannot issue.

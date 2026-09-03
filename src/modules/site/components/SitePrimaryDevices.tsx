@@ -17,6 +17,8 @@ import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {CurrentRunCard} from '@/modules/genset/components/detail/CurrentRunCard';
 import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useFuelIntegrity} from '@/modules/genset/data/fuelIntegrity';
+import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
+import {runTotalsIn} from '@/modules/genset/data/history';
 import {isLeak} from '@/modules/genset/types/fuelIntegrity.type';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
@@ -99,7 +101,7 @@ export const SitePrimaryDevices = ({
         )}
 
         {batteryFitted && seed !== undefined && (
-          <BatteryDeviceCard seed={seed} role={role} plantKwh={plant?.batteryKwh ?? 0} autonomyHours={plant?.autonomyHours ?? 0} now={now} />
+          <BatteryDeviceCard siteId={summary.site.id} seed={seed} role={role} plantKwh={plant?.batteryKwh ?? 0} soh={plant?.soh ?? 0} now={now} />
         )}
       </div>
 
@@ -147,11 +149,21 @@ const GensetDeviceCard = ({
   const stateMeta = RUN_STATE_META[genset.runState];
   const StateIcon = stateMeta.icon;
   const conditionMeta = CONDITION_META[detail.condition];
-  const counts = countBySeverity(detail.alerts);
+
+  // The alarms still standing, live — a row cleared on a genset's Alarms tab has
+  // to leave this card's badge on the way back to the site, and `detail.alerts`
+  // is the fixture's raw list and cannot know about it.
+  const alerts = standingAlarms(genset.id, useAlarmHandling());
+  const counts = countBySeverity(alerts);
 
   // Live, so lowering the leak threshold on the settings tab raises the notice here
   // without a reload — the behaviour `useFuelIntegrity` exists for.
   const integrity = useFuelIntegrity(genset.id, now);
+
+  // The card's `Today` column. Measured against the same `now` as the run beside
+  // it, and against the same midnight as the genset's own page — one machine's day
+  // has to read identically on both screens.
+  const today = runTotalsIn(genset.id, new Date(now).setHours(0, 0, 0, 0), now, now);
   const shortfallPercent =
     isLeak(integrity) && detail.fuel.maxLitres > 0
       ? Math.round((integrity.figures.confirmedShortfallLitres / detail.fuel.maxLitres) * 100)
@@ -169,7 +181,9 @@ const GensetDeviceCard = ({
           {gensetName(genset)}
         </Link>
       }
-      aside={<CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />}
+      aside={
+        <CurrentRunCard run={detail.run} today={today} gensetId={genset.id} now={now} />
+      }
       badges={
         <>
           <Badge variant="secondary" className="whitespace-pre">
@@ -198,7 +212,7 @@ const GensetDeviceCard = ({
             {conditionMeta.label}
           </Badge>
 
-          {detail.alerts.length > 0 && (
+          {alerts.length > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge variant="secondary" className="cursor-help gap-1.5">
@@ -310,18 +324,21 @@ const SolarDeviceCard = ({
   );
 };
 
-/** The bank: where its charge stands, and how long it would carry the site alone. */
+/** The bank: where its charge stands, how long it would carry the site alone, and
+ *  how much of the bank there still is to do it with. */
 const BatteryDeviceCard = ({
+  siteId,
   seed,
   role,
   plantKwh,
-  autonomyHours,
+  soh,
   now,
 }: {
+  siteId: string;
   seed: ReturnType<typeof siteSeed> & {};
   role: SitePowerRole;
   plantKwh: number;
-  autonomyHours: number;
+  soh: number;
   now: number;
 }) => {
   const state = hybridState(seed, role, now);
@@ -330,7 +347,17 @@ const BatteryDeviceCard = ({
   return (
     <SiteDeviceCard
       label="Battery"
-      identity={`Bank | ${amount(plantKwh, 'kWh')}`}
+      identity={
+        // A link now that a bank has a page, the same move the solar row makes.
+        // `bankId` is the site id — one bank per site.
+        <Link
+          to="/battery/$bankId"
+          params={{bankId: siteId}}
+          className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+        >
+          Bank | {amount(plantKwh, 'kWh')}
+        </Link>
+      }
       badges={
         <Badge variant="secondary" className="whitespace-pre">
           <BatteryChargingIcon
@@ -349,11 +376,21 @@ const BatteryDeviceCard = ({
         figures={[
           {label: 'Battery charge', value: `${Math.round(state.soc * 100)}`, unit: '%'},
           {
-            // Hours from full, which is the figure that decides whether a genset has
-            // to be sent for. A kWh capacity alone does not answer it.
-            label: 'Autonomy from full',
-            value: `${Math.round(autonomyHours * 10) / 10}`,
+            // The figure that decides whether a genset has to be sent for tonight.
+            // It used to be `Autonomy from full` — the specification, which answers a
+            // question nobody is asking at 42% charge on an aged bank. That figure
+            // has not been dropped, it has gone to the bank page's strip, where it
+            // sits beside the capacity it belongs with.
+            label: 'Left at this load',
+            value: `${state.hoursLeft}`,
             unit: 'h',
+          },
+          {
+            // Health next to the hours rather than next to the charge, because it is
+            // the reason the hours are what they are.
+            label: 'State of health',
+            value: `${Math.round(soh * 100)}`,
+            unit: '%',
           },
         ]}
       />

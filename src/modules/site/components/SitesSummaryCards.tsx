@@ -54,7 +54,7 @@ export const SitesSummaryCards = ({
 
   // The chips, and only them. `q` is the toolbar's search with its own visible field,
   // so counting it here would report a filter this button does not fold away.
-  const activeCount = [search.role, search.status, search.customer].filter(
+  const activeCount = [search.role, search.status, search.customer, search.program].filter(
     (value) => value !== undefined,
   ).length;
 
@@ -127,6 +127,29 @@ export const SitesSummaryCards = ({
             ))}
           </div>
         </SummaryCard>
+
+        {/* Withheld entirely on an estate whose dataset declares no programmes —
+            `byProgram` is empty there, and a fifth card reading nothing is worse
+            than four cards. It sits after the region rather than beside it because
+            the two look alike and are not: region is where a site *is*, programme
+            is which rollout somebody filed it under, and a reader meeting them in
+            that order is less likely to read the second as a restatement of the
+            first. See `programs.ts`. */}
+        {summary.byProgram.length > 0 && (
+          <SummaryCard label="By programme">
+            <div className="flex flex-wrap gap-x-1 gap-y-0.5">
+              {summary.byProgram.map((tally) => (
+                <CountChip
+                  key={tally.key}
+                  label={tally.label}
+                  count={tally.count}
+                  active={search.program === tally.key}
+                  onToggle={(next) => onSearchChange({program: next ? tally.key : undefined})}
+                />
+              ))}
+            </div>
+          </SummaryCard>
+        )}
       </SummaryCardRow>
 
       <SummaryCollapseButton

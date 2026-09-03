@@ -2,13 +2,12 @@ import {spreadBetween} from '@/modules/genset/data/spread';
 import {
   solarIntraday,
   solarMonths,
-  solarRecent,
-  solarYear,
+  solarStep,
   todayFullKwh,
   todaySoFarKwh,
 } from '@/modules/site/data/hybrid';
 import {siteSeed} from '@/modules/site/data/siteSeed';
-import type {SolarMonth, SolarPoint, SolarYear} from '@/modules/site/data/hybrid';
+import type {SolarMonth, SolarPoint} from '@/modules/site/data/hybrid';
 import type {InverterReading} from '../types/reading.type';
 import type {SolarSystem} from '../types/system.type';
 
@@ -17,15 +16,15 @@ import type {SolarSystem} from '../types/system.type';
  *
  * The split between this file and `inverterDetail.ts` is the model correction
  * restated as two modules: this holds what the *system* is — its energy, its
- * twelve months against design, its glass — and that holds what a *box* reports.
+ * twelve months of generation, its glass — and that holds what a *box* reports.
  * Nothing here is instantaneous, and nothing there survives a comms failure.
  *
  * ## The rule this file obeys
  *
  * **Nothing here invents a quantity `hybrid.ts` already has an opinion about.**
  * Today's energy, the twelve months and the step-down all come from there, so the
- * system page, the site page and the generation report are three readings of one
- * model rather than three datasets that happen to agree today.
+ * system page and the site page are two readings of one model rather than two
+ * datasets that happen to agree today.
  */
 
 export type SystemToday = {
@@ -40,19 +39,21 @@ export type SystemToday = {
 export type SystemDetail = {
   today: SystemToday;
   months: Array<SolarMonth>;
-  year: SolarYear;
-  /** The last three closed months — the operational window, not the reporting one. */
-  recent: SolarYear;
-  /** Recent generation over recent design, `0`–`1`+. */
-  share: number;
   /**
    * The system's own readings — every one of them this app's arithmetic or a fact
    * about glass, and not one of them an inverter's. That is why they survive a
    * silence when the dials on a box's page do not.
    */
   readings: Array<InverterReading>;
-  /** The first of the month the system stepped down, ISO, or `undefined`. */
-  onsetAt: string | undefined;
+  /**
+   * When this system's output stepped down and stayed down.
+   *
+   * `undefined` on a system that never stepped. Both halves come from
+   * `solarStep`, so the date the health band prints, the count of dark strings
+   * and the drop a reader can see in the chart are three readings of one event.
+   */
+  stepAt: string | undefined;
+  stepLabel: string | undefined;
 };
 
 /**
@@ -78,9 +79,7 @@ export const systemDetail = (
 
   const {role} = system;
   const months = solarMonths(seed, role, now);
-  const year = solarYear(months);
-  const recent = solarRecent(months);
-  const share = recent.expectedKwh > 0 ? recent.actualKwh / recent.expectedKwh : 0;
+  const step = solarStep(seed, role, now);
 
   // A system nobody can hear reported no energy today, and the page says so
   // rather than printing the model's.
@@ -101,10 +100,6 @@ export const systemDetail = (
   const curve = includeCurve ? solarIntraday(seed, role, now) : [];
   const cleaned = daysSinceClean(system.id);
 
-  const onset = year.onsetLabel;
-  const onsetAt =
-    onset === undefined ? undefined : months.find((month) => month.label === onset)?.at;
-
   return {
     today: {
       generatedKwh,
@@ -115,44 +110,23 @@ export const systemDetail = (
       points: reporting ? curve : curve.map((point) => ({...point, kw: null})),
     },
     months,
-    year,
-    recent,
-    share,
     readings: [
       {
         key: 'specific-yield',
         /**
-         * kWh per kWp, and deliberately **not a performance ratio**.
+         * kWh per kWp — today's energy over the size of the array that made it.
          *
-         * A PR is today's energy over what the nameplate would make in the day's
-         * peak sun hours. Drawn on this estate it comes out near 48%, against a
-         * design that assumed 0.8 — and the gap is not a fault. `siteEnergy` caps
-         * the design figure *and* the measurement at what the site can absorb
-         * ("spill is real at a solar site and counting it would flatter the
-         * array"), and `hybridPlant` sizes these systems to two-thirds of a
-         * tower's annual energy, so a good part of a clear midday is spilled by
-         * construction.
-         *
-         * So an honest PR and an honest "83% of design" are both right and differ
-         * by thirty points, because one is measured against the roof and the other
-         * against a design that already knows about the ceiling. Printing them one
-         * above the other puts two figures on a page a reader would expect to
-         * agree and which cannot, with nothing to say which to trust. kWh/kWp
-         * states the same measurement without asserting the comparison.
+         * A **measurement**, not a verdict: it says what this roof produced per
+         * unit of glass, which is the one way two systems of different sizes can
+         * be put side by side without asserting anything about what either was
+         * supposed to do. Nothing on this page compares it to a target, and the
+         * reader who wants to know whether it is good compares it with the same
+         * system last week.
          */
         label: 'Specific yield, today',
         value: reporting && system.kwp > 0 ? Math.round((fullDayKwh / system.kwp) * 100) / 100 : 0,
         unit: 'kWh/kWp',
         precision: 2,
-        kind: 'windowed',
-        daylightOnly: false,
-      },
-      {
-        key: 'yield-vs-design',
-        label: 'Generated against design, three months',
-        value: Math.round(share * 1000) / 10,
-        unit: '%',
-        precision: 1,
         kind: 'windowed',
         daylightOnly: false,
       },
@@ -168,6 +142,7 @@ export const systemDetail = (
         daylightOnly: false,
       },
     ],
-    onsetAt,
+    stepAt: step?.at,
+    stepLabel: step?.label,
   };
 };

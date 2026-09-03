@@ -9,14 +9,17 @@ import {SiteMetricStrip} from './SiteMetricStrip';
 import {SitePrimaryDevices} from './SitePrimaryDevices';
 
 /**
- * The site home page, in the four full-width bands the design stacks.
+ * The site home page, in the five full-width bands the design stacks.
  *
  * 1. **The strip** — the figures that move, in one rule across the top.
- * 2. **The circuit** — the single-line diagram on the left, what the site *is* on
- *    the right. The only band that is not a card: it sits on the canvas, so the
- *    drawing reads as the page's own subject rather than as another panel.
- * 3. **Diagnostics** — one chart with a metric picker and a period control.
- * 4. **The devices** — one full-width row per kind of plant, stacked.
+ * 2. **The circuit** — the single-line diagram, centred. The only band that is not
+ *    a card: it sits on the canvas, so the drawing reads as the page's own subject
+ *    rather than as another panel.
+ * 3. **The details** — what the site *is*, in a narrow block between two rules.
+ *    This used to be the right half of band 2; see the note at the band itself for
+ *    why the design moved it underneath.
+ * 4. **Diagnostics** — one chart with a metric picker and a period control.
+ * 5. **The devices** — one full-width row per kind of plant, stacked.
  *
  * ## Why every band is full width
  *
@@ -42,9 +45,10 @@ import {SitePrimaryDevices} from './SitePrimaryDevices';
  *
  * ## At phone width
  *
- * The bands are already a column, so they need no rearranging; only band 2 folds,
- * putting the details under the drawing. The **diagram scales to the width it is
- * given** rather than reflowing: it is a fixed pixel canvas whose conductors land
+ * The bands are already a column and, since the details moved out of band 2,
+ * nothing in them folds — the phone layout and the desktop one are now the same
+ * stack at two widths. The **diagram scales to the width it is given** rather than
+ * reflowing: it is a fixed pixel canvas whose conductors land
  * on the boxes at measured coordinates, so a reflow would leave a wire in mid-air.
  * `SiteDiagram` measures its own box and handles that itself.
  */
@@ -70,10 +74,11 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
 
       <section
         aria-label="Site circuit"
-        // The design's proportions: the drawing takes roughly the left 40% and the
-        // details the right, with the gap between them left open. No card — this
-        // band is the one thing on the page that is a picture rather than a panel.
-        className="flex flex-col gap-6 py-2 md:flex-row md:items-start md:gap-10"
+        // Full width now, with the drawing centred in it. The details used to sit
+        // in the right 59% of this band; see the note on the band below for why
+        // they moved. No card — this is the one thing on the page that is a picture
+        // rather than a panel.
+        className="flex flex-col gap-6 py-2"
       >
         {/* A **grid-backed** site with no set still has a circuit worth drawing:
             mains straight to the load says "on the grid, no plant fitted", which is
@@ -82,23 +87,42 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
             set has no incomer and no machines, so there is nothing to draw: the
             diagram would be a load box with a conductor arriving from nowhere. */}
         {summary.gensets.length === 0 && role === 'DIESEL_PRIME' ? (
-          <p className="max-w-sm text-sm text-secondary md:flex-1">
+          <p className="max-w-sm text-sm text-secondary">
             Nothing supplies this site. It is set to run on its own gensets and none are
             fitted.
           </p>
         ) : (
-          // Centred in its column, as the frame centres it, and handed the width
-          // directly: the diagram measures what it is given and scales itself, so a
-          // wrapper that sized to the drawing would make that circular.
-          <div className="flex min-w-0 justify-center md:flex-[0_0_41%]">
+          // Centred, as the frame centres it, and handed the width directly: the
+          // diagram measures what it is given and scales itself, so a wrapper that
+          // sized to the drawing would make that circular.
+          <div className="flex min-w-0 justify-center">
             <SiteDiagram summary={summary} dutyId={summary.defaultDutyId} role={role} />
           </div>
         )}
-
-        <div className="min-w-0 md:flex-1 md:pt-4">
-          <SiteDetails summary={summary} role={role} />
-        </div>
       </section>
+
+      {/* ## Band 3: what the site *is*, under the drawing rather than beside it
+
+          The details were the right half of band 2, captioning the diagram from
+          across a 10-unit gap. Two things were wrong with that. The diagram is a
+          fixed canvas, so pinning it to 41% of the band meant it stopped growing
+          with the page and the caption's column got wider the more room there was —
+          at 1900px the labels and their values were half a screen apart. And a
+          caption set beside a picture reads as a legend *for* it, which invited the
+          question of which box `Installed capacity` referred to.
+
+          Underneath, in a narrow block between two rules, it reads as what it is: a
+          short statement about the installation, closing the band above and opening
+          the chart below. The rules are the design's and they are doing the work the
+          gap used to — they say where the picture stops. */}
+      <div className="border-t border-subtle" />
+
+      {/* The band's own `<section>`, padding and two-column split all live in
+          `DetailBand` now — the genset, solar and battery pages carry the same band
+          and used to carry the same markup each. `SiteDetails` supplies the rows. */}
+      <SiteDetails summary={summary} role={role} />
+
+      <div className="border-t border-subtle" />
 
       <SiteDiagnostics summary={summary} now={now} />
 

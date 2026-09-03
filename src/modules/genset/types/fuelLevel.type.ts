@@ -1,4 +1,4 @@
-import {amount} from '@/lib/format';
+import {amount, runtimeSpan, stampDate} from '@/lib/format';
 import type {AlertSeverity} from './alert.type';
 import type {Genset} from './genset.type';
 
@@ -164,6 +164,75 @@ export const fuelLevelKind = (
  * needs. Both, rather than either: a percentage alone cannot be turned into a
  * tanker booking, and a litre figure alone cannot be checked against the line.
  */
+/**
+ * The tank's scheduling figures, as the fuel panel and the strip each need them.
+ *
+ * Both read the same three numbers — how much is in there, where the reserve line
+ * sits, and how many hours of running separate the two — so both are written here
+ * rather than in the two components. The panel and the tile disagreeing about
+ * whether a set is below reserve is the failure this prevents.
+ *
+ * `fuel` is taken structurally rather than as `GensetFuelDetail`: that type lives
+ * in the data module, and a types module importing from data is the wrong way
+ * round.
+ */
+const belowReserve = (
+  litres: number,
+  fuel: {maxLitres: number; reserveFraction: number},
+): boolean => litres <= fuel.reserveFraction * fuel.maxLitres;
+
+/**
+ * "6.4 days to 30%", "39 hours of runtime left", "Below 30% reserve".
+ *
+ * The runway counts down to the reserve line rather than to empty, because empty
+ * is not a number anybody plans against — a set that runs its tank dry picks up
+ * air in the fuel system and needs bleeding before it will restart.
+ *
+ * **A stopped set is phrased differently, and it has to be.** For a running one,
+ * litres-above-reserve ÷ burn rate is both an amount of runtime and an amount of
+ * wall-clock. A stopped set is burning nothing: the same arithmetic is still the
+ * runtime it would get if you started it, but stated as a countdown it would claim
+ * the tank is draining while the engine sits idle.
+ */
+export const fuelRunway = (
+  litres: number,
+  fuel: {maxLitres: number; reserveFraction: number; hoursToReserve: number},
+  running: boolean,
+): string => {
+  const reserve = Math.round(fuel.reserveFraction * 100);
+  if (belowReserve(litres, fuel)) return `Below ${reserve}% reserve`;
+
+  // `runtimeSpan` returns lowercase prose for its smallest case ("under an hour"),
+  // and this is the head of a badge. Capitalising the first character is a no-op
+  // on the numeric cases.
+  const span = runtimeSpan(fuel.hoursToReserve);
+  const head = span.charAt(0).toUpperCase() + span.slice(1);
+
+  return running ? `${head} to ${reserve}%` : `${head} of runtime left`;
+};
+
+/**
+ * The same fact, short enough for a strip tile: `6.4 days · 12 Sep 2026`.
+ *
+ * The tile carries the date and the panel's badge does not, because this is the
+ * figure a reader scans to decide whether a lorry goes out this week — and a date
+ * is what they will put in the diary. The reserve percentage is dropped instead:
+ * it is the same line for every set in the estate, so repeating it in the one
+ * place with the least room buys nothing.
+ *
+ * A stopped set gets no date, for the reason `fuelRunway` gives.
+ */
+export const fuelRemainingHeadline = (
+  litres: number,
+  fuel: {maxLitres: number; reserveFraction: number; hoursToReserve: number; refuelBy: string},
+  running: boolean,
+): string => {
+  if (belowReserve(litres, fuel)) return 'Below reserve';
+
+  const span = runtimeSpan(fuel.hoursToReserve);
+  return running ? `${span} · ${stampDate(fuel.refuelBy)}` : `${span} of runtime`;
+};
+
 export const fuelLevelNotice = (genset: Genset): FuelLevelNotice | undefined => {
   const kind = fuelLevelKind(genset.fuelLitres, genset.fuelCapacityLitres);
   if (kind === undefined) return undefined;

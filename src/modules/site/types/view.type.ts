@@ -40,8 +40,17 @@ export const SITE_ROLE_FILTERS = [
 export const siteSearchSchema = z.object({
   view: z.enum(SITE_VIEWS).default('split').catch('split'),
   q: z.string().optional().catch(undefined),
-  /** The card chips — see the fleet schema's note; same three, over yards. */
+  /** The card chips — see the fleet schema's note; the same buckets, over yards. */
   customer: z.string().optional().catch(undefined),
+  /**
+   * A rollout programme id, or `none` for the sites filed under none.
+   *
+   * A plain string like `customer` and for the same reason: the roster is the
+   * dataset's, so there is no enum to validate against here. `none` is the
+   * sentinel — see `NO_PROGRAM_FILTER`, which is where the word is defined and why
+   * it cannot collide with a real id.
+   */
+  program: z.string().optional().catch(undefined),
   role: z.enum(SITE_ROLE_FILTERS).optional().catch(undefined),
   status: z.enum(FLEET_STATUSES).optional().catch(undefined),
   /** Selected site id. Absent = nothing selected. */

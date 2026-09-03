@@ -52,7 +52,7 @@ type SitesPageProps = {
  * than a copy of its page — the facts a pin cannot state, and an arrow out.
  */
 export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
-  const {view, q = '', id, panel, customer, role, status} = search;
+  const {view, q = '', id, panel, customer, role, status, program} = search;
 
   // Keyed on the summaries as well as the query: attaching or detaching a genset
   // changes a site's genset count, its fuel and its condition, and condition is what
@@ -65,8 +65,8 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   const summary = useMemo(() => estateSummary(all, roles), [all, roles]);
 
   const summaries = useMemo(
-    () => sortSites(filterSites(searchSites(all, q), {customer, role, status}, roles)),
-    [all, q, customer, role, status, roles],
+    () => sortSites(filterSites(searchSites(all, q), {customer, role, status, program}, roles)),
+    [all, q, customer, role, status, program, roles],
   );
 
   // Resolved against the *filtered* list, not the whole estate: if a search hides

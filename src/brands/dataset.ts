@@ -31,9 +31,9 @@ import type {BrandDataset, DatasetId} from './types';
  *
  * What it refuses to let through:
  *
- *  - a site pointing at a zone the roster does not list, or a kind with no label —
- *    each renders as `undefined` in a chip, which reads as a data gap rather than
- *    a bug and so survives review;
+ *  - a site pointing at a zone or a programme the roster does not list, or a kind
+ *    with no label — each renders as `undefined` in a chip, which reads as a data
+ *    gap rather than a bug and so survives review;
  *  - a genset standing at a site id that does not exist, which is the one that
  *    matters most. It quietly drops the machine out of every site rollup while
  *    leaving it in the fleet count, so the two disagree by one and nothing says so;
@@ -47,11 +47,15 @@ const assertDatasetIntegrity = (dataset: BrandDataset): void => {
   };
 
   const customerIds = new Set(dataset.customers.map((entry) => entry.id));
+  const programIds = new Set(dataset.programs.map((entry) => entry.id));
   const kindIds = new Set(Object.keys(dataset.siteKindLabels));
   const siteIds = new Set<string>();
 
   if (customerIds.size !== dataset.customers.length) {
     fail('two zones share an id.');
+  }
+  if (programIds.size !== dataset.programs.length) {
+    fail('two programmes share an id.');
   }
 
   for (const site of dataset.sites) {
@@ -63,6 +67,12 @@ const assertDatasetIntegrity = (dataset: BrandDataset): void => {
     }
     if (!kindIds.has(site.kind)) {
       fail(`site "${site.id}" is kind "${site.kind}", which has no label.`);
+    }
+    // `undefined` is legitimate — a site nobody has filed is unassigned, not broken.
+    // A *named* programme that isn't in the roster is the bug this catches: it
+    // renders as a blank chip, which reads as "no programme" and so survives review.
+    if (site.program !== undefined && !programIds.has(site.program)) {
+      fail(`site "${site.id}" names programme "${site.program}", which is not in the roster.`);
     }
   }
 

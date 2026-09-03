@@ -1,9 +1,9 @@
 import {useMemo} from 'react';
 
 import {spread, spreadBetween} from '@/modules/genset/data/spread';
-import {hybridPlant, hybridState, solarMonths, solarRecent, solarYear} from '@/modules/site/data/hybrid';
+import {hybridPlant, hybridState, solarStep} from '@/modules/site/data/hybrid';
 import {FALLBACK_POWER_ROLE, useSitePowerRoles} from '@/modules/site/data/siteConfig';
-import {SITE_SEED, siteSeed} from '@/modules/site/data/siteSeed';
+import {siteSeed, siteSeeds} from '@/modules/site/data/siteSeed';
 import {hasSolar} from '@/modules/site/types/site.type';
 import type {SiteSeed} from '@/modules/site/data/siteSeed';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
@@ -59,6 +59,17 @@ const INVERTERS = [
   {model: 'SMA Sunny Tripower CORE1 50', kw: 50},
   {model: 'Sungrow SG110CX', kw: 110},
 ] as const;
+
+/**
+ * One module's rating, watts.
+ *
+ * A constant rather than a spread figure, because a roof is built from one pallet:
+ * an estate whose module wattage varied site by site would be one nobody procured.
+ * 580 W is an ordinary large-format bifacial panel of the generation these were
+ * installed in, which is what makes a 29 kWp tower array come out at fifty panels
+ * rather than at a number that reads like an error.
+ */
+const MODULE_WATTS = 580;
 
 /** The biggest box on the ladder — what a system too large for one of anything is built from. */
 const WORKHORSE = INVERTERS[INVERTERS.length - 1];
@@ -148,20 +159,20 @@ const heardFrom = (inverterId: string, silent: boolean, now: number): string =>
   ).toISOString();
 
 /**
- * Which strings are dark, and on which box — **read off the shortfall rather than
+ * Which strings are dark, and on which box — **read off the step rather than
  * dealt beside it.** This is the part worth checking.
  *
- * `hybrid.ts` gives an underperforming system a **step**: output drops in one
- * month and stays down, because that is what a fault looks like and what makes
- * the chart worth drawing at all. A step of that shape has one obvious physical
- * cause on a PV plant — strings have gone — and the arithmetic agrees: the
- * model's steps are 6–24%, and a string is a fifth to a seventeenth of a box.
+ * `hybrid.ts` gives a tired system a **step**: output drops in one month and
+ * stays down, because that is what a fault looks like and what makes the chart
+ * worth drawing at all. A step of that shape has one obvious physical cause on a
+ * PV plant — strings have gone — and the arithmetic agrees: the model's steps are
+ * 6–24%, and a string is a fifth to a seventeenth of a box.
  *
- * So the count is **computed from the size of the step**, and then **concentrated
- * on one inverter** rather than sprinkled evenly. That is both the realistic
- * failure — a combiner fuse, a blown MPPT input, one wet junction box — and the
- * far more useful drawing: nine boxes at their number and one at 60% is a fault
- * with an address, where ten boxes each a little short is weather.
+ * So the count is **computed from the depth of the step**, and then
+ * **concentrated on one inverter** rather than sprinkled evenly. That is both the
+ * realistic failure — a combiner fuse, a blown MPPT input, one wet junction box —
+ * and the far more useful drawing: nine boxes at their number and one at 60% is a
+ * fault with an address, where ten boxes each a little short is weather.
  *
  * Never the whole of a box. An inverter with every string dark is a dead
  * inverter, which is a different fault with a different fix, and the model has no
@@ -174,19 +185,15 @@ const darkStrings = (
   now: number,
 ): Array<number> => {
   const dark = strings.map(() => 0);
-  const months = solarMonths(seed, role, now);
-  if (months.length === 0) return dark;
 
-  const year = solarYear(months);
-  if (year.onsetLabel === undefined) return dark;
+  const step = solarStep(seed, role, now);
+  if (step === undefined) return dark;
 
-  const recent = solarRecent(months);
-  const share = recent.expectedKwh > 0 ? recent.actualKwh / recent.expectedKwh : 1;
   const total = strings.reduce((sum, count) => sum + count, 0);
   // Every box keeps at least one live string, so this is the most that can be dark.
   const room = strings.reduce((sum, count) => sum + (count - 1), 0);
 
-  let left = Math.min(room, Math.max(1, Math.round((1 - share) * total)));
+  let left = Math.min(room, Math.max(1, Math.round(step.depth * total)));
   const start = Math.floor(spread(seed.id, 'system/faulted') * strings.length);
 
   for (let step = 0; step < strings.length && left > 0; step += 1) {
@@ -261,6 +268,8 @@ const systemFrom = (seed: SiteSeed, role: SitePowerRole, now: number): SolarSyst
     acKw: plan.kw * plan.count,
     inverters,
     strings: stringCounts.reduce((sum, count) => sum + count, 0),
+    modules: Math.round((kwp * 1000) / MODULE_WATTS),
+    moduleWatts: MODULE_WATTS,
     downStrings: dark.reduce((sum, count) => sum + count, 0),
     commissionedAt: commissionedAt(seed.id, now),
     lastUpdated: inverters
@@ -280,7 +289,7 @@ export const solarSystems = (
   roles: Record<string, SitePowerRole>,
   now: number = Date.now(),
 ): Array<SolarSystem> =>
-  SITE_SEED.filter((seed) => hasSolar(roles[seed.id] ?? FALLBACK_POWER_ROLE))
+  siteSeeds().filter((seed) => hasSolar(roles[seed.id] ?? FALLBACK_POWER_ROLE))
     .map((seed) => systemFrom(seed, roles[seed.id] ?? FALLBACK_POWER_ROLE, now))
     .sort((left, right) => left.siteName.localeCompare(right.siteName));
 

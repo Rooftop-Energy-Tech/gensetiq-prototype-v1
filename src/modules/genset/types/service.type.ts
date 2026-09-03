@@ -324,6 +324,35 @@ export const serviceNotice = (
 };
 
 /**
+ * "Due in 63 h", "Overdue by 41 h", "Not recorded" — service, in a strip tile.
+ *
+ * The strip carries one figure per column and service has two counters, so this
+ * reports the **binding** one: the counter that set the severity is the counter
+ * that will send somebody, and naming the other would be answering a question
+ * nobody asked of a summary. The Service tab shows both.
+ *
+ * A never-serviced set reads `Not recorded` rather than a number. It is
+ * unmeasured, not due — the same distinction `serviceNotice` refuses to collapse,
+ * and a tile printing `0 h of 250 h` would assert a service that never happened.
+ */
+export const serviceHeadline = (status: ServiceStatus): string => {
+  if (status.kind === 'never-serviced') return 'Not recorded';
+
+  const counter = status.binding === 'hours' ? status.hours : status.calendar;
+  const overshoot = counterOvershoot(counter);
+  const remaining = -overshoot;
+
+  if (status.binding === 'hours') {
+    const hours = Math.round(Math.abs(overshoot)).toLocaleString('en-MY');
+    return overshoot >= 0 ? `Overdue by ${hours} h` : `Due in ${hours} h`;
+  }
+
+  return overshoot >= 0
+    ? `Overdue by ${overshoot.toFixed(1)} months`
+    : `Due in ${remaining.toFixed(1)} months`;
+};
+
+/**
  * The default schedule, and the per-model table that overrides it.
  *
  * **`250 h / 6 months` is a placeholder standing in for an answer nobody has

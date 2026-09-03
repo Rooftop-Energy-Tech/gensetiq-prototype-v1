@@ -3,7 +3,7 @@ import {spread, spreadBetween} from '@/modules/genset/data/spread';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {customer} from './customers';
-import {SITE_SEED, siteSeed} from './siteSeed';
+import {siteSeed, siteSeeds} from './siteSeed';
 import type {SiteSeed} from './siteSeed';
 
 /**
@@ -109,28 +109,38 @@ const DIRECT_SHARE = 0.35;
 const CHARGING_LOAD_FRACTION = 0.78;
 
 /**
- * A poor year as a share of the design year.
+ * The share of a bank's charge the tower never gets, `0`–`1`.
  *
- * The P90 is the yield exceeded in nine years out of ten, and 0.9 of the P50 is
- * the ratio this group's own design work uses. It is a **band**, not a second
- * target: an array between the two is having ordinary weather.
+ * The plant sheds load before the bank is empty. On the SMU these sites run, the
+ * first low-voltage disconnect stage is set at **25% state of charge** and the
+ * battery disconnect below it at 5%, so the bottom quarter of the dial is there to
+ * keep the bank alive rather than to keep the tower up.
+ *
+ * It is here because runtime has to count down to the shed line and not to zero.
+ * A page that counts to zero is not being optimistic by a rounding error — at 42%
+ * charge it reports two and a half times the hours the site will actually get, and
+ * it is wrongest exactly when somebody is deciding whether to drive out tonight.
+ *
+ * ⚠️ **A real plant needs the stage's mode read alongside this.** LLVD stages
+ * disconnect on voltage, elapsed minutes *or* capacity, and the default is voltage
+ * — a bank in Voltage Mode does not shed at 25% at all. One constant is the right
+ * answer for a prototype and the wrong one for the ingest.
  */
-const P90_OF_P50 = 0.9;
+const SHED_FLOOR = 0.25;
 
 /**
- * How much of its design yield this array is actually achieving, `0`–`1`+.
+ * What sort of shape this array is in, as a multiplier on what its glass would
+ * otherwise raise, `0`–`1`+.
  *
  * The one figure here that is **not** derived from anything, because in a real
- * deployment it is not derived either: it is the gap between a simulation and a
- * roof, and every cause of it is site-specific. Soiling nobody has washed off, a
- * string that tripped in March, a tree that has grown, an inverter derating in
- * the heat, or a design that was simply optimistic about the shading.
+ * deployment it is not derived either: every cause of it is site-specific.
+ * Soiling nobody has washed off, a string that tripped in March, a tree that has
+ * grown, an inverter derating in the heat.
  *
- * Spread 0.76–1.06 from the site id, so the estate has arrays over their number
- * as well as under it, and two of the four fall below the P90 band. That spread
- * is the whole reason the column is worth having: a page where every array reads
- * 100% of design is a page reporting the design, and the array is what somebody
- * has to go and look at.
+ * Spread 0.76–1.06 from the site id, so the estate has healthy arrays and tired
+ * ones. That spread is what gives the fault model something to describe — a
+ * `downStrings` count with an onset month behind it — rather than an estate on
+ * which nothing has ever gone wrong.
  */
 const solarPerformance = (seed: SiteSeed, role: SitePowerRole): number =>
   hasSolar(role) ? spreadBetween(seed.id, 'hybrid/array-health', 0.76, 1.06) : 1;
@@ -183,6 +193,23 @@ export type HybridPlant = {
   batteryKwh: number;
   /** Hours the bank alone can carry the site from full. */
   autonomyHours: number;
+  /**
+   * How much of its nameplate the bank still holds, `0`–`1`. `0` where no bank is
+   * fitted.
+   *
+   * State of health, and the reason it sits here beside `batteryKwh` rather than
+   * in `HybridState`: charge is where the level stands this minute, health is how
+   * big the tank has become. One moves by the hour, the other over years and only
+   * ever downwards, so health is a fact about the plant that is fitted.
+   *
+   * `batteryKwh` is deliberately **not** discounted by it. The kilowatt-hours this
+   * model quotes are the bank's specification — what was procured, and what the
+   * autonomy was sold against — and folding fade into them would silently restate
+   * every capacity figure on the estate against a number the reader cannot see.
+   * Reporting the two side by side is what makes the gap legible, which is the
+   * whole reason for carrying health at all.
+   */
+  soh: number;
 };
 
 /**
@@ -207,9 +234,23 @@ export type HybridPlant = {
  * kilowatt-hours follow from the load. A diesel hybrid is given 10–14 hours,
  * enough to hold the tower between two charging blocks. A solar hybrid is given
  * 16–20, because it has to cover a night and part of a dull morning.
+ *
+ * ## Why health is a spread, and why the two ranges differ
+ *
+ * State of health is the figure the customer's complaint is actually about: banks
+ * specified to carry three days losing most of that in one, at RM30,000 a unit. A
+ * single estate-wide number would say nothing about that, so it is spread on the
+ * site id like the two above — **0.78–0.93 where the bank is cycled by a genset's
+ * charging blocks, 0.86–0.98 where an array takes it through one shallower cycle a
+ * day.**
+ *
+ * The two ranges are the estate's own argument rather than decoration. Heavy
+ * genset running and heavy battery cycling travel together, so the worst-health
+ * banks land on the diesel side by construction, and a reader sorting the register
+ * by health is reading the case for the conversion programme.
  */
 export const hybridPlant = (seed: SiteSeed, role: SitePowerRole): HybridPlant => {
-  if (!hasBattery(role)) return {solarKwp: 0, batteryKwh: 0, autonomyHours: 0};
+  if (!hasBattery(role)) return {solarKwp: 0, batteryKwh: 0, autonomyHours: 0, soh: 0};
 
   const autonomyHours = hasSolar(role)
     ? spreadBetween(seed.id, 'hybrid/autonomy-solar', 16, 20)
@@ -217,8 +258,14 @@ export const hybridPlant = (seed: SiteSeed, role: SitePowerRole): HybridPlant =>
 
   const batteryKwh = Math.round(seed.loadKw * autonomyHours);
 
+  // Health follows the cycling regime rather than the size of the bank — see the
+  // note above on why the diesel range sits lower than the solar one.
+  const soh = hasSolar(role)
+    ? spreadBetween(seed.id, 'hybrid/soh-solar', 0.86, 0.98)
+    : spreadBetween(seed.id, 'hybrid/soh-diesel', 0.78, 0.93);
+
   if (!hasSolar(role)) {
-    return {solarKwp: 0, batteryKwh, autonomyHours: Math.round(autonomyHours)};
+    return {solarKwp: 0, batteryKwh, autonomyHours: Math.round(autonomyHours), soh};
   }
 
   const solarShare = spreadBetween(seed.id, 'hybrid/solar-share', 0.62, 0.78);
@@ -226,7 +273,7 @@ export const hybridPlant = (seed: SiteSeed, role: SitePowerRole): HybridPlant =>
   const sunHours = customer(seed.customer).peakSunHours;
   const solarKwp = Math.round((dailyLoadKwh * solarShare) / (sunHours * PERFORMANCE_RATIO));
 
-  return {solarKwp, batteryKwh, autonomyHours: Math.round(autonomyHours)};
+  return {solarKwp, batteryKwh, autonomyHours: Math.round(autonomyHours), soh};
 };
 
 /**
@@ -246,6 +293,36 @@ export type HybridState = {
   soc: number;
   /** Positive while the bank discharges into the bus, negative while charging. */
   batteryKw: number;
+  /**
+   * Hours the bank alone would carry this site **from where it is now**, to the
+   * point the plant sheds load. `0` where no bank is fitted.
+   *
+   * The same quantity `HybridPlant.autonomyHours` states, read from the present
+   * charge instead of from full, so the pair `13 h from full | 1.8 h left` is one
+   * fact at two moments rather than two figures a reader has to reconcile.
+   *
+   * ## Why this is the number the site page should lead with
+   *
+   * Because a percentage has a denominator and it is not on screen. This estate's
+   * banks run 38 kWh to 93 kWh and their health runs 78% to 98%, so two sites both
+   * reading `42%` can differ four-fold in the energy behind it. Hours divide that
+   * out, and they are the unit the network team specifies a bank in to begin with —
+   * as well as what the genset half of the same screen already says about fuel.
+   *
+   * ## The two corrections in it
+   *
+   * **Health.** A BMS reports charge against the capacity the bank has *now*, so
+   * `soc` is already relative to a faded pack — the fade has to be applied to the
+   * kilowatt-hours to get back to real energy, and applied once. A bank at 80%
+   * health has lost a fifth of every hour it was sold with.
+   *
+   * **The shed floor.** See `SHED_FLOOR`: the bottom quarter is not the tower's to
+   * spend.
+   *
+   * Neither correction is visible in a percentage, which is most of the argument
+   * for not leading with one.
+   */
+  hoursLeft: number;
 };
 
 const FIRST_LIGHT = 7;
@@ -334,7 +411,7 @@ export const hybridState = (
   now: number = Date.now(),
 ): HybridState => {
   const plant = hybridPlant(seed, role);
-  if (plant.batteryKwh === 0) return {solarKw: 0, soc: 0, batteryKw: 0};
+  if (plant.batteryKwh === 0) return {solarKw: 0, soc: 0, batteryKw: 0, hoursLeft: 0};
 
   const hour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
   // Read off **today's own energy**, not off nameplate.
@@ -372,7 +449,15 @@ export const hybridState = (
         -Math.round((solarKw - seed.loadKw) * 10) / 10
       : Math.round((seed.loadKw - solarKw) * 10) / 10;
 
-  return {solarKw, soc, batteryKw};
+  // Energy the tower can actually have: the bank's specified kilowatt-hours, taken
+  // down to what the pack still holds, then down again to the shed line. Divided by
+  // the site's own draw, because "the bank alone" is what autonomy has always meant
+  // here — an array carrying part of the load at two in the afternoon does not make
+  // the bank's reserve any longer.
+  const usableKwh = plant.batteryKwh * plant.soh * Math.max(0, soc - SHED_FLOOR);
+  const hoursLeft = Math.round((usableKwh / seed.loadKw) * 10) / 10;
+
+  return {solarKw, soc, batteryKw, hoursLeft};
 };
 
 /**
@@ -390,32 +475,8 @@ export type SiteEnergy = {
   loadKwh: number;
   /** Generation that had to be raised to serve it, load plus storage losses. */
   generationKwh: number;
-  /**
-   * What the design says this array should make in the window — the **P50**.
-   *
-   * The benchmark, and the reason it is a separate field from `solarKwh` below.
-   * An array's output on its own says nothing: 8,700 kWh is excellent from a
-   * 24 kWp array in Kedah and poor from a 40 kWp one. The figure only becomes a
-   * judgement beside the yield the array was bought on, which is the design
-   * simulation's — the same P50 an EPC's PVSyst report quotes and the same one
-   * SolarIQ benchmarks a rooftop against.
-   *
-   * Monthly rather than hourly, deliberately: a design yield is a monthly figure
-   * and quoting one by the hour claims a resolution the simulation never had.
-   */
-  expectedSolarKwh: number;
-  /**
-   * The same design, in a poor year — **P90**, taken as 0.9 of the P50.
-   *
-   * Carried because an array running below its P50 is only a fault if it is also
-   * below this. One dull month inside the P50–P90 band is weather; below P90 is
-   * something on the roof.
-   */
-  p90SolarKwh: number;
-  /** What the array actually made, kWh — the meter, not the design. */
+  /** What the array made, kWh — the meter. */
   solarKwh: number;
-  /** `(actual − P50) ÷ P50`. Negative is a shortfall. */
-  solarVariance: number;
   gensetKwh: number;
   /** Grid import, kWh — only ever non-zero at a grid-backed site. */
   mainsKwh: number;
@@ -464,30 +525,28 @@ export const siteEnergy = (
   const plant = hybridPlant(seed, role);
   const sunHours = customer(seed.customer).peakSunHours;
 
-  // The design's own number: nameplate × sun hours × performance ratio × days.
-  // Capped at what the site can actually use, because spill is real at a solar
-  // site and counting it would flatter the array — this is energy the tower could
-  // take, not energy that fell on the roof.
-  const expectedSolarKwh = Math.min(
+  // What the physics says this much glass raises: nameplate × sun hours ×
+  // performance ratio × days. Capped at what the site can actually use, because
+  // spill is real at a solar site and counting it would report generation no
+  // meter downstream of the array ever saw — this is energy the tower could take,
+  // not energy that fell on the roof.
+  //
+  // Local, and it stays local. It is the *generator* of the figure below, not a
+  // number this app publishes: nothing outside this function is allowed to hold
+  // it up beside the measurement and call the gap a verdict.
+  const rawSolarKwh = Math.min(
     generationKwh,
     Math.round(plant.solarKwp * sunHours * PERFORMANCE_RATIO * WINDOW_DAYS),
   );
 
-  // What it actually made. `solarPerformance` is the gap between a design and a
-  // roof — see its own note — and the genset below picks up whatever the array
-  // did not, so an underperforming site burns more diesel for the same load.
-  // That chain is the point of measuring against a benchmark at all.
-  // Clamped at the generation the site can absorb, for the same reason the design
-  // figure above it is: an array beating its number at a site with no headroom is
-  // spilling the difference, and counting spill would report generation no meter
-  // downstream of it ever saw.
+  // What it actually made. `solarPerformance` is the state of the roof — see its
+  // own note — and the genset below picks up whatever the array did not, so a
+  // poorly performing site burns more diesel for the same load. Clamped for the
+  // same reason the figure above it is.
   const solarKwh =
-    expectedSolarKwh === 0
+    rawSolarKwh === 0
       ? 0
-      : Math.min(
-          generationKwh,
-          Math.round(expectedSolarKwh * solarPerformance(seed, role)),
-        );
+      : Math.min(generationKwh, Math.round(rawSolarKwh * solarPerformance(seed, role)));
 
   // The grid carries a backed-up site apart from the few hours a year it doesn't.
   // 0.4% is roughly a day and a half of outage across a month, which is the order
@@ -508,11 +567,7 @@ export const siteEnergy = (
   return {
     loadKwh: Math.round(loadKwh),
     generationKwh,
-    expectedSolarKwh,
-    p90SolarKwh: Math.round(expectedSolarKwh * P90_OF_P50),
     solarKwh,
-    solarVariance:
-      expectedSolarKwh === 0 ? 0 : (solarKwh - expectedSolarKwh) / expectedSolarKwh,
     gensetKwh,
     mainsKwh,
     litres,
@@ -527,10 +582,6 @@ export type EstateEnergy = {
   solarSites: number;
   dieselSites: number;
   solarKwh: number;
-  /** The design yield those arrays were bought on, over the same window. */
-  expectedSolarKwh: number;
-  /** Actual against design, `0`–`1`+. Below 0.9 is below the P90 band. */
-  solarYield: number;
   gensetKwh: number;
   litres: number;
   /** Solar's share of off-grid generation, `0`–`1`. */
@@ -550,14 +601,13 @@ export const estateEnergy = (
   ratedKwBySite: Record<string, number>,
 ): EstateEnergy => {
   let solarKwh = 0;
-  let expectedSolarKwh = 0;
   let gensetKwh = 0;
   let litres = 0;
   let hybridSites = 0;
   let solarSites = 0;
   let dieselSites = 0;
 
-  for (const seed of SITE_SEED) {
+  for (const seed of siteSeeds()) {
     const role = roles[seed.id] ?? seed.powerRole;
     if (role === 'GRID_BACKUP') continue;
 
@@ -567,7 +617,6 @@ export const estateEnergy = (
 
     const energy = siteEnergy(seed, role, ratedKwBySite[seed.id] ?? 0);
     solarKwh += energy.solarKwh;
-    expectedSolarKwh += energy.expectedSolarKwh;
     gensetKwh += energy.gensetKwh;
     litres += energy.litres;
   }
@@ -579,15 +628,13 @@ export const estateEnergy = (
     solarSites,
     dieselSites,
     solarKwh,
-    expectedSolarKwh,
-    solarYield: expectedSolarKwh > 0 ? solarKwh / expectedSolarKwh : 0,
     gensetKwh,
     litres,
     solarShare: generation > 0 ? solarKwh / generation : 0,
   };
 };
 
-// ─── The benchmark chart's series ────────────────────────────────────────────
+// ─── The generation chart's series ───────────────────────────────────────────
 
 /**
  * How much of a year's irradiance falls in each month, as a multiple of the
@@ -595,9 +642,9 @@ export const estateEnergy = (
  *
  * Malaysia's seasonality is mild and it is real: the north-east monsoon takes
  * November and December down about a tenth, and February and March are the best
- * months of the year. A design simulation reports its P50 **month by month** for
- * exactly this reason, and a benchmark drawn as one flat line across the year
- * would put every site under its number every December and over it every March.
+ * months of the year. It is stated month by month for exactly this reason: one
+ * flat annual rate would make every site look poor every December and strong
+ * every March, when all that has changed is the sky.
  *
  * The twelve factors sum to 12, so a year of them comes to the same total as
  * twelve months at the annual-average rate. That is what keeps the chart's yearly
@@ -612,22 +659,17 @@ const DAYS_IN_MONTH = (year: number, month: number): number =>
 /**
  * One bar on a generation chart, at whatever grain the chart is drawn at.
  *
- * `expectedKwh` is **nullable and that is the whole point of this type.** The
- * design benchmark is a monthly figure — a PVSyst run reports twelve numbers for
- * a year and nothing finer — so at a daily grain there is no design to compare
- * against, and the honest answer is a chart with one series on it rather than a
- * second series interpolated to fill the space. SolarIQ settled this the same way
- * after trying to draw a daily benchmark line, and the Raeo dashboard carries it
- * as a per-range `HAS_DESIGN_BENCHMARK` flag.
+ * One series and one only. This type used to carry a nullable `expectedKwh`
+ * beside the measurement, and every chart, caption and legend downstream of it
+ * had a second, conditional half. All of it is gone: the charts draw **what the
+ * array made**, and nothing on screen holds that up against a target.
  *
- * `SolarMonth` is the monthly case, where the figure always exists, so a
- * `SolarMonth` is usable anywhere a `SolarBucket` is asked for.
+ * `SolarMonth` is the monthly case, so a `SolarMonth` is usable anywhere a
+ * `SolarBucket` is asked for.
  */
 export type SolarBucket = {
   at: string;
   label: string;
-  /** The design's figure for this bucket, or `null` where the design has none. */
-  expectedKwh: number | null;
   actualKwh: number;
   inProgress: boolean;
 };
@@ -637,18 +679,15 @@ export type SolarMonth = {
   at: string;
   /** `Mar`, and `Mar 26` in January so a twelve-month axis reads unambiguously. */
   label: string;
-  /** The design's P50 for this month. */
-  expectedKwh: number;
   /** What the array made. Partial in the running month. */
   actualKwh: number;
   /**
    * This month is still running.
    *
-   * Carried rather than inferred by the chart, because **an in-progress month must
-   * not enter a benchmark comparison**: a month that is eleven days old has made
-   * eleven days of energy against a whole month of design, and reporting that as a
-   * 64% shortfall is a chart lying about a plant that is fine. It is drawn, hatched,
-   * and left out of every total.
+   * Carried rather than inferred by the chart, because a month eleven days old
+   * has made eleven days of energy and stands next to eleven whole ones. It is
+   * drawn hatched and left out of every total, so a reader is never invited to
+   * compare it with the bar beside it.
    */
   inProgress: boolean;
 };
@@ -658,23 +697,81 @@ export type SolarMonth = {
  * `null` for one that never did.
  *
  * The reason the chart is worth drawing rather than tabulating. An array that has
- * been at 84% of design all year is a commissioning problem; one that was at 100%
- * until May and 70% since is a fault with a date on it, and somebody can go and
- * look at what happened that month. The two are the same annual figure and
- * completely different jobs, and only the series tells them apart.
+ * been flat all year is one thing; one that ran at a level until May and has been
+ * a fifth below it since is a fault with a date on it, and somebody can go and
+ * look at what happened that month.
  *
- * Sites within a few points of their design never stepped: their variance is
- * weather, and inventing an event for it would put a date on noise.
+ * Arrays in good shape never stepped: their month-to-month wobble is weather, and
+ * inventing an event for it would put a date on noise.
  */
 const healthOnsetMonth = (seed: SiteSeed, health: number): number | null =>
   health > 0.95 ? null : 3 + Math.floor(spread(seed.id, 'hybrid/onset') * 6);
 
 /**
- * Twelve months of design against measurement, oldest first.
+ * The step in this array's output: when it happened, and how deep it is.
  *
- * Monthly and no finer. That is the design's own maximum fidelity — a P50 is
- * simulated month by month and a daily benchmark line is a resolution the report
- * never had — and it is the rule SolarIQ settled on after trying to draw one.
+ * Exported because the **fault model reads it**. `darkStrings` in the solar
+ * module turns the depth of the step into a count of strings and puts them on one
+ * inverter, and the health band dates its string alert from `label`. Handing both
+ * the seeded fact directly is what keeps the count, the date and the shape of the
+ * series three readings of one event rather than three derivations of it.
+ *
+ * `depth` is `0`–`1`: the share of output the array lost at the step. An array
+ * that never stepped returns `undefined` rather than a depth of zero — those are
+ * different claims, and only one of them dates a fault.
+ */
+export type SolarStep = {
+  /** First of the month it stepped, ISO. */
+  at: string;
+  /** `Mar` — the same label the series uses, so the two cannot disagree. */
+  label: string;
+  depth: number;
+};
+
+/**
+ * How far output has to drop before the drop is a **fault** rather than a dip.
+ *
+ * `healthOnsetMonth` fires at anything below 0.95, and that is the right gate for
+ * the *series*: an array a few points off should visibly sag, because arrays do.
+ * It is the wrong gate for the fault model. Month-to-month weather here runs
+ * ±7%, so a 4% step is inside the noise — calling it dark strings would put a
+ * fault with an address on every array on the estate, which is exactly what it
+ * did when this threshold was missing.
+ *
+ * A tenth is the line, and it is the one the old design comparison drew from the
+ * other side: a month more than a tenth short that never recovered. The test has
+ * moved from reading a quotient back off the series to asking the seed, and the
+ * threshold came with it so the estate reads the same.
+ */
+const STEP_IS_A_FAULT = 0.1;
+
+export const solarStep = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  now: number = Date.now(),
+): SolarStep | undefined => {
+  if (!hasSolar(role)) return undefined;
+
+  const health = solarPerformance(seed, role);
+  const onset = healthOnsetMonth(seed, health);
+  if (onset === null) return undefined;
+
+  const depth = Math.max(0, 1 - health);
+  if (depth < STEP_IS_A_FAULT) return undefined;
+
+  const months = solarMonths(seed, role, now);
+  const month = months[onset];
+  if (month === undefined) return undefined;
+
+  return {at: month.at, label: month.label, depth};
+};
+
+/**
+ * Twelve months of generation, oldest first.
+ *
+ * Monthly and no finer at this level, because that is the grain the seasonality
+ * is stated at — `MONTH_FACTOR` — and the daily series below is derived from
+ * these totals rather than dealt beside them.
  */
 export const solarMonths = (
   seed: SiteSeed,
@@ -699,14 +796,14 @@ export const solarMonths = (
     const days = DAYS_IN_MONTH(year, month);
     const inProgress = index === 11;
 
-    const expectedKwh = Math.round(
-      plant.solarKwp * sunHours * PERFORMANCE_RATIO * days * MONTH_FACTOR[month],
-    );
+    // What this much glass raises in an ordinary month of this month's weather.
+    // Local: it is the generator of the figure below and is never published.
+    const baseKwh = plant.solarKwp * sunHours * PERFORMANCE_RATIO * days * MONTH_FACTOR[month];
 
-    // Weather on top of the design, and health underneath it. The two are
-    // deliberately separate multipliers: one is a month that was cloudier than the
-    // simulation assumed, the other is the array itself, and a chart that folded
-    // them together could not answer the only question it is asked.
+    // Weather on top, health underneath. The two stay separate multipliers: one is
+    // a month that was cloudier than usual and the other is the array itself, and
+    // folding them together would lose the *step* — the one shape in this series
+    // that means somebody should go and look.
     const weather = spreadBetween(seed.id, `hybrid/weather-${year}-${month}`, 0.93, 1.07);
     const healthNow = onset === null || index < onset ? 1 : health;
 
@@ -721,8 +818,7 @@ export const solarMonths = (
         month === 0
           ? `${cursor.toLocaleDateString('en-MY', {month: 'short'})} ${String(year).slice(2)}`
           : cursor.toLocaleDateString('en-MY', {month: 'short'}),
-      expectedKwh,
-      actualKwh: Math.round(expectedKwh * weather * healthNow * elapsed),
+      actualKwh: Math.round(baseKwh * weather * healthNow * elapsed),
       inProgress,
     });
   }
@@ -737,8 +833,8 @@ export const solarMonths = (
  * at four and is unreadable at forty: a page of thumbnails nobody can compare is
  * a worse answer than no chart. The summed series always draws in one frame,
  * whatever the estate does, and it answers the question the estate level actually
- * has — is the solar programme delivering what it was bought on — leaving *which
- * array* to the ranked strip beside it.
+ * has — how much the solar programme is generating — leaving *which array* to the
+ * ranked strip beside it.
  *
  * Months are keyed by position rather than by date, which is safe because every
  * site's series is built from the same clock in the same call and is therefore
@@ -748,7 +844,7 @@ export const estateSolarMonths = (
   roles: Record<string, SitePowerRole>,
   now: number = Date.now(),
 ): Array<SolarMonth> => {
-  const series = SITE_SEED.map((seed) =>
+  const series = siteSeeds().map((seed) =>
     solarMonths(seed, roles[seed.id] ?? seed.powerRole, now),
   ).filter((months) => months.length > 0);
 
@@ -758,65 +854,10 @@ export const estateSolarMonths = (
     at: month.at,
     label: month.label,
     inProgress: month.inProgress,
-    expectedKwh: series.reduce((sum, months) => sum + months[index].expectedKwh, 0),
     actualKwh: series.reduce((sum, months) => sum + months[index].actualKwh, 0),
   }));
 };
 
-export type SolarYear = {
-  expectedKwh: number;
-  actualKwh: number;
-  /** `(actual − expected) ÷ expected` across the closed months. */
-  variance: number;
-  /** The month the array stepped down, or `undefined` where it never did. */
-  onsetLabel: string | undefined;
-};
-
-/**
- * The twelve-month position, over **closed months only**.
- *
- * The running month is excluded from both totals rather than from one of them.
- * Dropping its actual and keeping its design would report a shortfall the size of
- * the month so far, which is the specific way this comparison goes wrong.
- */
-export const solarYear = (months: Array<SolarMonth>): SolarYear => {
-  const closed = months.filter((month) => !month.inProgress);
-  const expectedKwh = closed.reduce((sum, month) => sum + month.expectedKwh, 0);
-  const actualKwh = closed.reduce((sum, month) => sum + month.actualKwh, 0);
-
-  // The first month that fell more than a tenth short and never recovered — the
-  // step, read back off the series rather than off the seed that produced it, so
-  // the label and the bars cannot disagree.
-  const onset = closed.findIndex(
-    (month, index) =>
-      month.actualKwh < month.expectedKwh * 0.9 &&
-      closed.slice(index).every((later) => later.actualKwh < later.expectedKwh * 0.95),
-  );
-
-  return {
-    expectedKwh,
-    actualKwh,
-    variance: expectedKwh > 0 ? (actualKwh - expectedKwh) / expectedKwh : 0,
-    onsetLabel: onset > 0 ? closed[onset].label : undefined,
-  };
-};
-
-/**
- * The same position over the **last few closed months** rather than the year.
- *
- * The operational question and the reporting question are different, and only one
- * of them is answered by an annual figure. An array that ran at its number until
- * March and has been at 84% since is at **92% for the year**, which is inside the
- * P90 band and therefore invisible to any annual test — while the fault is
- * present, ongoing and costing diesel every month.
- *
- * So "which arrays need a visit" is asked of the recent window and "how did the
- * programme do" is asked of the year. Three months is the shortest window that
- * survives one dull month: two would put an array on the list for weather, and
- * six would take half a year to notice a string tripping.
- */
-export const solarRecent = (months: Array<SolarMonth>, window = 3): SolarYear =>
-  solarYear(months.filter((month) => !month.inProgress).slice(-window));
 
 // ─── The daily grain ─────────────────────────────────────────────────────────
 
@@ -846,10 +887,6 @@ const dayWeight = (siteId: string, at: Date): number =>
 
 /**
  * Daily generation across a window, oldest first.
- *
- * `expectedKwh` is `null` on every bucket, and deliberately: see `SolarBucket`.
- * The design has no daily figure, so this chart is one series and says so by
- * drawing one.
  *
  * Today is marked `inProgress` for the same reason the running month is — the sun
  * has not finished setting on it — so it is hatched and left out of any total.
@@ -907,7 +944,6 @@ export const solarDays = (
     buckets.push({
       at: day.toISOString(),
       label: day.toLocaleDateString('en-MY', {day: 'numeric', month: 'short'}),
-      expectedKwh: null,
       actualKwh: Math.round((total / elapsed / weightSum) * dayWeight(seed.id, day) * arrived),
       inProgress: isToday,
     });
@@ -960,7 +996,7 @@ export const estateTodaySoFarKwh = (
   roles: Record<string, SitePowerRole>,
   now: number = Date.now(),
 ): number =>
-  SITE_SEED.reduce(
+  siteSeeds().reduce(
     (sum, seed) => sum + todaySoFarKwh(seed, roles[seed.id] ?? seed.powerRole, now),
     0,
   );
@@ -976,12 +1012,9 @@ export type SolarPoint = {
   /**
    * What this array does at this time on an ordinary day lately, kW.
    *
-   * **The array's own baseline, and never the design.** SolarIQ keeps these two
-   * apart deliberately and so does this: a design P50 answers "is it meeting what
-   * it was sold as" and only exists monthly, while an own-baseline answers "has
-   * this thing changed" and is built from the array's own recent output. Drawing
-   * a design figure here would mean interpolating a monthly number down to
-   * half-hours, which is the thing the whole benchmark rule exists to prevent.
+   * **The array's own baseline.** Built from the array's own recent output, so
+   * it answers "has this thing changed" — the only comparison a half-hourly curve
+   * can honestly carry, and the only one this app makes anywhere.
    */
   typicalKw: number;
 };
@@ -1035,7 +1068,7 @@ export const estateSolarIntraday = (
   roles: Record<string, SitePowerRole>,
   now: number = Date.now(),
 ): Array<SolarPoint> => {
-  const series = SITE_SEED.map((seed) =>
+  const series = siteSeeds().map((seed) =>
     solarIntraday(seed, roles[seed.id] ?? seed.powerRole, now),
   ).filter((points) => points.length > 0);
 
@@ -1053,42 +1086,6 @@ export const estateSolarIntraday = (
   }));
 };
 
-/**
- * A series turned into running totals.
- *
- * Both halves accumulate together and the design half stops accumulating where it
- * stops existing, so a range with no benchmark yields a single cumulative line
- * rather than one line and a flat one pretending to be a target.
- */
-export type SolarCumulativePoint = {
-  at: string;
-  label: string;
-  actualKwh: number;
-  expectedKwh: number | null;
-  inProgress: boolean;
-};
-
-export const cumulative = (buckets: Array<SolarBucket>): Array<SolarCumulativePoint> => {
-  let actual = 0;
-  let expected = 0;
-  let hasExpected = false;
-
-  return buckets.map((bucket) => {
-    actual += bucket.actualKwh;
-    if (bucket.expectedKwh !== null) {
-      expected += bucket.expectedKwh;
-      hasExpected = true;
-    }
-    return {
-      at: bucket.at,
-      label: bucket.label,
-      actualKwh: actual,
-      expectedKwh: hasExpected ? expected : null,
-      inProgress: bucket.inProgress,
-    };
-  });
-};
-
 /** Every array's days added together, for the portfolio chart. */
 export const estateSolarDays = (
   roles: Record<string, SitePowerRole>,
@@ -1096,7 +1093,7 @@ export const estateSolarDays = (
   toMs: number,
   now: number = Date.now(),
 ): Array<SolarBucket> => {
-  const series = SITE_SEED.map((seed) =>
+  const series = siteSeeds().map((seed) =>
     solarDays(seed, roles[seed.id] ?? seed.powerRole, fromMs, toMs, now),
   ).filter((days) => days.length > 0);
 

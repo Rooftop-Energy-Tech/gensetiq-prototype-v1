@@ -3,6 +3,7 @@ import type {FleetStatus} from '@/modules/genset/data/fleetStatus';
 import type {Tally} from '@/modules/genset/data/fleetSummary';
 import {CUSTOMERS} from './customers';
 import type {CustomerId} from './customers';
+import {PROGRAMS} from './programs';
 import type {SiteSummary} from './sites';
 import {SITE_POWER_ROLE_LABEL, SITE_POWER_ROLES} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
@@ -38,6 +39,17 @@ import type {SitePowerRole} from '../types/site.type';
 export const siteStatus = (summary: SiteSummary): FleetStatus =>
   worstStatus(summary.gensets.map(({genset}) => gensetStatus(genset)));
 
+/**
+ * The key a site with no programme is counted and filtered under.
+ *
+ * A sentinel string rather than `null`, because this value travels in the URL and
+ * `?program=` — the shape an absent filter already has — cannot also mean "filter to
+ * the unfiled ones". `none` is not a legal programme id in any dataset, so there is
+ * nothing for it to collide with, and it lets the chip's key be exactly the value
+ * the link carries.
+ */
+export const NO_PROGRAM_FILTER = 'none';
+
 export type EstateSummary = {
   total: number;
   /** Sets standing across the estate, so the headline can carry both figures. */
@@ -46,6 +58,21 @@ export type EstateSummary = {
   /** The four buckets, worst first. Always all four — see `fleetSummary`. */
   byStatus: Array<Tally<FleetStatus>>;
   byCustomer: Array<Tally<CustomerId>>;
+  /**
+   * By rollout programme, with **`null` for the sites in none** — and that entry is
+   * the reason this is not just another `byCustomer`.
+   *
+   * Every other grouping on this card row partitions the estate into named buckets
+   * a site must belong to exactly one of. A programme does not: it is a line the
+   * operator drew, and a site nobody has filed is genuinely outside every line.
+   * Dropping those sites would make the tallies sum to less than the estate with
+   * nothing on screen to say why, so `Unassigned` is a bucket like any other and
+   * filters like one.
+   *
+   * Empty on an estate whose dataset declares no programmes at all, which is what
+   * withholds the card rather than showing one row reading `Unassigned 25`.
+   */
+  byProgram: Array<Tally<string>>;
 };
 
 
@@ -60,6 +87,7 @@ export const estateSummary = (
     SOLAR_HYBRID: 0,
   };
   const customerCounts = new Map<CustomerId, number>();
+  const programCounts = new Map<string, number>();
   const statusCounts: Record<FleetStatus, number> = {EMPTY: 0, ALARM: 0, REFUEL: 0, OK: 0};
   let gensetCount = 0;
 
@@ -73,6 +101,9 @@ export const estateSummary = (
 
     const account = summary.site.customer;
     customerCounts.set(account, (customerCounts.get(account) ?? 0) + 1);
+
+    const filed = summary.site.program ?? NO_PROGRAM_FILTER;
+    programCounts.set(filed, (programCounts.get(filed) ?? 0) + 1);
 
     statusCounts[siteStatus(summary)] += 1;
   }
@@ -96,6 +127,25 @@ export const estateSummary = (
       label: account.shortName,
       count: customerCounts.get(account.id) ?? 0,
     })).filter((tally) => tally.count > 0),
+    // `Unassigned` last and included only when it holds something — it is the
+    // bucket for sites outside every programme, not a permanent zero-row reminder
+    // that the concept exists. The whole card disappears on an estate with no
+    // programmes, which is what the empty roster does on its own.
+    byProgram:
+      PROGRAMS.length === 0
+        ? []
+        : [
+            ...PROGRAMS.map((entry) => ({
+              key: entry.id,
+              label: entry.shortName,
+              count: programCounts.get(entry.id) ?? 0,
+            })),
+            {
+              key: NO_PROGRAM_FILTER,
+              label: 'Unassigned',
+              count: programCounts.get(NO_PROGRAM_FILTER) ?? 0,
+            },
+          ].filter((tally) => tally.count > 0),
   };
 };
 
@@ -104,7 +154,13 @@ export type SiteFilters = {
   customer?: string;
   role?: SitePowerRole;
   status?: FleetStatus;
+  /**
+   * A programme id, or `NO_PROGRAM_FILTER` for the sites filed under none.
+   */
+  program?: string;
 };
+
+
 
 /**
  * The chips, applied to the estate — `filterGensets`'s counterpart, and separate
@@ -122,5 +178,9 @@ export const filterSites = (
       return false;
     }
     if (filters.status !== undefined && siteStatus(summary) !== filters.status) return false;
+    if (filters.program !== undefined) {
+      const filed = summary.site.program ?? NO_PROGRAM_FILTER;
+      if (filed !== filters.program) return false;
+    }
     return true;
   });

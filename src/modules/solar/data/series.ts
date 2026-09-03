@@ -7,7 +7,7 @@ import {
 import type {SolarBucket} from '@/modules/site/data/hybrid';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import type {SiteSeed} from '@/modules/site/data/siteSeed';
-import {HAS_DESIGN_BENCHMARK, SOLAR_RANGE_GRAIN, parseDateParam} from '../types/range.type';
+import {SOLAR_RANGE_GRAIN, parseDateParam} from '../types/range.type';
 import type {SolarRange} from '../types/range.type';
 
 /**
@@ -22,8 +22,6 @@ export type ResolvedRange = {
   fromMs: number;
   toMs: number;
   grain: 'day' | 'month';
-  /** Whether the design P50 exists at this grain — see `HAS_DESIGN_BENCHMARK`. */
-  benchmark: boolean;
   /** `19 Jul 2026 – 18 Aug 2026`, for the caption beside the chart title. */
   caption: string;
   /** True for the whole-twelve-month view, which is not a clipped window. */
@@ -53,7 +51,6 @@ export const resolveRange = (
         fromMs: now - 29 * DAY,
         toMs: now,
         grain: 'day',
-        benchmark: false,
         caption: 'Pick a date range',
         wholeYear: false,
       };
@@ -65,12 +62,8 @@ export const resolveRange = (
       fromMs: start,
       toMs: end,
       // Above about ten weeks the daily bars are thinner than the gaps between
-      // them, so the same window is drawn monthly instead. The benchmark still
-      // does not appear: a hand-drawn span is almost never a whole number of
-      // months, and half of March against all of March's design is a shortfall
-      // the array did not have.
+      // them, so the same window is drawn monthly instead.
       grain: end - start > 70 * DAY ? 'month' : 'day',
-      benchmark: false,
       caption: `${stamp(start)} – ${stamp(end)}`,
       wholeYear: false,
     };
@@ -83,7 +76,6 @@ export const resolveRange = (
     fromMs: grain === 'day' ? now - (days - 1) * DAY : now,
     toMs: now,
     grain,
-    benchmark: HAS_DESIGN_BENCHMARK[range],
     caption:
       grain === 'month'
         ? 'Twelve months to today'
@@ -92,27 +84,17 @@ export const resolveRange = (
   };
 };
 
-/**
- * Months clipped to the window, with the design stripped where the range has none.
- *
- * The stripping is what makes `HAS_DESIGN_BENCHMARK` real rather than a note: a
- * custom span drawn at the monthly grain still gets no benchmark, because the
- * bucket handed to the chart carries `expectedKwh: null` and the chart draws what
- * it is given.
- */
+/** Months clipped to the window the reader asked for. */
 const monthsWithin = (
   months: Array<SolarBucket>,
   resolved: ResolvedRange,
-): Array<SolarBucket> => {
-  const within = resolved.wholeYear
+): Array<SolarBucket> =>
+  resolved.wholeYear
     ? months
     : months.filter((month) => {
         const at = new Date(month.at).getTime();
         return at >= resolved.fromMs && at <= resolved.toMs;
       });
-
-  return resolved.benchmark ? within : within.map((month) => ({...month, expectedKwh: null}));
-};
 
 /** The portfolio's buckets at a resolved range. */
 export const estateSeries = (

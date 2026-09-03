@@ -15,7 +15,7 @@
 
 import type {RunState} from '@/modules/genset/types/genset.type';
 import type {MeterFeed} from '@/modules/meter/types/meter.type';
-import type {CustomerId, SiteKindId} from '@/brands';
+import type {CustomerId, ProgramId, SiteKindId} from '@/brands';
 
 /**
  * What kind of network asset this site is.
@@ -173,12 +173,24 @@ export type Site = {
    * On the site and not on the genset, which is what makes "how many sets in Sarawak"
    * answerable without a machine having to carry an owner around with it.
    *
-   * The **power role is deliberately not here.** It is seeded beside this one, but a
-   * reader can flip it at any moment, so it is read live through
-   * `siteConfig.ts` rather than baked into the summary a site was built with. A copy
-   * on this object would be the stale one within a click.
+   * The **power role is deliberately not here.** Every other field on this object is
+   * something the page *reports*; the role selects which circuit the page **draws**,
+   * and the components that draw it take it as a prop so `SiteDiagram` can stay a
+   * pure function of `(summary, dutyId, role)` — which is what lets the settings tab
+   * render the same circuit twice, one role each, as a preview. It is read live
+   * through `siteConfig.ts`. See `SitePowerRole`.
    */
   customer: CustomerId;
+  /**
+   * The rollout programme this site is filed under, or `undefined` for none.
+   *
+   * A **grouping and nothing else** — no figure on any screen derives from it. It
+   * is here rather than beside the power role in the config store for the reason
+   * `customer` is: it is a fact the summary *reports*, and every screen that groups
+   * sites needs it from the same pass that gave it the region. See `programs.ts`
+   * for why it is a separate axis from the region rather than a second name for it.
+   */
+  program: ProgramId | undefined;
 };
 
 /**

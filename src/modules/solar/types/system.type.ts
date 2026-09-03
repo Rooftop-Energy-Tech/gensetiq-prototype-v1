@@ -88,10 +88,10 @@ export type Inverter = {
  *  - **It is the unit people name.** Nobody says "we have twenty-two inverters";
  *    they say "we have a 1.3 MW system". `kwp` is what a quote, a contract and a
  *    commissioning certificate are written against.
- *  - **It is the unit the design belongs to.** A P50 is simulated for a site's
- *    plant, and its yield against that design attaches here. Per-inverter
- *    yield means nothing unless a box happens to map onto one plane, which is a
- *    coincidence rather than a rule.
+ *  - **It is the unit generation is reported at.** The energy model sizes and
+ *    runs a site's whole plant, so the monthly series, the day's kWh and the
+ *    step-down all attach here. Per-inverter energy means nothing unless a box
+ *    happens to map onto one plane, which is a coincidence rather than a rule.
  *  - **It is the unit that survives.** Inverters are implementation: swap one and
  *    the system is the same system, with the same contract and the same history.
  *
@@ -122,6 +122,21 @@ export type SolarSystem = {
   inverters: Array<Inverter>;
   /** Strings across every inverter. */
   strings: number;
+  /**
+   * How many modules are on the roof, and what each is rated at.
+   *
+   * The design's home page asks for `Number of panels`, and nothing in the model
+   * answered it — so it is derived here from `kwp` at one module rating, exactly as
+   * `strings` is derived from the DC behind each box. It is not seeded: a module
+   * count stated independently of the capacity is a number that can disagree with
+   * the thing it is a count of, and this estate's arithmetic is built so that
+   * cannot happen.
+   *
+   * `moduleWatts` travels with it so a page can say *248 × 580 W* rather than
+   * quoting a bare count a reader has no way to check.
+   */
+  modules: number;
+  moduleWatts: number;
   /** How many of those are dark, for a reason other than the hour. */
   downStrings: number;
   commissionedAt: string;

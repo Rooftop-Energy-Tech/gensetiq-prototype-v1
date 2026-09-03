@@ -24,16 +24,12 @@ import type {SolarPoint} from '../data/hybrid';
  * afternoon reports an array that has failed, which at ten in the morning is
  * every array on the estate.
  *
- * ## What the second line is, and what it is not
+ * ## What the second line is
  *
- * It is the array's **own recent normal** — this month's energy spread over this
- * month's days, in the same shape — and it is deliberately not the design P50.
- * SolarIQ keeps those two apart because they answer different questions: an
- * own-baseline says "has this thing changed", a benchmark says "is it meeting
- * what it was sold as". The benchmark also only exists monthly, so drawing one
- * here would mean interpolating it down to half-hours, which is the thing the
- * whole benchmark rule exists to prevent. The legend says `Typical day` for the
- * same reason.
+ * The array's **own recent normal** — this month's energy spread over this
+ * month's days, in the same shape. It answers "has this thing changed", which is
+ * the only comparison a half-hourly curve can carry honestly, and the legend says
+ * `Typical day` rather than anything that sounds like a target.
  */
 
 const HEIGHT = 150;

@@ -61,6 +61,8 @@ type FleetSeed = {
    * distinction exists for — a set turning beside a healthy grid.
    */
   startReason?: StartReason;
+  /** Road registration, when the machine has one. Most do not. */
+  plateNumber?: string;
   /**
    * The site this unit stands at. Sites are derived from this column rather than
    * seeded separately — see `modules/site/data/sites.ts`.
@@ -175,6 +177,9 @@ const buildFleet = (): Array<Genset> => {
     // The seed's default. Resolved here rather than left optional on `Genset`, so
     // no reader has to know that a missing reason means an outage.
     startReason: seed.startReason ?? 'OUTAGE',
+    // Absent in the seed becomes `null` here rather than staying undefined, so the
+    // details block asks one question — is there a plate — instead of two.
+    plateNumber: seed.plateNumber ?? null,
     fuelLitres: seed.fuelLitres,
     fuelCapacityLitres: seed.fuelCapacityLitres,
     siteId: seed.siteId,

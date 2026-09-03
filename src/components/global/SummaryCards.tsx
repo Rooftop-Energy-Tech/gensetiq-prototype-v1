@@ -1,5 +1,6 @@
 import {ChevronDownIcon, ChevronUpIcon, SlidersHorizontalIcon} from 'lucide-react';
-import type {ReactNode} from 'react';
+import {Children} from 'react';
+import type {CSSProperties, ReactNode} from 'react';
 
 import {cn} from '@/lib/utils';
 
@@ -32,16 +33,69 @@ type SummaryCardRowProps = {
   id?: string;
 };
 
+/**
+ * How many of the leading cards are held to a narrow, capped column.
+ *
+ * The first three on both screens are a headline and two blocks of `block` chips —
+ * a label hard left, a count hard right — and they are done at 13rem. Everything
+ * after them is a **wrapping** chip list (the regions, the programmes), which is the
+ * one shape here that turns extra width into fewer lines rather than into gap.
+ */
+const CAPPED_COLUMNS = 3;
+
+/**
+ * The `xl` column template for however many cards the caller passed.
+ *
+ * Derived from the child count rather than taken as a prop, because the count is
+ * **not fixed**: the sites strip's `By programme` card is withheld on an estate
+ * whose dataset declares no programmes, so it renders four cards or five. A prop
+ * would make every caller restate that condition, and the day a sixth card lands
+ * the template and the children would disagree — which is exactly the bug this
+ * replaces. A four-card row gets the identical template it always had.
+ */
+const columnTemplate = (count: number): string => {
+  const capped = Math.min(CAPPED_COLUMNS, count);
+  const slack = Math.max(0, count - capped);
+
+  return [
+    capped > 0 ? `repeat(${capped}, minmax(9rem, 13rem))` : undefined,
+    ...Array.from({length: slack}, () => 'minmax(0, 1fr)'),
+  ]
+    .filter((part) => part !== undefined)
+    .join(' ');
+};
+
 export const SummaryCardRow = ({children, collapsed = false, id}: SummaryCardRowProps) => (
-  // Three fixed-ish cards and one that takes the slack, because the customer card
-  // holds a wrapping chip list and the other three hold two or three rows each.
-  // Below `xl` they stack two-up rather than squeezing four across — at 1280px
-  // with the detail panel open, four cards would each be narrower than the number
+  // Capped cards first, then one slack column per wrapping chip list — see
+  // `columnTemplate`. The template used to be a literal four columns, which put a
+  // fifth card on a second row on its own the moment `By programme` appeared.
+  //
+  // Below `xl` they stack two-up rather than squeezing the lot across — at 1280px
+  // with the detail panel open, five cards would each be narrower than the number
   // they carry.
   <div
     id={id}
+    // A custom property rather than an inline `gridTemplateColumns`, because the
+    // template must apply at `xl` and nowhere else and an inline style cannot be
+    // scoped to a breakpoint. The variable is always set; only `xl` reads it.
+    style={
+      {
+        '--summary-columns': columnTemplate(Children.toArray(children).length),
+      } as CSSProperties
+    }
     className={cn(
-      'grid grid-cols-2 gap-3 xl:grid-cols-[repeat(3,minmax(9rem,13rem))_minmax(0,1fr)]',
+      'grid grid-cols-2 gap-3 xl:grid-cols-[var(--summary-columns)]',
+      // An odd number of cards leaves the last one alone in a two-up stack, so it
+      // takes the whole row rather than half of it with a hole beside it.
+      //
+      // `max-xl:` rather than an unprefixed rule plus an `xl:` reset, and that is not
+      // a style preference — a media query adds no specificity, so
+      // `xl:[&>*:last-child]:col-span-1` (two classes) loses to
+      // `[&>*:last-child:nth-child(odd)]:col-span-2` (three) and the fifth card keeps
+      // its span into the one-row layout, needing a sixth track and wrapping to a
+      // second row: the exact bug this whole change is fixing. Bounding the rule to
+      // below `xl` means there is nothing to reset and nothing to out-specify.
+      'max-xl:[&>*:last-child:nth-child(odd)]:col-span-2',
       // `hidden md:grid`, not a bare `hidden`: the fold is a phone affordance and the
       // button driving it does not exist above `md`, so a desktop has to render the
       // strip whatever state the flag happens to hold. Kept in CSS for the reason

@@ -15,7 +15,7 @@ import type {InverterReading} from '../../types/reading.type';
  * explains why: a reader has to be able to tell at a glance which rows are the
  * panel talking and which are the app's own arithmetic. A PV system has no
  * register sheet, and some of these rules are this app reasoning over a design no
- * inverter has ever seen. `Inverter` / `Design benchmark` / `Service schedule` in
+ * inverter has ever seen. `Inverter` / `Generation series` / `Service schedule` in
  * the corner is doing the register's job.
  *
  * The **box's name leads the card** wherever there is one. On a ten-inverter

@@ -17,27 +17,23 @@ import type {LucideIcon} from 'lucide-react';
  * Only the screens that have a mobile layout are here. `Energy`, `Meters`,
  * `Refuel` and `Settings` are desktop-only in this prototype, and a nav item that
  * lands on a screen laid out for 1,280px would be worse than no item at all — the
- * point of a limited bar is that everything it offers works. The report's
- * `Overall` and `Genset` tabs are the clearest case: each is a wide table whose
- * whole job is comparison down a column, and there is no phone-width form of that
- * worth offering.
+ * point of a limited bar is that everything it offers works. `Meters` is the
+ * clearest case: it is a wide table whose whole job is comparison down a column,
+ * and there is no phone-width form of that worth offering.
  *
- * ## The bar points at one tab, not at the section
+ * ## Why the four are the four
  *
- * `Solar` **is** here, and it links straight to `/report/solar` rather than to
- * `/report`. That is deliberate. `SectionTabs` hides its strip below `md` for the
- * same reason this bar is four items long, so a phone sent to `/report` would
- * land on the one report it cannot read with no way to reach the one it can.
- * Naming the tab in the link is what keeps the rule — offer no door the app
- * cannot open — true through a section whose other doors are shut.
+ * Each is a **register** — a list, which is the one shape that reads at 390px.
+ * Everything below a register is a detail page with a 240px rail beside it, and
+ * the rail has no phone form at all (see `DetailSidebar`): a phone sent to
+ * `/solar/kdh-0431` gets the page but not its six sections. That is acceptable for
+ * a page you arrive at from a list you tapped; it would not be acceptable as a
+ * destination the bar offered directly.
  *
- * The short label survives the move: at this width it is the only solar screen on
- * offer, and the plant register at `/solar` is withheld because its system and
- * inverter pages have no phone layout. The report's cards are an `auto-fill` grid
- * that resolves to a single column at this width, and its charts were drawn for a
- * 44px slot, so the phone layout is the desktop one narrowed rather than a
- * desktop screen squeezed. Withholding it would have been withholding the screen
- * most likely to be opened by somebody standing at the foot of a tower.
+ * `Battery` is the one register not on the bar, and it is a judgement rather than
+ * a rule: five items is where a bar of this width starts squeezing labels, and of
+ * the five registers storage is the one whose page nobody opens standing at the
+ * foot of a tower. It is one tap away through the site.
  *
  * The routes themselves are untouched and still resolve if a URL is typed or
  * followed from a desktop link. What is withheld is *navigation to* them, which is

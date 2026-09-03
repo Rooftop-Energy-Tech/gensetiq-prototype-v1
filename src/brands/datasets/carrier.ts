@@ -1,16 +1,29 @@
 import type {BrandDataset} from '../types';
 
 /**
- * The carrier estate: **a mobile operator's own tower network**.
+ * The carrier estate: **a mobile operator's own tower network in Borneo**.
  *
- * Twenty-five base stations with a permanent power plant beside each, and
- * twenty-nine machines standing on them. Nothing here is a temporary supply and
- * nothing moves — the genset is bolted to a plinth at the foot of the tower and
- * has been for years, which is the assumption every screen in this build makes.
+ * Twenty-five base stations with a permanent power plant beside each, and thirty
+ * machines standing on them. Nothing here is a temporary supply and nothing moves —
+ * the genset is bolted to a plinth at the foot of the tower and has been for years,
+ * which is the assumption every screen in this build makes.
  *
- * Lifted verbatim from `site/data/siteSeed.ts` and `genset/data/fleet.ts`, where
- * it was the only estate the app could have. Values are unchanged; the comments
- * explaining each cluster came with it.
+ * ## Why the estate is in Sabah and Sarawak
+ *
+ * It used to be a peninsular network with a Borneo tail: eight sites in the Klang
+ * Valley, five up the north-west coast, and six across the sea as the interesting
+ * exception. That is a fair picture of where a Malaysian carrier's *traffic* is,
+ * and the wrong picture of where its **power problem** is. Every screen in this
+ * build is about diesel, batteries and arrays at towers a lorry has to reach, and
+ * on that estate the sites that had one were the minority.
+ *
+ * So the estate is now the rollout it is actually about — a Borneo build-out under
+ * two programmes, `Jendela SBH` and `Jendela SWK` — with **four peninsular sites
+ * kept**, one per remaining region. Those four are deliberate and not leftovers:
+ * they are the grid-backed city plant the Borneo sites are being compared against,
+ * they keep the region chips from collapsing to two entries, and they are the only
+ * sites in the estate filed under **no programme**, which is the state the
+ * settings picker has to be able to express.
  *
  * ## Why the data is here and not in the modules
  *
@@ -25,12 +38,36 @@ import type {BrandDataset} from '../types';
  * number in this prototype.
  */
 const CUSTOMERS = [
+  {id: 'sabah', name: 'Sabah Region', shortName: 'Sabah', peakSunHours: 3.4},
+  {id: 'sarawak', name: 'Sarawak Region', shortName: 'Sarawak', peakSunHours: 3.3},
   {id: 'northern', name: 'Northern Region', shortName: 'Northern', peakSunHours: 3.7},
   {id: 'central', name: 'Central Region', shortName: 'Central', peakSunHours: 3.5},
   {id: 'southern', name: 'Southern Region', shortName: 'Southern', peakSunHours: 3.5},
   {id: 'east-coast', name: 'East Coast Region', shortName: 'East Coast', peakSunHours: 3.4},
-  {id: 'sabah', name: 'Sabah Region', shortName: 'Sabah', peakSunHours: 3.4},
-  {id: 'sarawak', name: 'Sarawak Region', shortName: 'Sarawak', peakSunHours: 3.3},
+] as const;
+
+/**
+ * The two rollout programmes this estate's Borneo sites are filed under.
+ *
+ * A **grouping the operator draws**, and nothing derives from it — see
+ * `BrandProgram` for why region and programme are separate axes rather than one.
+ * They happen to line up with the two states here, which is what a state-scoped
+ * rollout looks like; the four peninsular sites are in neither, which is the case
+ * that stops a reader reading programme as a second name for region.
+ */
+const PROGRAMS = [
+  {
+    id: 'jendela-sbh',
+    name: 'Jendela Sabah',
+    shortName: 'Jendela SBH',
+    blurb: 'The Sabah coverage build — interior and island towers, most of them off-grid.',
+  },
+  {
+    id: 'jendela-swk',
+    name: 'Jendela Sarawak',
+    shortName: 'Jendela SWK',
+    blurb: 'The Sarawak coverage build — the Rajang corridor and the highland sites.',
+  },
 ] as const;
 
 /**
@@ -52,40 +89,46 @@ const SITE_KIND_LABELS = {
 } as const;
 
 const SITES = [
-  // — Klang Valley — the cluster in the map view, and where the grid-backed
-  //   sites are. A tower on a rooftop in the city has an incomer; the genset
-  //   beside it has run eleven hours this year.
-  {id: 'wpkl-0142', name: 'WPKL-0142', kind: 'MACRO',  locationLabel: 'Bukit Bintang, Kuala Lumpur',  latitude: 3.1466, longitude: 101.7108, loadKw: 6,   customer: 'central',    powerRole: 'GRID_BACKUP'},
-  {id: 'wpkl-0207', name: 'WPKL-0207', kind: 'CORE',   locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1109, longitude: 101.6640, loadKw: 205, customer: 'central',    powerRole: 'GRID_BACKUP'},
-  {id: 'wpkl-0355', name: 'WPKL-0355', kind: 'IBS',    locationLabel: 'KLCC, Kuala Lumpur',           latitude: 3.1578, longitude: 101.7117, loadKw: 11,  customer: 'central',    powerRole: 'GRID_BACKUP'},
-  {id: 'sel-0318',  name: 'SEL-0318',  kind: 'HUB',    locationLabel: 'Shah Alam, Selangor',          latitude: 3.0733, longitude: 101.5185, loadKw: 27,  customer: 'central',    powerRole: 'GRID_BACKUP'},
-  {id: 'sel-0491',  name: 'SEL-0491',  kind: 'MACRO',  locationLabel: 'Puchong, Selangor',            latitude: 3.0319, longitude: 101.6169, loadKw: 5,   customer: 'central',    powerRole: 'GRID_BACKUP'},
-  {id: 'sel-0664',  name: 'SEL-0664',  kind: 'MACRO',  locationLabel: 'Rawang, Selangor',             latitude: 3.3210, longitude: 101.5770, loadKw: 5,   customer: 'central',    powerRole: 'GRID_BACKUP'},
-  {id: 'sel-0812',  name: 'SEL-0812',  kind: 'RURAL',  locationLabel: 'Hulu Langat, Selangor',        latitude: 3.1590, longitude: 101.8710, loadKw: 4,   customer: 'central',    powerRole: 'SOLAR_HYBRID'},
-  {id: 'sel-0977',  name: 'SEL-0977',  kind: 'MACRO',  locationLabel: 'Sepang, Selangor',             latitude: 2.7150, longitude: 101.7060, loadKw: 6,   customer: 'central',    powerRole: 'DIESEL_HYBRID'},
-  // — Northern — the best sun on the estate, which is why three of the five
-  //   converted sites are here rather than spread evenly.
-  {id: 'png-0255',  name: 'PNG-0255',  kind: 'HUB',    locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, loadKw: 24,  customer: 'northern',   powerRole: 'GRID_BACKUP'},
-  {id: 'kdh-0431',  name: 'KDH-0431',  kind: 'MACRO',  locationLabel: 'Sungai Petani, Kedah',         latitude: 5.6470, longitude: 100.4870, loadKw: 5,   customer: 'northern',   powerRole: 'SOLAR_HYBRID'},
-  {id: 'kdh-0588',  name: 'KDH-0588',  kind: 'RURAL',  locationLabel: 'Sik, Kedah',                   latitude: 5.8210, longitude: 100.7420, loadKw: 4,   customer: 'northern',   powerRole: 'SOLAR_HYBRID'},
-  {id: 'prk-0713',  name: 'PRK-0713',  kind: 'MACRO',  locationLabel: 'Ipoh, Perak',                  latitude: 4.5975, longitude: 101.0901, loadKw: 6,   customer: 'northern',   powerRole: 'GRID_BACKUP'},
-  {id: 'prk-0846',  name: 'PRK-0846',  kind: 'RURAL',  locationLabel: 'Grik, Perak',                  latitude: 5.4290, longitude: 101.1290, loadKw: 4,   customer: 'northern',   powerRole: 'DIESEL_HYBRID'},
-  // — Southern and East Coast.
-  {id: 'jhr-0907',  name: 'JHR-0907',  kind: 'CORE',   locationLabel: 'Johor Bahru, Johor',           latitude: 1.4927, longitude: 103.7414, loadKw: 168, customer: 'southern',   powerRole: 'GRID_BACKUP'},
-  {id: 'jhr-1064',  name: 'JHR-1064',  kind: 'MACRO',  locationLabel: 'Kluang, Johor',                latitude: 2.0250, longitude: 103.3180, loadKw: 5,   customer: 'southern',   powerRole: 'DIESEL_HYBRID'},
-  {id: 'nsn-0492',  name: 'NSN-0492',  kind: 'MACRO',  locationLabel: 'Seremban, Negeri Sembilan',    latitude: 2.7297, longitude: 101.9381, loadKw: 5,   customer: 'southern',   powerRole: 'GRID_BACKUP'},
-  {id: 'phg-0788',  name: 'PHG-0788',  kind: 'RURAL',  locationLabel: 'Cameron Highlands, Pahang',    latitude: 4.4710, longitude: 101.3770, loadKw: 4,   customer: 'east-coast', powerRole: 'DIESEL_PRIME'},
-  {id: 'trg-0512',  name: 'TRG-0512',  kind: 'MACRO',  locationLabel: 'Kuala Terengganu, Terengganu', latitude: 5.3302, longitude: 103.1408, loadKw: 6,   customer: 'east-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'kel-0339',  name: 'KEL-0339',  kind: 'RURAL',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8820, longitude: 101.9670, loadKw: 4,   customer: 'east-coast', powerRole: 'DIESEL_PRIME'},
-  // — Sabah and Sarawak — the interior sites, where the diesel is trucked and
-  //   the case for converting one is strongest. Four of the six diesel sites on
-  //   the estate are here.
-  {id: 'sbh-1204',  name: 'SBH-1204',  kind: 'HUB',    locationLabel: 'Kota Kinabalu, Sabah',         latitude: 5.9804, longitude: 116.0735, loadKw: 22,  customer: 'sabah',      powerRole: 'GRID_BACKUP'},
-  {id: 'sbh-1377',  name: 'SBH-1377',  kind: 'RURAL',  locationLabel: 'Nabawan, Sabah',              latitude: 5.0620, longitude: 116.4370, loadKw: 3,   customer: 'sabah',      powerRole: 'DIESEL_PRIME'},
-  {id: 'sbh-1495',  name: 'SBH-1495',  kind: 'RURAL',  locationLabel: 'Pulau Banggi, Kudat',         latitude: 7.2717, longitude: 117.1782, loadKw: 4,   customer: 'sabah',      powerRole: 'SOLAR_HYBRID'},
-  {id: 'sbh-1612',  name: 'SBH-1612',  kind: 'MACRO',  locationLabel: 'Lahad Datu, Sabah',           latitude: 5.0269, longitude: 118.3270, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_HYBRID'},
-  {id: 'swk-0663',  name: 'SWK-0663',  kind: 'RURAL',  locationLabel: 'Kapit, Sarawak',              latitude: 2.0170, longitude: 112.9330, loadKw: 3,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME'},
-  {id: 'swk-0851',  name: 'SWK-0851',  kind: 'RURAL',  locationLabel: 'Belaga, Sarawak',             latitude: 2.7000, longitude: 113.7830, loadKw: 4,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME'},
+  // — Sabah (11), all under `Jendela SBH`. The west coast strip is grid-backed
+  //   and reads like any city network; everything inland or offshore of it is
+  //   not, which is where this estate earns its screens. Sepanggar is the state's
+  //   switching centre and the only Borneo site holding a pair of heavy sets.
+  {id: 'sbh-1058', name: 'SBH-1058', kind: 'CORE',   locationLabel: 'Sepanggar, Kota Kinabalu',    latitude: 6.0670, longitude: 116.1330, loadKw: 186, customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
+  {id: 'sbh-1204', name: 'SBH-1204', kind: 'HUB',    locationLabel: 'Kota Kinabalu, Sabah',        latitude: 5.9804, longitude: 116.0735, loadKw: 22,  customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
+  {id: 'sbh-1291', name: 'SBH-1291', kind: 'MACRO',  locationLabel: 'Tuaran, Sabah',               latitude: 6.1770, longitude: 116.2330, loadKw: 6,   customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
+  {id: 'sbh-1336', name: 'SBH-1336', kind: 'MACRO',  locationLabel: 'Kota Belud, Sabah',           latitude: 6.3510, longitude: 116.4300, loadKw: 5,   customer: 'sabah',      powerRole: 'SOLAR_HYBRID',  program: 'jendela-sbh'},
+  {id: 'sbh-1377', name: 'SBH-1377', kind: 'RURAL',  locationLabel: 'Nabawan, Sabah',              latitude: 5.0620, longitude: 116.4370, loadKw: 3,   customer: 'sabah',      powerRole: 'DIESEL_PRIME',  program: 'jendela-sbh'},
+  {id: 'sbh-1428', name: 'SBH-1428', kind: 'RURAL',  locationLabel: 'Pensiangan, Sabah',           latitude: 4.5330, longitude: 116.3170, loadKw: 3,   customer: 'sabah',      powerRole: 'DIESEL_PRIME',  program: 'jendela-sbh'},
+  {id: 'sbh-1495', name: 'SBH-1495', kind: 'RURAL',  locationLabel: 'Pulau Banggi, Kudat',         latitude: 7.2717, longitude: 117.1782, loadKw: 4,   customer: 'sabah',      powerRole: 'SOLAR_HYBRID',  program: 'jendela-sbh'},
+  {id: 'sbh-1553', name: 'SBH-1553', kind: 'MACRO',  locationLabel: 'Ranau, Sabah',                latitude: 5.9540, longitude: 116.6640, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_HYBRID', program: 'jendela-sbh'},
+  {id: 'sbh-1612', name: 'SBH-1612', kind: 'MACRO',  locationLabel: 'Lahad Datu, Sabah',           latitude: 5.0269, longitude: 118.3270, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_HYBRID', program: 'jendela-sbh'},
+  {id: 'sbh-1704', name: 'SBH-1704', kind: 'HUB',    locationLabel: 'Sandakan, Sabah',             latitude: 5.8402, longitude: 118.1179, loadKw: 24,  customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
+  {id: 'sbh-1788', name: 'SBH-1788', kind: 'IBS',    locationLabel: 'Tawau, Sabah',                latitude: 4.2450, longitude: 117.8840, loadKw: 11,  customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
+
+  // — Sarawak (10), all under `Jendela SWK`. Kuching, Sibu, Bintulu and Miri are
+  //   the coastal towns and have an incomer; the Rajang sites above Kapit and the
+  //   highland site at Ba'kelalan are where the diesel goes upriver by longboat,
+  //   which is the journey the refuel screen exists for.
+  {id: 'swk-0412', name: 'SWK-0412', kind: 'HUB',    locationLabel: 'Kuching, Sarawak',            latitude: 1.5533, longitude: 110.3592, loadKw: 27,  customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
+  {id: 'swk-0487', name: 'SWK-0487', kind: 'MACRO',  locationLabel: 'Serian, Sarawak',             latitude: 1.1670, longitude: 110.5670, loadKw: 5,   customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
+  {id: 'swk-0559', name: 'SWK-0559', kind: 'MACRO',  locationLabel: 'Sri Aman, Sarawak',           latitude: 1.2370, longitude: 111.4630, loadKw: 5,   customer: 'sarawak',    powerRole: 'SOLAR_HYBRID',  program: 'jendela-swk'},
+  {id: 'swk-0663', name: 'SWK-0663', kind: 'RURAL',  locationLabel: 'Kapit, Sarawak',              latitude: 2.0170, longitude: 112.9330, loadKw: 3,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME',  program: 'jendela-swk'},
+  {id: 'swk-0721', name: 'SWK-0721', kind: 'MACRO',  locationLabel: 'Sibu, Sarawak',               latitude: 2.2870, longitude: 111.8310, loadKw: 6,   customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
+  {id: 'swk-0794', name: 'SWK-0794', kind: 'RURAL',  locationLabel: 'Song, Sarawak',               latitude: 2.0170, longitude: 112.5420, loadKw: 3,   customer: 'sarawak',    powerRole: 'DIESEL_HYBRID', program: 'jendela-swk'},
+  {id: 'swk-0851', name: 'SWK-0851', kind: 'RURAL',  locationLabel: 'Belaga, Sarawak',             latitude: 2.7000, longitude: 113.7830, loadKw: 4,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME',  program: 'jendela-swk'},
+  {id: 'swk-0918', name: 'SWK-0918', kind: 'HUB',    locationLabel: 'Bintulu, Sarawak',            latitude: 3.1700, longitude: 113.0410, loadKw: 24,  customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
+  {id: 'swk-1027', name: 'SWK-1027', kind: 'MACRO',  locationLabel: 'Miri, Sarawak',               latitude: 4.3990, longitude: 113.9910, loadKw: 6,   customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
+  {id: 'swk-1163', name: 'SWK-1163', kind: 'RURAL',  locationLabel: "Ba'kelalan, Sarawak",         latitude: 3.9670, longitude: 115.6170, loadKw: 4,   customer: 'sarawak',    powerRole: 'SOLAR_HYBRID',  program: 'jendela-swk'},
+
+  // — The peninsula (4), one per remaining region and **in no programme**. The
+  //   two switching centres are here, which is where a carrier's heavy plant
+  //   actually is, and they are the estate's baseline: a pair of 1000 kVA sets
+  //   behind a healthy incomer, against which a 15 kVA set on the Rajang is the
+  //   thing this product has something to say about.
+  {id: 'wpkl-0207', name: 'WPKL-0207', kind: 'CORE',  locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1109, longitude: 101.6640, loadKw: 205, customer: 'central',    powerRole: 'GRID_BACKUP'},
+  {id: 'jhr-0907',  name: 'JHR-0907',  kind: 'CORE',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4927, longitude: 103.7414, loadKw: 168, customer: 'southern',   powerRole: 'GRID_BACKUP'},
+  {id: 'png-0255',  name: 'PNG-0255',  kind: 'HUB',   locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, loadKw: 24,  customer: 'northern',   powerRole: 'GRID_BACKUP'},
+  {id: 'trg-0512',  name: 'TRG-0512',  kind: 'MACRO', locationLabel: 'Kuala Terengganu, Terengganu', latitude: 5.3302, longitude: 103.1408, loadKw: 6,   customer: 'east-coast', powerRole: 'GRID_BACKUP'},
 ] as const;
 
 /**
@@ -95,57 +138,62 @@ const SITES = [
  * centre holds a pair of 1000 kVA sets and a rural tower holds one 20 kVA.
  */
 const GENSETS = [
-  // — The two switching centres (4) — the estate's heavy plant, and the only
-  //   sites here that hold a pair. `BRF9540` and its twin are the Figma frame's
-  //   two identical genset cards, one running and one on standby.
+  // — The switching centres (6) — the estate's heavy plant, and the only sites
+  //   here that hold a pair. `BRF9540` and its twin are the Figma frame's two
+  //   identical genset cards, one running and one on standby, and `BRF9540` is
+  //   pinned by name in `genset/data/detail.ts` — it does not move.
   {tag: 'BRF9540', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1105, longitude: 101.6634, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57},
   {tag: 'KLN3355', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1113, longitude: 101.6646, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45},
   {tag: 'JHB5503', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4923, longitude: 103.7408, fuelLitres: 1088, fuelCapacityLitres: 1200, staleMinutes: 3},
   {tag: 'JHB5744', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4931, longitude: 103.7420, fuelLitres: 936,  fuelCapacityLitres: 1200, staleMinutes: 8},
+  {tag: 'SPG5811', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'sbh-1058',  locationLabel: 'Sepanggar, Kota Kinabalu',     latitude: 6.0664, longitude: 116.1324, fuelLitres: 977,  fuelCapacityLitres: 1200, staleMinutes: 6},
+  {tag: 'SPG5960', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'sbh-1058',  locationLabel: 'Sepanggar, Kota Kinabalu',     latitude: 6.0676, longitude: 116.1338, fuelLitres: 742,  fuelCapacityLitres: 1200, staleMinutes: 19},
 
-  // — The aggregation hubs (3) — 60 kVA against a 22–27 kW load.
-  {tag: 'SHA7731', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'sel-0318',  locationLabel: 'Shah Alam, Selangor',          latitude: 3.0733, longitude: 101.5185, fuelLitres: 612,  fuelCapacityLitres: 900,  staleMinutes: 12},
-  {tag: 'PNG6015', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'png-0255',  locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, fuelLitres: 774,  fuelCapacityLitres: 900,  staleMinutes: 2},
+  // — The aggregation hubs (5) — 60 kVA against a 22–27 kW load.
   {tag: 'KKB8856', model: 'Perkins 60 kVa',      runState: 'RUNNING', siteId: 'sbh-1204',  locationLabel: 'Kota Kinabalu, Sabah',         latitude: 5.9804, longitude: 116.0735, fuelLitres: 220,  fuelCapacityLitres: 900,  staleMinutes: 12},
+  {tag: 'SDK7104', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'sbh-1704',  locationLabel: 'Sandakan, Sabah',              latitude: 5.8402, longitude: 118.1179, fuelLitres: 693,  fuelCapacityLitres: 900,  staleMinutes: 9},
+  {tag: 'KCH4120', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'swk-0412',  locationLabel: 'Kuching, Sarawak',             latitude: 1.5533, longitude: 110.3592, fuelLitres: 612,  fuelCapacityLitres: 900,  staleMinutes: 12},
+  {tag: 'BTU9180', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'swk-0918',  locationLabel: 'Bintulu, Sarawak',             latitude: 3.1700, longitude: 113.0410, fuelLitres: 781,  fuelCapacityLitres: 900,  staleMinutes: 4},
+  {tag: 'PNG6015', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'png-0255',  locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, fuelLitres: 774,  fuelCapacityLitres: 900,  staleMinutes: 2},
 
   // — The grid-backed towers (7) — 20 kVA on a plinth, idle most of the year.
-  //   `SPG2093` is one of the two sets pinned to a test exercise: turning beside
-  //   a perfectly healthy incomer, which is the case that distinction exists for.
-  {tag: 'KLC1027', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'wpkl-0142', locationLabel: 'Bukit Bintang, Kuala Lumpur',  latitude: 3.1466, longitude: 101.7108, fuelLitres: 288,  fuelCapacityLitres: 400,  staleMinutes: 3},
-  {tag: 'KLG2214', model: 'FG Wilson 30 kVa',    runState: 'IDLE',    siteId: 'wpkl-0355', locationLabel: 'KLCC, Kuala Lumpur',           latitude: 3.1578, longitude: 101.7117, fuelLitres: 430,  fuelCapacityLitres: 600,  staleMinutes: 4},
-  {tag: 'SPG2093', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sel-0491',  locationLabel: 'Puchong, Selangor',            latitude: 3.0319, longitude: 101.6169, fuelLitres: 364,  fuelCapacityLitres: 400,  staleMinutes: 5,  startReason: 'TEST'},
-  {tag: 'RWG3471', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sel-0664',  locationLabel: 'Rawang, Selangor',             latitude: 3.3210, longitude: 101.5770, fuelLitres: 141,  fuelCapacityLitres: 400,  staleMinutes: 8},
-  {tag: 'IPH7724', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'prk-0713',  locationLabel: 'Ipoh, Perak',                  latitude: 4.5975, longitude: 101.0901, fuelLitres: 352,  fuelCapacityLitres: 400,  staleMinutes: 7},
-  {tag: 'SRB6644', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'nsn-0492',  locationLabel: 'Seremban, Negeri Sembilan',    latitude: 2.7297, longitude: 101.9381, fuelLitres: 305,  fuelCapacityLitres: 400,  staleMinutes: 4,  startReason: 'TEST'},
+  //   `TUA2910` and `SER4870` are the two sets pinned to a test exercise: turning
+  //   beside a perfectly healthy incomer, which is the case that distinction
+  //   exists for. `KTN1970` is the estate's silent unit — nothing heard in two
+  //   days, at the one east-coast site.
+  {tag: 'TWU7880', model: 'FG Wilson 30 kVa',    runState: 'IDLE',    siteId: 'sbh-1788',  locationLabel: 'Tawau, Sabah',                 latitude: 4.2450, longitude: 117.8840, fuelLitres: 430,  fuelCapacityLitres: 600,  staleMinutes: 4},
+  {tag: 'TUA2910', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sbh-1291',  locationLabel: 'Tuaran, Sabah',                latitude: 6.1770, longitude: 116.2330, fuelLitres: 364,  fuelCapacityLitres: 400,  staleMinutes: 5,  startReason: 'TEST'},
+  {tag: 'SER4870', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'swk-0487',  locationLabel: 'Serian, Sarawak',              latitude: 1.1670, longitude: 110.5670, fuelLitres: 305,  fuelCapacityLitres: 400,  staleMinutes: 4,  startReason: 'TEST'},
+  {tag: 'SBW7210', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0721',  locationLabel: 'Sibu, Sarawak',                latitude: 2.2870, longitude: 111.8310, fuelLitres: 288,  fuelCapacityLitres: 400,  staleMinutes: 3},
+  {tag: 'MRI1027', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-1027',  locationLabel: 'Miri, Sarawak',                latitude: 4.3990, longitude: 113.9910, fuelLitres: 352,  fuelCapacityLitres: 400,  staleMinutes: 7},
   {tag: 'KTN1970', model: 'FG Wilson 20 kVa',    runState: 'OFFLINE', siteId: 'trg-0512',  locationLabel: 'Kuala Terengganu, Terengganu', latitude: 5.3302, longitude: 103.1408, fuelLitres: 96,   fuelCapacityLitres: 400,  staleMinutes: 2_890},
 
-  // — The diesel-prime sites (4) — no incomer, no storage, a duty set and a
-  //   spare, and the machines that have burned the most diesel on the estate.
-  //   The two dry tanks are here, which is the point: a prime site's tank is the
-  //   only thing between the tower and silence.
-  {tag: 'CAM4471', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'phg-0788',  locationLabel: 'Cameron Highlands, Pahang',    latitude: 4.4710, longitude: 101.3770, fuelLitres: 108,  fuelCapacityLitres: 800,  staleMinutes: 9},
-  {tag: 'CAM4629', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'phg-0788',  locationLabel: 'Cameron Highlands, Pahang',    latitude: 4.4716, longitude: 101.3778, fuelLitres: 546,  fuelCapacityLitres: 800,  staleMinutes: 26},
-  {tag: 'GMS2218', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'kel-0339',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8820, longitude: 101.9670, fuelLitres: 402,  fuelCapacityLitres: 800,  staleMinutes: 11},
-  {tag: 'GMS2404', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'kel-0339',  locationLabel: 'Gua Musang, Kelantan',         latitude: 4.8826, longitude: 101.9678, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95},
-  {tag: 'NBW7756', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0620, longitude: 116.4370, fuelLitres: 168,  fuelCapacityLitres: 800,  staleMinutes: 38},
-  {tag: 'KPT8033', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0170, longitude: 112.9330, fuelLitres: 96,   fuelCapacityLitres: 800,  staleMinutes: 27},
-  {tag: 'BLG4884', model: 'Denyo 15 kVa',        runState: 'OFFLINE', siteId: 'swk-0851',  locationLabel: 'Belaga, Sarawak',              latitude: 2.7000, longitude: 113.7830, fuelLitres: 172,  fuelCapacityLitres: 800,  staleMinutes: 1_615},
+  // — The diesel-prime sites (6) — no incomer, no storage, a duty set and a
+  //   spare at the two worst-served, and the machines that have burned the most
+  //   diesel on the estate. The two dry tanks are here, which is the point: a
+  //   prime site's tank is the only thing between the tower and silence, and both
+  //   of these are at the far end of a river or a logging road.
+  {tag: 'NBW7756', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0620, longitude: 116.4370, fuelLitres: 168,  fuelCapacityLitres: 800,  staleMinutes: 38, plateNumber: 'SB 4821 D'},
+  {tag: 'NBW7902', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0626, longitude: 116.4378, fuelLitres: 546,  fuelCapacityLitres: 800,  staleMinutes: 26},
+  {tag: 'PSG4280', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1428',  locationLabel: 'Pensiangan, Sabah',            latitude: 4.5330, longitude: 116.3170, fuelLitres: 108,  fuelCapacityLitres: 800,  staleMinutes: 9, plateNumber: 'SB 5507 K'},
+  {tag: 'KPT8033', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0170, longitude: 112.9330, fuelLitres: 96,   fuelCapacityLitres: 800,  staleMinutes: 27, plateNumber: 'QA 7130 P'},
+  {tag: 'KPT8219', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0176, longitude: 112.9338, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95},
+  {tag: 'BLG4884', model: 'Denyo 15 kVa',        runState: 'OFFLINE', siteId: 'swk-0851',  locationLabel: 'Belaga, Sarawak',              latitude: 2.7000, longitude: 113.7830, fuelLitres: 172,  fuelCapacityLitres: 800,  staleMinutes: 1_615, plateNumber: 'QA 2264 S'},
 
-  // — The diesel-hybrid sites (4) — the same 20 kVA machine, running in blocks
+  // — The diesel-hybrid sites (3) — the same 20 kVA machine, running in blocks
   //   to recharge a battery instead of idling all day at what a tower draws.
   //   Their tanks are the fullest on the estate for exactly that reason.
-  {tag: 'SPG7712', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sel-0977',  locationLabel: 'Sepang, Selangor',             latitude: 2.7150, longitude: 101.7060, fuelLitres: 348,  fuelCapacityLitres: 400,  staleMinutes: 16},
-  {tag: 'GRK0846', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'prk-0846',  locationLabel: 'Grik, Perak',                  latitude: 5.4290, longitude: 101.1290, fuelLitres: 502,  fuelCapacityLitres: 600,  staleMinutes: 6},
-  {tag: 'KLG1064', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'jhr-1064',  locationLabel: 'Kluang, Johor',                latitude: 2.0250, longitude: 103.3180, fuelLitres: 331,  fuelCapacityLitres: 400,  staleMinutes: 44},
+  {tag: 'RNU5530', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sbh-1553',  locationLabel: 'Ranau, Sabah',                 latitude: 5.9540, longitude: 116.6640, fuelLitres: 502,  fuelCapacityLitres: 600,  staleMinutes: 6},
   {tag: 'LDU7588', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1612',  locationLabel: 'Lahad Datu, Sabah',            latitude: 5.0269, longitude: 118.3270, fuelLitres: 488,  fuelCapacityLitres: 600,  staleMinutes: 21},
+  {tag: 'SNG7940', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0794',  locationLabel: 'Song, Sarawak',                latitude: 2.0170, longitude: 112.5420, fuelLitres: 331,  fuelCapacityLitres: 400,  staleMinutes: 44},
 
   // — The solar-hybrid sites (4) — the same set again, and the least-used
   //   machines on the estate. A full tank on one of these is not neglect; it is
   //   the array having carried the site since the last delivery.
-  {tag: 'HLG0812', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sel-0812',  locationLabel: 'Hulu Langat, Selangor',        latitude: 3.1590, longitude: 101.8710, fuelLitres: 392,  fuelCapacityLitres: 400,  staleMinutes: 31},
-  {tag: 'SGP0431', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'kdh-0431',  locationLabel: 'Sungai Petani, Kedah',         latitude: 5.6470, longitude: 100.4870, fuelLitres: 566,  fuelCapacityLitres: 600,  staleMinutes: 2},
-  {tag: 'SIK0588', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'kdh-0588',  locationLabel: 'Sik, Kedah',                   latitude: 5.8210, longitude: 100.7420, fuelLitres: 448,  fuelCapacityLitres: 600,  staleMinutes: 73},
+  {tag: 'KTB3360', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1336',  locationLabel: 'Kota Belud, Sabah',            latitude: 6.3510, longitude: 116.4300, fuelLitres: 566,  fuelCapacityLitres: 600,  staleMinutes: 2},
   {tag: 'BGI1495', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1495',  locationLabel: 'Pulau Banggi, Kudat',          latitude: 7.2717, longitude: 117.1782, fuelLitres: 588,  fuelCapacityLitres: 600,  staleMinutes: 5},
+  {tag: 'SRA5590', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0559',  locationLabel: 'Sri Aman, Sarawak',            latitude: 1.2370, longitude: 111.4630, fuelLitres: 392,  fuelCapacityLitres: 400,  staleMinutes: 31},
+  {tag: 'BKL1163', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-1163',  locationLabel: "Ba'kelalan, Sarawak",          latitude: 3.9670, longitude: 115.6170, fuelLitres: 448,  fuelCapacityLitres: 600,  staleMinutes: 73},
 ] as const;
 
 export const CARRIER_DATASET: BrandDataset = {
@@ -153,11 +201,13 @@ export const CARRIER_DATASET: BrandDataset = {
   label: 'Carrier tower network',
   groupingLabel: 'By region',
   customers: CUSTOMERS,
+  programs: PROGRAMS,
   siteKindLabels: SITE_KIND_LABELS,
   sites: SITES,
   gensets: GENSETS,
   // A solar hybrid rather than the first row: it is the configuration this estate
-  // is about, and the one whose site page has every band on it.
-  defaultSiteId: 'kdh-0431',
+  // is about, and the one whose site page has every band on it. Ba'kelalan is the
+  // furthest site from a road on the estate, which is the case for the array.
+  defaultSiteId: 'swk-1163',
   defaultGensetId: 'brf9540',
 };

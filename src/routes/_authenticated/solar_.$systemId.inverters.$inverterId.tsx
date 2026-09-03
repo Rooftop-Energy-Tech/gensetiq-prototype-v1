@@ -22,9 +22,10 @@ import type {InverterTraceSearch} from '@/modules/solar/types/analysisView.type'
  * not "the mini-grid", it is *Inverter 4, the one with nine dark strings*. An
  * accordion on the system page could not be sent.
  *
- * It renders inside the system's shell, so the header and the tab strip stay put
- * and the breadcrumb reads `Solar / MG-012 | 1333 kWp / Inverter 4`. No tab is
- * lit while you are here, which is correct — this is not one of the six.
+ * It renders inside the system's shell, so the rail and the title stay put and the
+ * breadcrumb reads `Solar / MG-012 | 1333 kWp / Inverter 4`. No row in the rail is
+ * lit while you are here, which is correct — this is not one of the six, and the
+ * rail deliberately does not list the boxes (see `SystemDetailShell`).
  *
  * The alerts are built here from the **system's** set and handed down, rather than
  * derived on the box. A rule like `string-out` is the app's arithmetic over the

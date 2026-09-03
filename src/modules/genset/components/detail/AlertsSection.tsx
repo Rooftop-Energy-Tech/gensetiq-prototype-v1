@@ -284,6 +284,7 @@ const FuelLevelNoticeCard = ({
  */
 export const AlertsSection = ({
   detail,
+  alerts,
   service,
   notice,
   leak,
@@ -293,6 +294,18 @@ export const AlertsSection = ({
   onFocusChange,
 }: {
   detail: GensetDetail;
+  /**
+   * The register map's alarms **still standing**, passed in rather than read off
+   * `detail`.
+   *
+   * `detail.alerts` is every bit the fixture sets and knows nothing about the
+   * Alarms tab, where an operator can clear one. Taking the list as a prop keeps
+   * this component what it already is — a view over what it is given — and keeps
+   * the chips, the cards and the verdict above them reading from one source. The
+   * tags still come off `detail`, because a tag is the operator's filing system
+   * and does not change when a row is cleared out of it.
+   */
+  alerts: Array<GensetAlert>;
   /** Live service status — the source of the `hours-since-service` figure below. */
   service: ServiceStatus;
   notice: ServiceNotice | undefined;
@@ -316,7 +329,7 @@ export const AlertsSection = ({
   focus: AlertFocus;
   onFocusChange: (focus: AlertFocus) => void;
 }) => {
-  const {alerts, tags} = detail;
+  const {tags} = detail;
 
   /** The leak's severity, in the alert module's own three-value ranking. */
   const leakSeverity: AlertSeverity | undefined =

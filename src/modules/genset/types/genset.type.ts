@@ -57,6 +57,16 @@ export type Genset = {
    * case onto every reader for a fact that is never actually unknown.
    */
   startReason: StartReason;
+  /**
+   * The lorry or trailer plate this machine is registered under, or `null` when it
+   * has none — a set on a plinth is not a road vehicle.
+   *
+   * Nullable rather than optional, for the reason `siteId` is: "this machine has
+   * no plate" is a fact the register holds, and an optional field would let every
+   * reader treat the absence as an oversight instead. The details block prints the
+   * row only when there is one.
+   */
+  plateNumber: string | null;
   fuelLitres: number;
   fuelCapacityLitres: number;
   /**

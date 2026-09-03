@@ -8,7 +8,7 @@ export const Route = createFileRoute('/_authenticated/sites_/$siteId/alarms')({
     <ComingSoon
       icon={BellIcon}
       title="Site alarms"
-      description="Every active threshold across this site's gensets, pooled into one list. Named in the design's tab strip but not drawn — each genset's own alarms are on its home page."
+      description="Every active threshold across this site's gensets, pooled into one list. Named in the design's rail but not drawn — each genset's own alarms are on its home page."
     />
   ),
 });

@@ -11,10 +11,11 @@ import type {
   FuelWindow,
   InstrumentFeed,
 } from '../types/fuelIntegrity.type';
-import {CONDITION_OF_SEVERITY, worstCondition} from '../types/alert.type';
+import {CONDITION_OF_SEVERITY, conditionOf, worstCondition} from '../types/alert.type';
 import type {GensetCondition} from '../types/alert.type';
 import {SEVERITY_OF_FUEL_LEVEL, fuelLevelKind} from '../types/fuelLevel.type';
 import {gensetById, gensetDetail} from './detail';
+import {standingAlarms} from './alarms';
 import {
   flowMeterAgeMinutes,
   flowMeterSilent,
@@ -229,14 +230,29 @@ export const leakNoticeOf = (gensetId: string, now: number = NOW): FuelLeakNotic
  * with this machine".
  */
 export const machineCondition = (gensetId: string, now: number = NOW): GensetCondition => {
-  const detail = gensetDetail(gensetId);
-  if (detail === undefined) return 'OPTIMUM';
+  if (gensetDetail(gensetId) === undefined) return 'OPTIMUM';
+
+  /**
+   * The register map's verdict over the alarms **still standing**, not over
+   * `detail.condition`.
+   *
+   * `detail.condition` is `conditionOf` applied to every bit the fixture sets, and
+   * it cannot know that an operator has cleared one. Reading it here would leave a
+   * genset whose alarms have all been dealt with still painting its card red on
+   * the site page and its pin red on the map — a verdict contradicting the list it
+   * is a summary of, which is the failure this whole layer exists to avoid.
+   *
+   * The field stays where it is and stays correct for what it is: the raw map's
+   * reading at module load, which is what the analysis chart's threshold lines are
+   * drawn from.
+   */
+  const registers = conditionOf(standingAlarms(gensetId));
 
   const state = fuelIntegrityOf(gensetId, now);
   if (state.kind === 'critical') return 'CRITICAL';
-  if (state.kind === 'warning' && detail.condition === 'OPTIMUM') return 'ATTENTION';
+  if (state.kind === 'warning' && registers === 'OPTIMUM') return 'ATTENTION';
 
-  return detail.condition;
+  return registers;
 };
 
 /**

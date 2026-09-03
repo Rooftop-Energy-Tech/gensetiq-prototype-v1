@@ -15,18 +15,16 @@ import {solarRangeSchema} from './range.type';
  * So the trace went down to the inverter, where the readings actually come from,
  * and the two controls went with their charts:
  *
- *  - **`systemAnalysisSearchSchema`** — the period over generation against
- *    design. Its options are the solar ones, `7D · 30D · 12M · Custom`, because a
- *    design P50 is a *monthly* figure and `HAS_DESIGN_BENCHMARK` decides per range
- *    whether there is anything to compare against at all.
+ *  - **`systemAnalysisSearchSchema`** — the period the generation chart covers.
+ *    Its options are the solar ones, `7D · 30D · 12M · Custom`, which are the
+ *    windows somebody asks a month-scale quantity about.
  *  - **`inverterTraceSearchSchema`** — which readings, over how long. Its options
  *    are hours and days, because a DC current at two-hour buckets across a year is
  *    not a trace, it is a texture.
  *
  * One control over both was the first draft. It forced the reading trace to offer
  * `12M`, which draws four thousand samples of a quantity nobody reads at that
- * grain, and forced the yield chart to offer `24H`, which has no benchmark and so
- * is not the comparison the section exists to make.
+ * grain, and forced the generation chart to offer `24H`, which is a single bar.
  *
  * `.catch()`-guarded throughout, the rule every schema in this app follows: these
  * get hand-edited and a malformed one should fall back rather than throw out of

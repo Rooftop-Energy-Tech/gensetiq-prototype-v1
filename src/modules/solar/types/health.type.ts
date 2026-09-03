@@ -10,8 +10,8 @@ import type {AlertSeverity, GensetCondition} from '@/modules/genset/types/alert.
  * a line on a Modbus map and the coordinates are how a reader checks the app
  * against the panel. A PV system has no such sheet: some of these rules are an
  * inverter talking and some are *this app's own arithmetic* over the generation
- * model — nobody's box raises "84% of design since March", because no inverter
- * has ever seen the design.
+ * model — nobody's box raises "output stepped down in March", because no inverter
+ * can see the months either side of it.
  *
  * `AlertsSection` established the rule that matters: a reader has to be able to
  * tell at a glance which rows are the panel talking and which are the app's own
@@ -24,7 +24,7 @@ import type {AlertSeverity, GensetCondition} from '@/modules/genset/types/alert.
  * inverters is useless without an address, and "Inverter not reporting" is a
  * different job depending on whether it is one box or all of them. `inverterId`
  * is `undefined` only for the rules that are genuinely about the whole system —
- * an overdue wash, a system that never met its design.
+ * an overdue wash, a plant nobody can hear at all.
  *
  * Severity is shared with the genset module rather than redeclared. The three
  * chips are the *design's*, not the diesel's, and a second three-value union with
@@ -46,7 +46,7 @@ export type SystemAlert = {
   inverterLabel: string | undefined;
   /** Key of the reading this watches, or `null` where it watches no dial. */
   readingKey: string | null;
-  /** How the rule reads — `< 90% of P50`. Shown so the verdict has a line behind it. */
+  /** How the rule reads — `< 1 MΩ`. Shown so the verdict has a line behind it. */
   threshold: string;
   /**
    * The same limit as a number on the reading's own scale, or `null` for a rule

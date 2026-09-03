@@ -27,25 +27,14 @@ import type {SolarRegisterSearch} from '../../types/register.type';
  * reads from it, and every "array" reading in a monitoring product is really an
  * inverter describing its own terminals.
  *
- * The system is what a customer names, what a design P50 attaches to, and what
- * survives its own plant being replaced. The boxes are one click down,
- * in band 2 of its page.
- *
- * ## What this is not
- *
- * It is not `/report/solar`. The report asks *is the estate's generation what it
- * was bought on* and draws a chart per system to answer it; this asks *what is
- * fitted, and how is each one*, which is a different question a reader arrives
- * with on a different day. The overlap is one column — how a system is doing
- * against its design — because that figure is its headline condition and a
- * register without it would be a list of nameplates. Both read `solarRecent`, so
- * they cannot disagree.
+ * The system is what a customer names and what survives its own plant being
+ * replaced. The boxes are one click down, in `Devices`.
  *
  * ## Sorted by attention, and not by a column header
  *
- * By condition, then by how short it is — worst first. This is a screen read to
- * find work, and a system inside its band is not work; `/gensets` sorts by
- * attention for the same reason and neither makes the reader discover it.
+ * By condition, then by output — worst first. This is a screen read to find work,
+ * and a healthy system is not work; `/gensets` sorts by attention for the same
+ * reason and neither makes the reader discover it.
  *
  * The sort is applied here rather than in `solarSystems`, and the first draft had
  * it the other way. That function can only sort by *state*, since it does not
@@ -62,8 +51,6 @@ import type {SolarRegisterSearch} from '../../types/register.type';
  * curve is the expensive part of that call and no row draws one.
  */
 
-const percent = (share: number): string => `${Math.round(share * 100)}%`;
-
 /** Worst first — the order the rows come out in. */
 const CONDITION_ORDER: Record<SystemCondition, number> = {
   CRITICAL: 0,
@@ -73,21 +60,18 @@ const CONDITION_ORDER: Record<SystemCondition, number> = {
 
 type RegisterRow = {
   system: SolarSystem;
-  /** Recent generation over recent design — the operational figure, not the annual. */
-  share: number;
   condition: SystemCondition;
   /** The worst thing wrong, in the rule's own words, or `undefined`. */
   headline: string | undefined;
 };
 
 const COLUMNS = [
-  {label: 'System', width: '24%'},
-  {label: 'State', width: '14%'},
-  {label: 'Output', width: '10%'},
-  {label: 'Capacity', width: '11%'},
-  {label: 'Inverters', width: '12%'},
-  {label: 'Against design', width: '13%'},
-  {label: 'Health', width: '16%'},
+  {label: 'System', width: '25%'},
+  {label: 'State', width: '15%'},
+  {label: 'Output', width: '11%'},
+  {label: 'Capacity', width: '12%'},
+  {label: 'Inverters', width: '15%'},
+  {label: 'Health', width: '22%'},
 ] as const;
 
 export const SolarRegister = ({
@@ -112,7 +96,6 @@ export const SolarRegister = ({
         return [
           {
             system,
-            share: detail.share,
             condition,
             // The worst one only. A register cell listing three faults would be a
             // page of its own squeezed into a sixth of a row; the system's own
@@ -129,10 +112,10 @@ export const SolarRegister = ({
       [...rows].sort(
         (left, right) =>
           CONDITION_ORDER[left.condition] - CONDITION_ORDER[right.condition] ||
-          // Within a condition, the shortest against its design. Two criticals are
-          // not equally urgent, and the one making least of what it was bought on
-          // is the one costing diesel today.
-          left.share - right.share,
+          // Within a condition, the biggest plant first. Two criticals are not
+          // equally urgent, and a megawatt down the road matters more today than
+          // twenty kilowatts on a rooftop.
+          right.system.kwp - left.system.kwp,
       ),
     [rows],
   );
@@ -185,7 +168,7 @@ export const SolarRegister = ({
           <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
               Every solar system on the estate — where it is, what it is rated at, what it is
-              doing now and how it is performing against its design
+              doing now and what is wrong with it
             </caption>
             <colgroup>
               {COLUMNS.map((column) => (
@@ -210,7 +193,6 @@ export const SolarRegister = ({
                 const {system} = row;
                 const meta = CONDITION_META[row.condition];
                 const state = INVERTER_STATE_META[system.state];
-                const short = row.share < 0.9;
                 const silent = system.inverters.filter((one) => one.state === 'OFFLINE').length;
 
                 return (
@@ -257,18 +239,6 @@ export const SolarRegister = ({
 
                     <td className="h-13 truncate border-b border-subtle p-2 text-secondary tabular-nums">
                       {system.inverters.length} × {system.inverters[0]?.ratedKw} kW
-                    </td>
-
-                    <td
-                      className={cn(
-                        'h-13 truncate border-b border-subtle p-2 tabular-nums',
-                        short ? 'text-severity-warning' : 'text-primary',
-                      )}
-                    >
-                      {percent(row.share)}
-                      <span className="block truncate text-xs text-tertiary">
-                        {short ? 'under P90' : 'inside the band'}
-                      </span>
                     </td>
 
                     <td className="h-13 truncate border-b border-subtle p-2">

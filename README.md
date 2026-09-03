@@ -69,7 +69,7 @@ different customer's colours and a different customer's sites. The costs compoun
 - `main` went stale, so each new branch started from someone's demo rather than
   from the product, and the branch names stopped describing their contents;
 - the SESB estate was **stranded three months behind**: no hybrid plant, no solar
-  benchmark, no energy screen, no refuel log.
+  generation series, no energy screen, no refuel log.
 
 A branch is for work in progress. A brand is a thing that permanently exists and
 has to keep working after the next feature lands — which makes it config.
@@ -131,40 +131,36 @@ each off-grid site, how long its engine ran, and what it burned.
 > *would* have burned running on diesel alone. All of it has been taken out. What
 > is left measures what happened and makes no claim about what it was worth.
 
-Solar is reported **against its benchmark**, which is the other thing SolarIQ
-gets right, and it is drawn as well as tabulated. `SolarYieldChart` puts twelve
-months of measurement in front of the design's own monthly P50 as paired bars.
-The same generation is readable at four levels and all four read `hybrid.ts`, so
-they cannot disagree: **one array** on its site's own page, where somebody sent to
-look at a site finds it without knowing the rest exists; **the same array** on its
-own page at `/solar/<id>`, with the inverter behind the figure; **the portfolio**
-at the top of `/report/solar`; and **array by array** below that, which is where
-the portfolio figure's working lives. Three of
-SolarIQ's decisions carry over intact: the benchmark's fidelity is capped at
-**monthly**, because that is what a design simulation produces and a daily
-benchmark line would be a resolution the report never had; design and measurement
-stay **separate series** rather than merging into one; and the **running month is
-excluded** from every total, since a month eleven days old has made eleven days
-of energy against a whole month of design.
+Solar is reported as **what it generated**, and nothing else. `SolarYieldChart`
+draws one series of bars — a bucket, and what the array made in it. Nothing is
+drawn behind them and no figure on any solar screen states a comparison: this app
+measures and does not judge.
 
-### Three charts, three questions
+> **Taken out, deliberately.** Every design-comparison feature the solar section
+> used to carry — a second series on the charts, a cumulative shortfall view, a
+> per-card deviation chart, a health rule, a register column and the energy
+> model's own target fields. If something like it is wanted later it arrives as
+> its own thing, on top of a measurement that stands up without it. Nothing left
+> in the code or in this document assumes it.
+
+The same generation is readable at three levels and all three read `hybrid.ts`,
+so they cannot disagree: **one array** on its site's own page, where somebody sent
+to look at a site finds it without knowing the rest exists; **the same array** on
+its own page at `/solar/<id>`; and **its history** on that page's analysis tab.
+One rule survives from the version that did compare: the **running bucket is
+excluded** from every total and drawn hatched, since a month eleven days old has
+made eleven days of energy and stands beside eleven whole ones.
+
+### Two charts, two questions
 
 `SolarTodayChart` is the intraday power curve: what the arrays are putting out
-right now, against the array's **own recent normal** rather than the design. The
-two are kept apart deliberately — an own-baseline answers "has this thing
-changed", a benchmark answers "is it meeting what it was sold as", and the second
-only exists monthly, so drawing it at half-hourly resolution would be the very
-interpolation the benchmark rule forbids. The line stops at now rather than
-running to zero across the afternoon.
+right now, against the array's **own recent normal**. That baseline answers "has
+this thing changed", which is the only comparison a half-hourly curve can carry
+honestly and the only one this app makes anywhere. The line stops at now rather
+than running to zero across the afternoon.
 
-`SolarYieldChart` is the period, per bucket. `SolarCumulativeChart` is the same
-series added up, and it earns its place beside the bars because **a small
-persistent shortfall is invisible in bars and unmissable cumulatively**: four
-percent off in a month is a bar a pixel shorter than its neighbour, four percent
-off every month is a wedge that opens all the way across the plot. That wedge is
-hatched in the same amber the bars use, and the caption prices it — every
-kilowatt-hour the arrays did not make is one a genset made instead, at the
-delivered diesel price for wherever it happened.
+`SolarYieldChart` is the period, per bucket — one bar, one series, no second
+thing behind it. The bucket still running is hatched and counts towards nothing.
 
 Fixing the intraday curve turned up a real inconsistency. The diagram's live
 `SOLAR` node was `pvKwp × performanceRatio × shape`, a different model from the
@@ -185,22 +181,18 @@ control. The strip is this app's own segmented track and the calendar behind
 Custom is the analysis tab's `RangeCalendar`, so a reader who has set a window on
 a genset already knows how to set one here.
 
-**The benchmark is not on every range, because it does not exist on every range.**
-A P50 is simulated month by month and fixed at design stage, so below a whole
-month there is nothing to compare against and drawing one would mean interpolating
-a figure nobody published. SolarIQ recorded that as "benchmark fidelity capped at
-monthly" after trying; Raeo carries it as a per-range `HAS_DESIGN_BENCHMARK`
-table, and so does `solar/types/range.type.ts`. When a range has none the chart
-drops to a single series: no design bar, no shortfall hatch, no legend entries for
-either, and the caption says why.
+**Every range draws the same thing**, at the grain `SOLAR_RANGE_GRAIN` gives it:
+days below about ten weeks, months above. Nothing appears or disappears as the
+reader moves between them, which is what lets the control be a plain segmented
+track with no explanatory caption under it.
 
 The daily series is derived from the monthly one rather than dealt beside it —
 each day is a weight, normalised so the days sum back to their month's total to
 within a kilowatt-hour of rounding. That is what lets a reader switch from 12M to
 30D and still be looking at the figure on the tile above.
 
-`/report/solar` keeps the window in the URL, so "look at the July dip" is a link,
-and so does an array's own analysis tab. The site page keeps it in local state: it
+An array's own analysis tab keeps the window in the URL, so "look at the July
+dip" is a link. The site page keeps it in local state: it
 is one band on a page reached from a dozen places, and putting a chart control in
 that page's address would make every link to a site carry a setting the sender
 never chose.
@@ -216,21 +208,20 @@ portfolio chart is one whatever it sums — and the array list has **two views**
 cards with a chart each and a table, opening in whichever suits the count with
 the choice always available. Cards page in blocks of twelve; both views search.
 
-The compact chart on a card is **not** a shrunken version of the full one, and
-the first attempt at it was. At 44px the gap between an array at 100% of design
-and one at 84% is under two pixels, so every card looked the same. The compact
-form plots **deviation from design** instead: a line at 100% and a bar hanging
-below it by however far the month missed. An array meeting its number draws
-almost nothing, which is the right amount of ink for nothing being wrong.
+The chart earns its place over a column of totals by saying *when*. An array
+that has been flat all year is one thing; one that ran at a level until March and
+has been a fifth below it since is a **step** — a fault with a date on it, and
+somebody can go and look at what happened that month. Most solar sites on both
+estates carry one, and `solarStep` is what the rest of the app reads: the count of
+dark strings is computed from the depth of the step, the health band dates its
+string alert from the month, and the analysis tab names it in the hand-off line.
+One event, three readings of it.
 
-The chart earns its place over the column beside it by saying *when*. An array at
-84% of design all year is a commissioning problem; one at 100% until March and
-70% since is a fault with a date on it, and somebody can go and look at what
-happened that month. Two of the four arrays step down, and the heading names the
-month only where the series actually steps. An array's output on its own says nothing, so every solar site
-carries three figures: the **P50** its design was bought on, the **P90** band at
-0.9 of that, and what it actually made. Two of the four arrays are under their
-P90, which is the test that puts an array on the list of ones worth visiting.
+A step has to be worth a tenth of the output before it counts as one. Weather here
+runs ±7% month to month, so a shallower drop is inside the noise, and without that
+threshold every array on the estate acquires a fault with an address — which is
+what happened the first time this was rewired off the seed instead of off a
+comparison.
 
 `sfcLitresPerKwh` changed on this branch, and it is the one change that reaches
 back into the shared product. It was a straight line, with the full-load figure
@@ -385,7 +376,7 @@ Any email and password gets you in.
 | Login | `/login` | Wordmark, email + password, teal CTA. Matches the Figma frame. |
 | Gensets — list | `/gensets?view=list` | 24 units, sortable by attention (faults first). |
 | Gensets — map | `/gensets?view=map` | Real MapLibre map with live clustering. |
-| Genset home | `/gensets/<id>` | The genset's own page: run + fuel, controls + live gauges, alerts. All 24 units have one. |
+| Genset home | `/gensets/<id>` | The genset's own page: tank + runway + service, controls + live gauges, this run beside today, what it is, alerts. All 24 units have one. |
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
 | Genset runs | `/gensets/<id>/runs` | The run log: a timeline strip, totals for the chosen window, the list, and a CSV export. Not a Figma frame — see [below](#the-runs-tab-is-not-in-the-design). |
 | Genset settings | `/gensets/<id>/settings` | The fuel leakage alarm — what this set is instrumented with, whether the check is on, where its line sits, and the arithmetic behind the verdict. Not a Figma frame — see [below](#fuel-leakage-is-not-in-the-design). |
@@ -398,11 +389,11 @@ Any email and password gets you in.
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
 | Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
 | Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
-| Report — Solar | `/report/solar` | The portfolio's generation against design, and every array in it as cards or a table. Not a Figma frame — same. |
+| Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
 | Report — Genset | `/report/genset` | The engines over the same thirty days: hours, what each set burns per kilowatt-hour at the loading it holds, what part load costs the fleet in litres, diesel unaccounted for, and what is falling due. Not a Figma frame — same. |
-| Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity, inverter count, how it is doing against design, and its condition. Worst first. |
-| System home | `/solar/<id>` | The system's own page: today's energy and curve, its inverters as rows, what is wrong with it, and its history. Every solar site has one. |
-| System analysis | `/solar/<id>/analysis` | Generation against design over a chosen window — the bars say how much, the cumulative wedge says since when. |
+| Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity, inverter count and its condition. Worst first. |
+| System home | `/solar/<id>` | The system's own page in the five bands: the strip, the output dial, what the system is, generation over time, and what is wrong with it. Every solar site has one. |
+| System analysis | `/solar/<id>/analysis` | Generation over a chosen window, a bar per bucket, with the window in the URL. |
 | Inverter | `/solar/<id>/inverters/<n>` | One box: its control pad, its four dials, its string currents, its own alerts, and a trace of two of its readings over a window. |
 | System service / alarms / … | `/solar/<id>/service`, … | The four tabs in the strip that are not drawn yet — labelled placeholders, same treatment as a genset's. |
 | Refuel / Settings | `/refuel`, … | Named in the sidebar but not designed — same treatment. |
@@ -477,9 +468,9 @@ something real:
 
 | | Solar system | Inverter |
 | --- | --- | --- |
-| Unit of | reporting and design | instrumentation, alarms, control, maintenance |
+| Unit of | reporting | instrumentation, alarms, control, maintenance |
 | Named by | the customer — "a 1.3 MW system" | site staff — "Inverter 4" |
-| Carries | kWp, P50, yield against design | serial, firmware, warranty, comms link |
+| Carries | kWp, modules, commissioning date, its generation | serial, firmware, warranty, comms link |
 | Survives | its own plant being replaced | nothing; it *is* the thing that gets swapped |
 
 A flat register of inverters would put ten rows from one mini-grid into a
@@ -496,25 +487,33 @@ the SESB brand.
 
 #### The system page
 
-The genset home page's four bands over a different machine — state and today's
-energy, then what it is made of, then what is wrong, then the history — because
-the questions turn out to be the same four in the same order.
+**Five bands**, the same five in the same order as a site's, a genset's and a
+bank's — which is the whole point. An operator moving between a tower's genset,
+its array and its bank finds the same things in the same places, and the pages
+differ only in what they are *about*.
 
-Band 2 is the one that differs, and it differs because the machine does. A genset
-is *one machine*, so its controls and live dials belong on its own page; a solar
-system is a small power station, and "the DC current" has no answer on a
-ten-inverter plant. So band 2 is a **list of inverters** — state, output, share,
-strings, mode, worst alert — and the dials, the pad and the strings live on each
-box's page. It is the same move `SiteHome` makes with its genset rows. It stays a
-list at one inverter: a band that inlined the dials whenever there happened to be
-a single box would change shape with the data, and a screen that looks different
-depending on what is at the site teaches a reader they cannot trust what they
-learned last time.
+1. **The strip** — solar capacity, generation today, and the alarm counts.
+2. **The dial** — what the system is putting out right now, scaled to the
+   inverters' **AC** rating rather than the array's kWp. Every one of these plants
+   is deliberately oversized to its boxes, so a dial scaled to the DC nameplate
+   could never reach full and would read as a plant permanently underperforming.
+   Under it, when the sun is down, a `Dark · first light 07:00` badge — without
+   which a 0 kW dial at nine in the evening is pixel-for-pixel a plant that has
+   tripped.
+3. **The details** — four nameplate facts: system capacity in kWp, installed
+   capacity in kW, the module count and rating, and the commissioning date. The
+   first two are a pair, and printing them together answers "why does the dial top
+   out below the nameplate". Nothing live is in this band.
+4. **The chart** — generation, `Day / Month / Year / Lifetime`, one series.
+5. **What is wrong** — every rule, including the ones that name a box.
 
-The **share** column is the point of that table. Every other column says what a
-box *is*; share says what it is contributing against what its size says it
-should. A healthy plant is a column of hundreds, and one box at 60% is the fault,
-found by scanning rather than by opening ten pages.
+The **inverters are not on this page**. They are the whole subject of `Devices`,
+which is where a reader looks for them and the only route to
+`/solar/<id>/inverters/<n>` — the rail deliberately does not list the boxes, since
+a mini-grid is ten of them and a nested list would be an inventory. Strings and
+the last module wash are absent for the same reason: `Devices` and `Service` each
+own one, and restating them here would make band 3 a second index of the page
+rather than a description of the system.
 
 Nothing on these pages invents a quantity `hybrid.ts` already has an opinion
 about. Capacity, today's energy, the twelve months and the step-down all come
@@ -541,11 +540,14 @@ model cannot tell the two apart, so the page does not claim to.
 
 #### Two figures deliberately absent, for one reason
 
-There is no **performance ratio**: `siteEnergy` caps the design *and* the
-measurement at what the site can absorb, and these systems are sized to
-two-thirds of a tower's annual energy, so an honest PR reads near 48% beside an
-honest "83% of design" and a reader has no way to tell which to trust.
-`kWh/kWp` states the same measurement without asserting the comparison.
+There is no **performance ratio**. A PR is the day's energy over what the
+nameplate would have made in the irradiance that actually fell, and this app has
+no irradiance — only a regional monthly average. Worse, `siteEnergy` caps
+generation at what the site can absorb and these systems are sized to two-thirds
+of a tower's annual energy, so a good part of a clear midday is spilled by
+construction and any PR computed here would read low for a reason that is not a
+fault. `kWh/kWp` states what the roof produced per unit of glass and asserts
+nothing beyond it.
 
 And there is no **`CURTAILED` state**, because that same spill is a thirty-day
 energy cap the model does not resolve to a moment — the bank is held between 0.42
@@ -823,6 +825,60 @@ The layout, spacing and every component's construction follow the frame. The
    tooltip never opens — which meant the pad greyed out its commands and then
    explained nothing, the exact opposite of the intent above. The changeover on the
    site page refuses options the same way, for the same reason.
+
+10. **The strip, the day and the details answer this estate's questions rather
+    than the frame's.** The frame opens on `Generation today` beside `Fuel level`
+    and closes the page's identity band with the machine's nameplate and its tank.
+    On a grid-backed yard that is a fair pair of questions. On a tower a lorry has
+    to reach it is not: nobody is deciding whether the engine works, they are
+    deciding **whether somebody drives out there this week**, and that trip is a
+    day and a four-figure sum.
+
+    So the **strip is three**: the tank, its runway, and the service counter. The
+    tank says how much is there, the runway says when that stops being true, and
+    service says whether the same trip has a second job on it. All three survive a
+    stopped engine, which is what a summary has to do — a set standing idle is
+    exactly the one whose service goes quietly overdue.
+
+    **The runway's unit follows the machine, not the house style.**
+    `runtimeSpan` reads in hours below two days and days above it, so the frame's
+    `39 hours` is still hours on a 2,450 L set at 24.2 L/hr, and a 400 L tank on a
+    20 kVa machine reads `2.8 days`. Fixing the unit either way breaks one end: a
+    1,000 L bulk tank on a small set is `247 hours`, a figure a reader has to
+    divide before it means anything.
+
+    **`Generation today` did not disappear, it moved** — into a second column on
+    the run card, beside the run's own totals, with the day's hours, litres and
+    starts. Four figures that are each useless alone: an engine that ran four hours
+    across three starts for 61 kWh on 24 L is a legible morning, and any one of
+    those numbers by itself is not. What the strip's version invited was a
+    *share-of-site* reading, and this page cannot honestly give one — an engine's
+    output may go into a battery and come back out tomorrow, so what fraction of
+    today's site energy it carried is a question about the site's day, not the
+    machine's. The solar pages are where a share belongs.
+
+    The day is a **column and not a card**, and it was a card first. On a set with
+    one run today — much the commonest case — the card beside the run printed the
+    same four numbers, which reads as a rendering fault rather than as an
+    arithmetic identity. As a column that identity is the point: the two agree when
+    this run *is* today's work, and where they diverge the difference is on one row
+    at one scale. `Starts` reading `1 · 0` is the case worth having: this run is a
+    start, and it began before midnight, so yesterday owns it.
+
+    **The details band is identity, and deliberately only that** — name, make and
+    model, rating, and a lorry plate on the sets that have one (most are bolted to
+    a plinth and the row is simply absent, rather than a dash pretending at missing
+    data). `Tank capacity` left the band because the fuel panel one band up already
+    states it as `Max capacity`, beside the level it is the denominator of; a figure
+    printed twice on one page is one a reader has to check against itself. The
+    rating stays because it is the denominator of every load figure above it.
+
+    What the band does **not** carry is the instrumentation — controller model,
+    register numbers, fuel-sensor scaling, whether a tank is one bulk vessel or a
+    day tank fed from it. Every one of those is a real question about a real site
+    and not one of them is settled; they belong to whoever wires the ingest up, and
+    a details block that guessed would be this prototype asserting facts it has not
+    got.
 
 ### The site page
 
@@ -1277,8 +1333,11 @@ stopped machine reports.
 - **Auth is fake.** `modules/auth/session.ts` writes `{email}` to localStorage.
   It exists so the login screen has somewhere to go and there's a route guard to
   demonstrate. It is not a security boundary.
-- **Data is mock.** `modules/genset/data/fleet.ts` — 24 units, 12 of them in the
-  Klang Valley so the map's cluster bubble is real. `BRF9540` is pinned to the
+- **Data is mock.** `modules/genset/data/fleet.ts` reads whichever estate the brand
+  names. The carrier estate is a **Sabah and Sarawak** build-out under two
+  programmes (`Jendela SBH`, `Jendela SWK`), with four peninsular sites kept as the
+  grid-backed baseline the Borneo ones are read against — so the map has clusters on
+  both landmasses and the region chips are not two entries long. `BRF9540` is pinned to the
   exact values in the Figma so the panel can be diffed against the design.
   Timestamps are minutes-ago offsets resolved at load, so they never go stale.
   `data/detail.ts` derives the home page from those givens; per-unit variation is
@@ -1290,12 +1349,20 @@ stopped machine reports.
   right-hand edge and the home page always agree. It is not a recording — but it
   is internally consistent all the way down, which is what makes the screen worth
   reviewing.
-- **Sites are mostly derived.** `modules/site/data/siteSeed.ts` holds the four things
+- **Sites are mostly derived.** `modules/site/data/siteSeed.ts` holds the things
   a diesel engine cannot tell you — a site's name, the kind of load it carries, where
-  the yard is and what the customer draws. Everything else in `sites.ts` is summed or
+  the yard is, what the customer draws, which region it sits in and which rollout
+  programme it was filed under. Everything else in `sites.ts` is summed or
   ranked from the gensets standing there: membership from the sets naming it, capacity,
   fuel and condition from them. Change a genset's `siteId` and every one of those
   figures follows.
+
+  Six of those givens are **editable** from the site's Settings tab — name, latitude,
+  longitude, region, programme and supply. The edits are differences held in
+  `data/siteOverrides.ts` and laid over the dataset by `siteSeeds()`, so the map moves
+  its pin, the region chips re-count and the breadcrumb follows, and Reset restores the
+  dataset's own row. The programme is a **grouping and nothing else** — no figure on
+  any screen derives from it, and a site is allowed to be in none.
 
   The **intake meter** is the one derived figure with two halves. Whether the supply is
   live is derived: a yard's mains is dead exactly when some set there is out on an

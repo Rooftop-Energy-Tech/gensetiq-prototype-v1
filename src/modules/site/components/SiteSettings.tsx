@@ -6,23 +6,32 @@ import {SITE_POWER_ROLES} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {setSitePowerRole, useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
+import {SiteIdentityPanel} from './settings/SiteIdentityPanel';
 import {SiteDiagram} from './SiteDiagram';
 import {SiteGensets} from './SiteGensets';
 import {SiteMetering} from './SiteMetering';
 
 /**
- * The site's Settings tab — one section, and it configures how the site page draws
- * this yard's supply.
+ * The site's Settings tab — what this yard *is*, and how the page draws it.
  *
- * ## Why there is only one section
+ * ## The order of the sections, and why
  *
- * The tab's old placeholder promised three things: which gensets are installed,
- * how the changeover is configured, and who gets called out. Two of those have no
- * data behind them and the third is already a live control on the Home tab. A
- * heading over an empty div is worse than a page that does one thing, so this does
- * one thing.
+ * **Identity and placement** first: the site's own facts — its name, where it
+ * stands, its region and its programme. They are first because they are what a
+ * reader arrives to fix. A pin in the wrong district or a site filed under the
+ * wrong rollout is a data correction, and it is the errand that brings somebody to
+ * this tab in the first place.
  *
- * ## What the setting is
+ * **Power configuration** second, on its own and with room to explain itself. It is
+ * a given like the five above it and it is not like them in one way that matters:
+ * the others change what the page *says* and this one changes what the page
+ * **draws**. A control that redraws a circuit deserves more than a row in a form,
+ * because it is the one on this tab a reader could mistake for reconfiguring plant.
+ *
+ * Then the plant this site holds — gensets and meters — and last the circuit
+ * itself, as the preview of the choice above.
+ *
+ * ## What the power setting is
  *
  * Which of the estate's four power configurations this site is: grid-backed,
  * diesel prime, diesel hybrid, or solar hybrid. It is a *display* choice — it
@@ -145,6 +154,10 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
 
   return (
     <div className="flex flex-col gap-2.5 px-4 pt-1 pb-6">
+      <SiteIdentityPanel siteId={summary.site.id} />
+
+      <hr className="border-subtle" />
+
       <section aria-labelledby="power-configuration" className="flex flex-col gap-5 px-6 py-7">
         <div className="flex flex-col gap-1">
           <h2 id="power-configuration" className="text-sm font-medium text-primary">

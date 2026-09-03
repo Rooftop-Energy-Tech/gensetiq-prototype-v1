@@ -13,7 +13,8 @@ import type {MeterFeed, MeterPoint, PowerMeter} from '@/modules/meter/types/mete
 import {hasBattery, hasMains} from '../types/site.type';
 import type {MainsSupply, Site, SitePowerRole} from '../types/site.type';
 import {hybridState} from './hybrid';
-import {SITE_KIND_LABEL, SITE_SEED} from './siteSeed';
+import {SITE_KIND_LABEL, siteSeed, siteSeeds} from './siteSeed';
+import {subscribeSiteOverrides} from './siteOverrides';
 import type {SiteSeed} from './siteSeed';
 
 /**
@@ -172,7 +173,7 @@ export const siteFeed = (
   // claiming an outage the model has no evidence for would be worse than the
   // simplification.
   if (hasBattery(role)) {
-    const seed = SITE_SEED.find((candidate) => candidate.id === summary.site.id);
+    const seed = siteSeed(summary.site.id);
     if (seed !== undefined) {
       const state = hybridState(seed, role);
       return state.solarKw > summary.site.loadKw ? {source: 'SOLAR'} : {source: 'BATTERY'};
@@ -333,6 +334,9 @@ const buildSummary = (
       // Whose yard it is. Carried through from the seed rather than derived,
       // because there is nothing on a diesel engine that says "Sarawak".
       customer: seed.customer,
+      // And which rollout filed it — a grouping the operator drew, so there is
+      // nothing to derive it from at all. `undefined` at a site in no programme.
+      program: seed.program,
     },
     gensets,
     // A running set if there is one — it is already carrying the load. Otherwise
@@ -383,6 +387,7 @@ const buildSummary = (
  */
 let cache:
   | {
+      seeds: ReadonlyArray<SiteSeed>;
       fleet: Array<Genset>;
       meters: Array<PowerMeter>;
       byId: Record<string, SiteSummary>;
@@ -391,34 +396,47 @@ let cache:
   | undefined;
 
 const summaries = () => {
+  const currentSeeds = siteSeeds();
   const currentFleet = fleet();
   const currentMeters = meters();
-  // Two inputs now, and both have to be in the key: fitting a meter changes what a
-  // site can report without moving a single genset.
-  if (cache?.fleet !== currentFleet || cache.meters !== currentMeters) {
+  // Three inputs now, and all three have to be in the key. Fitting a meter changes
+  // what a site can report without moving a genset; and since a reader can rename a
+  // site, move its pin or change its region from the Settings tab, the *seeds* are
+  // no longer fixed for the life of the process either. `siteSeeds()` is memoised on
+  // the override store, so an untouched estate hands back the same array every time
+  // and this stays one rebuild per change rather than one per read.
+  if (
+    cache?.seeds !== currentSeeds ||
+    cache.fleet !== currentFleet ||
+    cache.meters !== currentMeters
+  ) {
     const byId = Object.fromEntries(
-      SITE_SEED.map((seed) => [seed.id, buildSummary(seed, currentFleet, currentMeters)]),
+      currentSeeds.map((seed) => [seed.id, buildSummary(seed, currentFleet, currentMeters)]),
     );
     cache = {
+      seeds: currentSeeds,
       fleet: currentFleet,
       meters: currentMeters,
       byId,
-      ordered: SITE_SEED.map((seed) => byId[seed.id]),
+      ordered: currentSeeds.map((seed) => byId[seed.id]),
     };
   }
   return cache;
 };
 
 /**
- * Subscribe to anything that changes a summary — the fleet's placement, or the
- * metering estate. Both feed `buildSummary`, so both have to wake its readers.
+ * Subscribe to anything that changes a summary — the fleet's placement, the
+ * metering estate, or a reader's edits to a site's own facts. All three feed
+ * `buildSummary`, so all three have to wake its readers.
  */
 const subscribeSources = (listener: () => void) => {
   const unsubscribeFleet = subscribeFleet(listener);
   const unsubscribeMeters = subscribeMeters(listener);
+  const unsubscribeOverrides = subscribeSiteOverrides(listener);
   return () => {
     unsubscribeFleet();
     unsubscribeMeters();
+    unsubscribeOverrides();
   };
 };
 
@@ -429,7 +447,7 @@ export const siteSummaries = (): Array<SiteSummary> => summaries().ordered;
 export const siteSummary = (siteId: string): SiteSummary | undefined => summaries().byId[siteId];
 
 export const useSiteSummaries = (): Array<SiteSummary> =>
-  useSyncExternalStore(subscribeFleet, siteSummaries, siteSummaries);
+  useSyncExternalStore(subscribeSources, siteSummaries, siteSummaries);
 
 export const useSiteSummary = (siteId: string): SiteSummary | undefined =>
   useSyncExternalStore(

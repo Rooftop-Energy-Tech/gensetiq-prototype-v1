@@ -1,4 +1,4 @@
-import {gensetRuns, runLoadKw} from '@/modules/genset/data/history';
+import {gensetRuns, runLoadKw, runTotalsIn} from '@/modules/genset/data/history';
 import type {GensetRun} from '@/modules/genset/types/run.type';
 
 import {hasBattery, hasSolar} from '../types/site.type';
@@ -172,25 +172,28 @@ const gensetKwAt = (gensetIds: Array<string>, at: number, now: number): number =
   return Math.round(kw * 10) / 10;
 };
 
-/** Diesel energy across `[from, to)`, kWh — the runs' own totals, prorated. */
-const gensetKwhIn = (
+/**
+ * Diesel energy across `[from, to)`, kWh — the runs' own totals, prorated.
+ *
+ * Exported because the genset page's summary strip asks the same question of one
+ * machine over one day that the chart asks of a yard over a month, and the
+ * proration is the part that has to agree: a run that started at eleven last night
+ * belongs to two days, and a second implementation of that split is how the strip
+ * and the chart under it end up quoting different energies for the same morning.
+ */
+export const gensetKwhIn = (
   gensetIds: Array<string>,
   from: number,
   to: number,
   now: number,
 ): number => {
+  // `runTotalsIn` owns the midnight split — a run spanning it is shared between
+  // the two days rather than counted twice — so this sums and rounds once. It was
+  // a second copy of that arithmetic until the genset home page needed the same
+  // figure for its own day, which is the point at which two copies start drifting.
   let kwh = 0;
   for (const gensetId of gensetIds) {
-    for (const run of gensetRuns(gensetId)) {
-      const startedAt = new Date(run.startedAt).getTime();
-      const endedAt = run.endedAt === null ? now : new Date(run.endedAt).getTime();
-      // The part of the run inside the bucket, so a run spanning midnight is
-      // shared between the two days rather than counted twice.
-      const overlap = Math.min(endedAt, to) - Math.max(startedAt, from);
-      if (overlap <= 0) continue;
-      const span = endedAt - startedAt;
-      kwh += span > 0 ? (run.energyProducedKwh * overlap) / span : 0;
-    }
+    kwh += runTotalsIn(gensetId, from, to, now).energyKwh;
   }
   return Math.round(kwh);
 };
