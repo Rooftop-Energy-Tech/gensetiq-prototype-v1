@@ -1,8 +1,8 @@
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
-import {hybridPlant, intradayKw, siteEnergy, todayFullKwh} from './hybrid';
+import {fullDayKwh, gensetDay, gensetKwAt} from './dispatch';
+import {hybridPlant, intradayKw, loadShape} from './hybrid';
 import type {SiteSeed} from './siteSeed';
-import {loadShape} from './siteTrend';
 import type {SiteTrendPeriod} from './siteTrend';
 
 /**
@@ -24,26 +24,49 @@ import type {SiteTrendPeriod} from './siteTrend';
  * unit, and it does not offer a choice of metric. The picker still exists beside it
  * for the single-series views; this is the view a hybrid opens on.
  *
- * ## The convention, and that it is NetEco's
+ * ## What the four series are: a composition of the load, not a balance
  *
- * The reference this was built against is Huawei NetEco's `Energy Trend` panel, and
- * the sign convention is theirs rather than this codebase's:
+ * The chart answers one question — **what carried the load** — and it answers it by
+ * splitting the load itself three ways. `SOLAR`, `GENSET` and `BATTERY` are each
+ * the power that source put *into the tower* at that instant, they stack, and the
+ * stack tops out exactly on the `LOAD` line at every sample. Nothing overlaps and
+ * nothing exceeds the load, because every band is a share of it.
  *
- *   **positive is into the bus for a source, and into the battery for the bank.**
+ * The shares are allocated in the order a hybrid actually dispatches:
  *
- * So `SOLAR`, `GENSET` and `LOAD` are always ≥ 0, and `BATTERY` is positive while
- * the bank is *charging* and negative while it is *discharging*. Read that way the
- * chart is an energy balance and the balance closes at every sample:
+ * 1. **Solar first**, up to the load — a site uses its own generation before
+ *    anything else.
+ * 2. **The genset next**, for whatever the array did not cover.
+ * 3. **The bank last**, which by construction is the remainder — and is the same
+ *    discharge figure the residual below produces.
  *
- *   `solar + genset = load + battery`
+ * ## What is deliberately not drawn: the surplus
  *
- * which is exactly how NetEco's own tooltip reconciles — 6.39 kW of PV against
- * 2.33 kW of load and 3.57 kW into the bank, with the remainder as conversion loss.
+ * A source can make more than the tower is drawing, and that surplus is where the
+ * bank's charge comes from. It is **clipped out of every band** — an array making
+ * 8 kW against a 3 kW load contributes 3, and a genset running a 12 kW block into
+ * the same load contributes 3 as well.
  *
- * **This is the opposite of `HybridState.batteryKw`**, which is positive while the
- * bank *discharges* and which the single-line diagram prints under its battery
- * node. The two are on the same page. See the note on `batteryKw` below for what
- * that costs and why it is deliberately left standing rather than papered over.
+ * That is a real quantity left off a chart, and the reason is that it is the *same
+ * energy drawn twice*. Generation beyond the load goes into the bank and comes back
+ * out of it later as the battery band — plotting the surplus too would show it
+ * once on its way in and again on its way out, and inflate a picture of the load
+ * to something taller than the load. The genset is the sharpest case: it is sized
+ * to charge, so it always runs well above the tower's draw, and its unclipped block
+ * was the tallest thing on the chart while carrying nothing extra to the load at
+ * all.
+ *
+ * The reference this was built against, Huawei NetEco's `Energy Trend` panel, draws
+ * the other picture: overlaid unclipped curves with the bank signed, positive into
+ * the battery, so the record is a balance that closes at every sample —
+ * `solar + genset = load + battery`. That is the more complete statement and it is
+ * a harder read. Where the surplus and the charging matter — how full the bank got,
+ * how much the array made in total — the metric picker beside this chart answers in
+ * one series at a time, which is what it is for.
+ *
+ * Positive-is-discharge also puts the bank here back in step with
+ * `HybridState.batteryKw` and the single-line diagram's battery node, which have
+ * always read that way.
  *
  * ## Everything is derived, nothing is seeded
  *
@@ -95,10 +118,23 @@ export const OVERVIEW_SERIES = ['SOLAR', 'GENSET', 'BATTERY', 'LOAD'] as const;
 export type OverviewSeriesId = (typeof OVERVIEW_SERIES)[number];
 
 export const OVERVIEW_SERIES_LABEL: Record<OverviewSeriesId, string> = {
-  SOLAR: 'Solar output',
-  GENSET: 'Genset output',
-  BATTERY: 'Battery charge/discharge',
+  SOLAR: 'Solar to load',
+  GENSET: 'Genset to load',
+  BATTERY: 'Battery to load',
   LOAD: 'Site load',
+};
+
+/**
+ * The same three sources, named for the other chart.
+ *
+ * A separate table rather than reusing the labels above, because on the charge
+ * chart they mean the opposite direction: `Solar to load` and `Solar to battery`
+ * are two different quantities out of one array, and a legend that called both of
+ * them `Solar` would leave a reader unable to tell which chart they were reading.
+ */
+export const CHARGE_SERIES_LABEL: Record<'SOLAR' | 'GENSET', string> = {
+  SOLAR: 'Solar to battery',
+  GENSET: 'Genset to battery',
 };
 
 /**
@@ -131,8 +167,13 @@ export type OverviewSeries = {
    * ten in the morning is every plant on the estate.
    */
   values: Array<number | null>;
-  /** Signed — the bank only. Drawn below the axis where it goes negative. */
-  signed: boolean;
+  /**
+   * Does this series stack, or is it the total the stack has to reach.
+   *
+   * True for the three sources and false for the load — which is the one thing on
+   * the chart that is not a share of itself.
+   */
+  stacked: boolean;
 };
 
 export type SiteOverview = {
@@ -175,110 +216,6 @@ const startOfDay = (at: number): number => {
 /** `07:30`, from hours-since-midnight. */
 const clockLabel = (hour: number): string =>
   `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 === 0 ? '00' : '30'}`;
-
-/**
- * The whole of one day's solar energy, kWh — including a day still in progress.
- *
- * `todayFullKwh` reads the clock it is handed, so calling it at a synthetic **noon**
- * on the day in question is what makes it answer for any day rather than only for
- * today. That is the same trick `siteTrend.dayTrend` uses and it is here for the
- * same reason: the intraday curve needs the *whole* day's energy to know how tall it
- * is at one o'clock, and a partial figure would draw a shorter array all morning.
- */
-const fullDayKwh = (seed: SiteSeed, role: SitePowerRole, dayStart: number): number =>
-  todayFullKwh(seed, role, dayStart + 12 * 3_600_000);
-
-/**
- * What one genset block looks like at this site, and how long it has to run today.
- *
- * ## Why the genset is modelled here rather than read from its run log
- *
- * Because the run log cannot be made to balance. `history.ts` deals every genset a
- * history from a hash of its id — it has never heard of an array or a bank — and
- * `hybrid.ts` says so plainly in its own header, along with the rule that follows:
- * the two models never appear on one screen. The metric picker honours that by
- * showing them one at a time. **This chart cannot**, because its whole claim is
- * that the four series add up, and a genset curve dealt from an unrelated hash
- * would break that claim at every sample.
- *
- * So the block is derived from `siteEnergy`, which is the same chain the array and
- * the load come from:
- *
- * - **How hard it runs** is `gensetKwh / gensetHours` — the two figures
- *   `siteEnergy` already publishes together, so the loading here and the litres on
- *   the energy report are the same arithmetic rather than two guesses at it.
- * - **How long it runs** is whatever the day's array did not cover. A solar hybrid's
- *   genset is described in `site.type` as *the backstop for a run of dull days*, and
- *   this is that sentence as a function: a bright day needs no block at all, and a
- *   week of monsoon puts one in every morning.
- *
- * The consequence a reader should expect is that **this chart's genset and the
- * genset's own page disagree**, and that is the seam `hybrid.ts` already documents
- * rather than a new one. It is on the open-questions list.
- */
-const gensetDay = (
-  seed: SiteSeed,
-  role: SitePowerRole,
-  ratedKw: number,
-  dayStart: number,
-): {blockKw: number; hours: number} => {
-  const energy = siteEnergy(seed, role, ratedKw);
-  if (energy.gensetHours <= 0 || energy.gensetKwh <= 0) return {blockKw: 0, hours: 0};
-
-  const blockKw = energy.gensetKwh / energy.gensetHours;
-
-  /**
-   * What the day needed *raised*, which is more than the tower drew.
-   *
-   * Read as a ratio off `siteEnergy` rather than restating the round-trip and
-   * direct-share constants here — those live in `hybrid.ts` and a second copy of
-   * them is how the two would come to disagree about how lossy the bank is.
-   */
-  const raise = energy.loadKwh > 0 ? energy.generationKwh / energy.loadKwh : 1;
-  const neededKwh = seed.loadKw * HOURS_PER_DAY * raise;
-  const solarKwh = hasSolar(role) ? fullDayKwh(seed, role, dayStart) : 0;
-
-  const deficitKwh = Math.max(0, neededKwh - solarKwh);
-  return {blockKw, hours: Math.min(HOURS_PER_DAY, deficitKwh / blockKw)};
-};
-
-/**
- * Is the set turning at `hour`, and at what output.
- *
- * ## Where the block is placed, and why it is not dealt at random
- *
- * A solar hybrid charges off the roof, so its genset only ever runs at the bottom of
- * the night — the block is laid so it **ends at first light**, which is both where
- * the bank is lowest and where an operator would expect to find it. A diesel hybrid
- * has no roof, so `hybrid.ts` gives it *two charging blocks a day* and its state of
- * charge is modelled on a twelve-hour cycle with two peaks; the two blocks here are
- * placed to match, one before dawn and one in the late afternoon, so the bank's
- * level on the picker and the bank's charging on this chart rise together instead
- * of at unrelated hours.
- *
- * Fixed hours rather than a spread on the site id, deliberately: the point of this
- * chart is that the four curves explain each other, and a block dealt to an
- * arbitrary hour would make the bank appear to charge for no visible reason.
- */
-const gensetKwAt = (
-  role: SitePowerRole,
-  block: {blockKw: number; hours: number},
-  hour: number,
-): number => {
-  if (block.blockKw === 0 || block.hours === 0) return 0;
-
-  const FIRST_LIGHT = 7;
-  if (hasSolar(role)) {
-    const from = Math.max(0, FIRST_LIGHT - block.hours);
-    return hour >= from && hour < FIRST_LIGHT ? block.blockKw : 0;
-  }
-
-  // Two blocks, half the hours each, matching the diesel hybrid's two-peak cycle.
-  const half = block.hours / 2;
-  const morning = hour >= Math.max(0, FIRST_LIGHT - half) && hour < FIRST_LIGHT;
-  const evening = hour >= 16 && hour < Math.min(24, 16 + half);
-  return morning || evening ? block.blockKw : 0;
-};
 
 /**
  * How finely to sample, and how far back to start, for each window.
@@ -328,7 +265,13 @@ const KW = (value: number): number => Math.round(value * 10) / 10;
 const NUMBER = new Intl.NumberFormat('en-MY', {maximumFractionDigits: 0});
 
 /**
- * The four series, over one window.
+ * Every share, over one window — the walk both charts are assembled from.
+ *
+ * One loop rather than two, because the two compositions are the two halves of the
+ * same allocation: what each source put into the tower, and what each source had
+ * left over for the bank. Sampling them separately would be two implementations of
+ * "solar serves the load first", and the day they disagreed one chart would show a
+ * surplus the other had already spent.
  *
  * @param ratedKw Nameplate across every set standing at this site. Passed in for
  *   the reason `siteEnergy` takes it: this module knows about places and the fleet
@@ -336,14 +279,40 @@ const NUMBER = new Intl.NumberFormat('en-MY', {maximumFractionDigits: 0});
  * @param dayAt Midnight of the day the stepper is parked on. Only `day` reads it;
  *   every longer window is trailing from `now`.
  */
-export const siteOverview = (
+type Shares = {
+  labels: Array<string>;
+  stamps: Array<string>;
+  /** Each source's share of the load, and the load itself. */
+  toLoad: {
+    solar: Array<number | null>;
+    genset: Array<number | null>;
+    battery: Array<number | null>;
+    load: Array<number | null>;
+  };
+  /** What each source had left over, which is what charged the bank. */
+  toBank: {
+    solar: Array<number | null>;
+    genset: Array<number | null>;
+  };
+  /** The same six, integrated over the window, kWh. */
+  energy: {
+    solarToLoad: number;
+    gensetToLoad: number;
+    batteryToLoad: number;
+    load: number;
+    solarToBank: number;
+    gensetToBank: number;
+  };
+};
+
+const shares = (
   seed: SiteSeed,
   role: SitePowerRole,
   ratedKw: number,
   period: SiteTrendPeriod,
   dayAt: number,
-  now: number = Date.now(),
-): SiteOverview => {
+  now: number,
+): Shares => {
   const step = sampleHours(period);
   const days = windowDays(period);
 
@@ -354,17 +323,22 @@ export const siteOverview = (
   const genset: Array<number | null> = [];
   const battery: Array<number | null> = [];
   const load: Array<number | null> = [];
+  const solarIn: Array<number | null> = [];
+  const gensetIn: Array<number | null> = [];
   const labels: Array<string> = [];
   const stamps: Array<string> = [];
 
   // Energy, so the readout beside the legend can report what each series came to
   // over the window rather than only its peak. Accumulated as `kW × step hours`,
   // which is the area under the sampled curve — the same integral the chart draws.
-  let solarKwh = 0;
-  let gensetKwh = 0;
-  let chargeKwh = 0;
-  let dischargeKwh = 0;
-  let loadKwh = 0;
+  const energy = {
+    solarToLoad: 0,
+    gensetToLoad: 0,
+    batteryToLoad: 0,
+    load: 0,
+    solarToBank: 0,
+    gensetToBank: 0,
+  };
 
   const daily = isDailyMean(period);
 
@@ -382,6 +356,8 @@ export const siteOverview = (
     let dayGenset = 0;
     let dayLoad = 0;
     let dayBattery = 0;
+    let daySolarIn = 0;
+    let dayGensetIn = 0;
     let taken = 0;
 
     for (let hour = 0; hour < HOURS_PER_DAY; hour += step) {
@@ -404,14 +380,16 @@ export const siteOverview = (
         );
       }
 
-      // Beyond the clock there is no record. Four nulls rather than four zeroes —
-      // see `OverviewSeries.values`.
+      // Beyond the clock there is no record. Nulls rather than zeroes — see
+      // `OverviewSeries.values`.
       if (at > now) {
         if (!daily) {
           solar.push(null);
           genset.push(null);
           battery.push(null);
           load.push(null);
+          solarIn.push(null);
+          gensetIn.push(null);
         }
         continue;
       }
@@ -419,29 +397,49 @@ export const siteOverview = (
       const solarKw = hasSolar(role) ? KW(intradayKw(dayKwh, hour)) : 0;
       const gensetKw = KW(gensetKwAt(role, block, hour));
       const loadKw = KW(seed.loadKw * loadShape(hour));
-      // The residual, and positive into the bank — see the module note. This is the
-      // whole reason the chart closes: nothing else in here is free to disagree
-      // with it.
-      const batteryKw = KW(solarKw + gensetKw - loadKw);
+
+      // The shares of that load, dispatched in order and each clipped to what was
+      // left for it — see the module note. Clipped per sample rather than at the
+      // end of the window: a day's surplus and a day's deficit happen at different
+      // hours, and netting them off would report neither.
+      const solarToLoad = Math.min(solarKw, loadKw);
+      const gensetToLoad = Math.min(gensetKw, KW(loadKw - solarToLoad));
+      // The remainder, which is the bank discharging. Identical to clamping the
+      // residual `solar + genset - load` at zero — this is the same arithmetic
+      // written as the share it is, and it is what makes the stack close on the
+      // load line rather than near it.
+      const batteryToLoad = KW(Math.max(0, loadKw - solarToLoad - gensetToLoad));
+
+      // And what each source had over. The two halves are exhaustive by
+      // construction — a source's output is what it gave the tower plus what it
+      // gave the bank — which is what lets the charge chart be read as the other
+      // side of this one.
+      const solarToBank = KW(solarKw - solarToLoad);
+      const gensetToBank = KW(gensetKw - gensetToLoad);
 
       if (daily) {
-        daySolar += solarKw;
-        dayGenset += gensetKw;
+        daySolar += solarToLoad;
+        dayGenset += gensetToLoad;
         dayLoad += loadKw;
-        dayBattery += batteryKw;
+        dayBattery += batteryToLoad;
+        daySolarIn += solarToBank;
+        dayGensetIn += gensetToBank;
         taken += 1;
       } else {
-        solar.push(solarKw);
-        genset.push(gensetKw);
-        battery.push(batteryKw);
+        solar.push(solarToLoad);
+        genset.push(gensetToLoad);
+        battery.push(batteryToLoad);
         load.push(loadKw);
+        solarIn.push(solarToBank);
+        gensetIn.push(gensetToBank);
       }
 
-      solarKwh += solarKw * step;
-      gensetKwh += gensetKw * step;
-      loadKwh += loadKw * step;
-      if (batteryKw > 0) chargeKwh += batteryKw * step;
-      else dischargeKwh += -batteryKw * step;
+      energy.solarToLoad += solarToLoad * step;
+      energy.gensetToLoad += gensetToLoad * step;
+      energy.batteryToLoad += batteryToLoad * step;
+      energy.load += loadKw * step;
+      energy.solarToBank += solarToBank * step;
+      energy.gensetToBank += gensetToBank * step;
     }
 
     if (daily) {
@@ -454,14 +452,61 @@ export const siteOverview = (
       // A day the clock has not reached at all publishes nulls, the same way an
       // unreached half-hour does. A day part-way through reports the mean of what
       // has happened, which is what its own samples come to.
-      const mean = (total: number): number | null =>
-        taken === 0 ? null : KW(total / taken);
+      const mean = (total: number): number | null => (taken === 0 ? null : KW(total / taken));
       solar.push(mean(daySolar));
       genset.push(mean(dayGenset));
       battery.push(mean(dayBattery));
       load.push(mean(dayLoad));
+      solarIn.push(mean(daySolarIn));
+      gensetIn.push(mean(dayGensetIn));
     }
   }
+
+  return {
+    labels,
+    stamps,
+    toLoad: {solar, genset, battery, load},
+    toBank: {solar: solarIn, genset: gensetIn},
+    energy,
+  };
+};
+
+/** How the caption names this window's span and grain. */
+const windowWords = (period: SiteTrendPeriod): {span: string; grain: string} => ({
+  grain:
+    period === 'day'
+      ? 'half-hourly'
+      : period === 'month'
+        ? 'hourly'
+        : 'as a daily mean — the intraday peaks are higher',
+  span:
+    period === 'day'
+      ? 'through the day'
+      : period === 'month'
+        ? 'across the last thirty days'
+        : period === 'year'
+          ? 'across the last twelve months'
+          : 'across the whole record — twelve months',
+});
+
+const KWH = (value: number): string => `${NUMBER.format(value)} kWh`;
+
+/**
+ * The load's composition: three stacked shares and the load they add up to.
+ *
+ * @param ratedKw Nameplate across every set standing at this site.
+ * @param dayAt Midnight of the day the stepper is parked on. Only `day` reads it.
+ */
+export const siteOverview = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  ratedKw: number,
+  period: SiteTrendPeriod,
+  dayAt: number,
+  now: number = Date.now(),
+): SiteOverview => {
+  const {labels, stamps, toLoad, energy} = shares(seed, role, ratedKw, period, dayAt, now);
+  const {span, grain} = windowWords(period);
 
   const series: Array<OverviewSeries> = [];
   if (hasSolar(role)) {
@@ -469,8 +514,8 @@ export const siteOverview = (
       id: 'SOLAR',
       label: OVERVIEW_SERIES_LABEL.SOLAR,
       token: OVERVIEW_SERIES_TOKEN.SOLAR,
-      values: solar,
-      signed: false,
+      values: toLoad.solar,
+      stacked: true,
     });
   }
   if (ratedKw > 0) {
@@ -478,48 +523,32 @@ export const siteOverview = (
       id: 'GENSET',
       label: OVERVIEW_SERIES_LABEL.GENSET,
       token: OVERVIEW_SERIES_TOKEN.GENSET,
-      values: genset,
-      signed: false,
+      values: toLoad.genset,
+      stacked: true,
     });
   }
   series.push({
     id: 'BATTERY',
     label: OVERVIEW_SERIES_LABEL.BATTERY,
     token: OVERVIEW_SERIES_TOKEN.BATTERY,
-    values: battery,
-    signed: true,
+    values: toLoad.battery,
+    stacked: true,
   });
   series.push({
     id: 'LOAD',
     label: OVERVIEW_SERIES_LABEL.LOAD,
     token: OVERVIEW_SERIES_TOKEN.LOAD,
-    values: load,
-    signed: false,
+    values: toLoad.load,
+    stacked: false,
   });
 
-  const grain =
-    period === 'day'
-      ? 'half-hourly'
-      : period === 'month'
-        ? 'hourly'
-        : 'as a daily mean — the intraday peaks are higher';
-  const span =
-    period === 'day'
-      ? 'through the day'
-      : period === 'month'
-        ? 'across the last thirty days'
-        : period === 'year'
-          ? 'across the last twelve months'
-          : 'across the whole record — twelve months';
-
+  // Each source's energy *to the load*, so the three add up to the load's own
+  // figure beside them — the same claim the stack makes, in numbers.
   const totals: Array<{label: string; value: string}> = [];
-  if (hasSolar(role)) totals.push({label: 'Solar', value: `${NUMBER.format(solarKwh)} kWh`});
-  if (ratedKw > 0) totals.push({label: 'Genset', value: `${NUMBER.format(gensetKwh)} kWh`});
-  totals.push({
-    label: 'Battery',
-    value: `${NUMBER.format(chargeKwh)} in / ${NUMBER.format(dischargeKwh)} out kWh`,
-  });
-  totals.push({label: 'Load', value: `${NUMBER.format(loadKwh)} kWh`});
+  if (hasSolar(role)) totals.push({label: 'Solar', value: KWH(energy.solarToLoad)});
+  if (ratedKw > 0) totals.push({label: 'Genset', value: KWH(energy.gensetToLoad)});
+  totals.push({label: 'Battery', value: KWH(energy.batteryToLoad)});
+  totals.push({label: 'Load', value: KWH(energy.load)});
 
   return {
     period,
@@ -527,7 +556,104 @@ export const siteOverview = (
     stamps,
     series,
     unit: 'kW',
-    caption: `Power ${span}, ${grain} · positive charges the bank`,
+    caption: `Power ${span}, ${grain} · sources stacked to the load`,
+    totals,
+  };
+};
+
+/**
+ * The bank's composition: **what charged it**, stacked the same way.
+ *
+ * ## Why the level chart was not enough on its own
+ *
+ * State of charge says what the bank is holding and says nothing at all about
+ * where it came from, and at a hybrid that second question is the one with money
+ * in it: a bank that spent the night on diesel and a bank that filled off the roof
+ * read as the same percentage. The whole argument for a solar hybrid is which of
+ * those two a site is doing, and it was not on the page anywhere — the level chart
+ * cannot show it, and the load chart deliberately clips it out.
+ *
+ * So this is the other side of `siteOverview`, off the same walk: every kilowatt a
+ * source made beyond what the tower was drawing, stacked by source. The two charts
+ * partition each source's output exactly — what it gave the load, and what it gave
+ * the bank — so a reader can move between them without either of them
+ * double-counting a kilowatt.
+ *
+ * ## What it is not
+ *
+ * Not the bank's *net* movement, and not the level. There is no discharge band
+ * here: discharging is drawn on the load chart, where the energy went, and drawing
+ * it again as a negative band would be the same kilowatt in two places, which is
+ * the mistake the clipping note in the module header is about. And the surplus is
+ * measured at the bus rather than at the cells, so it is what was **offered** to
+ * the bank — the round-trip loss `hybrid.ts` models is not deducted here, and the
+ * level chart is where the bank's own answer is.
+ *
+ * There is no total line, unlike the load's. The stack's own crown *is* the total
+ * charging power, and a line drawn on it would trace its own edge.
+ */
+export const siteChargeMix = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  ratedKw: number,
+  period: SiteTrendPeriod,
+  dayAt: number,
+  now: number = Date.now(),
+): SiteOverview => {
+  const {labels, stamps, toBank, energy} = shares(seed, role, ratedKw, period, dayAt, now);
+  const {span, grain} = windowWords(period);
+
+  const series: Array<OverviewSeries> = [];
+  if (hasSolar(role)) {
+    series.push({
+      id: 'SOLAR',
+      label: CHARGE_SERIES_LABEL.SOLAR,
+      token: OVERVIEW_SERIES_TOKEN.SOLAR,
+      values: toBank.solar,
+      stacked: true,
+    });
+  }
+  if (ratedKw > 0) {
+    series.push({
+      id: 'GENSET',
+      label: CHARGE_SERIES_LABEL.GENSET,
+      token: OVERVIEW_SERIES_TOKEN.GENSET,
+      values: toBank.genset,
+      stacked: true,
+    });
+  }
+
+  // Rounded before they are added, so the strip reads `24 + 40 = 64` rather than
+  // `24 + 40 = 65`. The parts are what a reader checks the total against, and a
+  // total carrying a rounding the parts do not show looks like an error in the
+  // chart rather than in the last decimal place.
+  const fromSolar = Math.round(energy.solarToBank);
+  const fromGenset = Math.round(energy.gensetToBank);
+
+  const totals: Array<{label: string; value: string}> = [];
+  if (hasSolar(role)) totals.push({label: 'From solar', value: KWH(fromSolar)});
+  if (ratedKw > 0) totals.push({label: 'From genset', value: KWH(fromGenset)});
+  // The share, which is the figure this chart exists to produce: a site charging
+  // four fifths off its roof and one charging a fifth are the two ends of the
+  // question the estate is managed on, and reading it off two bands by eye is
+  // exactly the arithmetic a readout should do.
+  if (hasSolar(role) && energy.solarToBank + energy.gensetToBank > 0) {
+    totals.push({
+      label: 'Solar share',
+      value: `${Math.round(
+        (energy.solarToBank / (energy.solarToBank + energy.gensetToBank)) * 100,
+      )}%`,
+    });
+  }
+  totals.push({label: 'Charged', value: KWH(fromSolar + fromGenset)});
+
+  return {
+    period,
+    labels,
+    stamps,
+    series,
+    unit: 'kW',
+    caption: `Charging power ${span}, ${grain} · stacked by source`,
     totals,
   };
 };

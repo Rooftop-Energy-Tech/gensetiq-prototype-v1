@@ -11,7 +11,7 @@ import {
   siteTrend,
 } from '../data/siteTrend';
 import type {SiteTrendMetric, SiteTrendPeriod} from '../data/siteTrend';
-import {siteOverview} from '../data/siteOverview';
+import {siteChargeMix, siteOverview} from '../data/siteOverview';
 import type {SitePowerRole} from '../types/site.type';
 import type {SiteSeed} from '../data/siteSeed';
 import {SiteOverviewChart} from './SiteOverviewChart';
@@ -31,7 +31,25 @@ import {SiteTrendChart} from './SiteTrendChart';
  */
 export const OVERVIEW_VIEW = 'OVERVIEW' as const;
 
-export type TrendView = SiteTrendMetric | typeof OVERVIEW_VIEW;
+/**
+ * The bank's other view — what charged it, by source. Outside `SiteTrendMetric`
+ * for the same reason `OVERVIEW` is: it is two quantities on one axis, from
+ * `siteChargeMix` rather than from a switch over the metric union.
+ */
+export const CHARGE_VIEW = 'CHARGE' as const;
+
+export type TrendView = SiteTrendMetric | typeof OVERVIEW_VIEW | typeof CHARGE_VIEW;
+
+/** Which views are drawn by the stacked chart rather than by the single-series one. */
+const COMPOSITIONS: ReadonlyArray<TrendView> = [OVERVIEW_VIEW, CHARGE_VIEW];
+
+const VIEW_LABEL: Record<typeof OVERVIEW_VIEW | typeof CHARGE_VIEW, string> = {
+  [OVERVIEW_VIEW]: 'Energy overview',
+  [CHARGE_VIEW]: 'Charge mix',
+};
+
+const viewLabel = (view: TrendView): string =>
+  view === OVERVIEW_VIEW || view === CHARGE_VIEW ? VIEW_LABEL[view] : SITE_TREND_METRIC_LABEL[view];
 
 /**
  * One chart, a metric picker and a period control — the band the site page's
@@ -44,7 +62,7 @@ export type TrendView = SiteTrendMetric | typeof OVERVIEW_VIEW;
  * `Day / Month / Year / Lifetime` over a full-width chart, and the only thing that
  * differs between them is how many metrics the picker offers: the site page offers
  * everything the yard can answer for, a system's page offers generation, a bank's
- * offers state of charge.
+ * offers what charged it and the level it reached.
  *
  * That difference is one prop. Three copies of a date stepper is how the forward
  * stop ends up disabled on one page and not the others.
@@ -70,7 +88,7 @@ export const TrendPanel = ({
   role,
   gensetIds,
   metrics,
-  overviewRatedKw,
+  ratedKw,
   now,
   ariaLabel,
 }: {
@@ -81,15 +99,15 @@ export const TrendPanel = ({
   /** In the order the picker should offer them; the first is the opening view. */
   metrics: ReadonlyArray<TrendView>;
   /**
-   * Nameplate across the sets here, which is what turns the `Energy overview` view
-   * on. `undefined` on every page that does not offer it.
+   * Nameplate across the sets here, which is what turns the two stacked views on.
    *
-   * A number rather than a boolean because the overview's genset band is sized from
-   * it — see `gensetDay`. A page that wants the view has to be able to say how big
-   * the plant is, which is the right thing to demand: an overview with a genset
-   * curve and no nameplate behind it would be drawing a rectangle from nowhere.
+   * A number rather than a boolean because their genset band is sized from it —
+   * see `gensetDay`. A page that wants one of these views has to be able to say how
+   * big the plant is, which is the right thing to demand: a composition with a
+   * genset band and no nameplate behind it would be drawing a rectangle from
+   * nowhere.
    */
-  overviewRatedKw?: number;
+  ratedKw?: number;
   now: number;
   ariaLabel: string;
 }) => {
@@ -116,26 +134,28 @@ export const TrendPanel = ({
   const [daysBack, setDaysBack] = useState(0);
   const dayAt = now - daysBack * 86_400_000;
 
-  const showingOverview = active === OVERVIEW_VIEW;
+  const composed = active !== undefined && COMPOSITIONS.includes(active);
 
   const trend = useMemo(
     () =>
-      active === undefined || active === OVERVIEW_VIEW
+      active === undefined || active === OVERVIEW_VIEW || active === CHARGE_VIEW
         ? undefined
-        : siteTrend(seed, role, gensetIds, active, period, dayAt, now),
-    [seed, role, gensetIds, active, period, dayAt, now],
+        : siteTrend(seed, role, gensetIds, ratedKw ?? 0, active, period, dayAt, now),
+    [seed, role, gensetIds, ratedKw, active, period, dayAt, now],
   );
 
-  const overview = useMemo(
+  const composition = useMemo(
     () =>
-      !showingOverview || overviewRatedKw === undefined
+      !composed || ratedKw === undefined
         ? undefined
-        : siteOverview(seed, role, overviewRatedKw, period, dayAt, now),
-    [showingOverview, seed, role, overviewRatedKw, period, dayAt, now],
+        : active === CHARGE_VIEW
+          ? siteChargeMix(seed, role, ratedKw, period, dayAt, now)
+          : siteOverview(seed, role, ratedKw, period, dayAt, now),
+    [composed, active, seed, role, ratedKw, period, dayAt, now],
   );
 
   if (active === undefined) return null;
-  if (showingOverview ? overview === undefined : trend === undefined) return null;
+  if (composed ? composition === undefined : trend === undefined) return null;
 
   return (
     <section
@@ -165,14 +185,12 @@ export const TrendPanel = ({
                     : 'text-secondary hover:text-primary',
                 )}
               >
-                {option === OVERVIEW_VIEW ? 'Energy overview' : SITE_TREND_METRIC_LABEL[option]}
+                {viewLabel(option)}
               </button>
             ))}
           </nav>
         ) : (
-          <h2 className="text-sm font-medium text-primary">
-            {active === OVERVIEW_VIEW ? 'Energy overview' : SITE_TREND_METRIC_LABEL[active]}
-          </h2>
+          <h2 className="text-sm font-medium text-primary">{viewLabel(active)}</h2>
         )}
 
         <div className="flex flex-wrap items-center gap-3">
@@ -235,9 +253,9 @@ export const TrendPanel = ({
         </div>
       </div>
 
-      {overview !== undefined ? (
-        <SiteOverviewChart overview={overview} />
-      ) : trend === undefined || active === OVERVIEW_VIEW ? null : (
+      {composition !== undefined ? (
+        <SiteOverviewChart overview={composition} />
+      ) : trend === undefined || active === OVERVIEW_VIEW || active === CHARGE_VIEW ? null : (
         <SiteTrendChart trend={trend} colorClassName={SITE_TREND_METRIC_TOKEN[active]} />
       )}
     </section>

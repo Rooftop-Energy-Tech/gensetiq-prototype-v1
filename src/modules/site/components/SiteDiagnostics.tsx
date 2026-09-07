@@ -5,7 +5,7 @@ import {siteSeed} from '../data/siteSeed';
 import {hasOverview} from '../data/siteOverview';
 import {siteTrendMetrics} from '../data/siteTrend';
 import type {SiteSummary} from '../data/sites';
-import {OVERVIEW_VIEW, TrendPanel} from './TrendPanel';
+import {CHARGE_VIEW, OVERVIEW_VIEW, TrendPanel} from './TrendPanel';
 import type {TrendView} from './TrendPanel';
 
 /**
@@ -35,7 +35,7 @@ export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: numb
   const seed = siteSeed(site.id);
 
   /**
-   * `Energy overview` first at a hybrid, then the single-series views behind it.
+   * The stacked views first at a hybrid, then the single-series ones behind them.
    *
    * Leading rather than replacing, for two reasons. A hybrid's first question is
    * what carried the load, so that is what the band should open on — but the
@@ -48,7 +48,11 @@ export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: numb
   const metrics = useMemo((): ReadonlyArray<TrendView> => {
     if (seed === undefined) return [];
     const single = siteTrendMetrics(seed, role, gensets.length);
-    return hasOverview(seed, role) ? [OVERVIEW_VIEW, ...single] : single;
+    // The two compositions lead together: what carried the load, and what charged
+    // the bank. They are the two halves of one allocation — see `siteChargeMix` —
+    // and a picker that offered one without the other would leave the surplus the
+    // first one clips out with nowhere on the page to go.
+    return hasOverview(seed, role) ? [OVERVIEW_VIEW, CHARGE_VIEW, ...single] : single;
   }, [seed, role, gensets.length]);
 
   // Stable across renders, or `TrendPanel`'s series would be rebuilt on every one:
@@ -66,7 +70,7 @@ export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: numb
       role={role}
       gensetIds={gensetIds}
       metrics={metrics}
-      overviewRatedKw={summary.ratedKw}
+      ratedKw={summary.ratedKw}
       now={now}
       ariaLabel="Site diagnostics"
     />

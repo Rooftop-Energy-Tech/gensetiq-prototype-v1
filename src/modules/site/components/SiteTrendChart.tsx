@@ -10,12 +10,12 @@ import type {SiteTrend} from '../data/siteTrend';
  * ## Why one component draws two shapes
  *
  * Because the band draws two kinds of quantity and they are not interchangeable.
- * A day is **power at an instant** and its shape is the information — an array
- * shaded from three o'clock and an array that tripped at three make the same daily
- * total and completely different curves. A month or a year is **energy over a
- * bucket**, which has no shape between buckets to draw a line through: joining the
- * top of Tuesday to the top of Wednesday draws a Tuesday evening that never
- * happened.
+ * A continuous reading — power, state of charge — is a value **at an instant**, and
+ * its shape is the information: an array shaded from three o'clock and an array
+ * that tripped at three make the same daily total and completely different curves.
+ * A bucketed one — energy over a day, engine minutes over an hour — has no shape
+ * between buckets to draw a line through: joining the top of Tuesday to the top of
+ * Wednesday draws a Tuesday evening that never happened.
  *
  * That is the same split the app already makes between `SolarTodayChart` and
  * `SolarYieldChart`. It is one component here rather than two because the band
@@ -23,6 +23,10 @@ import type {SiteTrend} from '../data/siteTrend';
  * `Day` to `Month` should see the axis, the tick rows and the readout stay exactly
  * where they were — which is far easier to guarantee inside one layout than across
  * two files that have to be kept in step.
+ *
+ * Which of the two it is comes in on `trend.shape`, and this file does not second-
+ * guess it. It was read off the period here once, which was true only while every
+ * day view happened to be continuous — runtime's is not; see `gensetDayTrend`.
  *
  * ## Colour comes from the metric, not from here
  *
@@ -83,8 +87,9 @@ export const SiteTrendChart = ({
   const [hovered, setHovered] = useState<number | null>(null);
 
   const {points, unit} = trend;
-  // Bars for bucketed energy, a curve for a continuous reading. See the note above.
-  const bars = trend.period !== 'day';
+  // Bars for a bucketed quantity, a curve for a continuous reading — the series'
+  // own call. See the note above.
+  const bars = trend.shape === 'bars';
 
   const width = Math.max(320, available);
   const plotWidth = width - AXIS_WIDTH;
@@ -102,21 +107,73 @@ export const SiteTrendChart = ({
       : AXIS_WIDTH + (plotWidth * index) / Math.max(1, points.length - 1);
   const y = (value: number) => PAD_TOP + plotHeight * (1 - Math.min(1, value / top));
 
-  const line = points
-    .map((point, index) => (point.value === null ? null : `${x(index)},${y(point.value)}`))
-    .filter((pair): pair is string => pair !== null)
-    .join(' ');
-
   const measured = points.filter((point) => point.value !== null);
-  const area =
-    measured.length === 0 || bars
-      ? ''
-      : `${AXIS_WIDTH},${y(0)} ${line} ${x(measured.length - 1)},${y(0)}`;
+
+  /**
+   * The curve, cut into runs of one colour.
+   *
+   * A single polyline could not do this. The bank's level is drawn in whatever is
+   * charging it — see `SiteTrend.tints` — so the line changes colour partway
+   * through the morning, and SVG has no per-vertex stroke. So the run of drawn
+   * points is broken wherever the tint changes and each piece is stroked in its
+   * own token.
+   *
+   * **Consecutive pieces share their boundary point**, which is the whole trick: a
+   * segment ends on the same vertex the next one starts from, so the joint is a
+   * colour change rather than a gap. That is also why a tint belongs to the point
+   * at the *end* of a step — the stretch from 07:00 to 07:30 is the half-hour that
+   * charged, and it is 07:30's reading that says so.
+   *
+   * One piece for an untinted series, which is every metric but the bank's.
+   */
+  const pieces = ((): Array<{tint: string | undefined; points: Array<number>}> => {
+    if (bars) return [];
+
+    const drawn = points.flatMap((point, index) => (point.value === null ? [] : [index]));
+    if (drawn.length === 0) return [];
+    if (drawn.length === 1) return [{tint: undefined, points: drawn}];
+
+    const out: Array<{tint: string | undefined; points: Array<number>}> = [];
+    for (let step = 1; step < drawn.length; step += 1) {
+      const index = drawn[step]!;
+      const tint = points[index]!.tint;
+      const last = out[out.length - 1];
+
+      if (last !== undefined && last.tint === tint) last.points.push(index);
+      else out.push({tint, points: [drawn[step - 1]!, index]});
+    }
+    return out;
+  })();
+
+  /** One piece as `[area, line]` — the area closed to the floor under its own run. */
+  const shapeOf = (piece: {points: Array<number>}): {area: string; line: string} => {
+    const line = piece.points.map((index) => `${x(index)},${y(points[index]!.value!)}`).join(' ');
+    const first = piece.points[0]!;
+    const last = piece.points[piece.points.length - 1]!;
+    return {area: `${x(first)},${y(0)} ${line} ${x(last)},${y(0)}`, line};
+  };
+
+  /** Which tints this series actually used, in the order the model declares them. */
+  const legend = Object.entries(trend.tints ?? {}).filter(([id]) =>
+    points.some((point) => point.tint === id),
+  );
 
   const tickStep = top / TICK_ROWS;
   const ticks = Array.from({length: TICK_ROWS + 1}, (_, index) => tickStep * index);
   const stride = labelStride(points.length, plotWidth);
   const shown = hovered === null ? undefined : points[hovered];
+  /**
+   * What the hovered segment is doing, in words.
+   *
+   * The colour says it already, and it says it to a reader who has read the legend
+   * — this is the same claim for one whose attention is on the crosshair. Lowered
+   * to sentence case because it lands mid-phrase: `07:30 · 62 % · charging from
+   * solar`.
+   */
+  const hoveredTint =
+    shown?.tint === undefined
+      ? undefined
+      : trend.tints?.[shown.tint]?.label.toLowerCase();
 
   return (
     <div ref={boxRef} className={cn('relative w-full', colorClassName)}>
@@ -187,26 +244,39 @@ export const SiteTrendChart = ({
             )
           : null}
 
-        {area !== '' && <polygon points={area} className="fill-current" opacity={0.16} />}
+        {pieces.map((piece, index) => {
+          const {area, line} = shapeOf(piece);
+          const tint = piece.tint === undefined ? undefined : trend.tints?.[piece.tint];
 
-        {!bars && (
-          <polyline
-            points={line}
-            fill="none"
-            className="stroke-current"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
+          return (
+            // Keyed on where it starts: the pieces partition one run of samples, so
+            // no two of them can begin at the same index.
+            <g key={`${piece.points[0]}-${index}`} className={tint?.token}>
+              <polygon points={area} className="fill-current" opacity={0.16} />
+              <polyline
+                points={line}
+                fill="none"
+                className="stroke-current"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+          );
+        })}
 
-        {/* Where the record ends. Without it the line simply stops and reads as
-            plant that went quiet, rather than as a day that is not over. */}
-        {!bars && measured.length > 0 && measured.length < points.length && (
+        {/* Where the record ends. Without it the series simply stops and reads as
+            plant that went quiet, rather than as a day that is not over — which
+            bars need as much as a curve does: the hour in progress is a part-hour
+            bar, and beside a full one it looks like a machine that shut down.
+
+            Past the last bucket rather than through its middle, so it marks the
+            boundary the record reaches and does not strike through a bar. */}
+        {measured.length > 0 && measured.length < points.length && (
           <line
-            x1={x(measured.length - 1)}
+            x1={x(measured.length - 1) + (bars ? slot / 2 : 0)}
             y1={PAD_TOP}
-            x2={x(measured.length - 1)}
+            x2={x(measured.length - 1) + (bars ? slot / 2 : 0)}
             y2={PAD_TOP + plotHeight}
             className="stroke-current text-default"
             strokeWidth={1}
@@ -247,6 +317,19 @@ export const SiteTrendChart = ({
           <span className="h-0.5 w-3 rounded-full bg-current" aria-hidden="true" />
           {trend.caption}
         </span>
+
+        {/* Only the tints the day actually used. A legend entry for `Charging from
+            solar` on a bank that spent the whole night on diesel would have a
+            reader hunting the plot for a colour that is not on it — and on a
+            diesel hybrid with no array it would name plant the site has not
+            got. */}
+        {legend.map(([id, tint]) => (
+          <span key={id} className={cn('flex items-center gap-1.5', tint.token)}>
+            <span className="h-0.5 w-3 rounded-full bg-current" aria-hidden="true" />
+            <span className="text-secondary">{tint.label}</span>
+          </span>
+        ))}
+
         <span
           className={cn(
             'tabular-nums',
@@ -257,7 +340,9 @@ export const SiteTrendChart = ({
             ? trend.total === undefined
               ? ''
               : `${trend.total.label} · ${trend.total.value}`
-            : `${shown.label} · ${shown.value === null ? 'not yet' : `${shown.value} ${unit}`}`}
+            : `${shown.label} · ${
+                shown.value === null ? 'not yet' : `${shown.value} ${unit}`
+              }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}`}
         </span>
       </div>
     </div>

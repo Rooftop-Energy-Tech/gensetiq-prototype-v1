@@ -2,10 +2,12 @@ import {runTotalsIn} from '@/modules/genset/data/history';
 
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
+import {chargeSourceAt} from './dispatch';
 import {
   hybridPlant,
   hybridState,
   intradayKw,
+  loadShape,
   solarDays,
   solarMonths,
   todayFullKwh,
@@ -97,13 +99,32 @@ export type TrendPoint = {
    * at ten in the morning is every plant on the estate.
    */
   value: number | null;
+  /**
+   * Which of the series' `tints` this segment is drawn in, if it is not the
+   * series' own colour.
+   *
+   * The segment *ending* at this point — a tint belongs to the stretch between two
+   * readings, and this is the far end of it. `undefined` is the ordinary case and
+   * means the series' own token.
+   */
+  tint?: string;
 };
 
 export type SiteTrend = {
   metric: SiteTrendMetric;
   period: SiteTrendPeriod;
   points: Array<TrendPoint>;
-  /** `kW`, `kWh`, `h` or `%`. */
+  /**
+   * How the points should be drawn — and the series says it, not the chart.
+   *
+   * It used to be derivable from the period: a day was a continuous reading and
+   * every longer window was buckets. Runtime broke that. A day of engine hours has
+   * no instantaneous value to trace, so it is bucketed like a month is, and the
+   * chart cannot tell that from the period alone. The series knows which of the two
+   * it built; this is it saying so.
+   */
+  shape: 'curve' | 'bars';
+  /** `kW`, `kWh`, `h`, `min` or `%`. */
   unit: string;
   /**
    * A fixed axis ceiling where the quantity has one.
@@ -117,23 +138,17 @@ export type SiteTrend = {
   caption: string;
   /** The one figure the series adds up to, for the readout beside the picker. */
   total: {label: string; value: string} | undefined;
+  /**
+   * The colours a point may name in `TrendPoint.tint`, and what each one means.
+   *
+   * Only the bank's level uses this so far: its curve is drawn in the source that
+   * is charging it, so a night on diesel and a morning on the roof are two colours
+   * of the same line. Left `undefined` by every other series, which is one colour
+   * throughout — a metric that is *always* one quantity has nothing to say here,
+   * and the chart falls back to its token.
+   */
+  tints?: Record<string, {token: string; label: string}>;
 };
-
-/**
- * The shape of a site's own draw across a day, as a multiplier on its metered kW.
- *
- * Deliberately shallow. A telecom site's load is air-conditioning and radios: it
- * does not switch off at night and it does not double at noon, so this runs between
- * about 0.88 and 1.12 with the peak in the afternoon when the cabinet is hottest.
- * A domestic double-peak profile would be the wrong shape borrowed from the wrong
- * kind of customer, and it would make the array look like it was missing an evening
- * demand that these sites do not have.
- *
- * `seed.loadKw` stays the day's mean by construction — the multiplier averages to
- * 1 over 24 hours — so this reshapes the metered figure without inventing energy.
- */
-export const loadShape = (hour: number): number =>
-  1 + 0.12 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
 
 /** Midnight local on the day `at` falls in. */
 const startOfDay = (at: number): number => {
@@ -191,6 +206,28 @@ export const gensetHoursIn = (
   return Math.round((runtimeMs / 3_600_000) * 10) / 10;
 };
 
+/**
+ * The same sum, in minutes — the grain an hour of the day needs.
+ *
+ * Tenths of an hour is the right precision for a week or a service interval and
+ * the wrong one inside a single hour: a set that ran eight minutes at half past
+ * two is 0.1 h, which draws the same bar as one that ran four. Minutes are what
+ * the run log's timestamps actually resolve at this zoom, so the day view counts
+ * in them and only converts back for the total beside the picker.
+ */
+export const gensetMinutesIn = (
+  gensetIds: Array<string>,
+  from: number,
+  to: number,
+  now: number,
+): number => {
+  let runtimeMs = 0;
+  for (const gensetId of gensetIds) {
+    runtimeMs += runTotalsIn(gensetId, from, to, now).runtimeMs;
+  }
+  return Math.round(runtimeMs / 60_000);
+};
+
 /** Which metrics this site can actually draw. See `SiteTrend` for why it matters. */
 export const siteTrendMetrics = (
   seed: SiteSeed,
@@ -232,13 +269,20 @@ export const siteTrend = (
   seed: SiteSeed,
   role: SitePowerRole,
   gensetIds: Array<string>,
+  /**
+   * Nameplate across the sets at this site, which is what the bank's charge
+   * attribution is sized from — see `gensetDay`. `0` where the caller has none to
+   * give: the level curve then simply never names the genset, which at a site with
+   * no set is the truth.
+   */
+  ratedKw: number,
   metric: SiteTrendMetric,
   period: SiteTrendPeriod,
   /** Midnight of the day the stepper is parked on. Only `day` reads it. */
   dayAt: number,
   now: number = Date.now(),
 ): SiteTrend => {
-  if (period === 'day') return dayTrend(seed, role, gensetIds, metric, dayAt, now);
+  if (period === 'day') return dayTrend(seed, role, gensetIds, ratedKw, metric, dayAt, now);
   return periodTrend(seed, role, gensetIds, metric, period, now);
 };
 
@@ -252,24 +296,22 @@ export const siteTrend = (
  * total and completely different curves — the same argument `SolarTodayChart` makes
  * for drawing a curve rather than another bar.
  *
- * ## The genset's day is a running total
+ * ## The genset's day is bars, and it is elsewhere
  *
- * Runtime has no instantaneous value worth plotting: sampled at a half-hour it is
- * the set being on or off, and a chart of that is a square wave with an axis in
- * hours it never uses. So the day draws hours **accumulated since midnight**, which
- * says the same thing and one more — the slope is the machine running, a flat
- * stretch is it stopped, and where the curve ends is the day's total. A reader can
- * see that it started at six and has been turning ever since without reading a
- * single number off the axis.
+ * Runtime has no instantaneous value worth plotting, so it is not drawn as a
+ * reading at all — see `gensetDayTrend`, which owns the whole of that view.
  */
 const dayTrend = (
   seed: SiteSeed,
   role: SitePowerRole,
   gensetIds: Array<string>,
+  ratedKw: number,
   metric: SiteTrendMetric,
   dayAt: number,
   now: number,
 ): SiteTrend => {
+  if (metric === 'GENSET') return gensetDayTrend(gensetIds, dayAt, now);
+
   const start = startOfDay(dayAt);
   const today = startOfDay(now);
   const nowHour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
@@ -282,17 +324,53 @@ const dayTrend = (
   // Read once outside the loop: it is the day's fact, not the half-hour's.
   const dayKwh = todayFullKwh(seed, role, start + 12 * 3_600_000);
 
+  /**
+   * Who gets a rise the dispatch model cannot account for.
+   *
+   * At a diesel hybrid there is one answer and it is the set: nothing else at the
+   * site makes a kilowatt, so a bank that gained charge gained it off diesel
+   * whatever hour the block model puts the run in. Attributing it is strictly
+   * better than leaving half of every night uncoloured over a disagreement between
+   * two models about *when* — see the note on the tint below.
+   *
+   * A solar hybrid gets no fallback, because there it would be a guess between two
+   * real candidates.
+   */
+  const soleCharger = !hasSolar(role) && ratedKw > 0 ? 'GENSET' : undefined;
+
   const points: Array<TrendPoint> = [];
   for (let hour = 0; hour < 24; hour += DAY_STEP_HOURS) {
     const at = start + hour * 3_600_000;
     const known = hour <= edgeHour;
+    const value = !known ? null : dayValue(seed, role, metric, at, hour, dayKwh);
 
-    points.push({
-      label: clockLabel(hour),
-      value: !known
-        ? null
-        : dayValue(seed, role, gensetIds, metric, start, at, hour, dayKwh, now),
-    });
+    /**
+     * The bank's curve carries the name of whatever is filling it.
+     *
+     * The bank's alone. A rising solar curve is not "charging from solar" — it is
+     * the sun coming up — and publishing a tint on a series whose `tints` table is
+     * `undefined` would leave the chart cutting the line into pieces it then drew
+     * in one colour anyway.
+     *
+     * Only where the level actually **rose**, which is why this is a comparison
+     * against the previous point rather than a straight reading of
+     * `chargeSourceAt`. The level comes from `hybridState`'s own charge cycle and
+     * the surplus comes from the dispatch model; they are laid to agree — see the
+     * note on `gensetKwAt` — but they are not the same arithmetic, and a segment
+     * painted "charging from solar" while the curve fell would be the chart
+     * contradicting itself in the one place a reader is looking. Rising is the
+     * claim; the source is the attribution on top of it.
+     */
+    const previous = points[points.length - 1]?.value;
+    const rose =
+      metric === 'BATTERY' &&
+      value !== null &&
+      previous !== null &&
+      previous !== undefined &&
+      value > previous;
+    const tint = rose ? (chargeSourceAt(seed, role, ratedKw, at) ?? soleCharger) : undefined;
+
+    points.push({label: clockLabel(hour), value, tint});
   }
 
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
@@ -302,40 +380,53 @@ const dayTrend = (
     metric,
     period: 'day',
     points,
-    unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kW',
+    shape: 'curve',
+    unit: metric === 'BATTERY' ? '%' : 'kW',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
     caption:
       metric === 'BATTERY'
         ? 'State of charge through the day, half-hourly'
-        : metric === 'GENSET'
-          ? 'Hours run through the day, accumulated from midnight'
-          : 'Power through the day, half-hourly',
+        : 'Power through the day, half-hourly',
     total:
       metric === 'BATTERY'
         ? {
             label: 'Lowest today',
             value: `${readings.length === 0 ? 0 : Math.round(Math.min(...readings))}%`,
           }
-        : metric === 'GENSET'
-          ? // The curve only climbs, so its peak is where it ended — the day's
-            // total, without a second pass over the points to find it.
-            {label: 'Hours run', value: hoursLabel(peak)}
-          : {label: 'Peak', value: `${Math.round(peak * 10) / 10} kW`},
+        : {label: 'Peak', value: `${Math.round(peak * 10) / 10} kW`},
+    tints: metric === 'BATTERY' ? CHARGE_TINTS : undefined,
   };
 };
 
-/** One half-hour's reading, for whichever quantity is being drawn. */
+/**
+ * The two colours the bank's level curve can take, and what they say.
+ *
+ * The plant tokens the rest of the app already uses — amber is the array on the
+ * single-line diagram and on both compositions, and the fuel colour is the set —
+ * so a reader who has learnt them once reads this curve without a second legend to
+ * memorise. The bank's own `text-battery` is what is left: holding, or paying the
+ * tower back.
+ */
+const CHARGE_TINTS: Record<string, {token: string; label: string}> = {
+  SOLAR: {token: SITE_TREND_METRIC_TOKEN.SOLAR, label: 'Charging from solar'},
+  GENSET: {token: SITE_TREND_METRIC_TOKEN.GENSET, label: 'Charging from genset'},
+};
+
+/**
+ * One half-hour's reading, for whichever *continuous* quantity is being drawn.
+ *
+ * `GENSET` is excluded in the type rather than handled and ignored. It shares no
+ * step with these three — its day is hourly buckets, not half-hourly samples — so
+ * a case here would be an unreachable branch, and the `default` arm below would
+ * quietly answer it as consumption the day someone deleted that branch.
+ */
 const dayValue = (
   seed: SiteSeed,
   role: SitePowerRole,
-  gensetIds: Array<string>,
-  metric: SiteTrendMetric,
-  /** Midnight of the day being drawn — where the genset's running total starts. */
-  start: number,
+  metric: Exclude<SiteTrendMetric, 'GENSET'>,
   at: number,
   hour: number,
   dayKwh: number,
-  now: number,
 ): number => {
   switch (metric) {
     case 'SOLAR':
@@ -344,12 +435,85 @@ const dayValue = (
       // Through `hybridState` rather than a copy of its charge cycle — see the
       // module note. `at` places it on the right hour of the right day.
       return Math.round(hybridState(seed, role, at).soc * 100);
-    case 'GENSET':
-      // Accumulated rather than sampled — see the note on `dayTrend`.
-      return gensetHoursIn(gensetIds, start, at, now);
     default:
       return Math.round(seed.loadKw * loadShape(hour) * 10) / 10;
   }
+};
+
+/**
+ * Runtime through one day: **twenty-four bars of minutes run**, one per hour.
+ *
+ * ## Why bars, and not the running total this replaced
+ *
+ * Because the quantity is bucketed, and a cumulative curve hides the thing the
+ * view is opened for. Accumulated hours only ever climb, so *every* day is the
+ * same rising shape and the reader has to compare slopes to compare days — a set
+ * that ran a solid six hours and one that started nine times for forty minutes
+ * each finish at the same height, and their curves differ only in a steepness
+ * nobody can read off an axis. As bars the two are unmistakable: one is a block of
+ * full hours, the other is a comb.
+ *
+ * It also makes the day agree with the month and the year, which were already bars
+ * of hours per bucket. One series drawn as a total on one tab and a rate on the
+ * next was the odd thing here — stepping from `Day` to `Month` changed what the
+ * height of the chart *meant*, which is the one thing a period control should not
+ * do.
+ *
+ * ## Why minutes, and why the axis is fixed at the hour
+ *
+ * An hour of clock time holds at most an hour of running, so the bar is a fraction
+ * of its own bucket and the ceiling is known before the day is read — the same
+ * argument state of charge makes for its 0–100 axis. Fixed, a full-height bar is
+ * an hour turning start to finish and a half-height one is thirty minutes, on
+ * every day and every machine; auto-scaled, a quiet day with one eight-minute
+ * start would draw that start as a full-height bar.
+ *
+ * Minutes rather than fractions of an hour because the axis has to be readable:
+ * a fixed hour divides into `0 15 30 45 60`, where hours give `0 0.25 0.5` and a
+ * tick row that cannot be written to one decimal place.
+ *
+ * A site with two sets gets a ceiling of two hours' worth — this sums engine
+ * minutes across the yard, exactly as `gensetHoursIn` sums its hours, and the
+ * ceiling has to be able to hold both machines turning at once.
+ */
+const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): SiteTrend => {
+  const start = startOfDay(dayAt);
+  const today = startOfDay(now);
+  // The hour in progress is drawn, and every hour after it is `null`. A part-hour
+  // bar is honest — the minutes in it did happen — and the chart marks where the
+  // record stops, so a short bar at the right edge is not read as a set that shut
+  // down. Hours the day has not reached are absent rather than zero, for the
+  // reason `TrendPoint.value` gives.
+  const edgeHour = start === today ? new Date(now).getHours() : 23;
+
+  const points: Array<TrendPoint> = Array.from({length: 24}, (_, hour) => {
+    const from = start + hour * 3_600_000;
+
+    return {
+      label: clockLabel(hour),
+      value: hour > edgeHour ? null : gensetMinutesIn(gensetIds, from, from + 3_600_000, now),
+    };
+  });
+
+  const minutes = points.reduce((total, point) => total + (point.value ?? 0), 0);
+
+  return {
+    metric: 'GENSET',
+    period: 'day',
+    points,
+    shape: 'bars',
+    unit: 'min',
+    axisMax: 60 * Math.max(1, gensetIds.length),
+    caption:
+      gensetIds.length > 1
+        ? 'Engine minutes run in each hour, across the sets here'
+        : 'Minutes run in each hour of the day',
+    // Stated in hours even though the bars are minutes: `6.2 h` is how a day's
+    // running is spoken about everywhere else on the page — the service interval,
+    // the runs tab — and `372 min` would be the same fact in a unit nobody plans
+    // in.
+    total: {label: 'Hours run', value: hoursLabel(minutes / 60)},
+  };
 };
 
 /**
@@ -414,6 +578,7 @@ const periodTrend = (
     metric,
     period,
     points,
+    shape: 'bars',
     unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
     caption:

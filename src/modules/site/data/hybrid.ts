@@ -332,6 +332,22 @@ const FIRST_LIGHT = 7;
 const LAST_LIGHT = 19;
 
 /**
+ * The shape of a site's own draw across a day, as a multiplier on its metered kW.
+ *
+ * Deliberately shallow. A telecom site's load is air-conditioning and radios: it
+ * does not switch off at night and it does not double at noon, so this runs between
+ * about 0.88 and 1.12 with the peak in the afternoon when the cabinet is hottest.
+ * A domestic double-peak profile would be the wrong shape borrowed from the wrong
+ * kind of customer, and it would make the array look like it was missing an evening
+ * demand that these sites do not have.
+ *
+ * `seed.loadKw` stays the day's mean by construction — the multiplier averages to
+ * 1 over 24 hours — so this reshapes the metered figure without inventing energy.
+ */
+export const loadShape = (hour: number): number =>
+  1 + 0.12 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
+
+/**
  * The shape of a solar day, unnormalised: `0` before first light, `1` at noon.
  *
  * A **cubed** sine rather than a plain one. The plain sine was here first and it
@@ -408,6 +424,224 @@ const elapsedShare = (hour: number): number => {
   return whole === 0 ? 0 : sofar / whole;
 };
 
+/**
+ * The hours of the day the bank is on charge, and nothing else about them.
+ *
+ * Placed to match where the charts put the power that does the charging — see
+ * `gensetKwAt` for the genset blocks and `intradayKw` for the array — because the
+ * level curve is drawn beside a chart of what charged it, and a bank that climbed
+ * at an hour nothing was generating would be the page contradicting itself.
+ *
+ * Fixed windows rather than a phase spread on the site id. The estate is spread by
+ * how *deep* each bank cycles instead (see `bankCycle`), which varies the levels
+ * without moving a site's charging to an hour its plant is not running.
+ */
+const chargeWindows = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  dayKwh: number,
+): Array<{from: number; to: number}> => {
+  if (!hasSolar(role)) {
+    // Two blocks a day, before dawn and in the late afternoon — the placement
+    // `gensetKwAt` uses, which is why this bank has two peaks a day.
+    return [
+      {from: FIRST_LIGHT - 3.5, to: FIRST_LIGHT},
+      {from: 16, to: 19.5},
+    ];
+  }
+
+  const windows: Array<{from: number; to: number}> = [];
+
+  /**
+   * A pre-dawn block on a day the roof cannot cover, and none on a day it can.
+   *
+   * The same test `gensetDay` makes, in energy rather than in hours: the day needs
+   * its load raised for what storage loses on the way through, and whatever the
+   * array does not raise, diesel does. A bright day gets no block and the bank's
+   * night is a straight run down to first light.
+   */
+  const neededKwh =
+    seed.loadKw * HOURS_PER_DAY * (DIRECT_SHARE + (1 - DIRECT_SHARE) / ROUND_TRIP);
+  if (dayKwh < neededKwh) windows.push({from: FIRST_LIGHT - 2.5, to: FIRST_LIGHT});
+
+  /**
+   * And the middle of the day, where the array makes more than the tower draws.
+   *
+   * Scanned rather than solved. The crossing depends on the day's energy, the
+   * cubed-sine shape and the load's own shallow curve, and a quarter-hour scan
+   * finds it in 96 steps without any of the three having to be inverted.
+   */
+  let from: number | undefined;
+  let to: number | undefined;
+  for (let hour = 0; hour < HOURS_PER_DAY; hour += 0.25) {
+    if (intradayKw(dayKwh, hour) > seed.loadKw * loadShape(hour)) {
+      from ??= hour;
+      to = hour + 0.25;
+    }
+  }
+  if (from !== undefined && to !== undefined) windows.push({from, to});
+
+  return windows;
+};
+
+/**
+ * The day's solar energy, kept for the next sample of the same day.
+ *
+ * `todayFullKwh` is the expensive call in this file — it goes through `solarDays`,
+ * which models twelve months and then weights every day of one of them — and it is
+ * asked for *the same day* once per sample by every chart that walks a clock. The
+ * bank's mean level over a year is 2,880 samples across 365 days; this makes it 365
+ * reads instead of 2,880, and the year view of that chart goes from seconds to
+ * something a reader does not notice.
+ *
+ * Read at a synthetic **noon**, which is what makes it a property of the day: the
+ * function divides by the share of the day that has elapsed, so it answers `0` at
+ * any hour before first light. Noon is the same trick `dayTrend` uses. Nothing
+ * downstream can tell the difference — the intraday shape is zero outside daylight
+ * either way — and the cycle below *needs* one answer per day rather than a
+ * different one every half-hour of the same night.
+ *
+ * One slot, because the access pattern is a walk: a day is asked for repeatedly and
+ * then never again. A miss recomputes exactly what a hit returns, so this is not
+ * state a reader could observe.
+ */
+let dayEnergyCache: {key: string; kwh: number} | undefined;
+
+export const dayEnergyKwh = (seed: SiteSeed, role: SitePowerRole, dayStart: number): number => {
+  const key = `${seed.id}|${role}|${dayStart}`;
+  if (dayEnergyCache?.key === key) return dayEnergyCache.kwh;
+
+  const kwh = todayFullKwh(seed, role, dayStart + 12 * 3_600_000);
+  dayEnergyCache = {key, kwh};
+  return kwh;
+};
+
+/**
+ * And the windows that follow from it, on the same terms.
+ *
+ * Kept for the same reason and keyed the same way: the crossing where the array
+ * overtakes the tower is a property of the day, and scanning for it once per sample
+ * was ninety-six steps to arrive at the answer the last sample already had.
+ */
+let windowCache: {key: string; windows: Array<{from: number; to: number}>} | undefined;
+
+const windowsForDay = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  dayStart: number,
+): Array<{from: number; to: number}> => {
+  const key = `${seed.id}|${role}|${dayStart}`;
+  if (windowCache?.key === key) return windowCache.windows;
+
+  /**
+   * The day's solar energy, read at a synthetic **noon**.
+   *
+   * `todayFullKwh` divides by the share of the day that has elapsed, so it answers
+   * `0` at any hour before first light — which would have this function compute a
+   * different cycle for every sample of the same night, and the curve would be
+   * assembled from twenty different models. Noon of the day in question is the same
+   * trick `dayTrend` uses, and for the same reason: the day's energy is a property
+   * of the day, not of the hour being asked about.
+   */
+  const windows = chargeWindows(seed, role, dayEnergyKwh(seed, role, dayStart));
+  windowCache = {key, windows};
+  return windows;
+};
+
+/**
+ * State of charge, as **two straight lines**: one rate up, a different rate down.
+ *
+ * ## Why it is not a sine any more
+ *
+ * Because a bank does not charge and discharge at the same rate, and a cosine says
+ * it does. The cycle here was `0.5 − 0.5cos(…)`, which is symmetric by
+ * construction: every site's bank fell as gently as it rose, spent the same eight
+ * hours doing each, and had no hour where anything in particular was happening. A
+ * real telecom bank does the opposite — it is charged hard for a few hours by
+ * something rated to charge it, and then trickles down for the rest of the day at
+ * whatever the tower draws. That asymmetry is the shape of the whole day, and it
+ * was the one thing the old curve could not show.
+ *
+ * So: **a constant rate inside a charging window, a different constant rate
+ * outside it.** Both linear, which is what a bank looks like at half-hour
+ * resolution; the interesting number is the *ratio* between them, and it is not a
+ * parameter — it is `discharge hours / charge hours`, which falls out of the
+ * windows. A diesel hybrid charging for seven hours and coasting for seventeen
+ * climbs about two and a half times faster than it falls, and the curve says so
+ * without being told.
+ *
+ * ## The swing, and the one place this is scaled rather than derived
+ *
+ * The honest discharge rate is `loadKw / usable kWh` — the tower's draw out of the
+ * energy the pack still holds. At these sites that comes to nearly the whole bank
+ * across a night, which would run every site down to its shed line by dawn and
+ * flatten the bottom of every curve against it. What a plant actually does then is
+ * start its set earlier; what this prototype does is **fit the cycle to the bank's
+ * operating window** — the swing is capped at floor-to-ceiling and both rates are
+ * scaled by the same factor, so the shape, the ratio and the two straight lines all
+ * survive and only the absolute slope is compressed. It is stated here rather than
+ * hidden because it is the one figure on the curve that is not a measurement.
+ *
+ * The floor is where the estate is spread: banks at different sites sit at
+ * different depths, which is what the phase offset used to be for.
+ */
+const bankCycle = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  plant: HybridPlant,
+  hour: number,
+  dayStart: number,
+): {soc: number; kw: number} => {
+  const windows = windowsForDay(seed, role, dayStart);
+
+  const chargeHours = windows.reduce((sum, window) => sum + (window.to - window.from), 0);
+  const dischargeHours = HOURS_PER_DAY - chargeHours;
+
+  // Never a full bank and never an empty one: a lithium bank is held inside its
+  // window, and a demo that showed 100% would be showing a system with nowhere to
+  // put the next kilowatt-hour.
+  const CEILING = 0.9;
+  const floor = 0.34 + spread(seed.id, 'hybrid/soc-floor') * 0.14;
+
+  const usableKwh = plant.batteryKwh * plant.soh;
+  if (chargeHours <= 0 || dischargeHours <= 0 || usableKwh <= 0) {
+    return {soc: floor, kw: 0};
+  }
+
+  const swing = CEILING - floor;
+  const rawDischarge = seed.loadKw / usableKwh;
+  // Capped so the cycle fits the window rather than running into the shed line —
+  // see the note above. The ratio between the two rates is untouched by this.
+  const dischargeRate = Math.min(rawDischarge, swing / dischargeHours);
+  const chargeRate = (dischargeRate * dischargeHours) / chargeHours;
+
+  const charging = windows.some((window) => hour >= window.from && hour < window.to);
+
+  /** Charge gained less charge spent between midnight and `at`, as a fraction. */
+  const raw = (at: number): number => {
+    let charged = 0;
+    for (const window of windows) {
+      charged += Math.max(0, Math.min(window.to, at) - window.from);
+    }
+    return charged * chargeRate - (at - charged) * dischargeRate;
+  };
+
+  /**
+   * The day's low, so the floor can be pinned to it.
+   *
+   * `raw` only ever turns upward at the start of a charging window, so its minimum
+   * is at one of those or at midnight — four values to check rather than a walk of
+   * the day. The walk sums to zero over 24 hours by construction, so pinning the
+   * low also makes the cycle repeat.
+   */
+  const low = Math.min(0, ...windows.map((window) => raw(window.from)));
+
+  return {
+    soc: Math.min(CEILING, floor + raw(hour) - low),
+    kw: (charging ? chargeRate : -dischargeRate) * usableKwh,
+  };
+};
+
 export const hybridState = (
   seed: SiteSeed,
   role: SitePowerRole,
@@ -416,7 +650,9 @@ export const hybridState = (
   const plant = hybridPlant(seed, role);
   if (plant.batteryKwh === 0) return {solarKw: 0, soc: 0, batteryKw: 0, hoursLeft: 0};
 
-  const hour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
+  const asked = new Date(now);
+  const hour = asked.getHours() + asked.getMinutes() / 60;
+  const dayStart = new Date(asked.getFullYear(), asked.getMonth(), asked.getDate()).getTime();
   // Read off **today's own energy**, not off nameplate.
   //
   // This used to be `solarKwp × performanceRatio × shape`, which was a different
@@ -427,30 +663,23 @@ export const hybridState = (
   // one with no day's energy behind it. Now the curve is the day's kilowatt-hours
   // spread over the day's shape, so the node on the diagram, the bar on the daily
   // chart and the month's total are three readings of one quantity.
-  const solarKw = Math.round(intradayKw(todayFullKwh(seed, role, now), hour) * 10) / 10;
+  const solarKw = Math.round(intradayKw(dayEnergyKwh(seed, role, dayStart), hour) * 10) / 10;
 
-  // Charge follows the day at a solar site and the charging block at a diesel
-  // hybrid. Both are shaped rather than dealt, because a state of charge that
-  // jumped on reload would be the one figure on the page a reader could catch
-  // lying. The site's own offset spreads the estate out so the bank levels are
-  // not all in step.
-  const offset = spread(seed.id, 'hybrid/soc-offset') * 4;
-  const cycle = hasSolar(role)
-    ? // Lowest just before first light, highest in the late afternoon.
-      0.5 - 0.5 * Math.cos(((hour - 6 + offset) / 24) * 2 * Math.PI)
-    : // Two charging blocks a day, so two peaks.
-      0.5 - 0.5 * Math.cos(((hour + offset) / 12) * 2 * Math.PI);
+  const cycle = bankCycle(seed, role, plant, hour, dayStart);
+  const soc = cycle.soc;
 
-  // Never a full bank and never an empty one: a lithium bank is held inside its
-  // window, and a demo that showed 100% would be showing a system with nowhere to
-  // put the next kilowatt-hour.
-  const soc = 0.42 + cycle * 0.46;
-
-  const batteryKw =
-    solarKw > seed.loadKw
-      ? // Surplus above the tower's draw goes into the bank.
-        -Math.round((solarKw - seed.loadKw) * 10) / 10
-      : Math.round((seed.loadKw - solarKw) * 10) / 10;
+  /**
+   * The bank's own flow, from the cycle rather than from the array alone.
+   *
+   * It used to be `solar − load`, which was right at a solar hybrid in daylight
+   * and wrong everywhere else: at a diesel hybrid it has no solar term at all, so
+   * it reported the bank discharging at the site's load *while the set was
+   * charging it* — the badge on the battery page said `Discharging 3 kW` at four in
+   * the morning, over a curve climbing steeply. Reading it off the same cycle that
+   * draws the curve is what makes the node on the diagram, the badge and the slope
+   * three readings of one quantity.
+   */
+  const batteryKw = Math.round(-cycle.kw * 10) / 10;
 
   // Energy the tower can actually have: the bank's specified kilowatt-hours, taken
   // down to what the pack still holds, then down again to the shed line. Divided by
@@ -776,6 +1005,20 @@ export const solarStep = (
  * is stated at — `MONTH_FACTOR` — and the daily series below is derived from
  * these totals rather than dealt beside them.
  */
+/**
+ * The last twelve months, kept for the next caller who asks on the same date.
+ *
+ * The third slot of the same kind, and the one that pays for the other two: this
+ * function is what `solarDays` runs to place a single day, so a chart walking a
+ * year of days ran the whole twelve-month model once per day. It depends on `now`
+ * only to know which month is running and how much of it has passed — day
+ * granularity — so the date is the whole of the key.
+ *
+ * Returned **by reference**, which is the one thing to be careful about: callers
+ * read these buckets and must not write to them. Every one of them maps or sums.
+ */
+let monthsCache: {key: string; months: Array<SolarMonth>} | undefined;
+
 export const solarMonths = (
   seed: SiteSeed,
   role: SitePowerRole,
@@ -783,6 +1026,10 @@ export const solarMonths = (
 ): Array<SolarMonth> => {
   const plant = hybridPlant(seed, role);
   if (plant.solarKwp === 0) return [];
+
+  const asked = new Date(now);
+  const key = `${seed.id}|${role}|${asked.getFullYear()}-${asked.getMonth()}-${asked.getDate()}`;
+  if (monthsCache?.key === key) return monthsCache.months;
 
   const sunHours = customer(seed.customer).peakSunHours;
   const health = solarPerformance(seed, role);
@@ -826,6 +1073,7 @@ export const solarMonths = (
     });
   }
 
+  monthsCache = {key, months};
   return months;
 };
 

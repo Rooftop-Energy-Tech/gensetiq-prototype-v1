@@ -10,15 +10,15 @@ import type {SiteOverview} from '../data/siteOverview';
  *
  * ## What is copied from the reference, and why each part is there
  *
- * - **Filled translucent areas under stroked lines.** Not stacked. A stack would
- *   read better where the series never overlap and would lie the moment they do:
- *   these four are *not* parts of a whole — the load is what the other three are
- *   measured against, so stacking it on top of them would draw a total that means
- *   nothing. Overlay keeps every series readable against the same zero.
- * - **A zero line the battery crosses.** The bank is the one signed series, so the
- *   axis runs negative and the crossing point is where charging becomes
- *   discharging. That is the single most useful instant on the chart and it wants
- *   no legend to find.
+ * - **Filled areas under stroked lines.** Stacked, which is where this parts
+ *   company with the reference: NetEco overlays four unclipped curves, and the
+ *   three sources here are shares of one quantity — see the note on the
+ *   composition in `siteOverview`. Stacked, they cannot hide each other and the
+ *   height of the pile is the load itself. The load's own line is *not* in the
+ *   stack; it is the level the pile reaches.
+ * - **A rule on zero.** NetEco's axis runs negative because it signs the bank;
+ *   this one does not — every band is a share of the load, so all of them sit
+ *   above the line and zero is the floor of the stack.
  * - **A crosshair and a tooltip listing every series at that instant.** This is the
  *   part of NetEco's panel doing the real work: four curves at a glance for the
  *   shape, and one hover for the arithmetic. Without it an overlay chart is only an
@@ -30,9 +30,10 @@ import type {SiteOverview} from '../data/siteOverview';
  *
  * The reference paints its areas at a high enough opacity that a tall series hides
  * a short one behind it — in the screenshot this was built from, the genset's block
- * swallows the battery band underneath it exactly where both matter. The fills here
- * are held low and every series keeps a full-strength stroke, so a curve behind
- * another is dimmed but never lost.
+ * swallows the battery band underneath it exactly where both matter. Stacking is
+ * the answer to that rather than a lower opacity: nothing is behind anything, so
+ * the fills can be strong enough to read as bands of a composition, which is what
+ * they are.
  *
  * ## Colour comes from the series, not from here
  *
@@ -63,12 +64,11 @@ const niceStep = (rough: number): number => {
 /**
  * The axis, as a ceiling, a floor and the step between the rules.
  *
- * A single ceiling was not enough once one series went negative: the bank's
- * discharge needs room under zero, and letting the negative half auto-scale
- * independently would put the zero line at a different height on every site. So
- * both ends are rounded to the *same* step, which keeps zero on a rule and keeps
- * the two halves comparable — a 3 kW discharge and a 3 kW charge are the same
- * distance from the line.
+ * The floor is `0` for every series this chart currently publishes — they are all
+ * powers into the bus. It is still computed rather than assumed: a floor rounded to
+ * the same step as the ceiling is what keeps zero on a rule, and it is what lets a
+ * signed series be drawn here again without the negative half auto-scaling to a
+ * different height on every site.
  */
 const axisFor = (values: Array<number>): {top: number; bottom: number; step: number} => {
   const high = Math.max(0, ...values);
@@ -120,25 +120,60 @@ export const SiteOverviewChart = ({overview}: {overview: SiteOverview}) => {
   const measured = series[0]?.values.filter((value) => value !== null).length ?? count;
 
   /**
-   * One series as `[area, line]`.
+   * The bands, bottom to top, as `[area, line]` each.
    *
-   * The area is closed back along the **zero line** rather than along the bottom of
-   * the plot, which is what lets the bank's negative stretch hang below zero instead
-   * of being drawn as a tall block from the floor.
+   * A stack, so each band is bounded by the cumulative total *below* it and its own
+   * cumulative total — the `line` is that upper edge, which is what gets the stroke.
+   * The load is not in here: it is one line over the top of the pile.
+   *
+   * Every source shares one spine and its nulls trail — the record simply stops —
+   * so one contiguous run of drawn samples per band is the whole of it, and the
+   * area closes back along the band below rather than along the floor.
    */
-  const shapeFor = (values: Array<number | null>): {area: string; line: string} => {
-    const drawn: Array<{index: number; value: number}> = [];
-    values.forEach((value, index) => {
-      if (value !== null) drawn.push({index, value});
-    });
-    if (drawn.length === 0) return {area: '', line: ''};
+  const bands = (() => {
+    const stacked = series.filter((one) => one.stacked);
+    const lower = new Array<number>(count).fill(0);
+    const out: Array<{id: string; token: string; area: string; line: string}> = [];
 
-    const line = drawn.map(({index, value}) => `${x(index)},${y(value)}`).join(' ');
-    const first = drawn[0]!;
-    const last = drawn[drawn.length - 1]!;
-    const area = `${x(first.index)},${y(0)} ${line} ${x(last.index)},${y(0)}`;
-    return {area, line};
-  };
+    for (const one of stacked) {
+      const drawn: Array<number> = [];
+      const upper = new Array<number>(count).fill(0);
+
+      one.values.forEach((value, index) => {
+        if (value === null) return;
+        drawn.push(index);
+        upper[index] = lower[index]! + value;
+      });
+
+      if (drawn.length > 0) {
+        const top = drawn.map((index) => `${x(index)},${y(upper[index]!)}`).join(' ');
+        const back = [...drawn]
+          .reverse()
+          .map((index) => `${x(index)},${y(lower[index]!)}`)
+          .join(' ');
+        out.push({id: one.id, token: one.token, area: `${top} ${back}`, line: top});
+      }
+
+      // The next band starts where this one finished, drawn or not: a series with
+      // nothing at this sample must not shift the ones above it.
+      for (const index of drawn) lower[index] = upper[index]!;
+    }
+
+    return out;
+  })();
+
+  /** The load, as one line — the height the stack is measured against. */
+  const loadLine = (() => {
+    const one = series.find((series) => !series.stacked);
+    if (one === undefined) return undefined;
+
+    const points = one.values
+      .map((value, index) => (value === null ? null : `${x(index)},${y(value)}`))
+      .filter((pair): pair is string => pair !== null)
+      .join(' ');
+
+    return points === '' ? undefined : {token: one.token, points};
+  })();
 
   const shown = hovered === null ? undefined : hovered;
 
@@ -201,27 +236,38 @@ export const SiteOverviewChart = ({overview}: {overview: SiteOverview}) => {
           </g>
         ))}
 
-        {/* Drawn in the order the model publishes, so the load's ink line lands on
-            top of the three coloured bands rather than under them. */}
-        {series.map((one) => {
-          const {area, line} = shapeFor(one.values);
-          if (line === '') return null;
-          return (
-            <g key={one.id} className={one.token}>
-              <polygon points={area} className="fill-current" opacity={0.14} />
-              <polyline
-                points={line}
-                fill="none"
-                className="stroke-current"
-                strokeWidth={one.id === 'LOAD' ? 1.5 : 1.75}
-                strokeDasharray={one.id === 'LOAD' ? '4 3' : undefined}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={hovered === null ? 1 : 0.85}
-              />
-            </g>
-          );
-        })}
+        {/* Bottom band first, so a stroke shared by two bands is drawn by the
+            upper one and the pile reads as a single stack of shares. */}
+        {bands.map((band) => (
+          <g key={band.id} className={band.token}>
+            <polygon points={band.area} className="fill-current" opacity={0.55} />
+            <polyline
+              points={band.line}
+              fill="none"
+              className="stroke-current"
+              strokeWidth={1}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
+        ))}
+
+        {/* The load over the top of them. Dashed, and the one series with no fill:
+            it is not a share of anything — it is the level the shares add up to, so
+            the line should sit exactly on the crown of the stack. Where it does
+            not, the chart is wrong, which is a useful thing to be able to see. */}
+        {loadLine !== undefined && (
+          <polyline
+            points={loadLine.points}
+            fill="none"
+            className={cn('stroke-current', loadLine.token)}
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={hovered === null ? 1 : 0.85}
+          />
+        )}
 
         {/* Where the record ends. Without it the curves simply stop and read as a
             plant that went quiet, rather than as a day that is not over. */}
@@ -291,7 +337,7 @@ export const SiteOverviewChart = ({overview}: {overview: SiteOverview}) => {
                     <span className="text-primary tabular-nums">
                       {value === null || value === undefined
                         ? 'not yet'
-                        : `${one.signed && value > 0 ? '+' : ''}${value} ${unit}`}
+                        : `${value} ${unit}`}
                     </span>
                   </span>
                 </span>
