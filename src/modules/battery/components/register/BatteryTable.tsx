@@ -56,12 +56,17 @@ import type {BatteryBank} from '../../types/bank.type';
  * health stay because all three changed today.
  */
 const COLUMNS = [
-  {label: 'Bank', wide: '24%', dense: '30%', nameplate: false},
-  {label: 'Charge', wide: '13%', dense: '20%', nameplate: false},
-  {label: 'Flow', wide: '19%', dense: '30%', nameplate: false},
-  {label: 'Autonomy', wide: '16%', dense: '0%', nameplate: true},
-  {label: 'Health', wide: '13%', dense: '20%', nameplate: false},
-  {label: 'Configuration', wide: '15%', dense: '0%', nameplate: true},
+  // Wide is measured against the 800px floor below rather than against a desktop: at
+  // phone width the table is held at that floor and scrolls, so `Flow` has to clear its
+  // 155px pill there.
+  {label: 'Bank', wide: '22%', dense: '28%', nameplate: false},
+  {label: 'Charge', wide: '12%', dense: '18%', nameplate: false},
+  // Measured, like the solar register's `State`: `Discharging | 5 kW` is a 155px pill,
+  // so anything under a third of a ~517px list loses the unit off the end of it.
+  {label: 'Flow', wide: '22%', dense: '34%', nameplate: false},
+  {label: 'Autonomy', wide: '14%', dense: '0%', nameplate: true},
+  {label: 'Health', wide: '12%', dense: '20%', nameplate: false},
+  {label: 'Configuration', wide: '18%', dense: '0%', nameplate: true},
 ] as const;
 
 type BatteryTableProps = {
@@ -120,7 +125,7 @@ export const BatteryTable = ({
           while on a desktop the columns have to compress to fit the split view's list
           column, which is ~517px at 1280. `GensetsTable` needs no min-width because its
           phone form is a card list; these registers keep the table at every width. */}
-      <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-0 text-sm md:min-w-0">
+      <table className="w-full min-w-[800px] table-fixed border-separate border-spacing-0 text-sm md:min-w-0">
         <caption className="sr-only">
           Battery banks, worst runtime first, with charge and hours left, flow, autonomy,
           state of health and the configuration each was specified for

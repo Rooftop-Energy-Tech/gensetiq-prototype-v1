@@ -74,12 +74,19 @@ type SolarTableProps = {
  * column.
  */
 const COLUMNS = [
-  {label: 'System', wide: '25%', dense: '27%', nameplate: false},
-  {label: 'State', wide: '15%', dense: '19%', nameplate: false},
-  {label: 'Output', wide: '11%', dense: '14%', nameplate: false},
+  {label: 'System', wide: '24%', dense: '24%', nameplate: false},
+  // The dense share is the one measured rather than apportioned: `Generating` plus
+  // its glyph is a 95px pill, and anything under 23% of a ~517px list truncates the
+  // longest state to `Genera…` — which is the one word in it that carries meaning.
+  {label: 'State', wide: '18%', dense: '23%', nameplate: false},
+  {label: 'Output', wide: '11%', dense: '13%', nameplate: false},
   {label: 'Capacity', wide: '12%', dense: '0%', nameplate: true},
-  {label: 'Strings', wide: '15%', dense: '16%', nameplate: false},
-  {label: 'Health', wide: '22%', dense: '24%', nameplate: false},
+  {label: 'Strings', wide: '13%', dense: '15%', nameplate: false},
+  {label: 'Health', wide: '22%', dense: '25%', nameplate: false},
+  // Wide adds up to 100 and is measured against the 780px floor below, not against a
+  // desktop: at phone width the table is held at that floor and scrolls, so `State`
+  // has to clear its 95px pill there — 15% of 780 did not, and `Generating` arrived as
+  // `Generati…` on every solar row on the estate.
 ] as const;
 
 export const SolarTable = ({
@@ -133,7 +140,7 @@ export const SolarTable = ({
           while on a desktop the columns have to compress to fit the split view's list
           column, which is ~517px at 1280. `GensetsTable` needs no min-width because its
           phone form is a card list; these registers keep the table at every width. */}
-      <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-0 text-sm md:min-w-0">
+      <table className="w-full min-w-[780px] table-fixed border-separate border-spacing-0 text-sm md:min-w-0">
         <caption className="sr-only">
           Every solar system on the estate — where it is, what it is rated at, what it is
           doing now and what is wrong with it
