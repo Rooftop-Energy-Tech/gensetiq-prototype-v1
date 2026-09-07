@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "telcoiq",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3400,
+      "autoPort": true
+    }
+  ]
+}
