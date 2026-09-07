@@ -1,5 +1,6 @@
 import {HourglassIcon} from 'lucide-react';
 
+import {TankGlyph} from '@/components/global/TankGlyph';
 import {Badge} from '@/components/ui/badge';
 import {amount, fuelFraction, fuelHeadline, runtimeSpan, stampDate} from '@/lib/format';
 import type {Genset} from '../../types/genset.type';
@@ -7,7 +8,6 @@ import type {FuelIntegrityState} from '../../types/fuelIntegrity.type';
 import {fuelRunway} from '../../types/fuelLevel.type';
 import {instrumentsOf} from '../../data/fuelInstruments';
 import type {GensetFuelDetail} from '../../data/detail';
-import {FuelTank} from './FuelTank';
 import {LeakBadge} from './LeakBadge';
 import {MetricRow} from './MetricRow';
 
@@ -52,7 +52,10 @@ export const FuelPanel = ({
     <div className="flex min-w-0 flex-1 items-center gap-5 p-3 md:min-w-[420px] md:gap-8">
       <div className="flex shrink-0 flex-col items-center gap-3">
         <div className="flex flex-col items-center gap-2">
-          <FuelTank fraction={fuelFraction(genset.fuelLitres, fuel.maxLitres)} />
+          <TankGlyph
+            fraction={fuelFraction(genset.fuelLitres, fuel.maxLitres)}
+            tone="fuel"
+          />
           <p className="text-base font-medium whitespace-pre text-primary">
             {fuelHeadline(genset.fuelLitres, fuel.maxLitres)}
           </p>
