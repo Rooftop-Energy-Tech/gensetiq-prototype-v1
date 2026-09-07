@@ -1,9 +1,4 @@
-import {
-  estateSolarDays,
-  estateSolarMonths,
-  solarDays,
-  solarMonths,
-} from '@/modules/site/data/hybrid';
+import {solarDays, solarMonths} from '@/modules/site/data/hybrid';
 import type {SolarBucket} from '@/modules/site/data/hybrid';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import type {SiteSeed} from '@/modules/site/data/siteSeed';
@@ -95,16 +90,6 @@ const monthsWithin = (
         const at = new Date(month.at).getTime();
         return at >= resolved.fromMs && at <= resolved.toMs;
       });
-
-/** The portfolio's buckets at a resolved range. */
-export const estateSeries = (
-  roles: Record<string, SitePowerRole>,
-  resolved: ResolvedRange,
-  now: number,
-): Array<SolarBucket> =>
-  resolved.grain === 'month'
-    ? monthsWithin(estateSolarMonths(roles, now), resolved)
-    : estateSolarDays(roles, resolved.fromMs, resolved.toMs, now);
 
 /** One array's buckets at the same resolved range. */
 export const siteSeries = (

@@ -11,7 +11,7 @@ type Crumb = {label: string; to?: string};
  * A route names its own label instead of the layout keeping a path → title map
  * that drifts. Two ways to name it, because two kinds of route need it:
  *
- *   - `staticData.crumb` for a fixed label ("Gensets", "Refuel");
+ *   - `staticData.crumb` for a fixed label ("Gensets", "Sites");
  *   - `crumb` on the route's **loader data** when the label depends on the params,
  *     which is how `/gensets/brf9540` reads `BRF9540 | Cummins 1000 kVa`.
  *
@@ -23,10 +23,10 @@ type Crumb = {label: string; to?: string};
  * ## Every labelled match, not only the deepest
  *
  * This used to stop at the first label it found walking back, which was enough
- * while nothing in the app was more than two deep. An inverter is:
- * `Solar / MG-012 | 1333 kWp / Inverter 4`, and under the old rule it rendered as
- * `Inverter 4` alone — the one crumb that says least, since a reader who has
- * landed on a box needs to know *whose* box before they need its number.
+ * while nothing in the app was more than two deep. A genset's runs tab is:
+ * `Gensets / BRF9540 | C15 / Runs`, and under the old rule it rendered as `Runs`
+ * alone — the one crumb that says least, since a reader who has landed three deep
+ * needs to know *whose* page they are on before they need which tab.
  *
  * So the chain is collected in order and every labelled ancestor becomes a link,
  * using the match's own resolved `pathname` — which is the only thing that can

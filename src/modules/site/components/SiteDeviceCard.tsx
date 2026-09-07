@@ -1,29 +1,33 @@
 import type {ReactNode} from 'react';
 
 /**
- * One device, as a full-width row.
+ * One device, as the panel beside the single-line diagram.
  *
- * ## Why a row and not a card in a grid
+ * ## Why it is one column now
  *
- * Because the number of devices varies from one to three across the estate, and a
- * grid of cards has to answer "what fills the rest of the row" every time it is
- * not three. Seventeen of the twenty-five sites here have exactly one device, so
- * that question was being asked more often than not, and every answer to it was
- * either a stretched card or a hole.
+ * This was a full-width row under the chart, and its content was split left and
+ * right: the figures in the left 640px and the genset's last run in a 479px block
+ * beside them. Both halves were sized for a ~1,500px band. The card now sits in the
+ * column next to the drawing — 355px at the narrowest width the page puts the two
+ * side by side, about 600px at a wide desktop — so the split cannot hold, and it
+ * would not have failed cleanly: those were `md:` breakpoints, which read the
+ * *viewport*, so a desktop reader got a 479px block forced into a 355px column
+ * while a phone, where the column is full width and the split would fit, got the
+ * stack.
  *
- * A stack of full-width rows never asks it. One row and three rows are the same
- * layout with different heights, so a reader moving between a genset-only site and
- * a solar hybrid finds the same page rather than two arrangements of one. It also
- * scales past three, which a three-column grid does not: a yard with four sets is
- * four rows, and nothing about this file changes.
+ * So there is no split. Everything reads down: what this is, what state it is in,
+ * its figures, then whatever second subject it carries. The last run is the only
+ * `aside` there has ever been, and a run set under a machine's figures rather than
+ * beside them is no worse a reading — it is still the same card, at the full width
+ * of the panel instead of a fixed 479.
  *
  * ## The header
  *
  * Kind then unit, adjacent and left-aligned, which is the design's. The left says
- * what sort of thing this is — the word a reader scanning a stack of rows is
- * looking for — and the right names the specific unit they want once they have
- * found it. In a full-width row the two belong together at the left edge; pushing
- * the unit to the far right would put a 1,700px gap between a thing and its name.
+ * what sort of thing this is, and the right names the specific unit. In a column
+ * this narrow they were never going to be anywhere else, but the reason they belong
+ * together is the same one the band had: pushing the unit to the far right would
+ * put a gap between a thing and its name.
  */
 export const SiteDeviceCard = ({
   label,
@@ -42,53 +46,43 @@ export const SiteDeviceCard = ({
   identity: ReactNode;
   badges: ReactNode;
   /**
-   * A block set beside the row's own content rather than under it — the genset's
-   * last run, and so far only that.
+   * A second subject about the same device, under its figures — the genset's last
+   * run, and so far only that.
    *
-   * Beside the *whole* column, header included, which is where the design puts it:
-   * a run is a second subject about the same machine, not a footnote to its
-   * figures, and sitting it level with the heading says so. It also gives the row
-   * something to put in its right half, which is the half a stacked full-width row
-   * otherwise has to leave empty.
+   * Still its own prop rather than more `children`, because it is a card in its own
+   * right and the gap above it is bigger than the gaps inside the column. A run is
+   * a separate statement about the machine, not another of its figures.
    */
   aside?: ReactNode;
   children?: ReactNode;
 }) => (
-  <div className="flex flex-col gap-3 rounded-md border border-subtle bg-element p-3 md:flex-row md:gap-4">
-    {/* Capped only when something sits beside it. A row with no aside — the array,
-        the bank — takes the full width for its figures, which is the design's. */}
-    <div
-      className={
-        aside === undefined
-          ? 'flex min-w-0 flex-1 flex-col gap-3'
-          : 'flex min-w-0 flex-1 flex-col gap-3 md:max-w-[640px]'
-      }
-    >
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="text-sm font-medium text-secondary">{label}</span>
-        <span className="min-w-0 truncate text-sm font-medium text-primary">{identity}</span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">{badges}</div>
-
-      {children}
+  <div className="flex flex-col gap-3 rounded-md border border-subtle bg-element p-3">
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <span className="text-sm font-medium text-secondary">{label}</span>
+      <span className="min-w-0 truncate text-sm font-medium text-primary">{identity}</span>
     </div>
 
-    {aside !== undefined && (
-      <div className="flex w-full md:w-[479px] md:shrink-0">{aside}</div>
-    )}
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">{badges}</div>
+
+    {children}
+
+    {/* `mt-1` on top of the column's own gap: enough to read as a break without
+        being a second section. `flex` so the run card, which fills its parent,
+        takes the panel's width. */}
+    {aside !== undefined && <div className="mt-1 flex w-full">{aside}</div>}
   </div>
 );
 
 /**
  * The row's headline figures: a label over a value, in columns.
  *
- * The design sets the two columns 240px apart and left-aligns them rather than
- * spreading them across the row. That is right for a stack of rows — the figures
- * line up down the page between one device and the next, so `Generated today` on
- * the solar row sits directly under `Fuel level` on the genset row, and the eye can
- * read the column instead of tracking across each row separately. Spreading them
- * to the full width would break that alignment on every row of different arity.
+ * The design sets the columns 240px apart and left-aligns them rather than
+ * spreading them across the available width, and that survives the move into a
+ * narrow panel unchanged — which is the point of a minimum rather than a count. At
+ * the wide end two sit side by side as the design draws them; in a 355px column
+ * they wrap to one a line, at the same size and the same left edge. Spreading them
+ * instead would have made a bank's three figures 100px wide apiece at the narrow
+ * end and half a screen apart at the wide one.
  */
 export const SiteDeviceFigures = ({
   figures,

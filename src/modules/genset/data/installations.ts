@@ -1,7 +1,7 @@
 import {siteSeeds} from '@/modules/site/data/siteSeed';
 import type {Installation} from '../types/installation.type';
 import {GENSETS} from './fleet';
-import {fuelAt, historyStart, meteredBurn, runsInWindow} from './history';
+import {fuelAt, historyStart} from './history';
 import {spread, spreadBetween} from './spread';
 
 /**
@@ -105,58 +105,4 @@ export const gensetInstallations = (gensetId: string): Array<Installation> =>
 export const currentInstallation = (gensetId: string): Installation | undefined => {
   const head = gensetInstallations(gensetId)[0];
   return head !== undefined && head.endedAt === null ? head : undefined;
-};
-
-/** Every installation in the estate, longest-standing first. */
-export const allInstallations = (): Array<Installation> =>
-  Object.values(INSTALLATIONS)
-    .flat()
-    .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
-
-export type InstallationTotals = {
-  /** Hours the engine actually turned inside the window. */
-  runtimeHours: number;
-  /** Energy delivered across the window, kWh. */
-  energyKwh: number;
-  /** Diesel burned across the window, litres. */
-  fuelBurnedLitres: number;
-  /** Starts inside the window. */
-  starts: number;
-};
-
-/**
- * What an installation has cost, read off the run log — not stored, so the
- * figures here are the same runs the Runs tab lists, clipped to its window.
- *
- * An open installation on this estate reaches back years and the run log covers
- * sixty days, so in practice this reports the log's whole span. That is the
- * honest answer rather than a shortfall: it is every run the app has.
- */
-export const installationTotals = (installation: Installation): InstallationTotals => {
-  const from = new Date(installation.startedAt).getTime();
-  const to = installation.endedAt === null ? CLOCK : new Date(installation.endedAt).getTime();
-
-  const runs = runsInWindow(installation.gensetId, from, to);
-  let runtimeMs = 0;
-  // Energy is the runs' own figures, prorated by how much of each run the
-  // window actually contains — not derived back from fuel, which would undo the
-  // load-dependent SFC and make the total disagree with the very runs it is
-  // made of.
-  let energyKwh = 0;
-  for (const run of runs) {
-    const startMs = new Date(run.startedAt).getTime();
-    const endMs = run.endedAt === null ? CLOCK : new Date(run.endedAt).getTime();
-    const clippedMs = Math.max(0, Math.min(endMs, to) - Math.max(startMs, from));
-    runtimeMs += clippedMs;
-    if (endMs > startMs) energyKwh += run.energyProducedKwh * (clippedMs / (endMs - startMs));
-  }
-
-  const fuelBurnedLitres = meteredBurn(installation.gensetId, from, to);
-
-  return {
-    runtimeHours: runtimeMs / HOUR,
-    energyKwh,
-    fuelBurnedLitres,
-    starts: runs.length,
-  };
 };

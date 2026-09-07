@@ -12,9 +12,9 @@ import {ComingSoon} from '@/components/global/ComingSoon';
  * floor, the wash interval, and how long a silence has to last before it counts.
  *
  * Beside them belongs the answer to a question this model has not had to face
- * yet: when a site has a generation meter *and* inverter telemetry, the two will
- * not agree — AC losses, auxiliary draw, one box out of contact — and whichever
- * is made the truth, the other becomes a reconciliation.
+ * yet: when a site has a generation meter *and* the array's own telemetry, the two
+ * will not agree — cable losses, auxiliary draw, a poll that did not land — and
+ * whichever is made the truth, the other becomes a reconciliation.
  */
 export const Route = createFileRoute('/_authenticated/solar_/$systemId/settings')({
   component: () => (

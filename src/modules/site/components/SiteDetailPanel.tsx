@@ -65,9 +65,9 @@ const SupplyBadge = ({summary}: {summary: SiteSummary}) => {
  *
  * The fleet panel is the model, and the columns it carries are the same shape of
  * thing: the facts a pin cannot state, and a way out of itself. What differs is
- * the body — a site has no activity feed of its own, because nothing happens to a
- * *place*. What happens happens to the machines standing on it, so the sets
- * themselves are the body, worst first, each linking to its own page.
+ * the body: nothing happens to a *place*, so there is nothing here to list but
+ * the machines standing on it, and the sets themselves are the body, worst
+ * first, each linking to its own page.
  *
  * Installed capacity is here and site draw is not, for the reason the list gives:
  * draw is instantaneous and changes while you read it, which makes it a

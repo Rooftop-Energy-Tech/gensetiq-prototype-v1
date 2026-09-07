@@ -1,11 +1,14 @@
 import {ColumnsIcon, GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon} from 'lucide-react';
 
+import {FilterSelect} from '@/components/global/FilterSelect';
 import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
-import type {SiteView} from '../types/view.type';
+import {CUSTOMER_TERM} from '../data/customers';
+import type {EstateSummary} from '../data/estateSummary';
+import type {SiteSearch, SiteView} from '../types/view.type';
 
 type SitesToolbarProps = {
   query: string;
@@ -18,19 +21,32 @@ type SitesToolbarProps = {
    * Show the view switcher and the panel toggle.
    *
    * `false` at phone width, where neither has anything to switch: the map and the
-   * 393px preview panel are desktop-only. Search is the whole toolbar there.
+   * 393px preview panel are desktop-only.
    */
   showViewControls: boolean;
+  /** Counted over the whole estate, so a dropdown's counts do not move as you filter. */
+  summary: EstateSummary;
+  search: SiteSearch;
+  onSearchChange: (next: Partial<SiteSearch>) => void;
 };
 
 /**
- * The fleet toolbar's controls, over the estate.
+ * The fleet toolbar's controls, over the estate — and the estate's three attribute
+ * filters, which the fleet screen still keeps in its card strip.
  *
  * Copied in shape rather than generalised into one shared component: the two
  * differ in what their search box matches and in what the views *are*, and a
  * toolbar taking a search placeholder plus two view labels plus a panel toggle is
- * a worse thing to read than two thirty-line files that each say what they do.
- * When a third screen wants this, that is the moment to lift it.
+ * a worse thing to read than two files that each say what they do. When a third
+ * screen wants this, that is the moment to lift it.
+ *
+ * ## Why the filters are here and not in the cards
+ *
+ * Search, filters and view are one sentence — *which sites, and shown how* — and
+ * they belong on one line in that order: narrow by text, narrow by attribute, then
+ * choose the shape. Putting the attribute filters in cards separated them from the
+ * search box doing the same job, and cost three cards' width to say what three
+ * buttons say. See `FilterSelect` for which filters earn a card and which do not.
  */
 export const SitesToolbar = ({
   query,
@@ -40,14 +56,21 @@ export const SitesToolbar = ({
   panelOpen,
   onPanelOpenChange,
   showViewControls,
+  summary,
+  search,
+  onSearchChange,
 }: SitesToolbarProps) => {
   return (
-    <div className="flex items-center justify-between gap-4">
+    // `flex-wrap` and a shrinkable search box: three dropdowns plus the view
+    // controls need more room than the fleet toolbar's two groups, and below `lg`
+    // with the preview panel open the row would otherwise push the switcher off the
+    // edge. Wrapped, the filters drop under the search rather than being clipped.
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {/* 373px is the design's search width on the fleet screen; the same box for
           the same job. It matches the site's name, its placename, what kind of
           load it carries and the tags standing on it — the last because "which
           site is BRF9540 at" is the question this list gets asked most. */}
-      <InputGroup className="w-full max-w-[373px]">
+      <InputGroup className="w-full max-w-[373px] min-w-[200px] flex-1">
         <InputGroupAddon>
           <SearchIcon aria-hidden="true" />
         </InputGroupAddon>
@@ -60,8 +83,39 @@ export const SitesToolbar = ({
         />
       </InputGroup>
 
+      {/* Between the search and the view switcher, in the order the sentence runs.
+          `Supply` first because it is the one attribute that changes what the site
+          *page* draws; then where it is, then which rollout filed it — the same
+          order the cards had. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterSelect
+          label="Supply"
+          allLabel="All supplies"
+          options={summary.byRole}
+          value={search.role}
+          onChange={(next) => onSearchChange({role: next})}
+        />
+        <FilterSelect
+          label={CUSTOMER_TERM}
+          allLabel={`All ${CUSTOMER_TERM.toLowerCase()}s`}
+          options={summary.byCustomer}
+          value={search.customer}
+          onChange={(next) => onSearchChange({customer: next})}
+        />
+        {/* Withheld entirely on an estate whose dataset declares no programmes —
+            `byProgram` is empty there and `FilterSelect` draws nothing, the same
+            condition the card used to carry. */}
+        <FilterSelect
+          label="Programme"
+          allLabel="All programmes"
+          options={summary.byProgram}
+          value={search.program}
+          onChange={(next) => onSearchChange({program: next})}
+        />
+      </div>
+
       {showViewControls && (
-      <div className="flex items-center gap-5">
+      <div className="ml-auto flex items-center gap-5">
         <Tabs value={view} onValueChange={(next) => onViewChange(next as SiteView)}>
           {/* Three views now, so the list is 105px rather than 70. `split` sits in
               the middle because it is between the other two in what it shows, and

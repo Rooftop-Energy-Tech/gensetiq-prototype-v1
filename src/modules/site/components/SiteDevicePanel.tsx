@@ -12,119 +12,179 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, fuelHeadline} from '@/lib/format';
 import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
 import {gensetName} from '@/modules/genset/types/genset.type';
-import {gensetSearch} from '@/modules/genset/types/view.type';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {CurrentRunCard} from '@/modules/genset/components/detail/CurrentRunCard';
 import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useFuelIntegrity} from '@/modules/genset/data/fuelIntegrity';
 import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
-import {runTotalsIn} from '@/modules/genset/data/history';
 import {isLeak} from '@/modules/genset/types/fuelIntegrity.type';
+import {deviceGensetId, gensetDeviceKey} from '../types/device.type';
+import type {SiteDeviceKey} from '../types/device.type';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {hybridPlant, hybridState, solarMonths, todaySoFarKwh} from '../data/hybrid';
 import {siteSeed} from '../data/siteSeed';
+import {siteFeed} from '../data/sites';
 import type {SiteGenset, SiteSummary} from '../data/sites';
 import {SiteDeviceCard, SiteDeviceFigures} from './SiteDeviceCard';
 
 /**
- * The page's last band: the primary devices, stacked.
+ * One device's detail, for the panel beside the single-line diagram.
  *
- * ## What "primary" means, and why it is not "all"
+ * ## One at a time, and the diagram chooses which
  *
- * One row per **kind of plant on the bus**: the genset that is carrying or would
- * carry, the array, the bank. That is the design's three, and the brief's
- * instruction that this is not a device list is the important half — a yard with
- * four sets, two string inverters and a bank is eight devices, and eight rows is an
- * inventory. An inventory is a useful screen and it is not this one.
+ * This used to be the page's last band: every device stacked full-width under the
+ * chart, one row per kind of plant. The devices now sit **beside the drawing** and
+ * a reader picks one by clicking its box, which changes what this file is for in
+ * two ways worth writing down.
  *
- * So a multi-set site shows its **lead set** — `summary.gensets` is
- * attention-ordered, so that is the one turning, or the sickest if none is — and
- * says how many others there are with a way through to them. What it must not do is
- * silently drop them: a stack that looks like the whole yard at a site with three
- * more sets standing in it is the one failure mode this band has.
+ * It shows **one** card rather than a stack, so it takes the device as a prop and
+ * holds no opinion about which. And it can afford to be about **any** set rather
+ * than the lead one: the old band showed `summary.gensets[0]` and carried a
+ * footnote counting the ones it wasn't showing, because a stack of three at a yard
+ * of five reads as the whole yard. That footnote is gone, and not because the sets
+ * were dropped — the diagram draws every one of them and now selects them
+ * individually, so `genset:` keys carry an id and a four-set site has four
+ * selectable boxes. The drawing was always the honest inventory; it is now the
+ * navigation too.
  *
- * ## Why they stack
+ * ## Why the figures are unchanged
  *
- * Because device count varies from one to three and a stack is the one arrangement
- * that does not care. Seventeen of the twenty-five sites on this estate have
- * exactly one device; a row of cards has to decide what fills the other two thirds
- * at every one of them, and every answer is either a stretched card or a hole. Rows
- * make one device and three devices the same layout at different heights, and the
- * figures line up down the page between them.
+ * The panel is narrower than the band was, so `SiteDeviceFigures` wraps to one
+ * figure per line at most widths instead of two or three across. That is left
+ * alone deliberately: the drawing beside it is 380px tall at a solar hybrid and the
+ * card has that height to spend, so the wrap costs nothing, and the alternative —
+ * shrinking the design's 240px figure columns to make two fit — would be changing
+ * the type to fit the furniture.
  *
  * ## What the frame's copy actually specifies
  *
  * The design's `Solar` and `Battery` rows both carry the genset's identity string
  * (`BGI1495 | FG Wilson 20 kVa`) and the genset's `Idle` badge, which is a
  * copy-paste of the first row rather than a statement about arrays. Reproducing it
- * literally would put a diesel engine's name on a roof, so each row here names its
+ * literally would put a diesel engine's name on a roof, so each card here names its
  * own plant and reports the state that plant can actually be in — generating or
  * dark for an array, charging or discharging for a bank.
  */
-export const SitePrimaryDevices = ({
+export const SiteDevicePanel = ({
   summary,
   role,
+  /** Which device to report on. `undefined` at a site with no plant at all. */
+  device,
   now,
 }: {
   summary: SiteSummary;
   role: SitePowerRole;
+  device: SiteDeviceKey | undefined;
   now: number;
 }) => {
   const seed = siteSeed(summary.site.id);
   const plant = seed === undefined ? undefined : hybridPlant(seed, role);
-  const lead = summary.gensets[0];
+  const gensetId = device === undefined ? undefined : deviceGensetId(device);
+  const member =
+    gensetId === undefined
+      ? undefined
+      : summary.gensets.find(({genset}) => genset.id === gensetId);
 
-  const solarFitted = seed !== undefined && hasSolar(role) && (plant?.solarKwp ?? 0) > 0;
-  const batteryFitted = seed !== undefined && hasBattery(role) && (plant?.batteryKwh ?? 0) > 0;
-
-  if (lead === undefined && !solarFitted && !batteryFitted) {
+  // `device` comes from `siteDevices` — through a reader's click and a fallback that
+  // re-checks the list — so every branch below is reachable and the `undefined` tail
+  // is the genuinely empty site rather than a lookup that failed. Written as a
+  // fall-through anyway: a stale key surviving a role change must render the empty
+  // state, not throw.
+  if (member !== undefined) {
     return (
-      <p className="px-1 text-sm text-secondary">
-        No plant is installed at this site — there is nothing here to report on.
-      </p>
+      <GensetDeviceCard
+        member={member}
+        onLoad={member.genset.id === summary.defaultDutyId}
+        now={now}
+      />
+    );
+  }
+
+  if (device === 'solar' && seed !== undefined) {
+    return <SolarDeviceCard siteId={summary.site.id} seed={seed} role={role} now={now} />;
+  }
+
+  if (device === 'battery' && seed !== undefined) {
+    return (
+      <BatteryDeviceCard
+        siteId={summary.site.id}
+        seed={seed}
+        role={role}
+        plantKwh={plant?.batteryKwh ?? 0}
+        soh={plant?.soh ?? 0}
+        now={now}
+      />
     );
   }
 
   return (
-    <section aria-label="Primary devices" className="flex flex-col gap-2">
-      {/* The design's 8px between rows. Tighter than the 16px between bands, and
-          deliberately so: these are one list, and spacing them like separate
-          sections would break the column the figures read down. */}
-      <div className="flex flex-col gap-2">
-        {lead !== undefined && (
-          <GensetDeviceCard member={lead} onLoad={lead.genset.id === summary.defaultDutyId} now={now} />
-        )}
-
-        {solarFitted && seed !== undefined && (
-          <SolarDeviceCard siteId={summary.site.id} seed={seed} role={role} now={now} />
-        )}
-
-        {batteryFitted && seed !== undefined && (
-          <BatteryDeviceCard siteId={summary.site.id} seed={seed} role={role} plantKwh={plant?.batteryKwh ?? 0} soh={plant?.soh ?? 0} now={now} />
-        )}
-      </div>
-
-      {/* The rest of the yard, named rather than hidden. See the note above. */}
-      {summary.gensets.length > 1 && (
-        <p className="px-1 text-xs text-tertiary">
-          {summary.gensets.length - 1} more genset
-          {summary.gensets.length - 1 === 1 ? '' : 's'} at this site ·{' '}
-          <Link
-            to="/gensets"
-            // Through `gensetSearch()` rather than a bare `{q}`: a link type-checks
-            // against the fleet's whole parsed search shape, and this is where its
-            // defaults are kept so a call site that only cares about the query does
-            // not have to restate `view`.
-            search={gensetSearch({q: summary.site.name})}
-            className="rounded-sm underline-offset-4 outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-          >
-            see all plant
-          </Link>
-        </p>
-      )}
-    </section>
+    <p className="px-1 text-sm text-secondary">
+      No plant is installed at this site — there is nothing here to report on.
+    </p>
   );
+};
+
+/**
+ * Every device at this site that has a card, in the order the page ranks them.
+ *
+ * The gensets first and in `summary.gensets` order, which is attention-ordered — so
+ * a fallback that takes the head of this list lands on the set that is turning, or
+ * the sickest if none is. The array and the bank follow, as the design's rows did.
+ *
+ * The `Fitted` checks are the reason this is a function and not `hasSolar(role)` at
+ * the call site: a site can be *declared* a solar hybrid on its settings tab and
+ * still have no array in the dataset, and a selectable box with an empty card
+ * behind it is worse than no box.
+ */
+export const siteDevices = (
+  summary: SiteSummary,
+  role: SitePowerRole,
+): Array<SiteDeviceKey> => {
+  const seed = siteSeed(summary.site.id);
+  const plant = seed === undefined ? undefined : hybridPlant(seed, role);
+
+  return [
+    ...summary.gensets.map(({genset}) => gensetDeviceKey(genset.id)),
+    ...(seed !== undefined && hasSolar(role) && (plant?.solarKwp ?? 0) > 0
+      ? (['solar'] as const)
+      : []),
+    ...(seed !== undefined && hasBattery(role) && (plant?.batteryKwh ?? 0) > 0
+      ? (['battery'] as const)
+      : []),
+  ];
+};
+
+/**
+ * Which device the page opens on: **whatever is carrying the site.**
+ *
+ * A reader arriving at a site page is asking what is keeping the tower up, and the
+ * drawing has already answered it in teal — so the panel beside it opening on that
+ * same thing is the page agreeing with itself. It also means the two most common
+ * arrivals need no click at all: a solar hybrid in daylight opens on its array, and
+ * a set that has picked up an outage opens on that set.
+ *
+ * `MAINS` and `NONE` fall through to the head of the list, because neither is a
+ * device: an incomer has no card and an unserved site has nothing carrying it. The
+ * `includes` guard is not defensive padding either — `siteFeed` can name a genset
+ * this list has left out, at a site whose only set is missing from the fixture.
+ */
+export const siteDefaultDevice = (
+  summary: SiteSummary,
+  role: SitePowerRole,
+  devices: Array<SiteDeviceKey>,
+): SiteDeviceKey | undefined => {
+  const feed = siteFeed(summary, summary.defaultDutyId, role);
+  const carrying: SiteDeviceKey | undefined =
+    feed.source === 'GENSET'
+      ? gensetDeviceKey(feed.gensetId)
+      : feed.source === 'SOLAR'
+        ? 'solar'
+        : feed.source === 'BATTERY'
+          ? 'battery'
+          : undefined;
+
+  return carrying !== undefined && devices.includes(carrying) ? carrying : devices[0];
 };
 
 /**
@@ -160,10 +220,6 @@ const GensetDeviceCard = ({
   // without a reload — the behaviour `useFuelIntegrity` exists for.
   const integrity = useFuelIntegrity(genset.id, now);
 
-  // The card's `Today` column. Measured against the same `now` as the run beside
-  // it, and against the same midnight as the genset's own page — one machine's day
-  // has to read identically on both screens.
-  const today = runTotalsIn(genset.id, new Date(now).setHours(0, 0, 0, 0), now, now);
   const shortfallPercent =
     isLeak(integrity) && detail.fuel.maxLitres > 0
       ? Math.round((integrity.figures.confirmedShortfallLitres / detail.fuel.maxLitres) * 100)
@@ -182,7 +238,7 @@ const GensetDeviceCard = ({
         </Link>
       }
       aside={
-        <CurrentRunCard run={detail.run} today={today} gensetId={genset.id} now={now} />
+        <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
       }
       badges={
         <>

@@ -35,7 +35,7 @@ export type GensetActivity = {
   at: string;
   /**
    * Where the entry came from — the controller's own event stream, the
-   * dispatch feed, a refuel order, the service log, or a person typing.
+   * dispatch feed, the service log, or a person typing.
    * Displayed beside the timestamp, because an audit trail whose entries
    * cannot say who put them there is a list rather than a log.
    */

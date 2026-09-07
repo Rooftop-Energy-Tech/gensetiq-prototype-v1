@@ -2,38 +2,43 @@ import {useState} from 'react';
 
 import {useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
+import {SiteCircuit} from './SiteCircuit';
 import {SiteDetails} from './SiteDetails';
 import {SiteDiagnostics} from './SiteDiagnostics';
-import {SiteDiagram} from './SiteDiagram';
 import {SiteMetricStrip} from './SiteMetricStrip';
-import {SitePrimaryDevices} from './SitePrimaryDevices';
 
 /**
- * The site home page, in the five full-width bands the design stacks.
+ * The site home page, in the four bands the design stacks.
  *
  * 1. **The strip** — the figures that move, in one rule across the top.
- * 2. **The circuit** — the single-line diagram, centred. The only band that is not
- *    a card: it sits on the canvas, so the drawing reads as the page's own subject
- *    rather than as another panel.
+ * 2. **The circuit** — the single-line diagram and, beside it, the detail of
+ *    whichever device the reader has picked out of it. See `SiteCircuit`.
  * 3. **The details** — what the site *is*, in a narrow block between two rules.
  *    This used to be the right half of band 2; see the note at the band itself for
  *    why the design moved it underneath.
  * 4. **Diagnostics** — one chart with a metric picker and a period control.
- * 5. **The devices** — one full-width row per kind of plant, stacked.
  *
- * ## Why every band is full width
+ * There was a fifth: **the devices**, one full-width row per kind of plant, stacked
+ * at the foot of the page. It has gone into band 2 as the drawing's own detail
+ * panel, which is the change worth explaining here rather than only there. The
+ * stack's problem was never how it looked; it was that it repeated the diagram's
+ * subject 900px further down the page. A reader who had just found the genset that
+ * was carrying the site scrolled past a chart to read about it, and nothing
+ * connected the box they had been looking at to the row they arrived at. Putting
+ * the card where the click happens makes that one movement instead of three, and it
+ * is what lets a multi-set site name every set rather than only its lead one.
  *
- * Because only one thing on this page has a natural width. The diagram is a fixed
- * canvas; the figures are short; the chart wants everything it can get. An earlier
- * arrangement put the summary and the diagram side by side in a band and the
- * devices in a row of cards beside each other, and it left two ragged holes down
- * the right at any site with fewer than three devices — which is seventeen of the
- * twenty-five here.
+ * ## Why the other bands are still full width
  *
- * Bands answer that by never having a leftover column to fill. Device count changes
- * the page's *height* and nothing else, so a genset-only site and a solar hybrid
- * are the same page at two lengths, and an operator moving between them is not
- * re-reading a new arrangement each time.
+ * Because nothing else on this page has a natural width. The figures are short and
+ * the chart wants everything it can get, so both take the line. An earlier
+ * arrangement put the site's summary beside the diagram and the devices in a row of
+ * cards next to each other, and it left two ragged holes down the right at any site
+ * with fewer than three devices — which is seventeen of the twenty-five here.
+ *
+ * Band 2 is a two-column arrangement and does not have that problem, because its
+ * right column holds exactly one card whatever the site is made of. Device count
+ * changes how many boxes are *clickable*, not how many panels have to be filled.
  *
  * ## What the duty set is here, and why nothing sets it
  *
@@ -45,17 +50,17 @@ import {SitePrimaryDevices} from './SitePrimaryDevices';
  *
  * ## At phone width
  *
- * The bands are already a column and, since the details moved out of band 2,
- * nothing in them folds — the phone layout and the desktop one are now the same
- * stack at two widths. The **diagram scales to the width it is given** rather than
- * reflowing: it is a fixed pixel canvas whose conductors land
- * on the boxes at measured coordinates, so a reflow would leave a wire in mid-air.
- * `SiteDiagram` measures its own box and handles that itself.
+ * The bands are already a column, and band 2 folds back into one: the drawing with
+ * its device's card underneath. That is the old stack again, shortened to the one
+ * card that was asked for. The **diagram scales to the width it is given** rather
+ * than reflowing: it is a fixed pixel canvas whose conductors land on the boxes at
+ * measured coordinates, so a reflow would leave a wire in mid-air. `SiteDiagram`
+ * measures its own box and handles that itself.
  */
 export const SiteHome = ({summary}: {summary: SiteSummary}) => {
   // One clock reading for the whole page, so the strip's figures, the diagram's
-  // live nodes, the device rows and the chart's right-hand edge cannot land either
-  // side of a minute boundary and disagree about what "now" was.
+  // live nodes, the device card beside it and the chart's right-hand edge cannot
+  // land either side of a minute boundary and disagree about what "now" was.
   const [now] = useState(() => Date.now());
 
   /**
@@ -72,34 +77,7 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
     <div className="flex flex-col gap-3.5 px-4 pt-3 pb-24 md:pb-6">
       <SiteMetricStrip summary={summary} role={role} now={now} />
 
-      <section
-        aria-label="Site circuit"
-        // Full width now, with the drawing centred in it. The details used to sit
-        // in the right 59% of this band; see the note on the band below for why
-        // they moved. No card — this is the one thing on the page that is a picture
-        // rather than a panel.
-        className="flex flex-col gap-6 py-2"
-      >
-        {/* A **grid-backed** site with no set still has a circuit worth drawing:
-            mains straight to the load says "on the grid, no plant fitted", which is
-            a real and reassuring state. So does a **hybrid** — the array and the
-            bank are still there and still carrying. A **diesel-prime** site with no
-            set has no incomer and no machines, so there is nothing to draw: the
-            diagram would be a load box with a conductor arriving from nowhere. */}
-        {summary.gensets.length === 0 && role === 'DIESEL_PRIME' ? (
-          <p className="max-w-sm text-sm text-secondary">
-            Nothing supplies this site. It is set to run on its own gensets and none are
-            fitted.
-          </p>
-        ) : (
-          // Centred, as the frame centres it, and handed the width directly: the
-          // diagram measures what it is given and scales itself, so a wrapper that
-          // sized to the drawing would make that circular.
-          <div className="flex min-w-0 justify-center">
-            <SiteDiagram summary={summary} dutyId={summary.defaultDutyId} role={role} />
-          </div>
-        )}
-      </section>
+      <SiteCircuit summary={summary} role={role} now={now} />
 
       {/* ## Band 3: what the site *is*, under the drawing rather than beside it
 
@@ -125,8 +103,6 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
       <div className="border-t border-subtle" />
 
       <SiteDiagnostics summary={summary} now={now} />
-
-      <SitePrimaryDevices summary={summary} role={role} now={now} />
     </div>
   );
 };

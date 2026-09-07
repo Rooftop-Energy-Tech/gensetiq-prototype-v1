@@ -1,102 +1,98 @@
 import {Link} from '@tanstack/react-router';
-import {ArrowDownIcon, ArrowRightIcon} from 'lucide-react';
+import {ArrowRightIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
-import {amount, durationCompact, stampAt} from '@/lib/format';
+import {amount, clockTime, durationCompact, stampDay} from '@/lib/format';
+import {cn} from '@/lib/utils';
 import {isOpen, runElapsedMs} from '../../types/run.type';
 import type {GensetRun} from '../../types/run.type';
 import {DEFAULT_RUN_WINDOW} from '../../types/runsView.type';
 
-/** What `runTotalsIn` returns for the window since midnight. */
-export type DayTotals = {
-  starts: number;
-  runtimeMs: number;
-  energyKwh: number;
-  fuelLitres: number;
-};
+/**
+ * One end of the interval — the time large, the day quiet beneath it.
+ *
+ * Split across two lines rather than `stampAt`'s one because the card now sets the
+ * two stamps *opposite* each other with the duration between them: on one line
+ * each stamp is 117px of unbreakable text, the pair eats 234px of a 390px card and
+ * the figure in the middle is left with a gap it cannot sit in. Stacked, a stamp
+ * is as wide as its date — about 70px — and the same row fits a phone.
+ *
+ * The split also sorts the two facts by how often they are read. Two runs out of
+ * three start and finish inside one day, so the day is usually the same word
+ * twice; the times never are. The times get the weight.
+ */
+const Stamp = ({iso, className}: {iso: string; className?: string}) => (
+  <div className={cn('flex shrink-0 flex-col', className)}>
+    <span className="text-sm font-medium whitespace-nowrap text-primary">
+      {clockTime(iso)}
+    </span>
+    <span className="text-xs whitespace-nowrap text-secondary">{stampDay(iso)}</span>
+  </div>
+);
 
 /**
- * The run card — the numbers an operator asks for first, on one run and on the
- * day that run belongs to.
+ * The run card — the numbers an operator asks for first, on the one run in front
+ * of them.
  *
- * Fuel consumed, energy produced and time running are *totals*, not instantaneous
- * readings, and that is why they belong here rather than in the gauge row: they
- * are what work gets judged on afterwards (litres per kWh delivered, hours against
- * the service interval), and they keep accumulating whether or not anybody is
- * watching the dials.
+ * ## The interval is the card
  *
- * ## Why the day is a column and not a card
+ * A run is an interval, and this reads as one: started here, ran this long, ended
+ * there, left to right along a rule. The three facts were a stamp column beside a
+ * stack of label/value rows before, which said the same thing in a shape that hid
+ * it — `Time ran ─── 12 h` was a row in a list of three, ranked level with fuel
+ * and energy, and the two stamps were a separate column the reader had to relate
+ * to it themselves. Set on the rule the duration *is* the distance between the
+ * stamps, and there is nothing left to relate.
  *
- * It was a card beside this one for about an hour. The trouble is that on a set
- * with one run today — much the commonest case — every figure in it was the figure
- * already printed to its left, so two cards sat side by side saying `5 hours`,
- * `15 kWh`, `7 L` twice. That reads as a rendering fault rather than as an
- * arithmetic identity.
+ * Fuel consumed and energy produced stay, and stay *totals* rather than
+ * instantaneous readings — that is why they belong on this card and not in the
+ * gauge row: they are what work gets judged on afterwards (litres per kWh
+ * delivered, hours against the service interval), and they keep accumulating
+ * whether or not anybody is watching the dials. But they are the run's receipt,
+ * not its shape, so they read as one quiet line under the interval instead of two
+ * more rows competing with it — the words grey, the figures at the same weight as
+ * everything else on the card. Greying a figure to keep a line quiet is the wrong
+ * economy: an operator scanning three sets for the one burning litres per kWh is
+ * scanning these two numbers, and it is the `Produced`/`Consumed` that can afford
+ * to recede once they have been read the first time.
  *
- * As a column the identity is the point: when this run *is* today's work the two
- * columns agree and a reader can see that they agree, and when they diverge —
- * three starts since midnight, or a run that began before it — the difference is
- * the thing worth reading, on the same row, at the same scale.
+ * ## One run, and nothing in a second column beside it
  *
- * The shape does not change either way. A card that collapsed to one column
- * whenever the numbers happened to match would teach a reader that they cannot
- * trust what they learned last time they opened it.
+ * Today's totals were a column here, on the argument that the day is the context a
+ * run is read against. They are gone, and what killed the column is what killed
+ * the `Today` *card* before it: on a set with one run today — much the commonest
+ * case — every figure in the second column was the figure already printed to its
+ * left, so the card spent most of its life saying `5 hours`, `15 kWh`, `7 L`
+ * twice.
  *
- * ## What each column means
+ * The day has a home already. Band 5's chart answers *how much today* with a day
+ * stepper and a period control beside it — against yesterday, against the week —
+ * which is the comparison that makes a day's figure worth reading at all. A card
+ * about one start does not need to answer it a second time, worse.
  *
- * The run column is one start to one stop, so its `Starts` cell is `1` by
- * definition — printed rather than dashed, because it is the denominator that makes
- * the row's other cell mean something ("three starts today, this is one of them").
+ * ## An open run still has two ends
  *
- * The day column is midnight to now and is **apportioned**, so a run that began
- * last night contributes only the part that fell after midnight and contributes no
- * start at all. That is why `Starts` can read `1 · 0`: this run is a start, and
- * yesterday is the day that owns it.
- *
- * Both stamps are shown because a run is an interval. For an open run the second
- * stamp is the latest telemetry rather than a stop time — the run has no end yet,
- * and blanking the field would leave the arrow pointing at nothing.
+ * For an open run the right-hand stamp is the latest telemetry rather than a stop
+ * time. Blanking it would leave the rule running into nothing, and the reader
+ * already knows which it is: the badge says `Current run`, and a card that says
+ * `Current run` cannot be reporting a time the machine stopped.
  */
 export const CurrentRunCard = ({
   run,
-  today,
   gensetId,
   now,
 }: {
   run: GensetRun;
-  /** Everything this machine has done since midnight, apportioned to it. */
-  today: DayTotals;
   gensetId: string;
   now: number;
 }) => {
   const open = isOpen(run);
   const endStamp = run.endedAt ?? new Date(now).toISOString();
 
-  const rows: Array<{label: string; run: string; day: string}> = [
-    {
-      label: open ? 'Time running' : 'Time ran',
-      run: durationCompact(runElapsedMs(run, now)),
-      // `none` rather than `duration(0)`, which reads "under a minute" — a set
-      // that has not turned today has not *nearly* turned today.
-      day: today.runtimeMs === 0 ? 'none' : durationCompact(today.runtimeMs),
-    },
-    {
-      label: 'Energy produced',
-      run: amount(run.energyProducedKwh, 'kWh'),
-      day: amount(today.energyKwh, 'kWh'),
-    },
-    {
-      label: 'Fuel consumed',
-      run: amount(run.fuelConsumedLitres, 'L'),
-      day: amount(today.fuelLitres, 'L'),
-    },
-    {label: 'Starts', run: '1', day: amount(today.starts, '')},
-  ];
-
   return (
-    <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 rounded-md border border-default bg-element px-3 pt-3 pb-4">
+    <div className="flex min-w-0 flex-1 flex-col justify-center gap-4 rounded-md border border-default bg-element px-3 pt-3 pb-4">
       <div className="flex items-center justify-between">
         <Badge variant="element">{open ? 'Current run' : 'Last run'}</Badge>
 
@@ -124,70 +120,58 @@ export const CurrentRunCard = ({
         </Tooltip>
       </div>
 
-      {/* `gap-10` is the design's, and a phone gives that space to the figures.
-          **The interval stacks below `md`, and with two value columns it has to.**
-          One column left ~180px for a label at 390px, which truncates but reads;
-          two leave 18px, which collapses the label away entirely and prints a grid
-          of unlabelled figures. Stacked, the table gets the card's full width and
-          the labels come back. */}
-      <div className="flex w-full flex-col gap-4 md:flex-row md:items-center md:gap-10">
-        {/* The interval, drawn as one. The arrow is the design's, and it is
-            doing real work — without it the two stamps read as a pair of
-            unrelated timestamps rather than a start and an end. */}
-        {/* A row at phone width, the design's column from `md` up — and the arrow
-            turns with it. An arrow pointing down a line that reads left to right is
-            the one part of this block that cannot simply reflow: it is what says the
-            two stamps are a start and an end rather than two unrelated times. */}
-        <div className="flex w-full shrink-0 flex-row items-center justify-center gap-3 text-sm font-medium text-primary md:w-[117px] md:flex-col">
-          <span className="whitespace-nowrap">{stampAt(run.startedAt)}</span>
-          <ArrowDownIcon
-            className="size-4 -rotate-90 text-secondary md:rotate-0"
-            aria-hidden="true"
-          />
-          <span className="whitespace-nowrap">{stampAt(endStamp)}</span>
+      {/* Start, duration, end — one line, in the order they happened.
+
+          The rule carries the duration rather than sitting under it: a figure
+          floating between two stamps is a third stamp until something ties it to
+          them, and the arrowhead landing on the end stamp is what says which way
+          the line runs. It survives at phone width because the stamps are stacked
+          and narrow — the middle is the only part that has to give, and a rule is
+          the one element here that can.
+
+          `items-start` with a 20px middle rather than `items-center`: centred on a
+          two-line stamp the rule floats between the clock time and the date, and
+          the three figures that make the sentence — 2:03, 12 h, 14:03 — no longer
+          sit on one line. Pinned to the first line they do, and the dates drop out
+          of the sentence into the quiet row beneath it, which is where they
+          belong. */}
+      <div className="flex items-start gap-3">
+        <Stamp iso={run.startedAt} />
+
+        <div className="flex h-5 min-w-0 flex-1 items-center gap-2">
+          <span className="h-0 flex-1 border-t border-subtle" aria-hidden="true" />
+          <span className="text-sm font-medium whitespace-nowrap text-primary">
+            {durationCompact(runElapsedMs(run, now))}
+          </span>
+          <span className="flex min-w-0 flex-1 items-center">
+            <span className="h-0 flex-1 border-t border-subtle" aria-hidden="true" />
+            <ArrowRightIcon
+              className="-ml-1 size-3.5 shrink-0 text-subtle"
+              aria-hidden="true"
+            />
+          </span>
         </div>
 
-        {/* Three columns: the label takes the slack, the two figures are fixed and
-            right-aligned so they line up down their own edges — `MetricRow`'s
-            arrangement, extended by one column rather than replaced. The figures
-            are `shrink-0` for `MetricRow`'s reason too: a truncated number is
-            useless in a way a truncated label is not, and "Energy produce…" still
-            reads. */}
-        <div
-          role="table"
-          aria-label={open ? 'Current run and today' : 'Last run and today'}
-          className="flex min-w-0 flex-1 flex-col gap-4 text-sm font-medium"
-        >
-          <div role="row" className="flex w-full items-center gap-4 text-xs text-secondary">
-            <span role="columnheader" className="min-w-0 flex-1" />
-            <span role="columnheader" className="w-[76px] shrink-0 text-right">
-              {open ? 'This run' : 'Last run'}
-            </span>
-            <span role="columnheader" className="w-[76px] shrink-0 text-right">
-              Today
-            </span>
-          </div>
+        <Stamp iso={endStamp} className="items-end text-right" />
+      </div>
 
-          {rows.map((row) => (
-            <div key={row.label} role="row" className="flex w-full items-center gap-4">
-              <span role="rowheader" className="min-w-0 flex-1 truncate text-secondary">
-                {row.label}
-              </span>
-              <span
-                role="cell"
-                className="w-[76px] shrink-0 text-right whitespace-nowrap text-primary tabular-nums"
-              >
-                {row.run}
-              </span>
-              <span
-                role="cell"
-                className="w-[76px] shrink-0 text-right whitespace-nowrap text-primary tabular-nums"
-              >
-                {row.day}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* The receipt. `truncate` on the left half and not the right: on a card too
+          narrow for both, `Consumed 24 L` is the shorter string and the one an
+          operator with a fuel problem came here for, so the litres stay whole and
+          the kWh give up their label first. */}
+      <div className="flex items-baseline justify-between gap-3 text-sm text-secondary">
+        <span className="min-w-0 truncate">
+          Produced{' '}
+          <span className="font-medium text-primary">
+            {amount(run.energyProducedKwh, 'kWh')}
+          </span>
+        </span>
+        <span className="shrink-0 whitespace-nowrap">
+          Consumed{' '}
+          <span className="font-medium text-primary">
+            {amount(run.fuelConsumedLitres, 'L')}
+          </span>
+        </span>
       </div>
     </div>
   );

@@ -69,7 +69,7 @@ different customer's colours and a different customer's sites. The costs compoun
 - `main` went stale, so each new branch started from someone's demo rather than
   from the product, and the branch names stopped describing their contents;
 - the SESB estate was **stranded three months behind**: no hybrid plant, no solar
-  generation series, no energy screen, no refuel log.
+  generation series, no energy screen.
 
 A branch is for work in progress. A brand is a thing that permanently exists and
 has to keep working after the next feature lands — which makes it config.
@@ -98,10 +98,10 @@ started as, and the difference works through the whole app:
 
 | | Mobile fleet (as built) | CelcomDigi (now) |
 | --- | --- | --- |
-| Rail leads with | Gensets, then Deployment | **Sites**, then **Report** |
+| Rail leads with | Gensets, then Deployment | **Sites**, and it both counts and lists the estate |
 | A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
 | `/deployment` screen | the dispatch feed | **gone**, see `Sidebar.tsx` |
-| Overview's middle band | dispatch | **energy** |
+| The estate summary's second question | the dispatch position | **energy** — solar's share of what carried the load |
 | Site load | 40–740 kW substations | **3–205 kW**, mostly 4–6 kW towers |
 | Genset plant | 250–1,250 kVA | **15–60 kVA**, two 500/1,000 kVA at the switching centres |
 | Site configurations | standby, prime | **grid-backed, diesel prime, diesel hybrid, solar hybrid** |
@@ -243,7 +243,7 @@ destinations. The rail is a list of places and both were the same place.
 
 The consolidation also retires a qualifier. `Solar report` had to carry one
 because a rail item reading `Solar` beside `Battery` and `Gensets` reads as the
-plant register — which, now that `/solar` has systems and inverters under it, it
+plant register — which, now that `/solar` has a page per system under it, it
 emphatically is. Inside a section where every tab is a report there is nothing to
 disambiguate, so the tabs are **Overall**, **Solar** and **Genset** and the
 register keeps the short name it always wanted.
@@ -280,7 +280,7 @@ announce itself in a litre total.
 the page not measured over the thirty days in the heading. The reconciliation
 works a **day** at a time (`FUEL_INTEGRITY.windowHours`), and carrying a standing
 loss across a month claims more diesel than the tank holds — a 20 kVA set losing
-six litres an hour comes to over four thousand litres against a refuel log that
+six litres an hour comes to over four thousand litres against a tank curve that
 records no such deliveries. Two screens disagreeing about the same diesel is the
 one failure this data layer exists to prevent, so the report quotes the rate and
 lets the reader multiply it. For the same reason gains are reported beside losses
@@ -384,19 +384,17 @@ Any email and password gets you in.
 | Sites — list | `/sites?view=list` | 17 sites, worst condition first. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Sites — map | `/sites?view=map` | One pin per yard, coloured by the site's condition and sized by how many sets stand there. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Site home | `/sites/<id>` | Matches the Figma frame: the site's single-line diagram, then one row per genset with its run and its controls. All 17 sites have one. |
-| Site settings | `/sites/<id>/settings` | How the site is fed, which gensets stand on it, and which meters measure it. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design), [gensets](#attaching-and-detaching-gensets) and [metering](#metering-is-a-device-not-a-number). |
-| Meters | `/meters` | The metering estate — 16 devices, where each is fitted and what it reads. Not a Figma frame — see [below](#metering-is-a-device-not-a-number). |
+| Site settings | `/sites/<id>/settings` | How the site is fed and which gensets stand on it. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design) and [gensets](#attaching-and-detaching-gensets). |
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
 | Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
 | Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
 | Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
 | Report — Genset | `/report/genset` | The engines over the same thirty days: hours, what each set burns per kilowatt-hour at the loading it holds, what part load costs the fleet in litres, diesel unaccounted for, and what is falling due. Not a Figma frame — same. |
-| Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity, inverter count and its condition. Worst first. |
+| Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity, strings (and how many are dark) and its condition. Worst first. |
 | System home | `/solar/<id>` | The system's own page in the five bands: the strip, the output dial, what the system is, generation over time, and what is wrong with it. Every solar site has one. |
 | System analysis | `/solar/<id>/analysis` | Generation over a chosen window, a bar per bucket, with the window in the URL. |
-| Inverter | `/solar/<id>/inverters/<n>` | One box: its control pad, its four dials, its string currents, its own alerts, and a trace of two of its readings over a window. |
+| System devices | `/solar/<id>/equipment` | The array: its capacity, its modules and their rating, how many strings it is wired in and how many of those are dark. A description, not a list — see [below](#a-row-is-a-system-and-there-is-nothing-under-it). |
 | System service / alarms / … | `/solar/<id>/service`, … | The four tabs in the strip that are not drawn yet — labelled placeholders, same treatment as a genset's. |
-| Refuel / Settings | `/refuel`, … | Named in the sidebar but not designed — same treatment. |
 
 Getting from the fleet into a genset: click its **name** in the list, or the `→`
 in the preview panel's header. Clicking a row or a map pin still only *selects*
@@ -425,8 +423,7 @@ through it:
 /solar?q=kedah                        # the solar register, filtered
 /solar/kdh-0431                       # one system's own page
 /solar/kdh-0431/analysis?range=custom&from=2026-03-01&to=2026-06-30
-/solar/mg-012/inverters/mg-012-inv-03            # one box
-/solar/mg-012/inverters/mg-012-inv-03?keys=dc-current,dc-voltage&window=7d
+/solar/mg-012/equipment                          # what that system is built from
 ```
 
 A site page is reached from `/sites`, and each of its genset rows links back out to
@@ -444,46 +441,52 @@ machine."* It went there. The register took `/solar`, the six tabs moved onto
 and still a scaffold: it has no plant model to build a register out of, which is
 the gap it was put in the rail to name.
 
-#### A row is a system, and the first version got that wrong
+#### A row is a system, and there is nothing under it
 
-The register's row was briefly an **array**, and it was the wrong unit. An array
-is the half of a PV system with no electronics — glass, aluminium and cable —
-so nothing reads from it. Every "array" reading in a monitoring product (string
-current, DC bus voltage, heatsink temperature) is really an **inverter**
-describing what it sees on its own terminals, and the array is inferred.
+The register's row was briefly an **array**, then for a while there was a level
+below it — an **inverter**, with its own page, its own dials, a control pad and a
+bar per string on its MPPT inputs. Both are gone, and the second one for a reason
+that outranks any argument about units: **these are telco sites.** A tower runs a
+−48 V DC bus and its loads are DC, so the array feeds the bus directly. There is
+no AC stage anywhere on the site, so there is no inverter in the cabinet, and a
+page describing one was describing a box that is not there.
 
-An array earns a place in a model for one job, and it is *attribution* rather
-than measurement: a sub-array is a plane with one tilt and one azimuth, and
-naming it is how a shortfall gets pinned to a piece of roof rather than to the
-boxes. Every site on both estates is one plane, so there was nothing to
-attribute and the level only ever held one child. It is gone. When a customer
-turns up with an east and a west roof the thing to add is a `plane` under the
-system — not an `array`, which is too overloaded a word to reintroduce. What
-survives of it is `solarKwp`, and that is not a leftover: DC nameplate is the
-denominator of every performance figure in solar, so the system simply has a
-size.
+So the model is **system → string**, and a system is the only level that reports:
 
-So the model is **system → inverter → string**, and each level is the unit of
-something real:
+| | Solar system |
+| --- | --- |
+| Unit of | reporting, alarms, maintenance |
+| Named by | the customer — "a 1.3 MW system" |
+| Carries | kWp, modules, strings, commissioning date, its generation |
+| Survives | its own plant being replaced |
 
-| | Solar system | Inverter |
-| --- | --- | --- |
-| Unit of | reporting | instrumentation, alarms, control, maintenance |
-| Named by | the customer — "a 1.3 MW system" | site staff — "Inverter 4" |
-| Carries | kWp, modules, commissioning date, its generation | serial, firmware, warranty, comms link |
-| Survives | its own plant being replaced | nothing; it *is* the thing that gets swapped |
+Strings survived the boxes, and they are the reason the model still has anything
+to say about a fault. A string is modules in series — a physical run on the roof
+with a combiner at the end of it — and it is a fact about the array whatever it
+terminates in. `string-out` is still the health rule that fires on a dated step in
+the generation series, and it is still the most useful thing this module says.
 
-A flat register of inverters would put ten rows from one mini-grid into a
-portfolio list; a register with no way down to a box would leave nobody able to
-act on the one that failed. Two levels, which is the arrangement `/sites` and
-`/gensets` already make between a place and its machines.
+**What went with the inverter, said plainly, because it is a real loss:**
 
-**The estate proves the point.** A CelcomDigi tower is 23–28 kWp — genuinely one
-string inverter, so array, inverter and system all collapse into one row and
-nothing was visibly wrong. SESB's largest mini-grid is **1,367 kWp**, which is
-ten 110 kW inverters. Under the array model it resolved to a single 50 kW box
-carrying 1.3 MW of panel, with every dial on the page pegged. Nobody had opened
-the SESB brand.
+- **Per-box state.** A plant used to be able to be four-fifths visible — one box
+  silent, nine reporting, and the register printed `9 of 10 reporting`. There is
+  one comms link to a site now, so a system is heard or it is not.
+- **The strings as a drawing.** Dark strings were concentrated on one box and
+  shown as bars on a shared scale, which made a fault *have an address*. What is
+  left is a count: `1 of 4 strings has stopped delivering`.
+- **The `insulation-low` rule.** Resistance to earth, below which a box refuses to
+  start in the morning, was an inverter's own earth-leakage interlock. Nothing on
+  a telco site measures it, and a rule this app cannot derive is one it must not
+  print. Solar health went from five rules to three.
+
+An array as its own level is still not coming back. It earns a place in a model
+for one job, and it is *attribution* rather than measurement: a sub-array is a
+plane with one tilt and one azimuth, and naming it is how a shortfall gets pinned
+to a piece of roof rather than left as a figure about the whole system. Every site
+on both estates is one plane, so there is nothing to attribute and the level would
+only ever hold one child. When a customer turns up with an east and a west roof
+the thing to add is a `plane` under the system — not an `array`, which is too
+overloaded a word to reintroduce.
 
 #### The system page
 
@@ -493,50 +496,53 @@ its array and its bank finds the same things in the same places, and the pages
 differ only in what they are *about*.
 
 1. **The strip** — solar capacity, generation today, and the alarm counts.
-2. **The dial** — what the system is putting out right now, scaled to the
-   inverters' **AC** rating rather than the array's kWp. Every one of these plants
-   is deliberately oversized to its boxes, so a dial scaled to the DC nameplate
-   could never reach full and would read as a plant permanently underperforming.
-   Under it, when the sun is down, a `Dark · first light 07:00` badge — without
-   which a 0 kW dial at nine in the evening is pixel-for-pixel a plant that has
-   tripped.
-3. **The details** — four nameplate facts: system capacity in kWp, installed
-   capacity in kW, the module count and rating, and the commissioning date. The
-   first two are a pair, and printing them together answers "why does the dial top
-   out below the nameplate". Nothing live is in this band.
+2. **The dial** — what the system is putting out right now, scaled to the array's
+   **kWp**, which is the only ceiling there is. It was scaled to the inverters'
+   combined AC rating, on the argument that a dial which can never fill reads as a
+   plant permanently underperforming; with no boxes there is no AC rating, and the
+   honest full scale is the glass. A clear noon lands near half way up, because
+   that is what an array does. Under it, when the sun is down, a `Dark · first
+   light 07:00` badge — without which a 0 kW dial at nine in the evening is
+   pixel-for-pixel a plant that has tripped.
+3. **The details** — three nameplate facts: system capacity in kWp, the module
+   count and rating, and the commissioning date. It was four; `Installed capacity`
+   was the AC figure and it went with the boxes, along with the question it
+   existed to answer. Nothing live is in this band.
 4. **The chart** — generation, `Day / Month / Year / Lifetime`, one series.
-5. **What is wrong** — every rule, including the ones that name a box.
+5. **What is wrong** — every rule the system carries, and it is the only page that
+   answers.
 
-The **inverters are not on this page**. They are the whole subject of `Devices`,
-which is where a reader looks for them and the only route to
-`/solar/<id>/inverters/<n>` — the rail deliberately does not list the boxes, since
-a mini-grid is ten of them and a nested list would be an inventory. Strings and
-the last module wash are absent for the same reason: `Devices` and `Service` each
-own one, and restating them here would make band 3 a second index of the page
-rather than a description of the system.
+Strings and the last module wash are deliberately not in band 3: `Devices` and
+`Service` each own one, and restating them here would make it a second index of
+the page rather than a description of the system.
 
 Nothing on these pages invents a quantity `hybrid.ts` already has an opinion
 about. Capacity, today's energy, the twelve months and the step-down all come
 from there, so the system page, the site page and the generation report are three
-readings of one model. What is added is what an *inverter* reports and an energy
-model does not — a DC voltage, a heatsink temperature, an insulation resistance —
-and each is derived from a figure the model does hold, so a reader who multiplies
-two dials together gets the third.
+readings of one model. What is added is the plant an energy model has no opinion
+about — how the array is wired into strings, how many modules that is, and when it
+was commissioned — and every one of those is dealt from the site's id, so the
+screens that show them cannot disagree.
 
-#### The strings are read off the shortfall, and concentrated on one box
+#### The strings are read off the shortfall
 
 The part worth checking. An underperforming system gets a *step*: output drops in
 one month and stays down. A step of that shape has one obvious cause on a PV
 plant — strings have gone — and the arithmetic agrees, so the number of dark
-strings is **computed from the size of the step**.
+strings is **computed from the size of the step**. That is what keeps the count,
+the month the health band prints and the drop a reader can see in the chart three
+readings of one event rather than three claims that happen to agree.
 
-They are then put on **one inverter** rather than sprinkled evenly. That is both
-the realistic failure (a combiner fuse, a blown MPPT input, one wet junction box)
-and the far more useful drawing: at MG-019 two boxes read `11 of 11` and the
-third reads `7 of 11`, which is a fault with an address. Ten boxes each a little
-short is weather. Never the whole of a box, either — an inverter with every
-string dark is a dead inverter, a different fault with a different fix, and the
-model cannot tell the two apart, so the page does not claim to.
+Never the whole array. Every string dark is a dead plant, a different fault with a
+different fix, and the model cannot tell the two apart, so the page does not claim
+to.
+
+The dark strings used to be **concentrated on one inverter** rather than spread
+evenly, which was both the realistic failure (a combiner fuse, a blown MPPT input,
+one wet junction box) and the far more useful drawing: two boxes reading `11 of
+11` beside a third reading `7 of 11` is a fault with an address, where ten boxes
+each a little short is weather. With no boxes there is nowhere to concentrate them,
+so what is left is the count and the date.
 
 #### Two figures deliberately absent, for one reason
 
@@ -559,21 +565,30 @@ first thing to add when the model grows a dump load.
 
 `hybrid.ts` will produce a day's generation for a plant nobody can hear — it
 models a site's plant and knows nothing about telemetry, the same seam the run
-log and the tank chart sit either side of. So the pages refuse to publish it, and
-the refusal is **scoped to the box**, which is the whole reason the model was
-rebuilt around the inverter:
+log and the tank chart sit either side of. So the pages refuse to publish it: a
+silent system reads `Offline`, today's energy and the figures derived from it
+become em dashes, the intraday curve keeps only its typical-day baseline, and the
+alert is critical.
 
-- **one box quiet of ten** — the system is still `Generating`, the register prints
-  `9 of 10 reporting`, and the alert is a *warning* naming that box and the kWp
-  nobody can see. The old array model could only call this whole plant offline.
-- **every box quiet** — the system is `Offline`, today's energy and every
-  instantaneous reading become em dashes, the curve keeps only its typical-day
-  baseline, and the alert is critical.
+The refusal used to be **scoped to the box**, and that was the whole reason the
+model had a box: one quiet inverter in ten left the system `Generating`, the
+register printing `9 of 10 reporting`, and a *warning* naming the box and the kWp
+nobody could see. There is one comms link to a telco site, so that middle state is
+gone — a plant is heard or it is not.
 
 What survives either way is what this app worked out for itself over months that
-are already closed. A silence is held at **at least a day**, so that is never a
-half-truth about a partly reported one — six hours is a missed poll, not an
-offline inverter.
+are already closed. A silence is held at **at least a day**: six hours is a missed
+poll, not an offline plant, and past a day there is nothing of today left to
+publish anyway.
+
+The state has to be *reachable* to be worth building, and moving the key from box
+to site nearly deleted it — one chance in eight over three or four solar systems
+comes up empty most of the time, and it did on both estates. So `isSilent`'s salt
+is **chosen rather than arbitrary**: under `site/silent` exactly one system on each
+estate is quiet, and neither is the largest, because a 1,333 kWp showpiece that is
+permanently offline is a different kind of unhelpful. That is the same thing
+`solarPerformance` does when it spreads 0.76–1.06 so the estate has healthy arrays
+and tired ones.
 
 ## Layout
 
@@ -618,8 +633,7 @@ What changes below `md`:
   Sites, plus the report's **Solar** tab — linked as `/report/solar` rather than
   `/report`, since the tab strip is hidden at this width and a phone sent to the
   section would land on the one report it cannot read. The Overall and Genset
-  tabs, Meters, Refuel
-  and Settings are desktop-only here, and a nav item landing on a screen laid out
+  tabs and Settings are desktop-only here, and a nav item landing on a screen laid out
   for 1,280px is worse than no item. The same rule hides the genset's and site's
   tab strips, where only `Home` is built for a phone. Every route still resolves if
   a URL is typed or followed from a desktop link — what is withheld is *navigation*
@@ -657,7 +671,7 @@ instead — see `GensetHome` band 1, `SiteHome`'s top band and `SiteGensetRow`.
 
 Separate app, deliberately: gensetIQ has its own login, its own mark, and a
 completely different sidebar (Gensets / Deployment / Sites / Refuel; this branch
-ships Overview / Sites / Report / Solar / Battery / Gensets / Meters / Refuel). Nothing in
+ships Sites / Solar / Battery / Gensets). Nothing in
 `rooftopiq-frontend-v3` was touched.
 
 It shares that app's **design system**, though. `src/styles/colors.ts` is lifted
@@ -990,7 +1004,7 @@ Five things worth knowing, in order of how much they matter.
    history, so at a site declared `PRIME` it may still read "Engine started on utility
    outage". The role redraws the yard; it does not rewrite what the controllers did.
 
-2. **Mains health is metered, not inferred.** The first version of this derived it from
+2. **Mains health is measured, not inferred.** The first version of this derived it from
    the gensets — "a set is running, so the grid must be down" — and that is wrong for
    the case that matters most: a set on a **test exercise** runs beside a perfectly
    healthy grid, and inferring a failure from it reports an outage at a site that never
@@ -999,14 +1013,14 @@ Five things worth knowing, in order of how much they matter.
    under a dead one. `SPG2093` and `SRB6644` are pinned to `TEST` so the fleet actually
    contains the case — see `mfg-015`.
 
-   That is also why `Genset.startReason` was added. The meter reading is *derived* from
-   it rather than seeded beside it, because two independent givens could disagree, and
-   the disagreement would land on exactly this case.
+   That is also why `Genset.startReason` was added. The incomer's reading is *derived*
+   from it rather than seeded beside it, because two independent givens could disagree,
+   and the disagreement would land on exactly this case.
 
 3. **`0 kW` is still never printed.** The mains gets the same treatment the gensets
    already had — a word, not a measurement, when it isn't carrying — and the `LOAD`
    node now reads `not served` only when *nothing* is feeding. On a standby site with
-   the grid up, the site's draw is the meter's figure. Reading "0 of 2 feeding" over a
+   the grid up, the site's draw is the incomer's figure. Reading "0 of 2 feeding" over a
    site running perfectly well on the grid was alarm-shaped where no alarm existed, so
    the badge reads `On mains` / `On generator` there, and keeps `1 of 2 feeding` at a
    prime site, where counting the sets is the useful fact.
@@ -1063,10 +1077,11 @@ Six things worth knowing.
    convenience that quietly made the customer's consumption a function of the machinery
    parked outside. Detaching made that plainly wrong: strip a yard and it would appear
    to stop using electricity. It also let one load carry two numbers, with `mfg-015`
-   metering 152 kW beside its own genset reporting 175 kW. Now `removing a genset does
+   reading 152 kW beside its own genset reporting 175 kW. Now `removing a genset does
    not change what the customer draws`, which is the only defensible behaviour, and the
    two figures agree. The intended direction is a metering *device* on the site
-   reporting a consumption pattern; this seed becomes its reading.
+   reporting a consumption pattern, and this seed becomes its reading — that device was
+   built and has since been cut back out; its design is in GEN-24.
 
 5. **Summaries are memoised, not built once.** They used to be a module const, argued
    for on the grounds that one pass meant one clock reading. That reason survives
@@ -1085,54 +1100,6 @@ Left out deliberately: the **Deployment** route, whose placeholder already reads
 view. Detached sets stay reachable from any site's attach picker in the meantime.
 Creating and deleting *sites* is also absent — a different feature with its own
 questions.
-
-### Metering is a device, not a number
-
-The design has no meters, and the app used to quote a grid figure at **every** site —
-instrumentation most of them have never had. A power meter is now a device with a
-serial, a model, and a fitting: a site *and* the circuit it is wired to, carried as one
-object so a half-fitted meter cannot be written down.
-
-Five things worth knowing.
-
-1. **Two circuits, and they measure different things.** `MAINS` is what the site
-   imports from the grid, and it goes to nothing the moment a genset picks up the load.
-   `LOAD` is what the customer consumes, and it never does. A site metered on the mains
-   alone is blind during exactly the events this product watches. That is a real trade
-   customers make, so the app models the point rather than flattening both into "the
-   meter".
-
-2. **No meter, no figure — and the page says which kind of nothing.** `unmetered` is
-   nobody having fitted a device; `no reading` is one fitted and gone quiet. Different
-   problems, different people to call, so `MeterFeed` carries the reason rather than
-   being a bare `number | null`. Eight of seventeen sites have no metering at all, so
-   the unmetered case is the one a reader meets first. `retail-014` shows `unmetered` on
-   both nodes and `telco-017` shows `no reading` under an `unmetered` mains — those two
-   are placed deliberately, because they are the only sites where the grid is actually
-   carrying and therefore the only ones where a missing meter is visible on a diagram.
-
-3. **Presence and consumption are separate instruments.** Whether the grid is *live* is
-   still known everywhere, because it comes from the transfer switch's voltage sensing —
-   that is how it decides to transfer. Only the kW needs a meter. Conflating them would
-   have made every unmetered site read as a site with no grid, and an early version of
-   `siteFeed` did exactly that.
-
-4. **Fitting a meter does not change what a site draws.** `siteSeed.ts` holds the
-   physical load; the meter only decides whether the app can state it. Which is also why
-   the load figure has a fallback chain — load meter, then whatever is carrying (a
-   genset's controller, or the mains meter while the grid carries), then nothing. The
-   load meter comes first because it is the only source that survives a changeover:
-   transfer between two sets whose controllers report different outputs and the *load*
-   has not moved.
-
-5. **`0 kW` is allowed here, and `—` is not the same thing.** A fitted mains meter
-   reading zero import while a genset carries is a working device reporting a true
-   measurement. A meter in stores reads `—`, because a box on a shelf has measured
-   nothing. That is the distinction the whole module turns on.
-
-The **Meters** sidebar tab lists the estate with a coverage count rather than an
-inventory count — `13 of 15 fitted`, and how many are silent. There is no meter detail
-page; a row links to its site's Settings tab, which is where the fitting is changed.
 
 ### Fuel leakage is not in the design
 
@@ -1364,10 +1331,10 @@ stopped machine reports.
   dataset's own row. The programme is a **grouping and nothing else** — no figure on
   any screen derives from it, and a site is allowed to be in none.
 
-  The **intake meter** is the one derived figure with two halves. Whether the supply is
+  The **intake reading** is the one derived figure with two halves. Whether the supply is
   live is derived: a yard's mains is dead exactly when some set there is out on an
   unfinished outage run, so `startReason` in `fleet.ts` is the only given behind it and
-  the meter cannot contradict a set's activity feed. What it *reads* is the site's own
+  the incomer cannot contradict a set's activity feed. What it *reads* is the site's own
   seeded load, which is why detaching a genset does not change the customer's
   consumption. All 17 sites carry a reading, including any declared `PRIME`, where it
   goes undrawn — which is what lets the settings page preview the standby layout

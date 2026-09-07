@@ -15,8 +15,7 @@ import {sitePowerRole} from '@/modules/site/data/siteConfig';
 type SystemLoaderData = {crumb: string};
 
 /**
- * One solar system's pages: `/solar/kdh-0431`, `/solar/kdh-0431/analysis`, and
- * each of its inverters below that.
+ * One solar system's pages: `/solar/kdh-0431` and the five sections beside it.
  *
  * The trailing underscore on `solar_` un-nests this from `/solar`, which is the
  * register. Without it TanStack renders the detail page inside the register, and

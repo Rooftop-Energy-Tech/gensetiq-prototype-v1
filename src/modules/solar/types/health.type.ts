@@ -8,23 +8,28 @@ import type {AlertSeverity, GensetCondition} from '@/modules/genset/types/alert.
  *
  * A genset's alert carries a **register and a bit**, because every one of them is
  * a line on a Modbus map and the coordinates are how a reader checks the app
- * against the panel. A PV system has no such sheet: some of these rules are an
- * inverter talking and some are *this app's own arithmetic* over the generation
- * model — nobody's box raises "output stepped down in March", because no inverter
- * can see the months either side of it.
+ * against the panel. A PV system has no such sheet: some of these rules are the
+ * plant's own telemetry and some are *this app's own arithmetic* over the
+ * generation model — nobody's box raises "output stepped down in March", because
+ * nothing on the roof can see the months either side of it.
  *
  * `AlertsSection` established the rule that matters: a reader has to be able to
- * tell at a glance which rows are the panel talking and which are the app's own
+ * tell at a glance which rows are the plant talking and which are the app's own
  * reasoning, and the register line is what they use to do it. With no register to
  * print, `source` does that job and every card prints it.
  *
- * ## Why an alert names an inverter
+ * ## Why an alert names no device
  *
- * Because most of them are about one box. "String offline" on a system of ten
- * inverters is useless without an address, and "Inverter not reporting" is a
- * different job depending on whether it is one box or all of them. `inverterId`
- * is `undefined` only for the rules that are genuinely about the whole system —
- * an overdue wash, a plant nobody can hear at all.
+ * It used to. Every rule but two carried an `inverterId` and an `inverterLabel`,
+ * because on a ten-box plant "String offline" was an alert nobody could act on
+ * and `Inverter 4 · 9 of 13 strings` was a job with an address.
+ *
+ * There are no boxes on a telco site — the array feeds a −48 V DC bus and there
+ * is no AC stage to invert to — so there is no address of that kind to give. What
+ * an alert can still say is *how many* strings of how many went and *when* the
+ * output stepped down, which is the pair that sends somebody up a ladder. The
+ * address a technician actually needs is the site, and the site is the page they
+ * are already on.
  *
  * Severity is shared with the genset module rather than redeclared. The three
  * chips are the *design's*, not the diesel's, and a second three-value union with
@@ -34,23 +39,19 @@ export {ALERT_SEVERITIES};
 export type {AlertSeverity};
 
 export type SystemAlert = {
-  /** This rule on this system — `kdh-0431-string-out-inv-01`. */
+  /** This rule on this system — `kdh-0431-string-out`. */
   id: string;
   /** The rule — `string-out` — shared by every system carrying it. */
   ruleId: string;
   name: string;
   severity: AlertSeverity;
-  /** The box this is about, or `undefined` for a whole-system rule. */
-  inverterId: string | undefined;
-  /** `Inverter 4` — what the card prints, so a reader is not decoding an id. */
-  inverterLabel: string | undefined;
   /** Key of the reading this watches, or `null` where it watches no dial. */
   readingKey: string | null;
-  /** How the rule reads — `< 1 MΩ`. Shown so the verdict has a line behind it. */
+  /** How the rule reads — `> 120 days`. Shown so the verdict has a line behind it. */
   threshold: string;
   /**
    * The same limit as a number on the reading's own scale, or `null` for a rule
-   * with no fixed line — a silent inverter is not a height on any axis.
+   * with no fixed line — a silent system is not a height on any axis.
    *
    * Held as a number as well as prose for the reason `GensetAlert.limit` is: a
    * chart draws it, and a threshold you can watch a trace approach is the

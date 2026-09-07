@@ -6,7 +6,6 @@ import {
   thresholdFloorPercent,
 } from '../types/fuelIntegrity.type';
 import type {GensetFuelInstruments} from '../types/fuelIntegrity.type';
-import {GENSETS} from './fleet';
 
 /**
  * Which fuel instruments each genset carries, and how much diesel it is losing.
@@ -17,8 +16,7 @@ import {GENSETS} from './fleet';
  * and the second is an option most customers have never bought — so a fleet where
  * every unit could reconcile would be a fleet that never exercises the state this
  * feature spends most of its time in. Ten of the twenty-four carry both here, which
- * is roughly the proportion the metering estate shows for power meters and roughly
- * what a real fleet looks like.
+ * is roughly what a real fleet looks like.
  *
  * ## The loss rate is the only invented quantity
  *
@@ -362,7 +360,3 @@ export const useLeakSettings = (
     floorPercent: thresholdFloorPercent(instrumentsOf(gensetId)),
   };
 };
-
-/** How many of the fleet can reconcile at all — the Settings tab's context line. */
-export const reconcilableCount = (): number =>
-  GENSETS.filter((genset) => canReconcile(instrumentsOf(genset.id))).length;

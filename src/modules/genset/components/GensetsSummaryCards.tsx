@@ -2,7 +2,7 @@ import {useId, useState} from 'react';
 
 import {
   CardNote,
-  CountChip,
+  FilterCard,
   Headline,
   SummaryCard,
   SummaryCardRow,
@@ -11,24 +11,37 @@ import {
 import {STATUS_META} from '../data/fleetStatus';
 import type {FleetSummary} from '../data/fleetSummary';
 import type {GensetSearch} from '../types/view.type';
-import {CUSTOMER_GROUPING_LABEL} from '@/modules/site/data/customers';
 
 /**
- * The four cards above the fleet list: how much plant there is, what duty it is on,
- * whether it is well, and whose it is.
+ * The strip above the fleet list: **how much plant there is, and what needs doing to
+ * it** — one narrow headline and the four readiness buckets across the rest of the row.
  *
- * Ordered by how often the question gets asked rather than by how the data is
- * shaped. "How many have we got" is the one an operator opens the screen with;
- * "whose is it" is the one they arrive at after something is wrong, which is why
- * the customer card is last and widest.
+ * ## What moved out
  *
- * Every chip is a filter — see `SummaryCards.tsx` for why the counts don't move
- * when you use one.
+ * `Duty` and the region grouping are now dropdowns in the toolbar — see
+ * `FilterSelect` for the argument and `GensetsToolbar` for where they sit. They are
+ * **attributes**: a reader either wants standby sets or does not, and the counts
+ * beside them are context rather than an answer. Two cards' width to say so is what
+ * kept the readiness buckets in a 13rem column. The estate strip made the same move
+ * first, and this is the fleet screen agreeing with it.
+ *
+ * ## Why the statuses got a card each
+ *
+ * They are the question the screen exists to answer, so their *distribution* is the
+ * information — one empty tank beside fifteen alarms is a fact you read at a glance.
+ * As four rows in one card they were four counts and a `title` attribute nobody
+ * hovers; as four cards they carry the figure and the line saying what the bucket
+ * means, and left to right they read as the ranking `fleetStatus.ts` sets out: no
+ * cover, then a fault, then a tanker to book, then nothing to do.
+ *
+ * They still filter, on the same terms the chips did — see `FilterCard` — and the
+ * counts still hold still while you filter against them, which is `fleetSummary`'s
+ * rule and the reason they are worth reading twice.
  */
 
 type GensetsSummaryCardsProps = {
   summary: FleetSummary;
-  /** How many rows the list is actually showing, once search and chips are applied. */
+  /** How many rows the list is actually showing, once search and filters are applied. */
   showing: number;
   search: GensetSearch;
   onSearchChange: (next: Partial<GensetSearch>) => void;
@@ -53,16 +66,15 @@ export const GensetsSummaryCards = ({
    * that the fold does not survive a reload, which is the right trade for a control
    * one tap away.
    *
-   * Open on arrival: the chips are the only filtering this width has, and a screen
-   * that starts by hiding its own controls has to be learned before it can be used.
+   * Open on arrival: a screen that starts by hiding its own controls has to be
+   * learned before it can be used.
    */
   const [collapsed, setCollapsed] = useState(false);
 
-  // The chips, and only them. `q` is the toolbar's search with its own visible field,
-  // so counting it here would report a filter this button does not fold away.
-  const activeCount = [search.role, search.status, search.customer].filter(
-    (value) => value !== undefined,
-  ).length;
+  // `status`, and only `status`. Duty and region live in the toolbar now and are
+  // never folded away, so reporting them here would name state the reader can still
+  // see; `q` has its own visible field for the same reason.
+  const activeCount = search.status === undefined ? 0 : 1;
 
   // Generated rather than a written constant: `aria-controls` has to resolve to a
   // unique node, and `SummaryCardRow` is shared with the sites screen.
@@ -70,7 +82,8 @@ export const GensetsSummaryCards = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <SummaryCardRow id={cardsId} collapsed={collapsed}>
+      {/* One capped card, then four that share what is left — see `columnTemplate`. */}
+      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={1}>
         <SummaryCard label="Fleet">
           <Headline
             value={summary.total}
@@ -90,54 +103,21 @@ export const GensetsSummaryCards = ({
           )}
         </SummaryCard>
 
-        <SummaryCard label="Duty">
-          <div className="flex flex-col gap-0.5">
-            {summary.byRole.map((tally) => (
-              <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                active={search.role === tally.key}
-                onToggle={(next) => onSearchChange({role: next ? tally.key : undefined})}
-                block
-              />
-            ))}
-          </div>
-        </SummaryCard>
-
-        <SummaryCard label="Status">
-          <div className="flex flex-col gap-0.5">
-            {summary.byStatus.map((tally) => (
-              <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                tone={STATUS_META[tally.key].tone}
-                active={search.status === tally.key}
-                onToggle={(next) => onSearchChange({status: next ? tally.key : undefined})}
-                title={STATUS_META[tally.key].detail}
-                block
-              />
-            ))}
-          </div>
-        </SummaryCard>
-
-        <SummaryCard label={CUSTOMER_GROUPING_LABEL}>
-          {/* Chips wrap rather than the card scrolling: seven accounts is a sentence
-              you read across, and a scroll area would hide the tail of the estate
-              behind an interaction. */}
-          <div className="flex flex-wrap gap-x-1 gap-y-0.5">
-            {summary.byCustomer.map((tally) => (
-              <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                active={search.customer === tally.key}
-                onToggle={(next) => onSearchChange({customer: next ? tally.key : undefined})}
-              />
-            ))}
-          </div>
-        </SummaryCard>
+        {/* Always all four, zero or not — `fleetSummary` keeps them, because these are
+            a fixed scale a reader learns once and a card vanishing on a good day would
+            move the other three. */}
+        {summary.byStatus.map((tally) => (
+          <FilterCard
+            key={tally.key}
+            label={tally.label}
+            count={tally.count}
+            unit={tally.count === 1 ? 'genset' : 'gensets'}
+            detail={STATUS_META[tally.key].detail}
+            tone={STATUS_META[tally.key].tone}
+            active={search.status === tally.key}
+            onToggle={(next) => onSearchChange({status: next ? tally.key : undefined})}
+          />
+        ))}
       </SummaryCardRow>
 
       <SummaryCollapseButton
@@ -145,6 +125,9 @@ export const GensetsSummaryCards = ({
         onCollapsedChange={setCollapsed}
         activeCount={activeCount}
         controls={cardsId}
+        // Four of the five cards here are filters, so the fleet strip keeps the
+        // default noun where the estate's — one filter, two links out — says
+        // "summary".
       />
     </div>
   );

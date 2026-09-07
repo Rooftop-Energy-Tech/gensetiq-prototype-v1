@@ -2,7 +2,7 @@ import {useMemo, useState} from 'react';
 
 import {relativeTime} from '@/lib/format';
 import {gensetInstallations} from '../../../data/installations';
-import {PLOTTABLE_READING_KEYS} from '../../../data/detail';
+import {PLOTTABLE_READING_GROUPS, PLOTTABLE_READING_KEYS} from '../../../data/detail';
 import type {GensetDetail} from '../../../data/detail';
 import {gensetRuns, historyStart, readingSeries, runsInWindow} from '../../../data/history';
 import type {Genset} from '../../../types/genset.type';
@@ -84,6 +84,7 @@ export const GensetAnalysis = ({
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <SeriesPicker
           readings={readings}
+          groups={PLOTTABLE_READING_GROUPS}
           selected={keys}
           onToggle={(key) => onSearchChange(toggleKey(search, key))}
         />

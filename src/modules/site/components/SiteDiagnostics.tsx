@@ -2,9 +2,11 @@ import {useMemo} from 'react';
 
 import {useSitePowerRole} from '../data/siteConfig';
 import {siteSeed} from '../data/siteSeed';
+import {hasOverview} from '../data/siteOverview';
 import {siteTrendMetrics} from '../data/siteTrend';
 import type {SiteSummary} from '../data/sites';
-import {TrendPanel} from './TrendPanel';
+import {OVERVIEW_VIEW, TrendPanel} from './TrendPanel';
+import type {TrendView} from './TrendPanel';
 
 /**
  * The page's fourth band: *"a way for operators to get a quick preview of what is
@@ -32,10 +34,22 @@ export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: numb
   const role = useSitePowerRole(site.id);
   const seed = siteSeed(site.id);
 
-  const metrics = useMemo(
-    () => (seed === undefined ? [] : siteTrendMetrics(seed, role, gensets.length)),
-    [seed, role, gensets.length],
-  );
+  /**
+   * `Energy overview` first at a hybrid, then the single-series views behind it.
+   *
+   * Leading rather than replacing, for two reasons. A hybrid's first question is
+   * what carried the load, so that is what the band should open on — but the
+   * single-series views are still the diagnostic: an operator who has seen the
+   * overlay and wants to know whether *this* array is down needs one curve on one
+   * axis with nothing else on it, and four superimposed bands is the wrong picture
+   * for that. Non-hybrid sites are unchanged and open on the picker they had, where
+   * one series really is all there is to draw.
+   */
+  const metrics = useMemo((): ReadonlyArray<TrendView> => {
+    if (seed === undefined) return [];
+    const single = siteTrendMetrics(seed, role, gensets.length);
+    return hasOverview(seed, role) ? [OVERVIEW_VIEW, ...single] : single;
+  }, [seed, role, gensets.length]);
 
   // Stable across renders, or `TrendPanel`'s series would be rebuilt on every one:
   // a fresh array literal is a new dependency every time.
@@ -52,6 +66,7 @@ export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: numb
       role={role}
       gensetIds={gensetIds}
       metrics={metrics}
+      overviewRatedKw={summary.ratedKw}
       now={now}
       ariaLabel="Site diagnostics"
     />

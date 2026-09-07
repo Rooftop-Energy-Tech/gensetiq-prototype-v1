@@ -3,7 +3,7 @@ import {spread, spreadBetween} from '@/modules/genset/data/spread';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {customer} from './customers';
-import {siteSeed, siteSeeds} from './siteSeed';
+import {siteSeeds} from './siteSeed';
 import type {SiteSeed} from './siteSeed';
 
 /**
@@ -78,8 +78,9 @@ const WINDOW_DAYS = 30;
 /**
  * How much of a PV array's nameplate reaches the bus over a year.
  *
- * Soiling, temperature derate, cabling, inverter efficiency. 0.78 is the ordinary
- * design assumption for a fixed rooftop array in this climate, and it is applied
+ * Soiling, temperature derate, cabling, conversion losses on the way to the bus.
+ * 0.78 is the ordinary design assumption for a fixed rooftop array in this
+ * climate, and it is applied
  * once here rather than folded into the sun hours, because the two are different
  * kinds of fact: sun hours are the weather, the ratio is the equipment.
  */
@@ -135,7 +136,7 @@ const SHED_FLOOR = 0.25;
  * The one figure here that is **not** derived from anything, because in a real
  * deployment it is not derived either: every cause of it is site-specific.
  * Soiling nobody has washed off, a string that tripped in March, a tree that has
- * grown, an inverter derating in the heat.
+ * grown, a cell derating in the heat.
  *
  * Spread 0.76–1.06 from the site id, so the estate has healthy arrays and tired
  * ones. That spread is what gives the fault model something to describe — a
@@ -153,14 +154,14 @@ const solarPerformance = (seed: SiteSeed, role: SitePowerRole): number =>
  * Three numbers and no identity. This is a *sizing* answer, and everything
  * downstream of it is physics: `siteEnergy` turns it into generation, the site
  * diagram draws it as rows on the bus, `estateCount` sums it. None of those may
- * know that a system has twenty-two inverters, that one of them stopped
- * reporting on Tuesday, or that its firmware is out of date.
+ * know that a system stopped reporting on Tuesday, or how many of its strings
+ * went dark in March.
  *
  * The moment this returned the *asset* rather than its size, the energy model
- * would be able to see a comms failure — and an energy model that knows which
- * boxes are talking is one that will eventually disagree with the telemetry on
- * the same screen. That is the seam the README names between `history.ts` and
- * this file, met from the other side.
+ * would be able to see a comms failure — and an energy model that knows what is
+ * talking is one that will eventually disagree with the telemetry on the same
+ * screen. That is the seam the README names between `history.ts` and this file,
+ * met from the other side.
  *
  * So the layering is: `hybridPlant` says how big, `solarSystem` in the solar
  * module says what it is and how it is doing. The second is built on the first.
@@ -168,19 +169,21 @@ const solarPerformance = (seed: SiteSeed, role: SitePowerRole): number =>
  * ## Why there is no array here
  *
  * There was briefly a `SolarArray` asset above this, with its own register and
- * detail page, and it was the wrong unit: an array is the half of a PV system
- * that has no electronics, so nothing reads from it. Every "array" reading in a
- * monitoring product — string current, DC bus voltage — is really an inverter
- * reporting what it sees on its own inputs.
+ * detail page, and it was the wrong unit — but not for the reason first written
+ * down. The argument then was that an array is the half of a PV system with no
+ * electronics, so nothing reads from it and the box beside it does the reading.
+ * On a telco site there is no box: the array feeds a −48 V DC bus and there is no
+ * AC stage to invert to. `solarSystem` is the level that reports, and an array
+ * under it would be a second name for the same thing.
  *
  * An array earns a place in a model for exactly one job, and it is **attribution
  * rather than measurement**: a sub-array is a plane with one tilt and one
- * azimuth, and naming it is how a shortfall the inverters report gets pinned to a
- * piece of roof rather than to the boxes. Every site on both estates here is one
- * plane, so there is nothing to attribute and the level would only ever hold one
- * child. When a customer turns up with an east and a west roof, the thing to add
- * is a `plane` under the system — not an `array`, which is too overloaded a word
- * to reintroduce.
+ * azimuth, and naming it is how a shortfall gets pinned to a piece of roof rather
+ * than left as a figure about the whole system. Every site on both estates here
+ * is one plane, so there is nothing to attribute and the level would only ever
+ * hold one child. When a customer turns up with an east and a west roof, the
+ * thing to add is a `plane` under the system — not an `array`, which is too
+ * overloaded a word to reintroduce.
  *
  * What survives of it is `solarKwp`, and that is not a leftover. DC nameplate is
  * the denominator of every performance figure in solar — specific yield is
@@ -711,8 +714,8 @@ const healthOnsetMonth = (seed: SiteSeed, health: number): number | null =>
  * The step in this array's output: when it happened, and how deep it is.
  *
  * Exported because the **fault model reads it**. `darkStrings` in the solar
- * module turns the depth of the step into a count of strings and puts them on one
- * inverter, and the health band dates its string alert from `label`. Handing both
+ * module turns the depth of the step into a count of dark strings, and the health
+ * band dates its string alert from `label`. Handing both
  * the seeded fact directly is what keeps the count, the date and the shape of the
  * series three readings of one event rather than three derivations of it.
  *
@@ -826,39 +829,6 @@ export const solarMonths = (
   return months;
 };
 
-/**
- * Every array's twelve months added together, as one series.
- *
- * The estate chart, and the reason it exists is scale. One chart per array works
- * at four and is unreadable at forty: a page of thumbnails nobody can compare is
- * a worse answer than no chart. The summed series always draws in one frame,
- * whatever the estate does, and it answers the question the estate level actually
- * has — how much the solar programme is generating — leaving *which array* to the
- * ranked strip beside it.
- *
- * Months are keyed by position rather than by date, which is safe because every
- * site's series is built from the same clock in the same call and is therefore
- * the same twelve months. `inProgress` rides on the last one for all of them.
- */
-export const estateSolarMonths = (
-  roles: Record<string, SitePowerRole>,
-  now: number = Date.now(),
-): Array<SolarMonth> => {
-  const series = siteSeeds().map((seed) =>
-    solarMonths(seed, roles[seed.id] ?? seed.powerRole, now),
-  ).filter((months) => months.length > 0);
-
-  if (series.length === 0) return [];
-
-  return series[0].map((month, index) => ({
-    at: month.at,
-    label: month.label,
-    inProgress: month.inProgress,
-    actualKwh: series.reduce((sum, months) => sum + months[index].actualKwh, 0),
-  }));
-};
-
-
 // ─── The daily grain ─────────────────────────────────────────────────────────
 
 /**
@@ -874,8 +844,8 @@ export const estateSolarMonths = (
  *
  * The spread is wide — a day can be a third of a good one — because that is what
  * daily solar in this climate does. A monsoon afternoon is not a rounding error,
- * and a daily chart drawn with monthly smoothness would tell a reader their
- * inverter was faultless on a day it was rained off.
+ * and a daily chart drawn with monthly smoothness would tell a reader their array
+ * was faultless on a day it was rained off.
  */
 const dayWeight = (siteId: string, at: Date): number =>
   spreadBetween(
@@ -991,16 +961,6 @@ export const todaySoFarKwh = (
   return solarDays(seed, role, start, start, now)[0]?.actualKwh ?? 0;
 };
 
-/** The estate's, for the portfolio's today readout. */
-export const estateTodaySoFarKwh = (
-  roles: Record<string, SitePowerRole>,
-  now: number = Date.now(),
-): number =>
-  siteSeeds().reduce(
-    (sum, seed) => sum + todaySoFarKwh(seed, roles[seed.id] ?? seed.powerRole, now),
-    0,
-  );
-
 /** A point on the intraday power curve. */
 export type SolarPoint = {
   /** Hours since midnight, `6`–`20`. */
@@ -1061,56 +1021,4 @@ export const solarIntraday = (
   }
 
   return points;
-};
-
-/** Every array's curve added together, for the portfolio's today chart. */
-export const estateSolarIntraday = (
-  roles: Record<string, SitePowerRole>,
-  now: number = Date.now(),
-): Array<SolarPoint> => {
-  const series = siteSeeds().map((seed) =>
-    solarIntraday(seed, roles[seed.id] ?? seed.powerRole, now),
-  ).filter((points) => points.length > 0);
-
-  if (series.length === 0) return [];
-
-  return series[0].map((point, index) => ({
-    ...point,
-    kw:
-      point.kw === null
-        ? null
-        : Math.round(series.reduce((sum, points) => sum + (points[index]?.kw ?? 0), 0) * 10) / 10,
-    typicalKw:
-      Math.round(series.reduce((sum, points) => sum + (points[index]?.typicalKw ?? 0), 0) * 10) /
-      10,
-  }));
-};
-
-/** Every array's days added together, for the portfolio chart. */
-export const estateSolarDays = (
-  roles: Record<string, SitePowerRole>,
-  fromMs: number,
-  toMs: number,
-  now: number = Date.now(),
-): Array<SolarBucket> => {
-  const series = siteSeeds().map((seed) =>
-    solarDays(seed, roles[seed.id] ?? seed.powerRole, fromMs, toMs, now),
-  ).filter((days) => days.length > 0);
-
-  if (series.length === 0) return [];
-
-  return series[0].map((day, index) => ({
-    ...day,
-    actualKwh: series.reduce((sum, days) => sum + (days[index]?.actualKwh ?? 0), 0),
-  }));
-};
-
-/** One site's energy by id, for callers holding only the id. */
-export const siteEnergyById = (
-  siteId: string,
-  role: SitePowerRole,
-  ratedKw: number,
-): SiteEnergy | undefined => {
-  const seed = siteSeed(siteId);
-  return seed === undefined ? undefined : siteEnergy(seed, role, ratedKw);
 };

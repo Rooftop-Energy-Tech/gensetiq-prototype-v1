@@ -100,6 +100,18 @@ export const dayMonth = (at: number | string): string => {
 };
 
 /**
+ * "2 Sep 2026" — the day half of a run stamp, for a card that sets the time above
+ * the date rather than beside it.
+ *
+ * Unpadded day, like `stampAt`'s and unlike `stampDate`'s. The two really do
+ * differ in the design: `Refuel by` is a date on its own in a column of figures
+ * and pads to keep that column straight, while a run stamp is read as a phrase
+ * under a clock time and "02" there is a form field, not a date.
+ */
+export const stampDay = (iso: string): string =>
+  `${dayMonth(iso)} ${new Date(iso).getFullYear()}`;
+
+/**
  * "1–7 Aug 2026", "28 Jul – 3 Aug 2026", "28 Dec 2025 – 3 Jan 2026".
  *
  * Says each part exactly once. Repeating the month across a range that stays

@@ -23,8 +23,8 @@ import type {BatteryBank} from '../../types/bank.type';
 
 /**
  * The six sections of a battery bank — the same six a solar system has, for the
- * same reason it has them: they are a genset's eight minus `Runs` and `Refuel`,
- * which are facts about an engine.
+ * same reason it has them: they are a genset's seven minus `Runs`, which is a fact
+ * about an engine.
  *
  * They are not new. Until now these were six tabs at `/battery` itself, standing
  * over the whole estate with a `ComingSoon` body each. They have moved down one

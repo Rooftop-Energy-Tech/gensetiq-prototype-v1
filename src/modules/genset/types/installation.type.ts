@@ -42,22 +42,3 @@ export type Installation = {
   /** Tank level recorded at removal, litres — `null` while fitted. */
   endFuelLitres: number | null;
 };
-
-/** True while the set is still fitted here. */
-export const isOngoing = (installation: Installation): boolean => installation.endedAt === null;
-
-/**
- * How long the installation has stood, in milliseconds.
- *
- * An open installation is measured to `now`, which is why the caller passes it:
- * a page rendering several installations should measure them all against one
- * clock reading, or two rows a millisecond apart can disagree about the current
- * day.
- */
-export const installationElapsedMs = (
-  installation: Installation,
-  now: number = Date.now(),
-): number => {
-  const end = installation.endedAt === null ? now : new Date(installation.endedAt).getTime();
-  return end - new Date(installation.startedAt).getTime();
-};

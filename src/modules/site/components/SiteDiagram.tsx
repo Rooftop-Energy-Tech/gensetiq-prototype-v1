@@ -13,11 +13,12 @@ import type {RunState} from '@/modules/genset/types/genset.type';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
+import {gensetDeviceKey} from '../types/device.type';
+import type {SiteDeviceKey} from '../types/device.type';
 import {hasBattery, hasMains, hasSolar, isolatorStateOf, mainsContactorStateOf} from '../types/site.type';
 import type {MainsSupply, SitePowerRole, SwitchState} from '../types/site.type';
 import {hybridState} from '../data/hybrid';
 import {siteSeed} from '../data/siteSeed';
-import type {MeterFeed} from '@/modules/meter/types/meter.type';
 import {siteFeed, siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 
@@ -48,9 +49,10 @@ import type {SiteSummary} from '../data/sites';
  * When the canvas is wider than the space it is given, the whole drawing is
  * **scaled down uniformly** rather than scrolled or reflowed. That keeps the
  * geometry exactly as measured — every wire still lands where it was drawn to —
- * and it costs only type size, which at the 0.86 a 375px screen asks for is a
- * legible 9.5px caption. Scrolling was the previous answer and it was worse: the
- * load node, the one thing the whole drawing points at, started off screen.
+ * and it costs only type size: a 375px screen asks for 0.86 of the 398px canvas, a
+ * legible 9.5px caption, and 0.65 of the 530px one an array widens it to, which is
+ * about 7px. Scrolling was the previous answer and it was worse: the load node, the
+ * one thing the whole drawing points at, started off screen.
  *
  * ## What is added to the design
  *
@@ -63,6 +65,32 @@ import type {SiteSummary} from '../data/sites';
  * Both are additive. The boxes keep their designed 88 × 74 and the captions sit in
  * the 64px gap between them.
  *
+ * ## The drawing as the page's selector
+ *
+ * Pass a `selection` and the nodes standing for devices become buttons: the site
+ * page uses the diagram to choose which device's detail sits beside it. Omit it —
+ * the settings page's preview — and every node is inert, which is what this
+ * component did before any of this existed.
+ *
+ * It is **one prop holding three things** rather than three props, because two of
+ * the three are useless alone: a click handler with no `devices` list to check
+ * against can offer a box the page has no card for, and a `selected` with no
+ * handler draws a ring nothing can move. Bundled, a caller either wires the whole
+ * mechanism or none of it, and there is no half-configured state to guard against.
+ *
+ * `devices` is what makes a node clickable — not merely being a source. Two nodes
+ * are never buttons and for the same reason: the **mains** is a supply the site is
+ * connected to rather than a machine on the books, and the **load** is the site
+ * itself. Neither has a card, so neither appears in the list, so neither can offer
+ * a click that does nothing.
+ *
+ * One consequence worth stating because it is an accessibility fix rather than a
+ * style choice: the `role="img"` and its long description now sit on the `<svg>`
+ * rather than on the whole block. `role="img"` tells a screen reader to treat a
+ * subtree as one opaque image, so leaving it outside would have made the node
+ * buttons unreachable. The conductors are the part that is a picture; the boxes are
+ * text and, here, controls.
+ *
  * ## The other sources
  *
  * A `GRID_BACKUP` site draws a **mains source above its gensets**, on its own
@@ -71,16 +99,23 @@ import type {SiteSummary} from '../data/sites';
  * it — and a page about *backup* power that never shows what is being backed up is
  * missing its subject.
  *
- * The two hybrid configurations add an **array** and a **bank** the same way, and
- * that is the argument for putting all of them in this column rather than
- * inventing a second one: a bus is a bus, so every source is a row, and every
- * measurement above applies to each of them unchanged. Four sources at a solar
- * hybrid with two sets is the same drawing as one source at a diesel-prime site
- * with one — taller, and not otherwise different.
+ * The two hybrid configurations add a **bank** the same way, and that is the
+ * argument for putting all of them in this column rather than inventing a second
+ * one: a bus is a bus, so every source is a row, and every measurement above
+ * applies to each of them unchanged. Three sources at a solar hybrid with two sets
+ * is the same drawing as one source at a diesel-prime site with one — taller, and
+ * not otherwise different.
  *
- * The order down the column is the order the site uses its sources in: grid,
- * array, bank, then gensets. Reading it downwards is reading the control strategy,
- * which is why the bank sits above the machine that charges it.
+ * The **array** is the one thing that is not a row, because it is not on the bus.
+ * It is DC-coupled: it charges the bank and reaches the load through the same
+ * converter the bank does, so it is drawn where it actually sits — in its own
+ * column to the left, on one conductor into the battery. Giving it an isolator of
+ * its own said something false, that the array could carry the tower with the bank
+ * disconnected.
+ *
+ * The order down the column is the order the site uses its sources in: grid, bank,
+ * then gensets. Reading it downwards is reading the control strategy, which is why
+ * the bank sits above the machine that charges it.
  *
  * A `DIESEL_PRIME` site has no incomer and no plant, and draws exactly what it
  * drew before any of this existed.
@@ -106,6 +141,16 @@ const SWITCH_X = NODE_W + LEAD;
 const BUS_X = SWITCH_X + SWITCH_W + ELBOW;
 const LOAD_X = BUS_X + TAP;
 const WIDTH = LOAD_X + NODE_W;
+
+/**
+ * The array's own column, to the left of the bank it charges.
+ *
+ * Reusing `LEAD` rather than measuring a new gap: the array's run into the battery
+ * is the same length as every genset's run into its isolator, so the drawing keeps
+ * one horizontal rhythm whatever the site is made of. Sites without an array pay
+ * nothing for this — the gutter is zero and the canvas is the design's 398px.
+ */
+const SOLAR_GUTTER = NODE_W + LEAD;
 
 /** Terminal centres inside the isolator, from the component's documentation. */
 const SOURCE_TERMINAL = 18;
@@ -261,6 +306,12 @@ const Node = ({
   live,
   x,
   y,
+  /**
+   * What clicking this node picks, or `undefined` for a node that is not a device
+   * and must therefore not look like a control. See the file header.
+   */
+  onSelect,
+  selected = false,
   className,
 }: {
   icon: LucideIcon;
@@ -272,50 +323,87 @@ const Node = ({
   live?: boolean;
   x: number;
   y: number;
+  onSelect?: () => void;
+  selected?: boolean;
   className?: string;
-}) => (
-  <div className="absolute" style={{left: x, top: y, width: NODE_W}}>
-    <div
-      className={cn(
-        'relative flex h-[74px] w-[88px] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border bg-element pt-2.5 pb-2',
-        live === true ? 'border-teal/40' : 'border-default',
-        className,
-      )}
-    >
-      <span
+}) => {
+  const body = (
+    <>
+      <div
         className={cn(
-          'flex size-8 items-center justify-center rounded-md',
-          live === true ? 'bg-teal/16' : 'bg-highlight',
+          'relative flex h-[74px] w-[88px] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border bg-element pt-2.5 pb-2',
+          // The border says whether the thing is *live*, so selection cannot use it
+          // — a picked dead genset and a live one have to stay tellable apart. A ring
+          // sits outside the border and is the one affordance orthogonal to it.
+          live === true ? 'border-teal/40' : 'border-default',
+          onSelect !== undefined && 'transition-colors group-hover:bg-highlight',
+          selected && 'bg-highlight ring-2 ring-strong',
+          className,
         )}
       >
-        <Icon
-          className={cn('size-[18px]', live === true ? 'text-teal' : 'text-primary')}
-          aria-hidden="true"
-        />
-      </span>
-      <p className="text-xs font-semibold whitespace-nowrap text-primary">{label}</p>
-      {live !== undefined && (
         <span
           className={cn(
-            'absolute top-[7px] left-[7px] size-[7px] rounded-full',
-            live ? 'bg-teal' : 'bg-tertiary',
+            'flex size-8 items-center justify-center rounded-md',
+            live === true ? 'bg-teal/16' : 'bg-highlight',
           )}
-        />
-      )}
-    </div>
-    <p className="pt-1 text-center text-[11px] leading-[13px] whitespace-nowrap text-secondary">
-      {caption}
-    </p>
-    <p
-      className={cn(
-        'text-center text-[11px] leading-[13px] font-medium whitespace-nowrap',
-        powered ? 'text-primary' : 'text-tertiary',
-      )}
+        >
+          <Icon
+            className={cn('size-[18px]', live === true ? 'text-teal' : 'text-primary')}
+            aria-hidden="true"
+          />
+        </span>
+        <p className="text-xs font-semibold whitespace-nowrap text-primary">{label}</p>
+        {live !== undefined && (
+          <span
+            className={cn(
+              'absolute top-[7px] left-[7px] size-[7px] rounded-full',
+              live ? 'bg-teal' : 'bg-tertiary',
+            )}
+          />
+        )}
+      </div>
+      <p className="pt-1 text-center text-[11px] leading-[13px] whitespace-nowrap text-secondary">
+        {caption}
+      </p>
+      <p
+        className={cn(
+          'text-center text-[11px] leading-[13px] font-medium whitespace-nowrap',
+          powered ? 'text-primary' : 'text-tertiary',
+        )}
+      >
+        {power}
+      </p>
+    </>
+  );
+
+  if (onSelect === undefined) {
+    return (
+      <div className="absolute" style={{left: x, top: y, width: NODE_W}}>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      // `aria-pressed` rather than a tablist: the boxes are laid out at measured
+      // coordinates across two columns, and a tablist promises an order to arrow
+      // through that this drawing does not have. A pressed toggle is the honest
+      // reading — "show me this one" — and it is what the ring draws.
+      aria-pressed={selected}
+      // The caption lines are inside the target, not just the box: they are what
+      // says *which* genset, so they are part of the thing being picked, and the
+      // 88 × 104 that gets is a comfortable hit area at the scales this drawing
+      // shrinks to.
+      className="group absolute cursor-pointer rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-outline"
+      style={{left: x, top: y, width: NODE_W}}
     >
-      {power}
-    </p>
-  </div>
-);
+      {body}
+    </button>
+  );
+};
 
 /**
  * What a set is putting into the bus, written under its node.
@@ -345,20 +433,10 @@ const powerLabel = (runState: RunState, live: boolean, loadKw: number | null): s
 const mainsPowerLabel = (mains: MainsSupply, carrying: boolean): string => {
   if (!mains.live) return 'failed';
   if (!carrying) return 'off-load';
-  // Carrying, so there is real power here — whether the page can put a number on it
-  // is a separate question, and the answer names the reason. `unmetered` is somebody
-  // never having fitted a device; `no reading` is one fitted and gone quiet. Two
-  // different problems, two different people to call.
-  return meterLabel(mains.feed);
+  // Carrying, so there is real power here and the incomer's own figure says how
+  // much. The three words above are states of the supply; this is its reading.
+  return amount(mains.kw, 'kW');
 };
-
-/** `218 kW`, or which of the two reasons there is no figure. */
-const meterLabel = (feed: MeterFeed): string =>
-  feed.state === 'METERED'
-    ? amount(feed.kw, 'kW')
-    : feed.state === 'UNMETERED'
-      ? 'unmetered'
-      : 'no reading';
 
 /**
  * One row of the diagram: a box, its switch, and its run onto the bus.
@@ -382,7 +460,54 @@ type DiagramSource = {
 };
 
 /**
- * Every source feeding this site's bus, top to bottom.
+ * The device a source node stands for, or `undefined` if it is not a device.
+ *
+ * The mains is the `undefined` case and the only one: an incomer is a supply the
+ * site is connected to, not a machine on this estate's books, so there is no device
+ * card behind it and its node must not offer a click. Every other source key is
+ * either the bank or a genset's own id.
+ */
+const deviceOfSource = (key: string): SiteDeviceKey | undefined =>
+  key === 'mains' ? undefined : key === 'battery' ? 'battery' : gensetDeviceKey(key);
+
+/** Everything the drawing needs to act as the page's device picker. */
+export type SiteDiagramSelection = {
+  /** The devices with a card behind them. Anything else stays inert. */
+  devices: Array<SiteDeviceKey>;
+  selected: SiteDeviceKey | undefined;
+  onSelect: (device: SiteDeviceKey) => void;
+};
+
+/**
+ * The click handler for one node, or `undefined` to leave it inert.
+ *
+ * The single place the three conditions meet: the caller wired a selection, this
+ * node stands for a device, and that device is one the page can actually show.
+ */
+const selectHandler = (
+  selection: SiteDiagramSelection | undefined,
+  device: SiteDeviceKey | undefined,
+): (() => void) | undefined =>
+  selection === undefined || device === undefined || !selection.devices.includes(device)
+    ? undefined
+    : () => selection.onSelect(device);
+
+/**
+ * The array beside the bank, on the two lines a node carries.
+ *
+ * Not a `DiagramSource`, and the difference is the whole point: a source has a
+ * switch and a place on the bus, and the array has neither. It has a state — making
+ * something, or not — and that state drives one conductor into the battery.
+ */
+type DiagramSolar = {
+  caption: string;
+  power: string;
+  /** Is it making anything. Its node's dot and its conductor both read this. */
+  generating: boolean;
+};
+
+/**
+ * Every source feeding this site's bus, top to bottom, and the array beside the bank.
  *
  * Mains first, and not arbitrarily: at a standby site it is the *normal* supply and
  * the gensets are what sit under it waiting. Reading the column downwards then
@@ -392,7 +517,7 @@ const sourcesOf = (
   summary: SiteSummary,
   dutyId: string | undefined,
   role: SitePowerRole,
-): Array<DiagramSource> => {
+): {sources: Array<DiagramSource>; solar: DiagramSolar | undefined} => {
   const feed = siteFeed(summary, dutyId, role);
   const gensetCarrying = feed.source === 'GENSET';
 
@@ -409,6 +534,7 @@ const sourcesOf = (
   });
 
   const sources: Array<DiagramSource> = [];
+  let solar: DiagramSolar | undefined;
 
   if (hasMains(role)) {
     sources.push({
@@ -436,20 +562,24 @@ const sourcesOf = (
       // the genset captions follow — a measurement of zero and an absence of one
       // are different claims.
       const generating = state.solarKw > 0;
-      sources.push({
-        key: 'solar',
-        icon: SunMediumIcon,
-        label: 'SOLAR',
+      solar = {
         caption: 'PV array',
         power: generating ? amount(state.solarKw, 'kW', 1) : 'night',
-        switchState: {closed: generating, live: generating && !gensetCarrying},
-      });
+        generating,
+      };
     }
 
     // Charging and discharging are one node and two directions, which is why the
     // caption carries the state of charge and the power line carries the sign. A
     // bank drawn as two nodes would suggest the site has two of them.
     const discharging = state.batteryKw > 0 && !gensetCarrying;
+    // This one run is the **whole plant's** tie to the bus, not the bank's alone —
+    // the array reaches the load through the same converter — so it is live whenever
+    // either of them is delivering. Reading it off the bank by itself would draw the
+    // tower unserved at two in the afternoon, with an array beside it making more
+    // than the tower draws. That surplus is exactly the case where the bank is
+    // charging and the load is nonetheless being carried.
+    const delivering = !gensetCarrying && (discharging || state.solarKw > 0);
     sources.push({
       key: 'battery',
       icon: BatteryChargingIcon,
@@ -460,12 +590,27 @@ const sourcesOf = (
         : discharging
           ? amount(state.batteryKw, 'kW', 1)
           : 'charging',
-      switchState: {closed: true, live: discharging},
+      switchState: {closed: true, live: delivering},
     });
   }
 
-  return [...sources, ...gensets];
+  return {sources: [...sources, ...gensets], solar};
 };
+
+/**
+ * How wide this site's canvas is, in the design's own pixels.
+ *
+ * Exported because the site page sizes the column it hands the drawing, and that
+ * width is not a constant: an array adds its own column to the left of the bank.
+ * Asked here rather than recomputed there so the drawing stays the only thing that
+ * decides how wide it is — a caller that guessed 398 would clip every solar hybrid.
+ *
+ * Reads the role rather than running `sourcesOf`, and the two agree by
+ * construction: `solar` is set exactly when `hasSolar(role)` holds, since that
+ * implies `hasBattery` and the array is built inside that branch.
+ */
+export const siteDiagramWidth = (role: SitePowerRole): number =>
+  (hasSolar(role) ? SOLAR_GUTTER : 0) + WIDTH;
 
 // ─── The diagram ─────────────────────────────────────────────────────────────
 
@@ -481,16 +626,22 @@ export const SiteDiagram = ({
    * once per role, as a live preview of a choice not yet made.
    */
   role,
+  /**
+   * Turns the drawing into the page's device picker — see the file header. Omitted
+   * leaves every node inert.
+   */
+  selection,
 }: {
   summary: SiteSummary;
   dutyId: string | undefined;
   role: SitePowerRole;
+  selection?: SiteDiagramSelection;
 }) => {
-  const sources = sourcesOf(summary, dutyId, role);
+  const {sources, solar} = sourcesOf(summary, dutyId, role);
   const count = Math.max(1, sources.length);
   const feed = siteFeed(summary, dutyId, role);
-  // Who is feeding and how much are two questions now, because a site can know the
-  // first without the second — that is exactly what an unmetered yard looks like.
+  // Who is feeding and how much are two questions, answered separately — see
+  // `siteLoadKw`. `null` here means nothing is feeding the load at all.
   const loadKw = siteLoadKw(summary, dutyId, role);
 
   /** Centreline of source `index` — where its conductor leaves the box. */
@@ -502,6 +653,24 @@ export const SiteDiagram = ({
 
   const height = (count - 1) * PITCH + NODE_H + CAPTION;
   const anyLive = sources.some((source) => source.switchState.live);
+
+  /**
+   * The array's column, and the row it sits on.
+   *
+   * Everything else in the drawing shifts right by the gutter, which is why it is a
+   * translate on one group rather than a term in each coordinate: the design's
+   * measurements stay literal, and a site with no array pays nothing — the gutter is
+   * zero and the canvas is the 398px it always was.
+   *
+   * The array is drawn on the **battery's own row**, so the run between them is a
+   * straight horizontal line rather than a dogleg. `hasSolar` implies `hasBattery`,
+   * so the row is always there to find; the fallback is for a caller that ever
+   * breaks that, and puts the array on the top row rather than off the canvas.
+   */
+  const gutter = solar === undefined ? 0 : SOLAR_GUTTER;
+  const width = gutter + WIDTH;
+  const batteryIndex = sources.findIndex((source) => source.key === 'battery');
+  const solarY = centreline(Math.max(0, batteryIndex));
 
   /**
    * The sources in **paint order: every dead run first, then every live one.**
@@ -538,7 +707,7 @@ export const SiteDiagram = ({
    */
   const boxRef = useRef<HTMLDivElement>(null);
   const {width: available} = useElementSize(boxRef);
-  const scale = available === 0 ? 1 : Math.min(1, available / WIDTH);
+  const scale = available === 0 ? 1 : Math.min(1, available / width);
 
   return (
     <div
@@ -552,38 +721,53 @@ export const SiteDiagram = ({
       // phone column — which is exactly the wrong number in the one place the height
       // is being computed. Width and max-width mean the same thing in both.
       className="relative w-full shrink"
-      style={{maxWidth: WIDTH, height: height * scale}}
-      role="img"
-      aria-label={`${summary.site.name} single-line diagram: ${
-        hasMains(role) ? 'mains supply, ' : ''
-      }${hasSolar(role) ? 'PV array, ' : ''}${hasBattery(role) ? 'battery, ' : ''}${
-        summary.gensets.length
-      } genset${summary.gensets.length === 1 ? '' : 's'}, ${
-        feed.source === 'GENSET'
-          ? `${summary.gensets.find(({genset}) => genset.id === feed.gensetId)?.genset.tag} feeding the load`
-          : feed.source === 'MAINS'
-            ? 'on mains'
-            : feed.source === 'SOLAR'
-              ? 'on solar'
-              : feed.source === 'BATTERY'
-                ? 'on battery'
-                : 'nothing feeding the load'
-      }${loadKw === null ? '' : ` at ${amount(loadKw, 'kW')}`}`}
+      style={{maxWidth: width, height: height * scale}}
     >
       {/* The canvas: always the measured 398px wide, and scaled as one piece. Every
           coordinate below is therefore the design's, at every viewport width — which
           is the whole point of scaling rather than reflowing. */}
       <div
         className="absolute top-0 left-0 origin-top-left"
-        style={{width: WIDTH, height, transform: `scale(${scale})`}}
+        style={{width, height, transform: `scale(${scale})`}}
       >
       <svg
-        width={WIDTH}
+        width={width}
         height={height}
-        viewBox={`0 0 ${WIDTH} ${height}`}
+        viewBox={`0 0 ${width} ${height}`}
         className="absolute inset-0 overflow-visible"
-        aria-hidden="true"
+        // The picture, and the whole block's description with it. On the `<svg>`
+        // rather than the wrapper so the node buttons stay in the accessibility
+        // tree — see the file header.
+        role="img"
+        aria-label={`${summary.site.name} single-line diagram: ${
+          hasMains(role) ? 'mains supply, ' : ''
+        }${hasBattery(role) ? (hasSolar(role) ? 'PV array into the battery, ' : 'battery, ') : ''}${
+          summary.gensets.length
+        } genset${summary.gensets.length === 1 ? '' : 's'}, ${
+          feed.source === 'GENSET'
+            ? `${summary.gensets.find(({genset}) => genset.id === feed.gensetId)?.genset.tag} feeding the load`
+            : feed.source === 'MAINS'
+              ? 'on mains'
+              : feed.source === 'SOLAR'
+                ? 'on solar'
+                : feed.source === 'BATTERY'
+                  ? 'on battery'
+                  : 'nothing feeding the load'
+        }${loadKw === null ? '' : ` at ${amount(loadKw, 'kW')}`}`}
       >
+        {/* The array's run into the battery: one conductor, no switch, drawn in the
+            gutter's own coordinates before everything else is shifted out of it. */}
+        {solar !== undefined && (
+          <Conductor
+            points={[
+              [NODE_W, solarY],
+              [gutter, solarY],
+            ]}
+            live={solar.generating}
+          />
+        )}
+
+        <g transform={`translate(${gutter},0)`}>
         {rows.map(({source, y}) => {
           const {closed, live} = source.switchState;
 
@@ -632,21 +816,43 @@ export const SiteDiagram = ({
           strokeWidth={1.5}
           fill={anyLive ? 'currentColor' : 'var(--canvas)'}
         />
+        </g>
       </svg>
 
-      {sources.map((source, index) => (
+      {solar !== undefined && (
         <Node
-          key={source.key}
-          icon={source.icon}
-          label={source.label}
-          caption={source.caption}
-          power={source.power}
-          powered={source.switchState.live}
-          live={source.switchState.live}
+          icon={SunMediumIcon}
+          label="SOLAR"
+          caption={solar.caption}
+          power={solar.power}
+          powered={solar.generating}
+          live={solar.generating}
           x={0}
-          y={index * PITCH}
+          y={solarY - NODE_H / 2}
+          onSelect={selectHandler(selection, 'solar')}
+          selected={selection?.selected === 'solar'}
         />
-      ))}
+      )}
+
+      {sources.map((source, index) => {
+        const device = deviceOfSource(source.key);
+
+        return (
+          <Node
+            key={source.key}
+            icon={source.icon}
+            label={source.label}
+            caption={source.caption}
+            power={source.power}
+            powered={source.switchState.live}
+            live={source.switchState.live}
+            x={gutter}
+            y={index * PITCH}
+            onSelect={selectHandler(selection, device)}
+            selected={device !== undefined && device === selection?.selected}
+          />
+        );
+      })}
 
       <Node
         icon={FactoryIcon}
@@ -655,17 +861,9 @@ export const SiteDiagram = ({
         // nothing feeding it, this is not "0 kW" — that would read as a load that
         // has gone away, when in fact it is a load nobody is currently serving.
         caption="Site draw"
-        power={
-          feed.source === 'NONE'
-            ? 'not served'
-            : loadKw !== null
-              ? amount(loadKw, 'kW')
-              : // Something *is* feeding the load — we just cannot say how much.
-                // `not served` here would be a much stronger and quite wrong claim.
-                meterLabel(summary.loadFeed)
-        }
+        power={loadKw === null ? 'not served' : amount(loadKw, 'kW')}
         powered={anyLive}
-        x={LOAD_X}
+        x={gutter + LOAD_X}
         y={busY - NODE_H / 2}
       />
       </div>

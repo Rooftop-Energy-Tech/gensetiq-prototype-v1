@@ -63,11 +63,3 @@ export const parseDateParam = (value: string | undefined): number | undefined =>
   const parsed = new Date(`${value}T00:00`).getTime();
   return Number.isNaN(parsed) ? undefined : parsed;
 };
-
-/** The inverse of , kept beside it for the day a caller needs it. */
-export const toDateParam = (at: number): string => {
-  const date = new Date(at);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-};

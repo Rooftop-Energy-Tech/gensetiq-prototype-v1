@@ -179,6 +179,33 @@ export const acknowledgeAlarm = (alarmId: string, by: string): void => {
 };
 
 /**
+ * Hand an alarm back to the queue.
+ *
+ * The undo for `acknowledgeAlarm`, and the reason acknowledgement is worth
+ * recording at all: a claim nobody can release is a claim that goes stale the
+ * first time somebody clicks it on the wrong row, or takes an alarm on and then
+ * finds it belongs to the crew on the other shift. Dropping the stamps puts the
+ * row back at the top of the standing list, where an unclaimed alarm belongs.
+ *
+ * **Only while the alarm still stands.** A cleared alarm's acknowledgement is
+ * part of the log rather than a live claim, and unacknowledging one would leave a
+ * row reading "nobody ever saw this, and then it was closed" — exactly the hole
+ * `clearAlarm` fills in on the way past. Reopen it first if that is really what
+ * was meant; the two clicks say two different things.
+ *
+ * The stamps are dropped rather than kept beside a `false`, because the record
+ * this store keeps is *who is on it now*, not the history of who was. A
+ * prototype that wanted the history would need an event log, and that is a
+ * different shape from a handling map keyed by alarm.
+ */
+export const unacknowledgeAlarm = (alarmId: string): void => {
+  const current = handlingOf(alarmId);
+  if (current.acknowledgedAt === null || current.clearedAt !== null) return;
+
+  write({...snapshot, [alarmId]: {...current, acknowledgedAt: null, acknowledgedBy: null}});
+};
+
+/**
  * Mark an alarm finished with.
  *
  * **Clearing acknowledges as well, where nobody had.** Huawei's own list allows

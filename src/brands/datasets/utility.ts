@@ -6,8 +6,8 @@ import type {BrandDataset} from '../types';
  * Twenty-five substations, feeder points and rural mini-grids across Sabah and
  * Labuan, with thirty-seven machines standing on them. Recovered from
  * `feat/sesb-demo`, which is where it was stranded — the branch predates the
- * hybrid plant, the generation series, the energy screen and the refuel log, and
- * every one of those was invisible on it.
+ * hybrid plant, the generation series and the energy screen, and every one of
+ * those was invisible on it.
  *
  * ## Why the power roles are re-expressed rather than restored
  *

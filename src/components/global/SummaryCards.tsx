@@ -31,15 +31,27 @@ type SummaryCardRowProps = {
   /** Fold the strip away — see `SummaryCollapseButton`. Phone width only. */
   collapsed?: boolean;
   id?: string;
+  /**
+   * How many leading cards are the narrow kind — see `CAPPED_COLUMNS`.
+   *
+   * A prop because "narrow" is a fact about a *card*, not about its index, and the
+   * two screens no longer agree: the fleet is one narrow headline followed by four
+   * `FilterCard`s that share the rest of the row, and the estate's four are all
+   * narrow now that its three attribute filters have become toolbar dropdowns.
+   */
+  cappedColumns?: number;
 };
 
 /**
  * How many of the leading cards are held to a narrow, capped column.
  *
- * The first three on both screens are a headline and two blocks of `block` chips —
- * a label hard left, a count hard right — and they are done at 13rem. Everything
- * after them is a **wrapping** chip list (the regions, the programmes), which is the
- * one shape here that turns extra width into fewer lines rather than into gap.
+ * A headline, or a block of `block` chips — a label hard left, a count hard right —
+ * is done at 13rem. What comes after is a card that turns extra width into something
+ * a reader can use: a **wrapping** chip list where extra width is fewer lines, or a
+ * `FilterCard` where it is a bucket's figure and the sentence under it.
+ *
+ * Three is the default because that is what the estate strip's leading cards were.
+ * The fleet strip passes `1` — see `GensetsSummaryCards`.
  */
 const CAPPED_COLUMNS = 3;
 
@@ -52,20 +64,33 @@ const CAPPED_COLUMNS = 3;
  * would make every caller restate that condition, and the day a sixth card lands
  * the template and the children would disagree — which is exactly the bug this
  * replaces. A four-card row gets the identical template it always had.
+ *
+ * Five cards is the ceiling a row of this kind comfortably holds at 1440px — see
+ * `SitesSummaryCards`, which is four because its attribute filters moved out to the
+ * toolbar.
  */
-const columnTemplate = (count: number): string => {
-  const capped = Math.min(CAPPED_COLUMNS, count);
+const columnTemplate = (count: number, cap: number): string => {
+  const capped = Math.min(cap, count);
   const slack = Math.max(0, count - capped);
 
+  // Nothing wrapping to absorb the remainder, so the narrow cards share it evenly
+  // instead: at 1312px four cards held to 13rem stop two-thirds of the way across
+  // and read as a row whose last card failed to load. The 9rem floor is kept, so
+  // the two-up stack below `xl` is unchanged.
+  if (slack === 0) return `repeat(${count}, minmax(9rem, 1fr))`;
+
   return [
-    capped > 0 ? `repeat(${capped}, minmax(9rem, 13rem))` : undefined,
+    `repeat(${capped}, minmax(9rem, 13rem))`,
     ...Array.from({length: slack}, () => 'minmax(0, 1fr)'),
-  ]
-    .filter((part) => part !== undefined)
-    .join(' ');
+  ].join(' ');
 };
 
-export const SummaryCardRow = ({children, collapsed = false, id}: SummaryCardRowProps) => (
+export const SummaryCardRow = ({
+  children,
+  collapsed = false,
+  id,
+  cappedColumns = CAPPED_COLUMNS,
+}: SummaryCardRowProps) => (
   // Capped cards first, then one slack column per wrapping chip list — see
   // `columnTemplate`. The template used to be a literal four columns, which put a
   // fifth card on a second row on its own the moment `By programme` appeared.
@@ -80,7 +105,10 @@ export const SummaryCardRow = ({children, collapsed = false, id}: SummaryCardRow
     // scoped to a breakpoint. The variable is always set; only `xl` reads it.
     style={
       {
-        '--summary-columns': columnTemplate(Children.toArray(children).length),
+        '--summary-columns': columnTemplate(
+          Children.toArray(children).length,
+          cappedColumns,
+        ),
       } as CSSProperties
     }
     className={cn(
@@ -114,22 +142,58 @@ type SummaryCardProps = {
   className?: string;
 };
 
+/**
+ * The card's own box, exported so a card that is a **link** can wear it.
+ *
+ * Two cards on the estate strip lead somewhere instead of filtering in place, and a
+ * `<section>` is the wrong element for those. Rather than teach `SummaryCard` to
+ * render as a router `Link` — which costs it the router's route typing, since the
+ * shared component cannot know either screen's routes — the caller builds its own
+ * `Link` and puts this class on it. One declaration, so the two kinds of card cannot
+ * drift apart in size, radius or ground.
+ */
+export const SUMMARY_CARD_BOX =
+  'flex min-w-0 flex-col gap-1.5 rounded-md border border-subtle bg-element px-3 py-2.5';
+
+/** The hover and focus treatment a linked card adds on top of the box. */
+export const SUMMARY_CARD_LINK =
+  'transition-colors outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline';
+
 export const SummaryCard = ({label, children, className}: SummaryCardProps) => (
-  <section
-    aria-label={label}
-    className={cn(
-      'flex min-w-0 flex-col gap-1.5 rounded-md border border-subtle bg-element px-3 py-2.5',
-      className,
-    )}
-  >
-    <h2 className="text-xs font-medium tracking-wide text-secondary uppercase">{label}</h2>
+  <section aria-label={label} className={cn(SUMMARY_CARD_BOX, className)}>
+    <SummaryCardLabel>{label}</SummaryCardLabel>
     {children}
   </section>
 );
 
+/**
+ * A card's heading, as its own export so a linked card's label reads identically.
+ *
+ * `<h2>` in both, because the two are the same rank on the page whatever element
+ * carries the box around them.
+ */
+export const SummaryCardLabel = ({children}: {children: ReactNode}) => (
+  <h2 className="flex min-w-0 items-center gap-1.5 text-xs font-medium tracking-wide text-secondary uppercase">
+    {children}
+  </h2>
+);
+
 type HeadlineProps = {
-  value: number;
-  unit: string;
+  /**
+   * A string where the figure carries its own unit — `23%` — and a number where the
+   * `unit` beside it does that job. Both set in the same tabular face, so a column
+   * of cards keeps one baseline whichever kind it holds.
+   */
+  value: number | string;
+  /**
+   * The word beside the figure — `sites`, `gensets`.
+   *
+   * Optional, because a figure that carries its own unit (`23%`) has nothing to put
+   * here, and an empty span beside it would still take the baseline's gap. What such
+   * a card is a share *of* belongs on the `detail` line, which has a full row for it
+   * rather than the remainder of one.
+   */
+  unit?: string;
   /** The second figure the headline carries, e.g. `across 17 sites`. */
   detail: string;
 };
@@ -140,7 +204,7 @@ export const Headline = ({value, unit, detail}: HeadlineProps) => (
       <span className="text-2xl leading-none font-semibold text-primary tabular-nums">
         {value}
       </span>
-      <span className="truncate text-sm text-secondary">{unit}</span>
+      {unit !== undefined && <span className="truncate text-sm text-secondary">{unit}</span>}
     </p>
     <p className="mt-1 truncate text-xs text-secondary">{detail}</p>
   </div>
@@ -216,6 +280,75 @@ export const CountChip = ({
   </button>
 );
 
+type FilterCardProps = {
+  label: string;
+  count: number;
+  /** The word beside the figure — `gensets`. */
+  unit: string;
+  /** What the bucket means, one line, under the figure. */
+  detail: string;
+  tone?: ChipTone;
+  /** Is this card's filter currently applied. */
+  active: boolean;
+  /** Toggle it. Called with the *next* state, so a second click clears. */
+  onToggle: (next: boolean) => void;
+};
+
+/**
+ * A whole card that is one filter — a `CountChip` given a card's width.
+ *
+ * The fleet strip's four readiness buckets are this rather than four rows inside one
+ * card, and the trade is width for legibility: a bucket gets the headline figure the
+ * `Fleet` card gets, plus the line of prose saying what it *means*, which as a chip
+ * was a `title` attribute nobody hovers. Four of them across the strip also read as
+ * a scale left to right — cover first, nothing-to-do last — which a stack of four
+ * rows in a 13rem card does not.
+ *
+ * It stays a filter, and looks like one: `aria-pressed`, the highlighted ground the
+ * chips use, and a second click clears. The hover treatment is `SUMMARY_CARD_LINK`'s,
+ * because a card the whole of which is a target should feel the same here as it does
+ * on the estate strip — the difference is that these narrow the list rather than
+ * leading away from it, which is what the arrow on those says and this has none.
+ *
+ * The figure is `text-primary` whatever it counts, per the rule `DOT_CLASS` states:
+ * the dot carries the bucket, the number does not.
+ */
+export const FilterCard = ({
+  label,
+  count,
+  unit,
+  detail,
+  tone = 'neutral',
+  active,
+  onToggle,
+}: FilterCardProps) => (
+  <button
+    type="button"
+    aria-pressed={active}
+    onClick={() => onToggle(!active)}
+    className={cn(
+      SUMMARY_CARD_BOX,
+      SUMMARY_CARD_LINK,
+      'cursor-pointer text-left',
+      active && 'border-strong bg-highlight hover:bg-highlight',
+    )}
+  >
+    <SummaryCardLabel>
+      <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[tone])} aria-hidden="true" />
+      <span className="truncate">{label}</span>
+    </SummaryCardLabel>
+    <p className="flex items-baseline gap-1.5">
+      <span className="text-2xl leading-none font-semibold text-primary tabular-nums">{count}</span>
+      <span className="truncate text-sm text-secondary">{unit}</span>
+    </p>
+    {/* Wraps rather than truncating, unlike `Headline`'s detail line: this sentence is
+        the whole gain over a chip, and half of "Below the 25% reserve line" is worth
+        less than the row being a few pixels taller. A grid row shares its height, so
+        the four cards stay level whichever of them wraps. */}
+    <p className="text-xs text-secondary">{detail}</p>
+  </button>
+);
+
 /**
  * The line under a card's chips — a figure that qualifies them without being a
  * filter of its own.
@@ -242,6 +375,15 @@ type SummaryCollapseButtonProps = {
   activeCount: number;
   /** Id of the `SummaryCardRow` this folds, for `aria-controls`. */
   controls: string;
+  /**
+   * What the strip *is*, for the button's own label — `Show filters`.
+   *
+   * A prop because the two screens' strips are no longer the same kind of thing. The
+   * fleet's four cards are all filters. The estate's are a summary: one of its four
+   * still filters, but two of them are links out and calling the fold "filters"
+   * would name the smaller half of what it hides.
+   */
+  noun?: string;
 };
 
 /**
@@ -266,6 +408,7 @@ export const SummaryCollapseButton = ({
   onCollapsedChange,
   activeCount,
   controls,
+  noun = 'filters',
 }: SummaryCollapseButtonProps) => {
   const Chevron = collapsed ? ChevronDownIcon : ChevronUpIcon;
 
@@ -284,7 +427,7 @@ export const SummaryCollapseButton = ({
       )}
     >
       <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
-      {collapsed ? 'Show filters' : 'Hide filters'}
+      {collapsed ? `Show ${noun}` : `Hide ${noun}`}
       {/* Closed state only: open, the highlighted chips say this already, and a
           second count beside them invites the reader to reconcile two figures. */}
       {collapsed && activeCount > 0 && (

@@ -1,12 +1,6 @@
-import {
-  FUEL_INTEGRITY,
-  fuelLeakNotice,
-  isLeak,
-  reconcile,
-} from '../types/fuelIntegrity.type';
+import {FUEL_INTEGRITY, reconcile} from '../types/fuelIntegrity.type';
 import type {
   FuelIntegrityState,
-  FuelLeakNotice,
   FuelLossSpan,
   FuelWindow,
   InstrumentFeed,
@@ -208,10 +202,6 @@ export const useFuelIntegrity = (gensetId: string, now: number = NOW): FuelInteg
   return fuelIntegrityOf(gensetId, now);
 };
 
-/** The alarm this genset is carrying, if it is carrying one. */
-export const leakNoticeOf = (gensetId: string, now: number = NOW): FuelLeakNotice | undefined =>
-  fuelLeakNotice(gensetId, fuelIntegrityOf(gensetId, now));
-
 /**
  * The genset's condition from the **machine** alone — the register map's bits and
  * the leak reconciliation, and nothing about how full the tank is.
@@ -292,10 +282,6 @@ export const gensetCondition = (gensetId: string, now: number = NOW): GensetCond
   return worstCondition(machine, CONDITION_OF_SEVERITY[SEVERITY_OF_FUEL_LEVEL[kind]]);
 };
 
-/** Whether this genset is carrying a leak alarm at all — for counts and filters. */
-export const hasLeak = (gensetId: string, now: number = NOW): boolean =>
-  isLeak(fuelIntegrityOf(gensetId, now));
-
 // ─── Per-run SFC anomaly ──────────────────────────────────────────────────────
 
 /**
@@ -358,10 +344,3 @@ export const runTankSfc = (run: GensetRun, now: number = NOW): RunSfcFigures | u
 
 /** Flag a run whose tank draw is this much over its loading's expectation. */
 export const SFC_ANOMALY_THRESHOLD_PERCENT = 15;
-
-export const runSfcAnomaly = (run: GensetRun, now: number = NOW): RunSfcFigures | undefined => {
-  const figures = runTankSfc(run, now);
-  return figures !== undefined && figures.overPercent >= SFC_ANOMALY_THRESHOLD_PERCENT
-    ? figures
-    : undefined;
-};

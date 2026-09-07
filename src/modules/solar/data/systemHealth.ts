@@ -1,8 +1,6 @@
 import {systemCondition} from '../types/health.type';
 import type {SystemAlert, SystemCondition} from '../types/health.type';
-import {silentInverters} from '../types/system.type';
 import type {SolarSystem} from '../types/system.type';
-import {insulationOf} from './inverterDetail';
 import type {SystemDetail} from './systemDetail';
 
 /**
@@ -13,16 +11,26 @@ import type {SystemDetail} from './systemDetail';
  * The genset's alerts are a register map's bits: the app reports what the panel
  * raised and prints the coordinates so a reader can go and check. A PV system has
  * no such map, so every rule here had to earn its place a different way — by
- * being **derivable from something else drawn on the same page**. Count the dark
- * string bars, read the dial, or look at the month the chart steps down. Nothing
- * here asks to be taken on trust.
+ * being **derivable from something else drawn on the same page**. Read the last
+ * wash off the readings below it, or look at the month the chart steps down.
+ * Nothing here asks to be taken on trust.
  *
- * ## Most of them name a box
+ * ## Three rules, and it used to be five
  *
- * Which is the whole reason the model was rebuilt around the inverter. "String
- * offline" on a system of ten boxes is an alert nobody can act on; "Inverter 4 —
- * 9 of 13 strings" is a job with an address. `inverterId` is `undefined` only on
- * the two rules that really are about the whole system.
+ * What went, and why, because the losses are the interesting half:
+ *
+ *  - **`inverter-offline`** — a box silent while its neighbours were not. There
+ *    are no boxes on a telco site, so a silence is now the whole plant's and
+ *    `system-offline` is the only shape it comes in. A plant that used to read
+ *    "nine of ten reporting" now reads offline or does not.
+ *  - **`insulation-low`** — resistance to earth, below which the box refuses to
+ *    start in the morning. It was an inverter's own earth-leakage interlock, and
+ *    with no inverter there is nothing on the site that measures it. A rule this
+ *    app cannot derive is a rule it must not print.
+ *
+ * `string-out` survived both, and it is the one worth keeping: a string is
+ * modules in series, a physical run on the roof, and it goes dark whatever it
+ * terminates in.
  *
  * ## `string-out` needs a step behind it
  *
@@ -43,103 +51,46 @@ import type {SystemDetail} from './systemDetail';
  */
 const CLEAN_DUE_DAYS = 120;
 
-/**
- * Below a megohm the inverter will refuse to start in the morning.
- *
- * The threshold is the box's own, not a preference: it is an earth-leakage
- * interlock, so a string drifting towards it is one that will simply fail to come
- * up after the next storm. That is why this is a warning and not a note — there
- * is nothing wrong with the output today and there will be nothing at all next
- * week.
- */
-const RISO_FLOOR = 1;
-
-const percent = (share: number): string => `${Math.round(share * 100)}%`;
-
 export const systemAlerts = (
   system: SolarSystem,
   detail: SystemDetail,
   now: number = Date.now(),
 ): Array<SystemAlert> => {
   const alerts: Array<SystemAlert> = [];
-  const silent = silentInverters(system);
 
-  if (silent.length > 0) {
-    /**
-     * One rule, two severities, and the line between them is the reason this
-     * model was rebuilt.
-     *
-     * **Every** box silent is a plant we are blind to: no output, no readings,
-     * nothing published, and somebody has to drive there. **Some** boxes silent
-     * is a hole in the picture — the rest of the plant is reporting and the page
-     * still has a day's energy, minus whatever `reportingKwp` says we cannot see.
-     * The old array model could only say the first, so a 1.3 MW plant with one
-     * quiet inverter read as entirely offline.
-     */
-    const all = silent.length === system.inverters.length;
-
-    for (const inverter of all ? [silent[0]] : silent) {
-      alerts.push({
-        id: `${system.id}-offline-${inverter.id}`,
-        ruleId: all ? 'system-offline' : 'inverter-offline',
-        name: all ? 'System not reporting' : 'Inverter not reporting',
-        severity: all ? 'CRITICAL' : 'WARNING',
-        inverterId: all ? undefined : inverter.id,
-        inverterLabel: all ? undefined : inverter.label,
-        readingKey: null,
-        threshold: 'no telemetry',
-        limit: null,
-        comparator: '<',
-        message: all
-          ? 'Nothing has been heard from this system. Its readings are withheld rather than shown stale; what is left is measured over closed months.'
-          : `${inverter.label} has stopped reporting — ${inverter.kwp} kWp of ${system.kwp} kWp, which is ${percent(inverter.kwp / system.kwp)} of the plant nobody can currently see.`,
-        source: 'Inverter',
-        raisedAt: inverter.lastUpdated,
-      });
-    }
-  }
-
-  for (const inverter of system.inverters) {
-    if (inverter.downStrings === 0 || detail.stepAt === undefined) continue;
-
+  if (system.state === 'OFFLINE') {
     alerts.push({
-      id: `${system.id}-string-out-${inverter.id}`,
-      ruleId: 'string-out',
-      name: inverter.downStrings === 1 ? 'String offline' : 'Strings offline',
+      id: `${system.id}-offline`,
+      ruleId: 'system-offline',
+      name: 'System not reporting',
       severity: 'CRITICAL',
-      inverterId: inverter.id,
-      inverterLabel: inverter.label,
-      readingKey: 'dc-current',
-      threshold: `${inverter.strings} strings expected`,
+      readingKey: null,
+      threshold: 'no telemetry',
       limit: null,
       comparator: '<',
-      message: `${inverter.downStrings} of ${inverter.strings} strings on ${inverter.label} ${inverter.downStrings === 1 ? 'has' : 'have'} stopped delivering — this system's output stepped down in ${detail.stepLabel} and has stayed there.`,
-      // The box can see this and does not tell us: the model has one DC input per
-      // system, so the claim is the app's arithmetic over a step in the monthly
-      // series, and the card says so.
-      source: 'Generation series',
-      raisedAt: detail.stepAt,
+      message:
+        'Nothing has been heard from this system. Its readings are withheld rather than shown stale; what is left is measured over closed months.',
+      source: 'Telemetry',
+      raisedAt: system.lastUpdated,
     });
   }
 
-  for (const inverter of system.inverters) {
-    const riso = insulationOf(inverter.id);
-    if (inverter.state === 'OFFLINE' || riso >= RISO_FLOOR) continue;
-
+  if (system.downStrings > 0 && detail.stepAt !== undefined) {
     alerts.push({
-      id: `${system.id}-insulation-${inverter.id}`,
-      ruleId: 'insulation-low',
-      name: 'Insulation resistance low',
-      severity: 'WARNING',
-      inverterId: inverter.id,
-      inverterLabel: inverter.label,
-      readingKey: 'insulation-resistance',
-      threshold: `< ${RISO_FLOOR} MΩ`,
-      limit: RISO_FLOOR,
+      id: `${system.id}-string-out`,
+      ruleId: 'string-out',
+      name: system.downStrings === 1 ? 'String offline' : 'Strings offline',
+      severity: 'CRITICAL',
+      readingKey: null,
+      threshold: `${system.strings} strings expected`,
+      limit: null,
       comparator: '<',
-      message: `${riso} MΩ to earth on ${inverter.label}. Below a megohm it will not start, so that box is one wet night from making nothing.`,
-      source: 'Inverter',
-      raisedAt: inverter.lastUpdated,
+      message: `${system.downStrings} of ${system.strings} strings ${system.downStrings === 1 ? 'has' : 'have'} stopped delivering — this system's output stepped down in ${detail.stepLabel} and has stayed there.`,
+      // Not the array's own telemetry: the claim is this app's arithmetic over a
+      // step in the monthly series, and the card says so. Nothing on the roof can
+      // see the months either side of the one it dropped in.
+      source: 'Generation series',
+      raisedAt: detail.stepAt,
     });
   }
 
@@ -150,18 +101,14 @@ export const systemAlerts = (
       ruleId: 'soiling-due',
       name: 'Wash overdue',
       severity: 'WARNING',
-      // A fact about glass, so it belongs to no box. This is the clearest case
-      // for `inverterId` being nullable rather than every alert naming one.
-      inverterId: undefined,
-      inverterLabel: undefined,
       readingKey: 'days-since-clean',
       threshold: `> ${CLEAN_DUE_DAYS} days`,
       limit: CLEAN_DUE_DAYS,
       comparator: '>',
       message: `${cleaned.value} days since the modules were last washed.`,
-      // Not the inverter. This is a chore falling due, the same kind of row an
-      // overdue service is on a genset, and it prints its origin so a reader can
-      // tell it apart from the rules that are measurements.
+      // A chore falling due, the same kind of row an overdue service is on a
+      // genset, and it prints its origin so a reader can tell it apart from the
+      // rules that are measurements.
       source: 'Service schedule',
       raisedAt: new Date(now - cleaned.value * 24 * 60 * 60 * 1000).toISOString(),
     });
@@ -178,9 +125,3 @@ export const systemHealth = (
   const alerts = systemAlerts(system, detail, now);
   return {alerts, condition: systemCondition(alerts)};
 };
-
-/** The alerts that belong to one box — its own page's health band. */
-export const alertsForInverter = (
-  alerts: Array<SystemAlert>,
-  inverterId: string,
-): Array<SystemAlert> => alerts.filter((alert) => alert.inverterId === inverterId);

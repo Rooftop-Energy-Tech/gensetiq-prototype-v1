@@ -2,9 +2,6 @@ import {useNavigate} from '@tanstack/react-router';
 import {
   BatteryChargingIcon,
   BoomBoxIcon,
-  FuelIcon,
-  GaugeIcon,
-  LayoutDashboardIcon,
   LogOutIcon,
   PanelsTopLeftIcon,
   RadioTowerIcon,
@@ -33,41 +30,46 @@ import {BRAND} from '@/brands';
  *
  * **Report** stood in the slot it left and has since been removed with it. It was
  * one destination over three tabs — `Overall`, `Solar`, `Genset` — and every
- * figure on it was a second reading of something a register or the overview
- * already states. What the estate is generating belongs on `/solar`, what it is
- * burning belongs on `/gensets` and `/refuel`, and the headline of both is already
- * on `/overview`. A destination whose whole job is to restate other screens is one
+ * figure on it was a second reading of something a register already states. What
+ * the estate is generating belongs on `/solar` and what it is burning belongs on
+ * `/gensets`. A destination whose whole job is to restate other screens is one
  * more place for two numbers to disagree.
+ *
+ * **Overview** led the rail and has gone the same way, for the same reason applied
+ * one level up. It counted the estate; `/sites` lists it and now carries those
+ * tallies in the card strip above the rows — so the two figures it alone held,
+ * service due and solar share, moved into that strip and the destination went. A
+ * screen that counts what the next screen lists is one navigation nobody needs.
+ *
+ * **Meters** and **Refuel** stood last, and were cut for a different reason again:
+ * both were whole features rather than restatements, and both went to get the first
+ * build's surface down to what one engineer can hold. Their design is written down
+ * in GEN-24 and GEN-25 rather than lost.
  *
  * ## Counting, then registers
  *
- * The rail falls into two halves and the order says so. Above, two destinations
- * that *count the estate* — Overview and Sites. Below, three that *list its
- * plant* — Solar, Battery, Gensets — one per thing bolted to a site. Meters and
- * Refuel close it out as the two operational logs.
+ * The rail is one destination that *counts and lists the estate* — Sites — over
+ * three that *list its plant*: Solar, Battery, Gensets, one per thing bolted to a
+ * site.
  */
 const NAV_ITEMS: Array<NavItem> = [
-  // First, and the app's landing screen: the estate's state before any one site
-  // in it. Everything below is a way of narrowing what this page counts.
-  {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
+  // First, and the app's landing screen: the estate counted in the card strip and
+  // listed under it. Everything below is a way of narrowing what this page counts.
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
   // The three plant registers, grouped and ordered by what each one is: the
   // solar system, the bank it charges, and the engine that backs both up.
   //
   // Solar was a scaffold — six empty tabs — until it became a register with a
   // page per system and the six tabs moved down onto each one, which is the shape
-  // `/gensets` has always had. A row there is everything PV at one site; its
-  // inverters are a band on its page. Battery is still the scaffold, and it stays in the
+  // `/gensets` has always had. A row there is everything PV at one site, and that
+  // is the whole of it: a telco array feeds a −48 V DC bus, so there is no
+  // inverter below it to have a page of its own. Battery is still the scaffold, and it stays in the
   // rail for the reason both were put there: a destination that says what it will
   // hold is how the shape of the estate gets agreed before a table is drawn for
   // it, and storage is the largest thing this app is missing.
   {label: 'Solar', icon: PanelsTopLeftIcon, link: '/solar'},
   {label: 'Battery', icon: BatteryChargingIcon, link: '/battery'},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
-  // After Sites, because a meter is fitted to a site's circuit and reads nothing on
-  // its own — the order of the rail follows what each destination is about.
-  {label: 'Meters', icon: GaugeIcon, link: '/meters'},
-  {label: 'Refuel', icon: FuelIcon, link: '/refuel'},
 ];
 
 export const Sidebar = () => {
@@ -81,7 +83,7 @@ export const Sidebar = () => {
 
   return (
     // Gone entirely below `md`, where `MobileNav` takes over. Not merely narrowed:
-    // a rail of nine destinations has no phone-width form, and the handful that
+    // a rail of six destinations has no phone-width form, and the handful that
     // do have mobile layouts are the ones the floating bar offers.
     <aside className="hidden h-full w-[94px] flex-col items-center pt-2 md:flex">
       <div className="flex w-full items-center justify-center py-3.5">
@@ -107,8 +109,7 @@ export const Sidebar = () => {
         />
       </div>
 
-      {/* `min-h-0` and its own scroll, added when the rail went from seven
-          destinations to nine. Without them the item list simply grows past the
+      {/* `min-h-0` and its own scroll. Without them the item list simply grows past the
           bottom of the aside and takes Settings and the sign-out avatar with it —
           at a 720px viewport the footer started 69px below the fold and neither
           control could be reached at all. Flex items floor at their content size

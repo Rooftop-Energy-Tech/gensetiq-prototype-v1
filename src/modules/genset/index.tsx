@@ -52,7 +52,8 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * that the app offers no control it cannot honour.
    *
    * The summary cards *are* kept, because they have a phone form: they stack two-up
-   * and their chips are the only filtering this width otherwise has.
+   * and each readiness bucket is still a filter at this width. Duty and region are
+   * in the toolbar, which every width gets.
    *
    * `view` in the URL is left exactly as it is. A phone reading a link to
    * `?view=split` shows the list and, followed on a desktop, that same link still
@@ -155,6 +156,9 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         panelOpen={panelOpen}
         onPanelOpenChange={(next) => onSearchChange({panel: next})}
         showViewControls={!compact}
+        summary={summary}
+        search={search}
+        onSearchChange={onSearchChange}
       />
 
       <GensetsSummaryCards

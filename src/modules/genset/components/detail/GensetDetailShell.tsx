@@ -4,7 +4,6 @@ import {
   BoomBoxIcon,
   ChartLineIcon,
   CircuitBoardIcon,
-  FuelIcon,
   InfoIcon,
   PlayIcon,
   SettingsIcon,
@@ -25,12 +24,11 @@ import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 
 /**
- * The eight sections of a genset, as rows in a rail rather than tabs in a strip.
+ * The seven sections of a genset, as rows in a rail rather than tabs in a strip.
  *
  * The order is unchanged, and so is the reasoning behind it: `Service` reads the
  * run log, so the section that says *how much it has run* comes before the one
- * that says *what that means for its next service*; `Refuel` sits beside `Runs`
- * because the two reconcile against each other. There is no Deployments section —
+ * that says *what that means for its next service*. There is no Deployments section —
  * a set on this estate is bolted to a plinth beside the tower it feeds and its
  * posting is one record, opened at commissioning and still open, so the fact lives
  * in the header's tooltip instead.
@@ -45,11 +43,10 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
   const params = {gensetId};
 
   return [
-    // `end` on the landing row alone: `/gensets/x` prefixes all seven below it.
+    // `end` on the landing row alone: `/gensets/x` prefixes all six below it.
     {label: 'Genset', icon: BoomBoxIcon, to: '/gensets/$gensetId', params, end: true},
     {label: 'Analysis', icon: ChartLineIcon, to: '/gensets/$gensetId/analysis', params},
     {label: 'Runs', icon: PlayIcon, to: '/gensets/$gensetId/runs', params},
-    {label: 'Refuel', icon: FuelIcon, to: '/gensets/$gensetId/refuel', params},
     {label: 'Service', icon: WrenchIcon, to: '/gensets/$gensetId/service', params},
     {label: 'Alarms', icon: BellIcon, to: '/gensets/$gensetId/alarms', params},
     {label: 'Devices', icon: CircuitBoardIcon, to: '/gensets/$gensetId/equipment', params},

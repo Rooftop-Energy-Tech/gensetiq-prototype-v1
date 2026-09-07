@@ -1,30 +1,23 @@
 import {useState} from 'react';
-import type {FormEvent} from 'react';
 
 import type {Genset} from '../../types/genset.type';
 import type {ControlMode} from '../../types/telemetry.type';
 import type {AlertFocus} from '../../types/detailView.type';
 import {serviceHeadline, serviceNotice} from '../../types/service.type';
 import type {GensetDetail} from '../../data/detail';
-import {useServiceRecords, useServiceStatus} from '../../data/services';
+import {useServiceStatus} from '../../data/services';
 import {gensetCondition, useFuelIntegrity} from '../../data/fuelIntegrity';
 import {fuelLeakNotice} from '../../types/fuelIntegrity.type';
 import {fuelLevelNotice, fuelRemainingHeadline} from '../../types/fuelLevel.type';
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
-import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
 import {amount, fuelHeadline} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
-import {useSession} from '@/modules/auth/session';
 import {countBySeverity} from '../../types/alert.type';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
-import {runTotalsIn} from '../../data/history';
-import {addActivityNote, gensetActivityLog, useActivityNotes} from '../../data/activity';
-import {ActivityFeed} from '../ActivityFeed';
 import {AlertsSection} from './AlertsSection';
 import {ControlPad} from './ControlPad';
 import {CurrentRunCard} from './CurrentRunCard';
@@ -40,22 +33,31 @@ import {TickGauge} from './TickGauge';
  *
  * 1. **The strip** — the tank, its runway, service, and the alarm counts.
  * 2. **The dials** — the controls and the live readings.
- * 3. **The run, the day and the tank** — one start's totals, all of today's, and
- *    when the tank needs filling.
+ * 3. **The run and the tank** — one start's totals, and when the tank needs
+ *    filling.
  * 4. **The details** — which machine this is and what size it is, in a narrow
  *    block between two rules.
  * 5. **The chart** — diesel output, with a day stepper and a period control.
  * 6. **What is wrong** — alerts, and the readings behind them.
- * 7. **What has happened** — the feed, newest first.
  *
  * ## The order, and what the design changed about it
  *
  * The order is the order the questions get asked, and it is the one decision the
  * whole page rests on. It used to open on the run and the tank and put the dials
  * second; the frame swaps them, and it is right to. The strip above now answers
- * *how much* — today's energy and the tank — so the first band under it should
+ * *how much is left* — the tank and its runway — so the first band under it should
  * answer *what is happening this second*, which is the dials. The run's totals are
  * the slower reading of the same subject and follow it.
+ *
+ * ## Where the activity feed went
+ *
+ * Nowhere; it is gone, as it is from `/solar`. It closed the page as band 7 — a
+ * list of things that had already happened, with a text field for adding another
+ * — and it was the page's only backwards-looking band, which is why it was last
+ * and why nothing above it moves now that it has gone. Its component, its
+ * derivation and its note store are still in the module, unreferenced, if it is
+ * wanted back. Everything it showed is still owned by a screen of its own: runs
+ * on `Runs`, services on `Service`, and deliveries on the tank chart.
  *
  * Band 2 loses its dials when the engine stops, and `StandbyPanel` takes their
  * place beside the pad. It is not a placeholder: the readings that survive a
@@ -115,18 +117,6 @@ export const GensetHome = ({
   const seed = genset.siteId === null ? undefined : siteSeed(genset.siteId);
   const role = useSitePowerRole(genset.siteId ?? '');
 
-  /**
-   * What this engine has done since midnight — starts, hours, kilowatt-hours and
-   * litres, in one reading of the run log.
-   *
-   * From `runTotalsIn`, which is also what `gensetKwhIn` sums for the chart in band
-   * 5, so a run that began before midnight is split between the two days the same
-   * way here as it is in the bars below. Two implementations of that split is how a
-   * card and the chart under it end up disagreeing about the same morning.
-   */
-  const startOfToday = new Date(now).setHours(0, 0, 0, 0);
-  const today = runTotalsIn(genset.id, startOfToday, now, now);
-
   // Live, not from `detail` — a service logged in this session has to move the
   // reading in band 3 and clear the overdue notice without a reload. Measured
   // against the same `now` as everything else on the page.
@@ -147,21 +137,6 @@ export const GensetHome = ({
    */
   const alerts = standingAlarms(genset.id, useAlarmHandling());
 
-  // The feed is every record that mentions this machine, merged — controller
-  // events, dispatch postings, refuel orders, services and typed notes — the
-  // same derivation the fleet page's panel makes, so the two never disagree.
-  const records = useServiceRecords();
-  const notes = useActivityNotes();
-  const activity = gensetActivityLog(genset, records, notes);
-  const session = useSession();
-  const [noteDraft, setNoteDraft] = useState('');
-
-  const handleLogNote = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    addActivityNote(genset.id, noteDraft, session?.email ?? 'operator');
-    setNoteDraft('');
-  };
-
   return (
     <div className="flex flex-col gap-5 px-4 pb-24 md:pb-6">
       {/* Band 1 — the three figures that decide whether somebody is sent out.
@@ -173,11 +148,11 @@ export const GensetHome = ({
           questions this strip answers are the ones that fill it.
 
           The design's `Generation today` is **gone from here** and lives in band
-          3's `Today` card with the hours, starts and litres that produced it. On
-          its own in a strip it invited a share-of-site reading this page cannot
-          honestly give — an engine's output may go into a battery and come back
-          out tomorrow, so what fraction of *today* it carried is a question about
-          the site's day, not the machine's.
+          5's chart, where a day stepper and a period control put it beside
+          yesterday and the week. On its own in a strip it invited a share-of-site
+          reading this page cannot honestly give — an engine's output may go into a
+          battery and come back out tomorrow, so what fraction of *today* it
+          carried is a question about the site's day, not the machine's.
 
           All three survive a stopped engine, which is what a summary has to do:
           the tank is the tank whether or not the engine is turning, and a set
@@ -271,7 +246,7 @@ export const GensetHome = ({
             must not wrap — becomes the floor for the whole band. */}
         <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
           <RunStateSummary runState={genset.runState} loadKw={detail.loadKw} />
-          <CurrentRunCard run={detail.run} today={today} gensetId={genset.id} now={now} />
+          <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
         </div>
 
         <FuelPanel
@@ -327,13 +302,18 @@ export const GensetHome = ({
 
       <hr className="border-subtle" />
 
-      {/* Band 5 — what this engine has put out over time. `TrendPanel` held to the
+      {/* Band 5 — how much this engine has run over time. `TrendPanel` held to the
           one metric this page is about, exactly as the solar and battery pages hold
           it to theirs, and handed **this genset alone** rather than the yard's set:
           the site page's own band is where a reader compares two machines.
 
+          Hours rather than the kilowatts this drew before. A set's output is its
+          site's load reflected back — the curve is a rectangle whatever the day
+          did — where its hours are the number the estate is actually managed in,
+          and the number an abnormal week shows up in. See `gensetHoursIn`.
+
           Absent at the depot. See the note on `seed` above — an undeployed set has
-          no site, and a chart of its output would be a flat line claiming a
+          no site, and a chart of its runtime would be a flat line claiming a
           measurement nobody took. */}
       {seed !== undefined && (
         <TrendPanel
@@ -342,7 +322,7 @@ export const GensetHome = ({
           gensetIds={[genset.id]}
           metrics={['GENSET']}
           now={now}
-          ariaLabel="Genset output"
+          ariaLabel="Genset runtime"
         />
       )}
 
@@ -359,32 +339,6 @@ export const GensetHome = ({
         onFocusChange={onFocusChange}
       />
 
-      <hr className="border-subtle" />
-
-      {/* Band 7 — what the machine has been through, newest first. The same
-          feed the fleet page's slide-over shows, so an event reads identically
-          wherever it is met; here it sits last because it is the page's only
-          backwards-looking band. */}
-      <section className="flex max-w-xl flex-col gap-3">
-        <h3 className="text-sm font-medium text-primary">Activity</h3>
-        {/* The feed's manual inlet. Everything else here is derived from a
-            record another screen owns; this is the one line an operator types
-            — a padlock replaced, a smell of diesel, a gate left open — and it
-            files under their own name. */}
-        <form onSubmit={handleLogNote} className="flex items-center gap-2">
-          <Input
-            value={noteDraft}
-            onChange={(event) => setNoteDraft(event.target.value)}
-            placeholder="Log an entry against this genset"
-            aria-label="Log an entry against this genset"
-            className="h-8"
-          />
-          <Button type="submit" size="sm" variant="outline" disabled={noteDraft.trim() === ''}>
-            Log
-          </Button>
-        </form>
-        <ActivityFeed activity={activity} />
-      </section>
     </div>
   );
 };

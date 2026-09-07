@@ -1,9 +1,11 @@
-import {Suspense, lazy, useMemo, useRef} from 'react';
+import {Suspense, lazy, useMemo, useRef, useState} from 'react';
 import {SearchXIcon} from 'lucide-react';
 
 import {useIsCompact} from '@/lib/useIsCompact';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
+import {isDueForService, useServiceRecords} from '@/modules/genset/data/services';
 import {estateSummary, filterSites} from './data/estateSummary';
+import {estateEnergy} from './data/hybrid';
 import {searchSites, sortSites, useSiteSummaries} from './data/sites';
 import {useSitePowerRoles} from './data/siteConfig';
 import {SiteDetailPanel} from './components/SiteDetailPanel';
@@ -50,6 +52,18 @@ type SitesPageProps = {
  * needs one: a pin has nowhere to put a link, so a clicked site has to open
  * *something* that carries the way in. That panel is a preview of the site rather
  * than a copy of its page — the facts a pin cannot state, and an arrow out.
+ *
+ * ## It is also the app's landing screen
+ *
+ * `/` used to send you to `/overview`, and this page is where that went. The two
+ * were always answering the same question at different resolutions — *is every site
+ * up, and where* — and the overview's own note admitted the honest version of this:
+ * it existed because "a list makes them read twenty-five rows to find that out". The
+ * card strip above the list is that summary, so the estate is counted and listed on
+ * one screen instead of counted on one and listed on the next.
+ *
+ * Two figures the overview carried and nothing else did — service due and solar
+ * share — came down into the strip with it. See `SitesSummaryCards`.
  */
 export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   const {view, q = '', id, panel, customer, role, status, program} = search;
@@ -63,6 +77,47 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
 
   // Over the whole estate, not the filtered view — see `estateSummary`.
   const summary = useMemo(() => estateSummary(all, roles), [all, roles]);
+
+  // One clock reading for the whole render, so the service count cannot straddle a
+  // minute boundary between the tally and the detail line under it.
+  const [now] = useState(() => Date.now());
+
+  /**
+   * Machines past one of their two intervals, and the yards they stand in.
+   *
+   * Read through `useServiceRecords()` so logging a service on a genset's own tab
+   * drops the count here without a reload — `serviceRecords` is the subscription
+   * rather than an input, which is why it is a dependency the rule cannot see.
+   */
+  const serviceRecords = useServiceRecords();
+  const serviceDue = useMemo(() => {
+    const due = ({genset}: {genset: {id: string}}) => isDueForService(genset.id, now);
+    return {
+      siteCount: all.filter((summary) => summary.gensets.some(due)).length,
+      gensetCount: all.reduce(
+        (running, summary) => running + summary.gensets.filter(due).length,
+        0,
+      ),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, serviceRecords, now]);
+
+  /**
+   * The energy position, from the same model `/solar` tabulates.
+   *
+   * The nameplate map is what makes the fuel curve real — see `hybrid.ts` — so it is
+   * built from the summaries here rather than assumed there. Over the whole estate
+   * like every other figure on the strip, not the filtered view.
+   */
+  const ratedKwBySite = useMemo(
+    () =>
+      Object.fromEntries(all.map((summary) => [summary.site.id, summary.ratedKw])) as Record<
+        string,
+        number
+      >,
+    [all],
+  );
+  const energy = useMemo(() => estateEnergy(roles, ratedKwBySite), [roles, ratedKwBySite]);
 
   const summaries = useMemo(
     () => sortSites(filterSites(searchSites(all, q), {customer, role, status, program}, roles)),
@@ -126,11 +181,16 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         panelOpen={panelOpen}
         onPanelOpenChange={(next) => onSearchChange({panel: next})}
         showViewControls={!compact}
+        summary={summary}
+        search={search}
+        onSearchChange={onSearchChange}
       />
 
       <SitesSummaryCards
         summary={summary}
         showing={summaries.length}
+        serviceDue={serviceDue}
+        solar={{share: energy.solarShare, kwh: energy.solarKwh}}
         search={search}
         onSearchChange={onSearchChange}
       />
@@ -149,6 +209,11 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
               ) : (
                 <SitesTable
                   summaries={summaries}
+                  roles={roles}
+                  // The fuel column only where the table has the full width —
+                  // beside the map it is the first thing worth giving up. See
+                  // `COLUMNS` in `SitesTable`.
+                  showFuel={!showMap}
                   selectedId={id}
                   onSelect={selectSite}
                   scrollRef={listRef}

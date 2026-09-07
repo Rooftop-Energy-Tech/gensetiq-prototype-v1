@@ -1,5 +1,4 @@
-import {gensetRuns, runLoadKw, runTotalsIn} from '@/modules/genset/data/history';
-import type {GensetRun} from '@/modules/genset/types/run.type';
+import {runTotalsIn} from '@/modules/genset/data/history';
 
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
@@ -35,7 +34,7 @@ import type {SiteSeed} from './siteSeed';
  *
  * Nothing is seeded and nothing is re-derived. Solar comes from `intradayKw` and
  * `solarDays`/`solarMonths`, the bank's state of charge comes from `hybridState`,
- * and the genset's output comes from its **own run log** in the genset module. That
+ * and the genset's runtime comes from its **own run log** in the genset module. That
  * is deliberate and it is the same rule `hybrid.ts` states about itself: the node
  * on the diagram, the figure on the device card and the point on this chart have to
  * be three readings of one quantity, or the page contradicts itself in front of the
@@ -68,7 +67,7 @@ export const SITE_TREND_PERIOD_LABEL: Record<SiteTrendPeriod, string> = {
 export const SITE_TREND_METRIC_LABEL: Record<SiteTrendMetric, string> = {
   SOLAR: 'Solar generation',
   BATTERY: 'Battery level',
-  GENSET: 'Genset power',
+  GENSET: 'Genset runtime',
   LOAD: 'Consumption',
 };
 
@@ -104,7 +103,7 @@ export type SiteTrend = {
   metric: SiteTrendMetric;
   period: SiteTrendPeriod;
   points: Array<TrendPoint>;
-  /** `kW`, `kWh` or `%`. */
+  /** `kW`, `kWh`, `h` or `%`. */
   unit: string;
   /**
    * A fixed axis ceiling where the quantity has one.
@@ -133,7 +132,7 @@ export type SiteTrend = {
  * `seed.loadKw` stays the day's mean by construction — the multiplier averages to
  * 1 over 24 hours — so this reshapes the metered figure without inventing energy.
  */
-const loadShape = (hour: number): number =>
+export const loadShape = (hour: number): number =>
   1 + 0.12 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
 
 /** Midnight local on the day `at` falls in. */
@@ -146,56 +145,50 @@ const startOfDay = (at: number): number => {
 const clockLabel = (hour: number): string =>
   `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 === 0 ? '00' : '30'}`;
 
-/** The run covering `at`, if the set was turning then. */
-const runAt = (runs: Array<GensetRun>, at: number): GensetRun | undefined =>
-  runs.find((run) => {
-    const from = new Date(run.startedAt).getTime();
-    const to = run.endedAt === null ? Number.POSITIVE_INFINITY : new Date(run.endedAt).getTime();
-    return at >= from && at < to;
-  });
-
 /**
- * What the sets at this site were putting into the bus at `at`, kW.
+ * Engine hours across `[from, to)`, summed over this site's sets.
  *
- * Summed across every set, and that is right here where `siteDrawKw` sums nothing:
- * that function answers "what is the customer drawing", where only the duty set
- * counts because only one set is on the bus. This answers "what did the diesel do",
- * and a second set turning off-load has still burned fuel and still put hours on an
- * engine — which is exactly what a diagnostics band is for.
- */
-const gensetKwAt = (gensetIds: Array<string>, at: number, now: number): number => {
-  let kw = 0;
-  for (const gensetId of gensetIds) {
-    const run = runAt(gensetRuns(gensetId), at);
-    if (run !== undefined) kw += runLoadKw(run, now);
-  }
-  return Math.round(kw * 10) / 10;
-};
-
-/**
- * Diesel energy across `[from, to)`, kWh — the runs' own totals, prorated.
+ * ## Why hours and not kilowatts
  *
- * Exported because the genset page's summary strip asks the same question of one
- * machine over one day that the chart asks of a yard over a month, and the
- * proration is the part that has to agree: a run that started at eleven last night
- * belongs to two days, and a second implementation of that split is how the strip
- * and the chart under it end up quoting different energies for the same morning.
+ * Because the band is a diagnostic, and diesel *output* is not a fault signal. A
+ * set delivers roughly what the site draws whenever it is turning, so its kW curve
+ * is a rectangle at the load — the same rectangle on the morning the mains failed
+ * for twenty minutes and on the week the changeover stuck closed. Hours run
+ * separate those two immediately: a site whose bars sit at two hours a week and
+ * then post fourteen has something wrong with it, and that is legible from across
+ * the room without knowing what the set is rated at.
+ *
+ * It is also the figure the rest of the estate is managed in — services fall due on
+ * engine hours, and fuel is planned against them — so a reader comparing this chart
+ * to a service interval is comparing like with like.
+ *
+ * ## Why every set is summed
+ *
+ * Summed rather than taken from the duty machine, and that is right here where
+ * `siteDrawKw` sums nothing: that function answers "what is the customer drawing",
+ * where only the set on the bus counts. This answers "how much diesel running did
+ * this site do", and a second set turning off-load has still put hours on an engine
+ * — which is exactly what a diagnostics band is for.
+ *
+ * `runTotalsIn` owns the split of a run across a boundary: one that started at
+ * eleven last night belongs to two days rather than being counted whole in both.
+ * Keeping that arithmetic in one place is what stops this chart and the runs tab's
+ * totals quoting different mornings.
  */
-export const gensetKwhIn = (
+export const gensetHoursIn = (
   gensetIds: Array<string>,
   from: number,
   to: number,
   now: number,
 ): number => {
-  // `runTotalsIn` owns the midnight split — a run spanning it is shared between
-  // the two days rather than counted twice — so this sums and rounds once. It was
-  // a second copy of that arithmetic until the genset home page needed the same
-  // figure for its own day, which is the point at which two copies start drifting.
-  let kwh = 0;
+  let runtimeMs = 0;
   for (const gensetId of gensetIds) {
-    kwh += runTotalsIn(gensetId, from, to, now).energyKwh;
+    runtimeMs += runTotalsIn(gensetId, from, to, now).runtimeMs;
   }
-  return Math.round(kwh);
+  // A tenth of an hour is six minutes, which is about the finest a start is worth
+  // reporting at. A second decimal would be precision the run log's own timestamps
+  // do not carry.
+  return Math.round((runtimeMs / 3_600_000) * 10) / 10;
 };
 
 /** Which metrics this site can actually draw. See `SiteTrend` for why it matters. */
@@ -224,6 +217,16 @@ export const siteTrendMetrics = (
 
 const NUMBER = new Intl.NumberFormat('en-MY', {maximumFractionDigits: 0});
 
+/**
+ * An hours figure for a readout — `6.2 h` while a tenth means something, `1,284 h`
+ * once it does not.
+ *
+ * The threshold is a hundred hours, which is roughly where a reader stops thinking
+ * in starts and shifts and starts thinking in service intervals.
+ */
+const hoursLabel = (hours: number): string =>
+  hours < 100 ? `${Math.round(hours * 10) / 10} h` : `${NUMBER.format(Math.round(hours))} h`;
+
 /** The series, for one metric over one window. */
 export const siteTrend = (
   seed: SiteSeed,
@@ -240,14 +243,24 @@ export const siteTrend = (
 };
 
 /**
- * Half-hourly through one day — **power**, not energy, and that is the whole
- * reason the day gets its own function.
+ * Half-hourly through one day — **what was happening**, not how much, and that is
+ * the whole reason the day gets its own function.
  *
- * At every longer window the useful quantity is how much (kWh over a bucket); at a
- * day it is what was happening (kW at an instant), because the shape is the
- * information. An array shaded from three o'clock and an array that tripped at
- * three make the same daily total and completely different curves — the same
- * argument `SolarTodayChart` makes for drawing a curve rather than another bar.
+ * At every longer window the useful quantity is how much over a bucket; at a day it
+ * is the reading at an instant, because the shape is the information. An array
+ * shaded from three o'clock and an array that tripped at three make the same daily
+ * total and completely different curves — the same argument `SolarTodayChart` makes
+ * for drawing a curve rather than another bar.
+ *
+ * ## The genset's day is a running total
+ *
+ * Runtime has no instantaneous value worth plotting: sampled at a half-hour it is
+ * the set being on or off, and a chart of that is a square wave with an axis in
+ * hours it never uses. So the day draws hours **accumulated since midnight**, which
+ * says the same thing and one more — the slope is the machine running, a flat
+ * stretch is it stopped, and where the curve ends is the day's total. A reader can
+ * see that it started at six and has been turning ever since without reading a
+ * single number off the axis.
  */
 const dayTrend = (
   seed: SiteSeed,
@@ -276,7 +289,9 @@ const dayTrend = (
 
     points.push({
       label: clockLabel(hour),
-      value: !known ? null : dayValue(seed, role, gensetIds, metric, at, hour, dayKwh, now),
+      value: !known
+        ? null
+        : dayValue(seed, role, gensetIds, metric, start, at, hour, dayKwh, now),
     });
   }
 
@@ -287,19 +302,25 @@ const dayTrend = (
     metric,
     period: 'day',
     points,
-    unit: metric === 'BATTERY' ? '%' : 'kW',
+    unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kW',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
     caption:
       metric === 'BATTERY'
         ? 'State of charge through the day, half-hourly'
-        : 'Power through the day, half-hourly',
+        : metric === 'GENSET'
+          ? 'Hours run through the day, accumulated from midnight'
+          : 'Power through the day, half-hourly',
     total:
       metric === 'BATTERY'
         ? {
             label: 'Lowest today',
             value: `${readings.length === 0 ? 0 : Math.round(Math.min(...readings))}%`,
           }
-        : {label: 'Peak', value: `${Math.round(peak * 10) / 10} kW`},
+        : metric === 'GENSET'
+          ? // The curve only climbs, so its peak is where it ended — the day's
+            // total, without a second pass over the points to find it.
+            {label: 'Hours run', value: hoursLabel(peak)}
+          : {label: 'Peak', value: `${Math.round(peak * 10) / 10} kW`},
   };
 };
 
@@ -309,6 +330,8 @@ const dayValue = (
   role: SitePowerRole,
   gensetIds: Array<string>,
   metric: SiteTrendMetric,
+  /** Midnight of the day being drawn — where the genset's running total starts. */
+  start: number,
   at: number,
   hour: number,
   dayKwh: number,
@@ -322,7 +345,8 @@ const dayValue = (
       // module note. `at` places it on the right hour of the right day.
       return Math.round(hybridState(seed, role, at).soc * 100);
     case 'GENSET':
-      return gensetKwAt(gensetIds, at, now);
+      // Accumulated rather than sampled — see the note on `dayTrend`.
+      return gensetHoursIn(gensetIds, start, at, now);
     default:
       return Math.round(seed.loadKw * loadShape(hour) * 10) / 10;
   }
@@ -330,7 +354,13 @@ const dayValue = (
 
 /**
  * A month of days, a year of months, or the whole record — **energy** per bucket,
- * except the bank, which has no energy to add up and reports its mean level.
+ * except the bank, which has no energy to add up and reports its mean level, and
+ * the sets, which report engine hours.
+ *
+ * This is the view the runtime series exists for. Thirty bars of hours-per-day is
+ * a duty profile, and an abnormal week is a bar that does not match its neighbours
+ * — which is a thing the eye does unaided, and which the kW chart this replaced
+ * could not show at all.
  */
 const periodTrend = (
   seed: SiteSeed,
@@ -376,25 +406,31 @@ const periodTrend = (
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   const sum = readings.reduce((total, value) => total + value, 0);
 
+  const grain = daily ? 'day' : 'month';
+  // Only `lifetime` names its own extent — see the note on `buckets`.
+  const extent = period === 'lifetime' ? ', across the whole record — twelve months' : '';
+
   return {
     metric,
     period,
     points,
-    unit: metric === 'BATTERY' ? '%' : 'kWh',
+    unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
     caption:
       metric === 'BATTERY'
-        ? `Average state of charge, per ${daily ? 'day' : 'month'}`
-        : period === 'lifetime'
-          ? 'Energy per month, across the whole record — twelve months'
-          : `Energy per ${daily ? 'day' : 'month'}`,
+        ? `Average state of charge, per ${grain}`
+        : metric === 'GENSET'
+          ? `Hours run per ${grain}${extent}`
+          : `Energy per ${grain}${extent}`,
     total:
       metric === 'BATTERY'
         ? {
             label: 'Mean',
             value: `${readings.length === 0 ? 0 : Math.round(sum / readings.length)}%`,
           }
-        : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
+        : metric === 'GENSET'
+          ? {label: 'Total', value: hoursLabel(sum)}
+          : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
   };
 };
 
@@ -445,7 +481,7 @@ const bucketValue = (
     case 'SOLAR':
       return solar?.actualKwh ?? 0;
     case 'GENSET':
-      return gensetKwhIn(gensetIds, window.from, window.to, now);
+      return gensetHoursIn(gensetIds, window.from, window.to, now);
     case 'BATTERY': {
       // Sampled every three hours across the bucket and averaged. A single reading
       // at midnight would report the trough of the cycle as the day's level.

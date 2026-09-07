@@ -112,7 +112,12 @@ const minutesBefore = (now: number, minutes: number): string =>
   new Date(now - minutes * MINUTE).toISOString();
 
 /**
- * The event feed shown under "Activity".
+ * The event feed the activity log is built from.
+ *
+ * Nothing renders it any more — the "Activity" band is gone from the genset
+ * home page and from the fleet panel — but it is still what `activity.ts`
+ * merges the controller entries out of, and it stays consistent for the day it
+ * is wanted back.
  *
  * Built from the unit's *current* state backwards, so the story is consistent:
  * a running genset's newest event is the start that put it there, a stopped
@@ -192,6 +197,3 @@ const buildFleet = (): Array<Genset> => {
 };
 
 export const GENSETS: Array<Genset> = buildFleet();
-
-/** The unit the design opens on, and this app's default selection. */
-export const DEFAULT_GENSET_ID = DATASET.defaultGensetId;

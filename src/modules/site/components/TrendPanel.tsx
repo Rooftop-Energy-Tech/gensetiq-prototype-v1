@@ -11,9 +11,27 @@ import {
   siteTrend,
 } from '../data/siteTrend';
 import type {SiteTrendMetric, SiteTrendPeriod} from '../data/siteTrend';
+import {siteOverview} from '../data/siteOverview';
 import type {SitePowerRole} from '../types/site.type';
 import type {SiteSeed} from '../data/siteSeed';
+import {SiteOverviewChart} from './SiteOverviewChart';
 import {SiteTrendChart} from './SiteTrendChart';
+
+/**
+ * `OVERVIEW` is not a `SiteTrendMetric` and is deliberately kept out of that union.
+ *
+ * A metric is one quantity in one unit, and every function in `siteTrend.ts` is
+ * built on that: a switch over the union returns `Array<TrendPoint>` with a unit
+ * beside it. The overview is four quantities at once, from its own model, drawn by
+ * its own component. Widening `SiteTrendMetric` to hold it would have put a member
+ * in the union that half of `siteTrend`'s switches cannot answer for, and the
+ * compiler would have stopped helping at exactly the point it is most needed.
+ *
+ * So the picker's vocabulary is one wider than the model's, and this is the join.
+ */
+export const OVERVIEW_VIEW = 'OVERVIEW' as const;
+
+export type TrendView = SiteTrendMetric | typeof OVERVIEW_VIEW;
 
 /**
  * One chart, a metric picker and a period control — the band the site page's
@@ -52,6 +70,7 @@ export const TrendPanel = ({
   role,
   gensetIds,
   metrics,
+  overviewRatedKw,
   now,
   ariaLabel,
 }: {
@@ -60,7 +79,17 @@ export const TrendPanel = ({
   /** Whose run logs the `GENSET` series reads. Empty is fine when it is not offered. */
   gensetIds: Array<string>;
   /** In the order the picker should offer them; the first is the opening view. */
-  metrics: ReadonlyArray<SiteTrendMetric>;
+  metrics: ReadonlyArray<TrendView>;
+  /**
+   * Nameplate across the sets here, which is what turns the `Energy overview` view
+   * on. `undefined` on every page that does not offer it.
+   *
+   * A number rather than a boolean because the overview's genset band is sized from
+   * it — see `gensetDay`. A page that wants the view has to be able to say how big
+   * the plant is, which is the right thing to demand: an overview with a genset
+   * curve and no nameplate behind it would be drawing a rectangle from nowhere.
+   */
+  overviewRatedKw?: number;
   now: number;
   ariaLabel: string;
 }) => {
@@ -70,8 +99,8 @@ export const TrendPanel = ({
    * from solar on its settings tab — falls back to the first it still offers
    * instead of charting one it no longer has.
    */
-  const [metric, setMetric] = useState<SiteTrendMetric | undefined>(undefined);
-  const active: SiteTrendMetric | undefined =
+  const [metric, setMetric] = useState<TrendView | undefined>(undefined);
+  const active: TrendView | undefined =
     metric !== undefined && metrics.includes(metric) ? metric : metrics[0];
 
   const [period, setPeriod] = useState<SiteTrendPeriod>('day');
@@ -87,15 +116,26 @@ export const TrendPanel = ({
   const [daysBack, setDaysBack] = useState(0);
   const dayAt = now - daysBack * 86_400_000;
 
+  const showingOverview = active === OVERVIEW_VIEW;
+
   const trend = useMemo(
     () =>
-      active === undefined
+      active === undefined || active === OVERVIEW_VIEW
         ? undefined
         : siteTrend(seed, role, gensetIds, active, period, dayAt, now),
     [seed, role, gensetIds, active, period, dayAt, now],
   );
 
-  if (trend === undefined || active === undefined) return null;
+  const overview = useMemo(
+    () =>
+      !showingOverview || overviewRatedKw === undefined
+        ? undefined
+        : siteOverview(seed, role, overviewRatedKw, period, dayAt, now),
+    [showingOverview, seed, role, overviewRatedKw, period, dayAt, now],
+  );
+
+  if (active === undefined) return null;
+  if (showingOverview ? overview === undefined : trend === undefined) return null;
 
   return (
     <section
@@ -125,13 +165,13 @@ export const TrendPanel = ({
                     : 'text-secondary hover:text-primary',
                 )}
               >
-                {SITE_TREND_METRIC_LABEL[option]}
+                {option === OVERVIEW_VIEW ? 'Energy overview' : SITE_TREND_METRIC_LABEL[option]}
               </button>
             ))}
           </nav>
         ) : (
           <h2 className="text-sm font-medium text-primary">
-            {SITE_TREND_METRIC_LABEL[active]}
+            {active === OVERVIEW_VIEW ? 'Energy overview' : SITE_TREND_METRIC_LABEL[active]}
           </h2>
         )}
 
@@ -195,7 +235,11 @@ export const TrendPanel = ({
         </div>
       </div>
 
-      <SiteTrendChart trend={trend} colorClassName={SITE_TREND_METRIC_TOKEN[active]} />
+      {overview !== undefined ? (
+        <SiteOverviewChart overview={overview} />
+      ) : trend === undefined || active === OVERVIEW_VIEW ? null : (
+        <SiteTrendChart trend={trend} colorClassName={SITE_TREND_METRIC_TOKEN[active]} />
+      )}
     </section>
   );
 };

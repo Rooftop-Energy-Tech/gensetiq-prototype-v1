@@ -1,27 +1,25 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, LayoutDashboardIcon, RadioTowerIcon, SunMediumIcon} from 'lucide-react';
+import {BoomBoxIcon, RadioTowerIcon, SunMediumIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 /**
  * The phone-width nav: a floating pill at the bottom of the screen.
  *
  * It replaces the 94px sidebar rather than reflowing it, because the sidebar is a
- * *rail* — seven destinations stacked vertically — and a phone has no vertical
+ * *rail* — six destinations stacked vertically — and a phone has no vertical
  * space to spare for one. Floating rather than docked, and centred rather than
  * full-width, which is the shape RooftopIQ's own floating bars take (see its
  * `FilesBulkActionBar`): the page scrolls underneath it and the bar reads as a
  * control over the content instead of a piece of the frame.
  *
- * ## Three destinations, not seven
+ * ## Three destinations, not six
  *
- * Only the screens that have a mobile layout are here. `Energy`, `Meters`,
- * `Refuel` and `Settings` are desktop-only in this prototype, and a nav item that
- * lands on a screen laid out for 1,280px would be worse than no item at all — the
- * point of a limited bar is that everything it offers works. `Meters` is the
- * clearest case: it is a wide table whose whole job is comparison down a column,
- * and there is no phone-width form of that worth offering.
+ * Only the screens that have a mobile layout are here. `Settings` is desktop-only in
+ * this prototype, and a nav item that lands on a screen laid out for 1,280px would be
+ * worse than no item at all — the point of a limited bar is that everything it offers
+ * works.
  *
- * ## Why the four are the four
+ * ## Why the three are the three
  *
  * Each is a **register** — a list, which is the one shape that reads at 390px.
  * Everything below a register is a detail page with a 240px rail beside it, and
@@ -43,28 +41,28 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/overview' | '/sites' | '/solar' | '/gensets';
+  link: '/sites' | '/solar' | '/gensets';
   /**
-   * The list's own default view state, for the two items that have one.
+   * The list's own default view state.
    *
-   * Both list screens validate their search params, and a `Link` has to name the
+   * All three screens validate their search params, and a `Link` has to name the
    * whole object — the schema's defaults settle a URL that is *parsed*, not one that
-   * is built — so each item says which view it opens. `list` in both cases, which at
-   * this width is the only view either screen has. The overview takes none: it has
-   * no view state to carry.
+   * is built — so each item says which view it opens. `list` in every case, which at
+   * this width is the only view any of them has.
+   *
+   * `/solar` used to take none, because its register had no view state to carry. It
+   * has all three views now, so it names the same one its neighbours do.
    */
-  search?: {view: 'list'};
+  search: {view: 'list'};
 };
 
 const ITEMS: Array<MobileNavItem> = [
-  // The overview is here because it genuinely has a phone layout: its tiles are a
-  // two-column grid at this width rather than a desktop screen squeezed. It is also
-  // where `/` now lands, so leaving it out would strand a phone on a screen with no
-  // way back to it.
-  {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
+  // First, and where `/` now lands. Its card strip is the estate's tallies, folded
+  // away by default at this width — see `SummaryCollapseButton` — so the phone gets
+  // the list first and the summary on request.
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
   // The array register, which is where solar lives now that the report is gone.
-  {label: 'Solar', icon: SunMediumIcon, link: '/solar'},
+  {label: 'Solar', icon: SunMediumIcon, link: '/solar', search: {view: 'list'}},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
 ];
 

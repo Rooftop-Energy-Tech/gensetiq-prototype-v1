@@ -38,6 +38,19 @@ const PAD_BOTTOM = 28;
 const AXIS_WIDTH = 44;
 const TICK_ROWS = 4;
 
+/**
+ * How to write the axis figures, given the gap between them.
+ *
+ * `Math.round` was fine while every series was tens of kilowatts, and prints
+ * `0 1 1 2 2` the moment one is not: an hours series over a quiet week tops out
+ * around two, and its clean divisions are halves. The tick *step* is what decides
+ * this rather than the values, so every figure on the axis is written to the same
+ * precision — a column reading `0 0.5 1 1.5 2` and one reading `0 .5 1 1.5 2` are
+ * the same numbers and only one of them scans.
+ */
+const tickLabel = (tick: number, step: number): string =>
+  step >= 1 ? String(Math.round(tick)) : tick.toFixed(step >= 0.1 ? 1 : 2);
+
 /** A rounded axis ceiling that lands on `TICK_ROWS` clean divisions. */
 const niceMax = (max: number): number => {
   if (max <= 0) return 1;
@@ -100,7 +113,8 @@ export const SiteTrendChart = ({
       ? ''
       : `${AXIS_WIDTH},${y(0)} ${line} ${x(measured.length - 1)},${y(0)}`;
 
-  const ticks = Array.from({length: TICK_ROWS + 1}, (_, index) => (top / TICK_ROWS) * index);
+  const tickStep = top / TICK_ROWS;
+  const ticks = Array.from({length: TICK_ROWS + 1}, (_, index) => tickStep * index);
   const stride = labelStride(points.length, plotWidth);
   const shown = hovered === null ? undefined : points[hovered];
 
@@ -151,7 +165,7 @@ export const SiteTrendChart = ({
               textAnchor="end"
               className="fill-current text-[10px] text-tertiary tabular-nums"
             >
-              {Math.round(tick)}
+              {tickLabel(tick, tickStep)}
             </text>
           </g>
         ))}

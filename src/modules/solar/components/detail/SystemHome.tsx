@@ -20,7 +20,7 @@ import {SystemHealth} from './SystemHealth';
  * 1. **The strip** — solar capacity, what it has made today, and the alarm counts.
  * 2. **The gauge** — one dial, what it is putting out right now, with a `Dark`
  *    badge under it when the sun is down.
- * 3. **The details** — what the system *is*: four nameplate facts, nothing live.
+ * 3. **The details** — what the system *is*: three nameplate facts, nothing live.
  * 4. **The chart** — generation, with a day stepper and a period control.
  * 5. **What is wrong** — the rules, and the numbers behind them.
  *
@@ -40,15 +40,15 @@ import {SystemHealth} from './SystemHealth';
  *
  * ## Where the inverters went
  *
- * To `Devices`, the section in the rail whose whole subject they are. They had to
- * go *somewhere*: the rail deliberately does not list the boxes — a mini-grid is
- * ten of them and a nested list would be an inventory (see `SystemDetailShell`) —
- * so had the band simply been deleted, `/solar/<id>/inverters/<id>` would have been
- * reachable by typing it and by nothing else.
+ * Nowhere; there are none. This page listed them, then handed them to `Devices`
+ * when that section arrived, and the boxes are now gone from the model
+ * altogether: these are telco sites, a tower runs a −48 V DC bus and its loads
+ * are DC, so the array feeds the bus and there is no AC stage to invert to.
+ * `system.type.ts` records what went with them.
  *
- * `Devices` is also where a reader would look for them, which the home page never
- * quite was. The band was here because the page was built before the section
- * existed.
+ * `Devices` kept its place in the rail and changed subject. It holds the array —
+ * the glass, the strings, and how many of them are dark — which is what its own
+ * doc comment always said it was missing.
  *
  * ## Where the activity feed went
  *
@@ -68,8 +68,8 @@ import {SystemHealth} from './SystemHealth';
  *
  * ## At phone width
  *
- * The bands are already a column, so nothing rearranges, and with the inverter
- * table gone there is nothing left on the page that cannot reflow.
+ * The bands are already a column, so nothing rearranges, and there is nothing left
+ * on the page that cannot reflow.
  */
 
 /** First light and last, the hours `hybrid.ts` builds every solar day between. */
@@ -123,10 +123,14 @@ export const SystemHome = ({
           is true only at this instant: everything in the strip above is cumulative
           and everything below is history.
 
-          Scaled to the **AC** rating, not the array's kWp. What the gauge measures
-          is what the inverters are passing, and a dial that could never reach its
-          own full scale — every one of these systems is deliberately oversized to
-          its boxes — would read as a plant permanently underperforming. */}
+          Full scale is the array's **nameplate kWp**, which is the only ceiling
+          there is now. It used to be the inverters' combined AC rating, on the
+          argument that a dial which could never fill reads as a plant permanently
+          underperforming — these systems were deliberately oversized to their
+          boxes, so kWp was unreachable by design. With no boxes there is no AC
+          rating to scale to, and the honest full scale is the glass. The
+          consequence is real and worth knowing: a clear noon lands near half way
+          up, because that is what an array does. */}
       <section aria-label="Generation now" className="flex flex-col items-center gap-3 py-6">
         <TickGauge
           size="hero"
@@ -138,7 +142,7 @@ export const SystemHome = ({
             unit: 'kW',
             precision: 1,
             min: 0,
-            max: Math.max(1, Math.round(system.acKw)),
+            max: Math.max(1, system.kwp),
           }}
         />
 
@@ -167,32 +171,30 @@ export const SystemHome = ({
       <div className="border-t border-subtle" />
 
       {/* Band 3 — what the system *is*, in the `DetailBand` all four detail pages
-          share. Four nameplate facts and nothing live: this band should read the
+          share. Three nameplate facts and nothing live: this band should read the
           same on a Tuesday morning as it does on a Sunday night.
 
-          **The first two are a pair.** The kWp is the glass on the roof and the kW
-          is the most the inverters can ever pass to the tower, and the ratio
-          between them is what every one of these was specified with — so
-          `Installed capacity` is the AC figure, deliberately, rather than a second
-          statement of the DC one above it. Side by side they answer "why does the
-          dial top out below the nameplate", which is otherwise the second thing a
-          reader asks about band 2.
+          It was four. `Installed capacity` was the inverters' combined AC rating,
+          and it sat beside the kWp deliberately: the ratio between the two was
+          what every one of these was specified with, and side by side they
+          answered "why does the dial top out below the nameplate". There is no AC
+          rating on a telco site and the dial's scale is now the kWp itself, so the
+          question and the row that answered it both went. `DetailBand` splits a
+          three-row list 2 + 1 and needs no help.
 
           **`Commissioned` earns its place by dating everything else.** A system
           five years old has given up a few points to the glass simply ageing, and
           a reader comparing this year's chart with last year's needs to know that
           before they go looking for a fault.
 
-          What is deliberately *not* here: the inverters, the strings and the last
-          wash. Each has a section of its own in the rail — `Devices`, `Devices`,
-          `Service` — and restating them would make this band a second index of the
-          page. It is a description of the system, not a summary of what is under
-          it. */}
+          What is deliberately *not* here: the strings and the last wash. Each has
+          a section of its own in the rail — `Devices`, `Service` — and restating
+          them would make this band a second index of the page. It is a description
+          of the system, not a summary of what is under it. */}
       <DetailBand
         ariaLabel="System details"
         rows={[
           {label: 'System capacity', value: amount(system.kwp, 'kWp')},
-          {label: 'Installed capacity', value: amount(system.acKw, 'kW')},
           {
             label: 'Number of panels',
             value: `${system.modules.toLocaleString('en-MY')} × ${system.moduleWatts} W`,
@@ -220,16 +222,14 @@ export const SystemHome = ({
         />
       )}
 
-      {/* Band 5 — what is wrong, and the numbers behind it. Every rule, including
-          the ones that name a box: this is the page somebody opens to find out
-          whether anything needs doing, and making them read six inverter pages to
-          answer that would be the register's mistake repeated one level down. */}
+      {/* Band 5 — what is wrong, and the numbers behind it. Every rule the system
+          carries: this is the page somebody opens to find out whether anything
+          needs doing, and it is now the only page that answers. */}
       <SystemHealth
         alerts={alerts}
         condition={condition}
         readings={detail.readings}
         daylight={daylight}
-        reporting={reporting}
         lastUpdated={system.lastUpdated}
         now={now}
         heading="The system's own figures"

@@ -14,7 +14,6 @@
  */
 
 import type {RunState} from '@/modules/genset/types/genset.type';
-import type {MeterFeed} from '@/modules/meter/types/meter.type';
 import type {CustomerId, ProgramId, SiteKindId} from '@/brands';
 
 /**
@@ -103,9 +102,6 @@ export const hasBattery = (role: SitePowerRole): boolean =>
 /** Is a PV array fitted. */
 export const hasSolar = (role: SitePowerRole): boolean => role === 'SOLAR_HYBRID';
 
-/** Is this one of the two configurations the energy screen has anything to say about. */
-export const isHybrid = (role: SitePowerRole): boolean => hasBattery(role);
-
 /** How the configuration is written in a heading or a chip. */
 export const SITE_POWER_ROLE_LABEL: Record<SitePowerRole, string> = {
   GRID_BACKUP: 'Grid + genset',
@@ -115,7 +111,7 @@ export const SITE_POWER_ROLE_LABEL: Record<SitePowerRole, string> = {
 };
 
 /**
- * The mains incomer, as its meter reports it.
+ * The mains incomer: whether it is live, and what is flowing through it.
  *
  * A **measurement**, not an inference. An earlier sketch of this derived mains
  * health from the gensets — "a set is running, so the grid must be down" — and it
@@ -123,29 +119,24 @@ export const SITE_POWER_ROLE_LABEL: Record<SitePowerRole, string> = {
  * beside a perfectly healthy grid, and inferring a failure from it would report an
  * outage at a site that never had one.
  *
- * So the site reads its intake meter, and the meter is what says whether the
- * supply is there. In this prototype that reading is mock data like every other
- * figure (see `data/sites.ts`); in a real deployment it is the meter's API, and
- * nothing downstream of this type changes.
+ * In this prototype both figures are mock data like every other one (see
+ * `data/sites.ts`); in a real deployment they come from the transfer switch and the
+ * intake instrument, and nothing downstream of this type changes.
  */
 export type MainsSupply = {
   /**
    * Is the incomer energised.
    *
-   * **Always known, meter or no meter** — this comes from the transfer switch, which
-   * senses voltage on the incomer because that is how it decides to transfer at all.
-   * Presence and consumption are separate instruments, and conflating them would make
-   * an unmetered site look like a site with no grid.
+   * This comes from the transfer switch, which senses voltage on the incomer because
+   * that is how it decides to transfer at all — a separate fact from how much is
+   * flowing, and the two are deliberately not folded together.
    */
   live: boolean;
   /**
-   * What is flowing through the incomer — **only if somebody fitted a meter to it.**
-   *
-   * See `MeterFeed`: the figure, or which of the two reasons there isn't one. This
-   * used to be a bare number every site carried, which quietly claimed instrumentation
-   * most of them have never had.
+   * What is flowing through the incomer, kW — `0` while a genset carries the load
+   * and the mains contactor is open.
    */
-  feed: MeterFeed;
+  kw: number;
 };
 
 export type Site = {
@@ -162,9 +153,8 @@ export type Site = {
   /**
    * What the customer draws, kW.
    *
-   * The physical quantity, which exists whether or not anybody measures it. A meter
-   * is what makes it *visible* — see `MeterFeed` — so this is carried separately from
-   * the readings, and fitting or removing a meter never changes it.
+   * The physical quantity, which exists whether or not anybody is watching it, and
+   * is therefore carried separately from anything an instrument reports.
    */
   loadKw: number;
   /**
@@ -263,13 +253,3 @@ export const mainsContactorStateOf = (mains: MainsSupply, gensetCarrying: boolea
   const carrying = mains.live && !gensetCarrying;
   return {closed: carrying, live: carrying};
 };
-
-/**
- * Can the changeover hand the load to this set?
- *
- * Only to a set that is already turning. Transferring to a stopped one means
- * *starting* it first, which is a `START` command — and those are inert in this
- * prototype and say so. Transferring to an unreachable set is not an operation at
- * all.
- */
-export const canTakeLoad = (runState: RunState): boolean => runState === 'RUNNING';

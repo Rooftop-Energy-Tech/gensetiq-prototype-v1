@@ -16,13 +16,10 @@ export type NavItem = {
    * because until then the fallback happened to land on something usable.
    */
   link:
-    | '/overview'
     | '/gensets'
     | '/solar'
     | '/battery'
     | '/sites'
-    | '/meters'
-    | '/refuel'
     | '/settings';
 };
 

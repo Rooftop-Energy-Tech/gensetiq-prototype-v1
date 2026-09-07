@@ -5,7 +5,7 @@ import {amount, relativeTime, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import type {SystemAlert, SystemCondition} from '../../types/health.type';
-import type {InverterReading} from '../../types/reading.type';
+import type {SystemReading} from '../../types/reading.type';
 
 /**
  * A rule, its verdict, and where the claim came from.
@@ -14,14 +14,15 @@ import type {InverterReading} from '../../types/reading.type';
  * A genset's alert card prints its Modbus register and bit, and `AlertsSection`
  * explains why: a reader has to be able to tell at a glance which rows are the
  * panel talking and which are the app's own arithmetic. A PV system has no
- * register sheet, and some of these rules are this app reasoning over a design no
- * inverter has ever seen. `Inverter` / `Generation series` / `Service schedule` in
- * the corner is doing the register's job.
+ * register sheet, and some of these rules are this app reasoning over months
+ * nothing on a roof can see. `Telemetry` / `Generation series` / `Service
+ * schedule` in the corner is doing the register's job.
  *
- * The **box's name leads the card** wherever there is one. On a ten-inverter
- * plant "String offline" is an alert nobody can act on; "Inverter 4 · String
- * offline" is a job with an address, and the address is the half a technician
- * needs first.
+ * A card used to lead with the **box's name** wherever there was one, because on
+ * a ten-inverter plant "String offline" was an alert nobody could act on and
+ * "Inverter 4 · String offline" was a job with an address. There are no boxes on
+ * a telco site, so the name is gone and the alert says how many strings of how
+ * many instead — the address is the site, and the reader is already on its page.
  */
 const AlertCard = ({alert}: {alert: SystemAlert}) => {
   const meta = SEVERITY_META[alert.severity];
@@ -40,9 +41,6 @@ const AlertCard = ({alert}: {alert: SystemAlert}) => {
       <div className="flex flex-wrap items-center gap-3.5">
         <Badge variant="element" size="md" className="border-subtle">
           <BellIcon className={meta.textClassName} aria-hidden="true" />
-          {alert.inverterLabel !== undefined && (
-            <span className="text-secondary">{alert.inverterLabel} ·</span>
-          )}
           {alert.name}
         </Badge>
         <p className="min-w-0 flex-1 text-sm text-primary">{alert.message}</p>
@@ -69,12 +67,10 @@ const ReadingRow = ({
   reading,
   alerted,
   daylight,
-  reporting,
 }: {
-  reading: InverterReading;
+  reading: SystemReading;
   alerted: boolean;
   daylight: boolean;
-  reporting: boolean;
 }) => (
   <div className="flex w-full items-center justify-between gap-4 text-sm">
     <span className="min-w-0 flex-1 truncate text-secondary">{reading.label}</span>
@@ -87,13 +83,12 @@ const ReadingRow = ({
       {/* An em dash, not a zero, in two cases and for one reason — the figure does
           not exist rather than being low.
 
-          A DC current at midnight is not a fault, it is the earth turning. And
-          **every instantaneous reading is an inverter's**: a silent box has no
-          heatsink temperature we know of, so `0.0 °C` would be a number this app
-          made up about a machine it cannot hear. The windowed and cumulative
-          readings survive a silence, because they are this app's own arithmetic
-          over months that are already closed. */}
-      {(reading.daylightOnly && !daylight) || (reading.kind === 'instantaneous' && !reporting)
+          A quantity that needs sun is not low at midnight, it is absent; the earth
+          turned. And a `withheld` figure is one the model declined to publish
+          because nobody heard the plant it would have been measured from — see
+          `SystemReading`. Printing `0.00` for either would be this app inventing a
+          measurement and then colouring it neutral. */}
+      {reading.withheld || (reading.daylightOnly && !daylight)
         ? '—'
         : amount(reading.value, reading.unit, reading.precision)}
     </span>
@@ -103,16 +98,17 @@ const ReadingRow = ({
 /**
  * The health band — what is wrong, and the numbers behind it.
  *
- * Shared by the system page and each inverter's page, which is why it takes
- * alerts and readings rather than reaching for them: the system passes every
- * rule and its own three figures, a box passes only the rules that name it and
- * its own five dials. One rendering, so a card cannot read differently depending
- * on which page you met it on.
+ * It takes alerts and readings rather than reaching for them, which is what it
+ * was built for: the band was shared between the system's page and each
+ * inverter's, and a box passed only the rules that named it. The inverter pages
+ * are gone and the system is the only caller left, but the props stay — one
+ * rendering that cannot read differently depending on which page you met it on is
+ * worth more than the two lines saving them would buy.
  *
  * The genset's alerts band without its filing system. No tag chips and no
  * severity chips, and their absence is a decision rather than an omission: a
  * genset carries thirty-odd alarms across ten operator-defined tags, and the
- * chips exist to narrow that. A solar system has six rules. A filter over six
+ * chips exist to narrow that. A solar system has three rules. A filter over three
  * rows costs a click to do nothing and makes this look like a bigger page than it
  * is. When array alarms become a real set — the Alarms tab is where that lands —
  * the chips come back.
@@ -122,18 +118,15 @@ export const SystemHealth = ({
   condition,
   readings,
   daylight,
-  reporting,
   lastUpdated,
   now,
   heading = 'Readings',
 }: {
   alerts: Array<SystemAlert>;
   condition: SystemCondition;
-  readings: Array<InverterReading>;
+  readings: Array<SystemReading>;
   /** Whether the sun is up — decides what a `daylightOnly` reading prints. */
   daylight: boolean;
-  /** Whether there is anything to hear from at all. */
-  reporting: boolean;
   lastUpdated: string;
   now: number;
   heading?: string;
@@ -186,7 +179,6 @@ export const SystemHealth = ({
                 reading={reading}
                 alerted={alertedKeys.has(reading.key)}
                 daylight={daylight}
-                reporting={reporting}
               />
             ))}
           </div>

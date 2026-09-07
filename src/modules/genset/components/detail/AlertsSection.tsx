@@ -210,12 +210,12 @@ const AlertCard = ({alert, reading}: {alert: GensetAlert; reading: Reading | und
  * talking, and it is the whole reason these rows can sit in one list without the
  * register map's identity being diluted.
  *
- * ## Why it links to Refuel and not to Settings
+ * ## Why it carries no action
  *
- * Unlike a coolant alarm there is something to *do* about this one, and it is a
- * booking rather than a callout. The leak card links to the reconciliation because
- * the useful next step there is to check the arithmetic before sending anyone; here
- * the arithmetic is a division and the useful next step is a tanker.
+ * It used to link to the refuel log, on the reasoning that unlike a coolant alarm
+ * there is something to *do* about a low tank and it is a booking rather than a
+ * callout. With no booking anywhere in the app the link had nowhere to go, so the
+ * card states the level and stops — see GEN-25 for the log it pointed at.
  */
 const FuelLevelNoticeCard = ({
   notice,
@@ -248,14 +248,6 @@ const FuelLevelNoticeCard = ({
       </div>
 
       {reading !== undefined && <ReadingRow reading={reading} severity={severity} />}
-
-      <Link
-        to="/gensets/$gensetId/refuel"
-        params={{gensetId: notice.gensetId}}
-        className="text-sm text-secondary underline-offset-4 hover:text-primary hover:underline"
-      >
-        Order a refuel
-      </Link>
     </div>
   );
 };

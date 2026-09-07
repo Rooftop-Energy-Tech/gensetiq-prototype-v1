@@ -1,3 +1,4 @@
+import type {CustomerId} from '@/modules/site/data/customers';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 
 /**
@@ -11,10 +12,12 @@ import type {SitePowerRole} from '@/modules/site/types/site.type';
  * quoted, what is commissioned and what fails — a module is a part inside it, and a
  * register with a row per module would be a stores list rather than an estate.
  *
- * Solar goes one level deeper because a PV system genuinely has independently
- * addressable boxes: an inverter reports on its own, can be silent while its
- * neighbours are not, and has its own page. A rack in a bank has no such life in
- * this model — there is one BMS, one converter and one state of charge — so the
+ * Solar used to go one level deeper, because a PV system with inverters has
+ * independently addressable boxes: one reported on its own, could be silent while
+ * its neighbours were not, and had its own page. A telco array has none — it feeds
+ * a −48 V DC bus and there is no AC stage to invert to — so a system is the leaf
+ * there now, exactly as a bank is here. A rack in a bank has no such life in this
+ * model either: there is one BMS, one converter and one state of charge, so the
  * bank is the leaf, and `modules` below is a count rather than a list of things
  * with identities.
  *
@@ -33,6 +36,21 @@ export type BatteryBank = {
   /** The site's own name — `SBH-1495`. */
   siteName: string;
   locationLabel: string;
+  /**
+   * Where the bank is, and which division owns it.
+   *
+   * All three are the **site's**, copied down rather than derived: there is one bank
+   * per site in this model, so its position is that place's position and its region is
+   * that place's region. They are here because the register now has a map and a region
+   * filter, and both need the fact on the row rather than a `siteSeed` lookup per
+   * cell — the same reason `locationLabel` above was already copied down.
+   *
+   * A reader can move a site's pin or change its region from its Settings tab, and
+   * `banks.ts` reads the seeds live, so these follow.
+   */
+  latitude: number;
+  longitude: number;
+  customer: CustomerId;
   role: SitePowerRole;
   /** Usable energy, kWh. */
   kwh: number;

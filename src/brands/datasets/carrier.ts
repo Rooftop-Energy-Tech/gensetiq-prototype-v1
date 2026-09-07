@@ -108,7 +108,7 @@ const SITES = [
   // — Sarawak (10), all under `Jendela SWK`. Kuching, Sibu, Bintulu and Miri are
   //   the coastal towns and have an incomer; the Rajang sites above Kapit and the
   //   highland site at Ba'kelalan are where the diesel goes upriver by longboat,
-  //   which is the journey the refuel screen exists for.
+  //   which is why a tank running down matters more here than anywhere else.
   {id: 'swk-0412', name: 'SWK-0412', kind: 'HUB',    locationLabel: 'Kuching, Sarawak',            latitude: 1.5533, longitude: 110.3592, loadKw: 27,  customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
   {id: 'swk-0487', name: 'SWK-0487', kind: 'MACRO',  locationLabel: 'Serian, Sarawak',             latitude: 1.1670, longitude: 110.5670, loadKw: 5,   customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
   {id: 'swk-0559', name: 'SWK-0559', kind: 'MACRO',  locationLabel: 'Sri Aman, Sarawak',           latitude: 1.2370, longitude: 111.4630, loadKw: 5,   customer: 'sarawak',    powerRole: 'SOLAR_HYBRID',  program: 'jendela-swk'},

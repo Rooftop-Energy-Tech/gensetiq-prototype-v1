@@ -7,9 +7,7 @@ import {fleet, subscribeFleet} from '@/modules/genset/data/deployment';
 import {gensetDetail} from '@/modules/genset/data/detail';
 import type {GensetDetail} from '@/modules/genset/data/detail';
 import {gensetCondition} from '@/modules/genset/data/fuelIntegrity';
-import {meterAt, meters, subscribeMeters} from '@/modules/meter/data/meters';
-import {meteredKw} from '@/modules/meter/types/meter.type';
-import type {MeterFeed, MeterPoint, PowerMeter} from '@/modules/meter/types/meter.type';
+import {spreadBetween} from '@/modules/genset/data/spread';
 import {hasBattery, hasMains} from '../types/site.type';
 import type {MainsSupply, Site, SitePowerRole} from '../types/site.type';
 import {hybridState} from './hybrid';
@@ -73,26 +71,16 @@ export type SiteSummary = {
   /** Worst condition among the sets — a site is as healthy as its sickest unit. */
   condition: GensetCondition;
   /**
-   * What the intake meter reads.
+   * What the incomer reads.
    *
    * On the summary rather than in the config store beside `powerRole`, because the
-   * two are different kinds of thing: the meter is a **reading**, fixed mock data
-   * like a tank level, and the role is a **display choice** a reader can flip at
-   * any moment. Every site therefore carries a reading, including one declared
+   * two are different kinds of thing: this is a **reading**, fixed mock data like a
+   * tank level, and the role is a **display choice** a reader can flip at any
+   * moment. Every site therefore carries a reading, including one declared
    * `DIESEL_PRIME` — where it simply goes undrawn, which is what lets the settings page
    * preview the standby layout without inventing a figure for it.
    */
   mains: MainsSupply;
-  /**
-   * What a meter on the **outgoing feeder** reads — the customer's consumption,
-   * whoever is supplying it.
-   *
-   * Separate from `mains.feed` because they are separate devices measuring separate
-   * circuits, and the difference shows the moment a site transfers to diesel: mains
-   * metering goes to nothing, load metering carries on. A site can have either, both
-   * or neither.
-   */
-  loadFeed: MeterFeed;
 };
 
 /** The set the changeover currently has on the bus, if any. */
@@ -153,9 +141,10 @@ export const siteFeed = (
     return {source: 'GENSET', gensetId: dutyId};
   }
 
-  // Note what is *not* asked here: whether a meter is fitted. The grid carries the
-  // load whether or not anybody measures it, and an earlier version of this required
-  // a reading — which made every unmetered site report itself as unserved.
+  // Note what is *not* asked here: how much the incomer is carrying. Whether the
+  // grid is up and how much is flowing through it are separate facts, and an earlier
+  // version that required a figure here reported an unserved site whenever it had
+  // none.
   //
   // A site with no incomer has no grid to fall back to, which is the whole of what
   // `hasMains` changes.
@@ -184,66 +173,127 @@ export const siteFeed = (
 };
 
 /**
- * What the load is drawing, or `null` when nothing here can say.
+ * What the load is drawing, or `null` when nothing is feeding it.
  *
  * Deliberately separate from `siteFeed` above, because **who is supplying the load
- * and how much it is drawing are answered by different instruments**, and a site can
- * know one without the other. Folding them together is what produced the bug this
- * split fixes: an unmetered site read as though nothing were feeding it.
+ * and how much it is drawing are two different questions**, and a page can want one
+ * without the other. Folding them together is what produced the bug this split
+ * fixes: a site read as though nothing were feeding it whenever no figure could be
+ * quoted for it.
  *
- * Three sources, in order of how directly they measure the load:
- *
- *  1. **the load meter** — measures the load itself, whoever is supplying it. It is
- *     first because it is the only one that stays true across a changeover: transfer
- *     between two sets whose controllers report different outputs and the *load* has
- *     not changed, so quoting the meter keeps the figure still while the supply moves.
- *  2. **the carrying source** — a genset's own controller, or the mains meter while
- *     the grid carries. Both measure the same power one step upstream.
- *  3. nothing, and the page has to say so rather than print a zero.
+ * The duty set's own controller answers it while a set is carrying. Otherwise the
+ * site's seeded load stands, because whatever is carrying — the grid, or a hybrid
+ * site's converter — is carrying exactly that. Only an unfed load has no figure, and
+ * the page says so rather than printing a zero.
  */
-/**
- * How much power is actually flowing through one circuit, metered or not.
- *
- * This is the **physical** answer, which is why it returns a plain number and can
- * legitimately return zero: a mains incomer with the contactor open carries nothing,
- * and that is a fact about the copper rather than a gap in the instrumentation. What a
- * *reader* is shown still depends on whether a meter is there to see it — the meters
- * list applies that separately, which is exactly the separation this whole module is
- * about.
- */
-export const circuitFlowKw = (
-  summary: SiteSummary,
-  dutyId: string | undefined,
-  role: SitePowerRole,
-  point: MeterPoint,
-): number => {
-  const feed = siteFeed(summary, dutyId, role);
-  if (point === 'MAINS') return feed.source === 'MAINS' ? summary.site.loadKw : 0;
-  return feed.source === 'NONE' ? 0 : summary.site.loadKw;
-};
-
 export const siteLoadKw = (
   summary: SiteSummary,
   dutyId: string | undefined,
   role: SitePowerRole,
 ): number | null => {
-  const metered = meteredKw(summary.loadFeed);
-  if (metered !== null) return metered;
-
   const feed = siteFeed(summary, dutyId, role);
   if (feed.source === 'GENSET') return siteDrawKw(summary, dutyId);
-  if (feed.source === 'MAINS') return meteredKw(summary.mains.feed);
-  // A hybrid site's converter is an instrument in its own right and reports what
-  // it is putting out, whether that came from the array or the bank. So the site's
-  // own seeded load is a reading here rather than an assumption — unlike the grid,
-  // which needs a meter fitted to it before anybody can say what is flowing.
-  if (feed.source === 'SOLAR' || feed.source === 'BATTERY') return summary.site.loadKw;
-  return null;
+  if (feed.source === 'NONE') return null;
+  return summary.site.loadKw;
 };
 
 /**
- * The intake meter's reading, in place of the metering API this prototype doesn't
- * have.
+ * The DC plant's output, as NetEco reports it: what the bus is holding, and what
+ * the load is pulling out of it.
+ *
+ * These are two of the three site-level essentials — the third is who is feeding,
+ * which `siteFeed` already answers. They ride *with* the draw rather than beside
+ * it because they are the same measurement written three ways: a tower's DC plant
+ * has one bus, and `P = V x I` on it. Deriving the current rather than seeding it
+ * is what guarantees a reader who multiplies the bracket gets the kilowatts back.
+ *
+ * ## Why the voltage moves, and what moves it
+ *
+ * A -48 V plant is not at 48 V. Rectifiers hold the bus at **float**, a shade over
+ * 53 V, whenever anything is driving them — mains, a genset, or a hybrid site's
+ * converter with the array behind it. The per-site offset is a fraction of a volt
+ * either way: real plants are commissioned individually and an estate of
+ * twenty-five identical readings is the tell of a number nobody measured.
+ *
+ * The bank is the one supply that does not hold a bus. On battery the plant is
+ * *unpowered* and the load is riding the pack straight, so the bus is the pack's
+ * terminal voltage and it sags as the charge goes — which is why this reads off
+ * `hybridState`'s `soc` rather than off a constant. It is the same state of charge
+ * the diagram and the strip already draw, so a bus at 50 V and a bank at 42%
+ * cannot disagree.
+ *
+ * `null` where `siteLoadKw` is `null`, and for the same reason: an unfed load has
+ * no current to report, and a plant nobody is driving has no output voltage. That
+ * is an outage, not a zero.
+ *
+ * ## The simplification, stated
+ *
+ * The whole of the site's load is put on the DC bus. At a macro or rural site that
+ * is very nearly true — the radio is the load, and what isn't DC is a fan. At a
+ * switching centre it is not: a few hundred kilowatts of that is chillers on the
+ * AC side, so the current here reads high for a single plant. Splitting it would
+ * mean seeding a DC share per site kind, and the cost of that is the property this
+ * bracket is worth having for — that `volts x amps` comes back to the kilowatts
+ * printed beside it. A reader who checks the arithmetic should not find it broken.
+ * When a real NetEco feed lands, the DC load is its own measured quantity and this
+ * derivation goes away rather than being corrected.
+ */
+export type SiteDcBus = {
+  /** Bus voltage at the plant's output terminals, V. */
+  volts: number;
+  /** What the load is drawing off that bus, A. */
+  amps: number;
+};
+
+/** Rectifier float, the bus voltage whenever anything is driving the plant. */
+const FLOAT_V = 53.5;
+/** Commissioning spread either side of float — see the note above. */
+const FLOAT_SPREAD_V = 0.4;
+/** The pack's terminal voltage at the ends of its window, carrying the load. */
+const PACK_EMPTY_V = 47;
+const PACK_FULL_V = 54;
+
+const busVolts = (
+  summary: SiteSummary,
+  dutyId: string | undefined,
+  role: SitePowerRole,
+  now: number,
+): number => {
+  const seed = siteSeed(summary.site.id);
+
+  if (siteFeed(summary, dutyId, role).source === 'BATTERY' && seed !== undefined) {
+    const {soc} = hybridState(seed, role, now);
+    return Math.round((PACK_EMPTY_V + soc * (PACK_FULL_V - PACK_EMPTY_V)) * 10) / 10;
+  }
+
+  return (
+    Math.round(
+      spreadBetween(
+        summary.site.id,
+        'dc/float',
+        FLOAT_V - FLOAT_SPREAD_V,
+        FLOAT_V + FLOAT_SPREAD_V,
+      ) * 10,
+    ) / 10
+  );
+};
+
+export const siteDcBus = (
+  summary: SiteSummary,
+  dutyId: string | undefined,
+  role: SitePowerRole,
+  now: number = Date.now(),
+): SiteDcBus | null => {
+  const loadKw = siteLoadKw(summary, dutyId, role);
+  if (loadKw === null) return null;
+
+  const volts = busVolts(summary, dutyId, role, now);
+  return {volts, amps: Math.round((loadKw * 1000) / volts)};
+};
+
+/**
+ * The incomer, in place of the intake API this prototype doesn't have: whether it is
+ * energised, and what it is carrying.
  *
  * Same rule as everything else in this file: **derived from a given, not a second
  * given.** The given is each set's `startReason` in `fleet.ts`, and the derivation
@@ -260,52 +310,30 @@ export const siteLoadKw = (
  * A second, independent mains flag was the obvious alternative and it is the wrong
  * shape. It could disagree with the activity feed, and the disagreement would land
  * on exactly the case this is here to get right: a set on a **test exercise**, which
- * has no outage behind it and therefore leaves the meter healthy. Two of the fleet's
+ * has no outage behind it and therefore leaves the supply healthy. Two of the fleet's
  * sets are pinned that way, so the case is on screen rather than hypothetical.
  *
- * The magnitude is a hash of the site id — never `Math.random()` — so a site reads
- * the same on every render and every reload, the convention `detail.ts` sets.
- */
-/**
- * What a meter on this circuit would report — or why nothing does.
+ * The figure beside it is the site's own seeded load, not a fraction of installed
+ * genset capacity. Scaling off nameplate was a convenience that quietly made
+ * consumption a function of the machinery parked outside, and it let one load carry
+ * two numbers — `mfg-015` read 152 kW while its own genset reported carrying 175 kW.
  *
- * The **load exists whether or not anybody measures it**, and that separation is the
- * point: `seed.loadKw` is the physical quantity, and the meter is only what makes it
- * visible. Fitting one does not change what the customer draws; removing one does not
- * either, it just stops the page being able to say.
- *
- * The figure itself is the site's own seeded load, not a fraction of installed genset
- * capacity. Scaling off nameplate was a convenience that quietly made consumption a
- * function of the machinery parked outside, and it let one load carry two numbers —
- * `mfg-015` metered 152 kW while its own genset reported carrying 175 kW.
+ * It is `0` while the supply is down, because the incomer then carries nothing. That
+ * is a fact about the copper rather than a gap, which is why `live` and `kw` are two
+ * fields: a dead incomer is still a known one.
  */
-const feedAt = (seed: SiteSeed, all: Array<PowerMeter>, point: MeterPoint): MeterFeed => {
-  const meter = meterAt(all, seed.id, point);
-  if (meter === undefined) return {state: 'UNMETERED'};
-  if (!meter.online) return {state: 'NOT_REPORTING'};
-  return {state: 'METERED', kw: seed.loadKw};
-};
-
-const mainsSupply = (
-  seed: SiteSeed,
-  members: Array<Genset>,
-  all: Array<PowerMeter>,
-): MainsSupply => ({
-  // From the transfer switch, not from a meter — see `MainsSupply.live`. A yard's
-  // grid is dead exactly when some set there is out on an unfinished outage run.
-  live: !members.some(
+const mainsSupply = (seed: SiteSeed, members: Array<Genset>): MainsSupply => {
+  // From the transfer switch — see `MainsSupply.live`. A yard's grid is dead exactly
+  // when some set there is out on an unfinished outage run.
+  const live = !members.some(
     (genset) => genset.startReason === 'OUTAGE' && genset.runState !== 'IDLE',
-  ),
-  feed: feedAt(seed, all, 'MAINS'),
-});
+  );
+  return {live, kw: live ? seed.loadKw : 0};
+};
 
 const stateRank = (genset: Genset) => RUN_STATES.indexOf(genset.runState);
 
-const buildSummary = (
-  seed: SiteSeed,
-  all: Array<Genset>,
-  allMeters: Array<PowerMeter>,
-): SiteSummary => {
+const buildSummary = (seed: SiteSeed, all: Array<Genset>): SiteSummary => {
   const members: Array<Genset> = all
     .filter((genset) => genset.siteId === seed.id)
     // `RUN_STATES` is declared attention-first, so a turning set leads and the tag
@@ -362,8 +390,7 @@ const buildSummary = (
       : gensets.some(({genset}) => gensetCondition(genset.id) === 'ATTENTION')
         ? 'ATTENTION'
         : 'OPTIMUM',
-    mains: mainsSupply(seed, members, allMeters),
-    loadFeed: feedAt(seed, allMeters, 'LOAD'),
+    mains: mainsSupply(seed, members),
   };
 };
 
@@ -389,7 +416,6 @@ let cache:
   | {
       seeds: ReadonlyArray<SiteSeed>;
       fleet: Array<Genset>;
-      meters: Array<PowerMeter>;
       byId: Record<string, SiteSummary>;
       ordered: Array<SiteSummary>;
     }
@@ -398,25 +424,18 @@ let cache:
 const summaries = () => {
   const currentSeeds = siteSeeds();
   const currentFleet = fleet();
-  const currentMeters = meters();
-  // Three inputs now, and all three have to be in the key. Fitting a meter changes
-  // what a site can report without moving a genset; and since a reader can rename a
-  // site, move its pin or change its region from the Settings tab, the *seeds* are
-  // no longer fixed for the life of the process either. `siteSeeds()` is memoised on
-  // the override store, so an untouched estate hands back the same array every time
-  // and this stays one rebuild per change rather than one per read.
-  if (
-    cache?.seeds !== currentSeeds ||
-    cache.fleet !== currentFleet ||
-    cache.meters !== currentMeters
-  ) {
+  // Both inputs have to be in the key. A reader can rename a site, move its pin or
+  // change its region from the Settings tab, so the *seeds* are no longer fixed for
+  // the life of the process either. `siteSeeds()` is memoised on the override store,
+  // so an untouched estate hands back the same array every time and this stays one
+  // rebuild per change rather than one per read.
+  if (cache?.seeds !== currentSeeds || cache.fleet !== currentFleet) {
     const byId = Object.fromEntries(
-      currentSeeds.map((seed) => [seed.id, buildSummary(seed, currentFleet, currentMeters)]),
+      currentSeeds.map((seed) => [seed.id, buildSummary(seed, currentFleet)]),
     );
     cache = {
       seeds: currentSeeds,
       fleet: currentFleet,
-      meters: currentMeters,
       byId,
       ordered: currentSeeds.map((seed) => byId[seed.id]),
     };
@@ -425,17 +444,15 @@ const summaries = () => {
 };
 
 /**
- * Subscribe to anything that changes a summary — the fleet's placement, the
- * metering estate, or a reader's edits to a site's own facts. All three feed
- * `buildSummary`, so all three have to wake its readers.
+ * Subscribe to anything that changes a summary — the fleet's placement, or a
+ * reader's edits to a site's own facts. Both feed `buildSummary`, so both have to
+ * wake its readers.
  */
 const subscribeSources = (listener: () => void) => {
   const unsubscribeFleet = subscribeFleet(listener);
-  const unsubscribeMeters = subscribeMeters(listener);
   const unsubscribeOverrides = subscribeSiteOverrides(listener);
   return () => {
     unsubscribeFleet();
-    unsubscribeMeters();
     unsubscribeOverrides();
   };
 };

@@ -51,8 +51,9 @@ const MODULE_KWH = 5.12;
  *
  * It matters on the page because it is the bank's *other* nameplate. A reader who
  * knows only the kWh cannot tell whether a bank can take the array's 30 kW at noon;
- * the pair of figures is what answers that, which is the same job `kwp` and `acKw`
- * do together on a solar system.
+ * the pair of figures is what answers that. A solar system has no such pair — its
+ * `kwp` is both the size and the ceiling, because a telco array feeds the DC bus
+ * with no converter of its own in between.
  */
 const C_RATE = 0.5;
 
@@ -65,6 +66,9 @@ const bankFrom = (seed: SiteSeed, role: SitePowerRole, now: number): BatteryBank
     siteId: seed.id,
     siteName: seed.name,
     locationLabel: seed.locationLabel,
+    latitude: seed.latitude,
+    longitude: seed.longitude,
+    customer: seed.customer,
     role,
     kwh: plant.batteryKwh,
     autonomyHours: plant.autonomyHours,

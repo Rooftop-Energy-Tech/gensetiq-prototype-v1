@@ -17,7 +17,7 @@ import {useSolarSystem} from '@/modules/solar/data/systems';
  *
  * `now` is held here rather than inside `SystemHome`, because the detail is built
  * outside the component and the page's two halves must be measured from one
- * instant: a header saying an inverter was heard from four minutes ago over a
+ * instant: a header saying the system was heard from four minutes ago over a
  * curve drawn to a different "now" is a page arguing with itself.
  */
 const SystemHomeRoute = () => {

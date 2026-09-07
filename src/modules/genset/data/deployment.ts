@@ -168,7 +168,3 @@ export const deployGenset = (gensetId: string, siteId: string | null) => {
   }
   emit();
 };
-
-/** Sets owned but not deployed. The pool a site's attach picker draws from. */
-export const depotGensets = (all: Array<Genset>): Array<Genset> =>
-  all.filter((genset) => genset.siteId === null);

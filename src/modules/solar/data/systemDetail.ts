@@ -8,16 +8,19 @@ import {
 } from '@/modules/site/data/hybrid';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import type {SolarMonth, SolarPoint} from '@/modules/site/data/hybrid';
-import type {InverterReading} from '../types/reading.type';
+import type {SystemReading} from '../types/reading.type';
 import type {SolarSystem} from '../types/system.type';
 
 /**
- * Everything the **system's** page draws that is not one box's readings.
+ * Everything the system's page draws that is not the output gauge.
  *
- * The split between this file and `inverterDetail.ts` is the model correction
- * restated as two modules: this holds what the *system* is — its energy, its
- * twelve months of generation, its glass — and that holds what a *box* reports.
- * Nothing here is instantaneous, and nothing there survives a comms failure.
+ * This used to be half of a pair. `inverterDetail.ts` beside it held what a *box*
+ * reported — a DC bus voltage, a heatsink temperature, an insulation resistance —
+ * and the split was the point: nothing here is instantaneous, and nothing there
+ * survived a comms failure. There are no boxes on a telco site, so that file is
+ * gone and this one is the whole of it. Every figure below is either this app's
+ * arithmetic over months already closed or a fact about glass, which is why none
+ * of it is withheld while a system is quiet.
  *
  * ## The rule this file obeys
  *
@@ -41,10 +44,10 @@ export type SystemDetail = {
   months: Array<SolarMonth>;
   /**
    * The system's own readings — every one of them this app's arithmetic or a fact
-   * about glass, and not one of them an inverter's. That is why they survive a
-   * silence when the dials on a box's page do not.
+   * about glass. That is why they survive a silence: there is nothing here a
+   * quiet plant could have told us and did not.
    */
-  readings: Array<InverterReading>;
+  readings: Array<SystemReading>;
   /**
    * When this system's output stepped down and stayed down.
    *
@@ -58,8 +61,7 @@ export type SystemDetail = {
 
 /**
  * A wash is due at four months, and the days since one are a fact about the
- * modules rather than about any box under them — which is why this lives here and
- * not on an inverter.
+ * modules themselves — nothing on the site measures it, and nothing needs to.
  */
 export const daysSinceClean = (systemId: string): number =>
   Math.round(spreadBetween(systemId, 'system/cleaned', 12, 190));
@@ -90,9 +92,10 @@ export const systemDetail = (
   // the other side. Publishing that under a card reading "nothing has been heard"
   // would be the page arguing with itself in two sentences.
   //
-  // Only when **every** box is silent. One quiet inverter in ten does not blank
-  // the system's day; it shows up as a hole in `reportingKwp` and an alert with
-  // an address.
+  // There is one comms link to a site and no boxes below it, so this is all or
+  // nothing — which is a coarser answer than the model used to give. A plant with
+  // one quiet inverter in ten used to keep its day and carry the hole as an alert
+  // with an address; a plant is now heard or it is not.
   const reporting = system.state !== 'OFFLINE';
   const generatedKwh = reporting ? todaySoFarKwh(seed, role, now) : 0;
   const fullDayKwh = reporting ? todayFullKwh(seed, role, now) : 0;
@@ -129,6 +132,10 @@ export const systemDetail = (
         precision: 2,
         kind: 'windowed',
         daylightOnly: false,
+        // Derived from today's energy, which is exactly the figure this call
+        // refuses to publish on a silent system. The quotient inherits the
+        // refusal.
+        withheld: !reporting,
       },
       {
         key: 'days-since-clean',

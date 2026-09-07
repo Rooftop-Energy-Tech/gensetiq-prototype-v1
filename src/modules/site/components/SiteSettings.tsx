@@ -9,7 +9,6 @@ import type {SiteSummary} from '../data/sites';
 import {SiteIdentityPanel} from './settings/SiteIdentityPanel';
 import {SiteDiagram} from './SiteDiagram';
 import {SiteGensets} from './SiteGensets';
-import {SiteMetering} from './SiteMetering';
 
 /**
  * The site's Settings tab — what this yard *is*, and how the page draws it.
@@ -28,8 +27,8 @@ import {SiteMetering} from './SiteMetering';
  * **draws**. A control that redraws a circuit deserves more than a row in a form,
  * because it is the one on this tab a reader could mistake for reconfiguring plant.
  *
- * Then the plant this site holds — gensets and meters — and last the circuit
- * itself, as the preview of the choice above.
+ * Then the plant this site holds — its gensets — and last the circuit itself, as
+ * the preview of the choice above.
  *
  * ## What the power setting is
  *
@@ -200,15 +199,11 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
 
       <hr className="border-subtle" />
 
-      <SiteMetering summary={summary} />
-
-      <hr className="border-subtle" />
-
       {/* The setting's own effect, drawn. Cheap — `SiteDiagram` is already a pure
           function of `(summary, dutyId, role)` — and it is the most useful thing the
           page can show: the choice above is about a picture, so the picture is the
-          argument. It uses the site's real duty set and real meter reading, which is
-          why this is the site page's circuit rather than an illustration of one. */}
+          argument. It uses the site's real duty set and real incomer reading, which
+          is why this is the site page's circuit rather than an illustration of one. */}
       <section aria-label="Circuit preview" className="flex flex-col gap-5 px-6 py-7">
         <h2 className="text-sm font-medium text-primary">
           {summary.site.name} as {ROLE_COPY[role].label.toLowerCase()}

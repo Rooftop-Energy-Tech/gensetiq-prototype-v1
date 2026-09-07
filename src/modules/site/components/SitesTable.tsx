@@ -8,6 +8,9 @@ import {cn} from '@/lib/utils';
 import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import type {SiteSummary} from '../data/sites';
 import {SITE_KIND_LABEL} from '../data/sites';
+import {FALLBACK_POWER_ROLE} from '../data/siteConfig';
+import type {SitePowerRole} from '../types/site.type';
+import {supplyLabel} from './supplyMeta';
 
 /**
  * The sites list — not a frame in the design, which names `Sites` in the sidebar
@@ -20,20 +23,51 @@ import {SITE_KIND_LABEL} from '../data/sites';
  * two lists answer the same shape of question about different objects.
  *
  * The columns are the site-level facts, in the order they get asked: *where is
- * it*, *is anything wrong*, *what is standing there*, *does it need a tanker*.
- * Site draw is deliberately not among them — it is instantaneous and changes
- * while you read the list, which makes it a detail-page figure.
+ * it*, *is anything wrong*, *how is it fed and what is standing there*, *does it
+ * need a tanker*. Site draw is deliberately not among them — it is instantaneous
+ * and changes while you read the list, which makes it a detail-page figure.
+ *
+ * ## Why `Supply` and not `Gensets`
+ *
+ * The column used to be the genset count and how many of them were turning, which
+ * answered *what is standing there* and left *what kind of site is this* to be
+ * discovered by clicking in. It is now `supplyLabel` — `Mains + 2 gensets`, `Solar
+ * + battery + 2 gensets` — which is a superset: the count is still in it, and the
+ * configuration the row is about is now legible from the list.
+ *
+ * That label is the same one the site's own Details tab prints, deliberately. See
+ * `supplyMeta.ts` for why the supply is phrased in exactly one place.
+ *
+ * ## Why `Fuel on site` comes and goes
+ *
+ * It is the widest column and the one least often the reason for opening this
+ * screen, and beside the map there is no room for both it and a supply that reads
+ * as a sentence. So it is drawn on the list-only view, where the table has the full
+ * width, and dropped on the split view, where the map has half of it. The four
+ * remaining columns share the width it gives up — hence two widths per column.
  */
 const COLUMNS = [
-  {label: 'Site', width: '22%'},
-  {label: 'Location', width: '24%'},
-  {label: 'Condition', width: '15%'},
-  {label: 'Gensets', width: '18%'},
-  {label: 'Fuel on site', width: '21%'},
+  {label: 'Site', withFuel: '22%', withoutFuel: '24%', fuel: false},
+  {label: 'Location', withFuel: '21%', withoutFuel: '26%', fuel: false},
+  {label: 'Condition', withFuel: '14%', withoutFuel: '16%', fuel: false},
+  {label: 'Supply', withFuel: '23%', withoutFuel: '34%', fuel: false},
+  {label: 'Fuel on site', withFuel: '20%', withoutFuel: '0%', fuel: true},
 ] as const;
 
 type SitesTableProps = {
   summaries: Array<SiteSummary>;
+  /**
+   * Every site's effective power role, from `useSitePowerRoles`.
+   *
+   * The whole map rather than a lookup per row for the reason that hook gives: the
+   * roles are reader-editable on a site's Settings tab, and one subscription for the
+   * table keeps every row reading the same moment.
+   */
+  roles: Record<string, SitePowerRole>;
+  /**
+   * Draw the fuel column. False beside the map — see the note on `COLUMNS`.
+   */
+  showFuel: boolean;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
   /** The scroll container, for the split view's row watcher. See `GensetsTable`. */
@@ -44,11 +78,14 @@ type SitesTableProps = {
 
 export const SitesTable = ({
   summaries,
+  roles,
+  showFuel,
   selectedId,
   onSelect,
   scrollRef,
   onBeforeAutoScroll,
 }: SitesTableProps) => {
+  const columns = showFuel ? COLUMNS : COLUMNS.filter((column) => !column.fuel);
   // Bring a selection made on the map into view — the fleet table's effect, over
   // sites. See `GensetsTable` for the reasoning and the sticky-header offset.
   useEffect(() => {
@@ -81,16 +118,21 @@ export const SitesTable = ({
     <div ref={scrollRef} className="h-full overflow-auto">
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
-          Sites, with condition, the gensets installed and fuel on site
+          {showFuel
+            ? 'Sites, with condition, how each is supplied and fuel on site'
+            : 'Sites, with condition and how each is supplied'}
         </caption>
         <colgroup>
-          {COLUMNS.map((column) => (
-            <col key={column.label} style={{width: column.width}} />
+          {columns.map((column) => (
+            <col
+              key={column.label}
+              style={{width: showFuel ? column.withFuel : column.withoutFuel}}
+            />
           ))}
         </colgroup>
         <thead>
           <tr>
-            {COLUMNS.map((column) => (
+            {columns.map((column) => (
               <th
                 key={column.label}
                 scope="col"
@@ -106,6 +148,10 @@ export const SitesTable = ({
             const condition = CONDITION_META[summary.condition];
             const ConditionIcon = condition.icon;
             const selected = summary.site.id === selectedId;
+            // `?? FALLBACK_POWER_ROLE` for the reason `siteConfig` gives: a row with
+            // no seed behind it is a site we know nothing about, and grid-backed is
+            // the safe reading rather than a hybrid we would then draw an array for.
+            const role = roles[summary.site.id] ?? FALLBACK_POWER_ROLE;
 
             return (
               <tr
@@ -150,21 +196,29 @@ export const SitesTable = ({
                     {condition.label}
                   </Badge>
                 </td>
+                {/* Two lines, the shape the Site cell already uses: the
+                    configuration on top, and how much of it is turning under it.
+                    A running set means something different in each configuration —
+                    ordinary at a prime site, the backstop called on at a hybrid —
+                    so the count is worth keeping beside the words that frame it. */}
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {summary.gensets.length}
+                  <span className="block truncate">
+                    {supplyLabel(role, summary.gensets.length)}
+                  </span>
                   <span
                     className={cn(
-                      'text-secondary',
-                      summary.runningCount === 0 && 'text-tertiary',
+                      'block truncate text-xs',
+                      summary.runningCount === 0 ? 'text-tertiary' : 'text-secondary',
                     )}
                   >
-                    {' · '}
                     {summary.runningCount} running
                   </span>
                 </td>
-                <td className="h-13 truncate border-b border-subtle p-2 whitespace-pre text-primary">
-                  {fuelHeadline(summary.fuelLitres, summary.fuelCapacityLitres)}
-                </td>
+                {showFuel && (
+                  <td className="h-13 truncate border-b border-subtle p-2 whitespace-pre text-primary">
+                    {fuelHeadline(summary.fuelLitres, summary.fuelCapacityLitres)}
+                  </td>
+                )}
               </tr>
             );
           })}

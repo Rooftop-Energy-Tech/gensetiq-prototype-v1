@@ -27,9 +27,8 @@ import type {SolarSystem} from '../../types/system.type';
  * them all day should find the navigation in the same column saying the same kinds
  * of thing.
  *
- * The set is unchanged. It is a genset's eight minus `Runs` and `Refuel`, which
- * are facts about an engine — a PV system does not start, stop, or take delivery
- * of anything.
+ * The set is unchanged. It is a genset's seven minus `Runs`, which is a fact about
+ * an engine — a PV system does not start or stop.
  *
  * Two labels differ from the routes behind them, exactly as the genset rail's do.
  * `Solar` is the home route, named for its subject: "Home" says nothing in a
@@ -37,27 +36,27 @@ import type {SolarSystem} from '../../types/system.type';
  * is called in the design's rail, and it is the genset rail's word for the same
  * page, so the two registers agree.
  *
- * ## Why the inverters are still not in here
+ * ## Why this rail does not nest
  *
- * A rail can nest, and the site's does — `Asset ▸ Genset / Solar / Battery` is
- * the whole reason the strip was replaced. It is tempting to give this one
- * `Inverters ▸ 1 … 10` on the same argument.
+ * A rail can, and the site's does — `Asset ▸ Genset / Solar / Battery` is the
+ * whole reason the strip was replaced. This one had a candidate for it:
+ * `Inverters ▸ 1 … 10`, one row per box, each with a page of readings behind it.
  *
- * It is the wrong argument here, and the site rail says why: it lists the *lead*
- * genset and sends the rest to `/gensets`, because "a rail that listed four
- * engines would be an inventory". A system is one to ten boxes — a 1,333 kWp
- * mini-grid is ten workhorses in parallel — so a nested list would be an
- * inventory at exactly the systems where it was supposed to help, and a list of
- * one everywhere else. `Devices` is the list, each row a link to its own page;
- * that is where a reader picks the box they want, having first seen which one is
- * down.
+ * That argument was answered twice. First on its own terms — a 1,333 kWp
+ * mini-grid was ten boxes in parallel, so a nested list would have been an
+ * inventory at exactly the systems where it was meant to help and a list of one
+ * everywhere else. Then by the model: there are no boxes. A telco site runs a
+ * −48 V DC bus and its loads are DC, so the array feeds the bus and there is no
+ * AC stage to invert to.
+ *
+ * `Devices` stayed and changed subject. It is the array now — the glass, the
+ * strings, and how many of them are dark — which is one page and not a level.
  */
 const NAV_ENTRIES = (systemId: string): Array<DetailNavEntry> => {
   const params = {systemId};
 
   return [
-    // `end` on the landing row alone: `/solar/x` prefixes every route below it,
-    // the inverter pages included.
+    // `end` on the landing row alone: `/solar/x` prefixes every route below it.
     {label: 'Solar', icon: PanelsTopLeftIcon, to: '/solar/$systemId', params, end: true},
     {label: 'Analysis', icon: ChartLineIcon, to: '/solar/$systemId/analysis', params},
     {label: 'Service', icon: WrenchIcon, to: '/solar/$systemId/service', params},
@@ -110,8 +109,7 @@ export const SystemDetailShell = ({system}: {system: SolarSystem}) => (
                 </TooltipTrigger>
                 <TooltipContent side="right" className="flex flex-col gap-1">
                   <span>
-                    Inverters · {system.inverters.length} × {system.inverters[0]?.model} (
-                    {system.acKw} kW AC)
+                    Modules · {system.modules.toLocaleString('en-MY')} × {system.moduleWatts} W
                   </span>
                   <span>Strings · {system.strings}</span>
                   <span>Commissioned · {stampDate(system.commissionedAt)}</span>

@@ -15,6 +15,7 @@ import {
   clearedAlarms,
   orderedStanding,
   reopenAlarm,
+  unacknowledgeAlarm,
   useAlarmHandling,
 } from '../../data/alarms';
 import type {Genset} from '../../types/genset.type';
@@ -65,11 +66,18 @@ const ClassBadge = ({alarm}: {alarm: TrackedAlarm}) => (
  * with it, not that the engine is well. The row stays, its standing changes, and
  * the name of whoever claimed it appears on it.
  *
- * The buttons are asymmetric on purpose. `Acknowledge` disappears once somebody
- * has, because acknowledging twice is meaningless and the store ignores it
- * anyway; `Clear` is always there, because an alarm can be dealt with by a person
- * who never bothered to claim it first and refusing that would only teach people
- * to click two buttons in a row.
+ * The buttons are asymmetric on purpose. `Acknowledge` is replaced by
+ * `Unacknowledge` once somebody has claimed it, because acknowledging twice is
+ * meaningless and the store ignores it anyway, while releasing a claim is the
+ * undo the first click needs — a row taken on by mistake, or by the shift that
+ * turned out not to own it, has to be gettable back onto the queue. `Clear` is
+ * always there, because an alarm can be dealt with by a person who never
+ * bothered to claim it first and refusing that would only teach people to click
+ * two buttons in a row.
+ *
+ * `Unacknowledge` is the quiet `ghost`, the same weight `Reopen` gets in the
+ * cleared table: both are corrections rather than steps forward, and neither
+ * should compete with `Clear` for the eye.
  */
 const StandingRow = ({alarm, by}: {alarm: TrackedAlarm; by: string}) => {
   const standing = standingOf(alarm.handling);
@@ -103,7 +111,7 @@ const StandingRow = ({alarm, by}: {alarm: TrackedAlarm; by: string}) => {
       </td>
       <td className="px-3 py-2.5">
         <div className="flex justify-end gap-2">
-          {alarm.handling.acknowledgedAt === null && (
+          {alarm.handling.acknowledgedAt === null ? (
             <Button
               type="button"
               size="xs"
@@ -111,6 +119,15 @@ const StandingRow = ({alarm, by}: {alarm: TrackedAlarm; by: string}) => {
               onClick={() => acknowledgeAlarm(alarm.id, by)}
             >
               Acknowledge
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              onClick={() => unacknowledgeAlarm(alarm.id)}
+            >
+              Unacknowledge
             </Button>
           )}
           <Button
@@ -304,8 +321,9 @@ export const GensetAlarms = ({genset}: {genset: Genset}) => {
           modelled on, and a reader deciding whether to trust the Standing count
           needs to know it. */}
       <p className="max-w-prose text-xs text-tertiary">
-        Acknowledging records that somebody has taken an alarm on; it does not clear it.
-        Clearing marks it finished with. Neither reaches the controller — this prototype has
+        Acknowledging records that somebody has taken an alarm on; it does not clear it,
+        and it can be handed back while the alarm still stands. Clearing marks it finished
+        with. None of it reaches the controller — this prototype has
         no write path to the panel, and on a live system an alarm whose fault is still
         present would raise again at the next poll. Here the register bits are fixed, so a
         cleared alarm stays cleared until it is reopened.

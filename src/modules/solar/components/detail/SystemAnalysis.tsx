@@ -24,17 +24,18 @@ import {SolarRangeTabs} from '../SolarRangeTabs';
  * So the tab is the bars, over whatever window the reader picks, and the window
  * lives in the query string so "look at the July dip" is a link.
  *
- * ## Attribution is still three steps
+ * ## Attribution stops at *when*
  *
  * The placeholder this replaced promised generation over time *and* a shortfall
- * pinned to a cause. The second half is not on this page and was never going to
- * be: an array has no readings of its own. Every DC current in a monitoring
- * product is one box describing its own terminals, and asking a ten-inverter
- * plant for *the* DC current has no answer.
+ * pinned to a cause. The second half is not on this page, and it is no longer
+ * anywhere.
  *
- * So the path is **when** (this chart, where a step is a visible drop that stays
- * down), **which box** (`Devices`, where a column of shares makes the odd one out
- * obvious), and **why** (that box's own trace).
+ * It used to be two steps further: **which box** (`Devices`, where a column of
+ * per-inverter shares made the odd one out obvious) and **why** (that box's own
+ * trace of DC current against AC output). Both belonged to a device that a telco
+ * site does not have — the array feeds a −48 V DC bus, and there is no inverter
+ * to describe its own terminals — so what is left is the date and the count of
+ * strings, which is this chart and the sentence under it.
  */
 export const SystemAnalysis = ({
   system,
@@ -75,8 +76,6 @@ export const SystemAnalysis = ({
   const total = series
     .filter((bucket) => !bucket.inProgress)
     .reduce((sum, bucket) => sum + bucket.actualKwh, 0);
-
-  const faulted = system.inverters.filter((one) => one.downStrings > 0);
 
   return (
     <div className="flex min-h-full flex-col gap-4 px-4 pt-4 pb-24 md:pb-6">
@@ -121,16 +120,19 @@ export const SystemAnalysis = ({
         )}
       </div>
 
-      {/* The hand-off, and only where the array has actually stepped. A permanent
-          sentence telling a reader where to go next is furniture; one that appears
-          on the systems with a dated fault and names the box carrying it is the
-          next step of the job. */}
-      {detail.stepLabel !== undefined && faulted.length > 0 && (
+      {/* What the step means, and only where the array has actually stepped. A
+          permanent sentence under the chart is furniture; one that appears on the
+          systems with a dated fault, and says how much of the array it accounts
+          for, is the reading of the drop the reader is looking at.
+
+          It used to hand off — "open that inverter from Devices to see the
+          readings behind it" — and there is nowhere to hand off to now. The
+          strings are on `Devices`, but as a count rather than a page each. */}
+      {detail.stepLabel !== undefined && system.downStrings > 0 && (
         <p className="text-xs text-secondary">
-          Output stepped down in {detail.stepLabel} and has stayed there: {system.downStrings} of{' '}
-          {system.strings} strings, on {faulted.map((one) => one.label).join(' and ')}. Open{' '}
-          {faulted.length === 1 ? 'that inverter' : 'those inverters'} from Devices to see the
-          readings behind it.
+          Output stepped down in {detail.stepLabel} and has stayed there:{' '}
+          {system.downStrings} of {system.strings} strings{' '}
+          {system.downStrings === 1 ? 'has' : 'have'} stopped delivering.
         </p>
       )}
     </div>

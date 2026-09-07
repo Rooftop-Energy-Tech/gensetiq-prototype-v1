@@ -247,7 +247,7 @@ export const SiteIdentityPanel = ({siteId}: {siteId: string}) => {
             What this site is called, where it stands, and which{' '}
             {CUSTOMER_TERM.toLowerCase()} and programme it belongs to. These are the
             site's own facts — what it draws and what is standing in the yard are read
-            from the meters and the fleet, and are not editable here.
+            from the incomer and the fleet, and are not editable here.
           </p>
         </div>
 

@@ -64,10 +64,10 @@ export type GensetFuelInstruments = {
 /**
  * Whether an instrument is there, and whether it is talking.
  *
- * The same three-way distinction `modules/meter` draws for power metering, for the
- * same reason: `not-fitted` needs a purchase order and `no-reading` needs somebody
- * to walk out to a device that is already bolted on. Collapsing them into one
- * "unavailable" would hide which of those two jobs a site actually has.
+ * Three ways rather than two, and the reason is that they are different jobs:
+ * `not-fitted` needs a purchase order and `no-reading` needs somebody to walk out to
+ * a device that is already bolted on. Collapsing them into one "unavailable" would
+ * hide which of the two a site actually has.
  */
 export type InstrumentFeed = 'reporting' | 'no-reading' | 'not-fitted';
 

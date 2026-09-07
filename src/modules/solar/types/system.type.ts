@@ -1,11 +1,12 @@
+import type {CustomerId} from '@/modules/site/data/customers';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 
 /**
- * What an inverter is *doing*, and why the list is three long.
+ * What a solar system is *doing*, and why the list is three long.
  *
- * `RUN_STATES` for a machine with no engine, and the parallel is exact on
- * purpose: `GENERATING` is `RUNNING`, `IDLE` is `IDLE`, `OFFLINE` is a box that
- * has stopped talking to us. An operator who has learned the fleet screen's state
+ * `RUN_STATES` for a plant with no engine, and the parallel is exact on purpose:
+ * `GENERATING` is `RUNNING`, `IDLE` is `IDLE`, `OFFLINE` is a plant that has
+ * stopped talking to us. An operator who has learned the fleet screen's state
  * column has already learned this one.
  *
  * ## Why there is no `CURTAILED`
@@ -22,83 +23,52 @@ import type {SitePowerRole} from '@/modules/site/types/site.type';
  *
  * ## Why a fault is not a state
  *
- * An inverter with a string down is still generating, at three-quarters of what
- * it should. Folding that into the state would either hide it — `GENERATING`, as
- * though nothing were wrong — or overstate it, `FAULT` on a box making most of
+ * A system with a string down is still generating, at three-quarters of what it
+ * should. Folding that into the state would either hide it — `GENERATING`, as
+ * though nothing were wrong — or overstate it, `FAULT` on a plant making most of
  * its number. It belongs in the health band, where it can carry the date it
  * started and the energy it has cost since.
  */
-export const INVERTER_STATES = ['GENERATING', 'IDLE', 'OFFLINE'] as const;
+export const SYSTEM_STATES = ['GENERATING', 'IDLE', 'OFFLINE'] as const;
 
-export type InverterState = (typeof INVERTER_STATES)[number];
-
-/**
- * The mode the inverter's controller is in — the left column of its control pad.
- *
- * The genset pad's two words, meaning the same thing: in `AUTO` the box decides
- * (it tracks the maximum power point, derates itself on a hot afternoon, and
- * retries on its own timer after a fault), and in `MANUAL` an engineer has taken
- * it off that leash to work on it.
- */
-export type InverterControlMode = 'AUTO' | 'MANUAL';
+export type SystemState = (typeof SYSTEM_STATES)[number];
 
 /**
- * One inverter — **the only part of a PV system that can talk.**
+ * One solar system: everything PV at a site, taken together — **and the only
+ * level this module has.**
  *
- * This is the correction at the centre of the model. An array is glass, aluminium
- * and cable: passive, unmetered, and incapable of reporting anything. Every
- * reading a solar monitoring product shows — string current, DC bus voltage,
- * heatsink temperature — is an inverter describing what it sees on its own
- * terminals, and the array is inferred from it.
+ * ## Why there is no device below it
  *
- * So the inverter is the unit of **instrumentation, alarms, control and
- * maintenance**: it has the serial number, the firmware, the warranty, the comms
- * link, and it is the thing that fails and gets swapped. What it is not is the
- * unit of *reporting* — see `SolarSystem`.
- */
-export type Inverter = {
-  /** `kdh-0431-inv-01`. */
-  id: string;
-  /** `Inverter 1`. Numbered within its system, which is how site staff refer to them. */
-  label: string;
-  systemId: string;
-  model: string;
-  /** The box's AC rating, kW. */
-  ratedKw: number;
-  /** The DC behind this box, kWp. Above `ratedKw` — see the DC/AC note in `systems.ts`. */
-  kwp: number;
-  /** How many strings land on its MPPT inputs. */
-  strings: number;
-  /** How many of those have stopped delivering, for a reason other than the hour. */
-  downStrings: number;
-  state: InverterState;
-  lastUpdated: string;
-  /** What it is putting out at this moment, kW. `0` unless `GENERATING`. */
-  outputKw: number;
-  controlMode: InverterControlMode;
-};
-
-/**
- * One solar system: everything PV at a site, taken together.
+ * There was, and it was an inverter: a box with a serial number, a comms link, a
+ * control pad and a page of its own, carrying the strings that landed on its MPPT
+ * inputs. It is gone, because these are telco sites. A tower runs a −48 V DC bus
+ * and its loads are DC, so the array feeds the bus directly; there is no AC stage
+ * anywhere on the site for an inverter to make, and a page describing one was
+ * describing a box that is not in the cabinet.
  *
- * ## Why this is the register's row and the inverter is not
+ * What went with it is worth stating plainly, because it is a real loss and not a
+ * tidy-up: per-box state, so a plant is now reporting or silent as a whole rather
+ * than four-fifths visible; the string bars and the per-box control pad; and the
+ * insulation-resistance rule, which was an earth-leakage interlock reading and so
+ * had nothing left to measure it.
+ *
+ * What stays is everything the array itself is. **Strings survive the boxes** —
+ * a string is modules in series, a physical run on the roof, and it is a fact
+ * about the array whatever it terminates in. That is why `string-out` is still a
+ * health rule and still the most useful thing this module says.
+ *
+ * ## Why this is the register's row
  *
  * Three reasons, and they are about who is reading.
  *
- *  - **It is the unit people name.** Nobody says "we have twenty-two inverters";
+ *  - **It is the unit people name.** Nobody says "we have twenty-two strings";
  *    they say "we have a 1.3 MW system". `kwp` is what a quote, a contract and a
  *    commissioning certificate are written against.
  *  - **It is the unit generation is reported at.** The energy model sizes and
  *    runs a site's whole plant, so the monthly series, the day's kWh and the
- *    step-down all attach here. Per-inverter energy means nothing unless a box
- *    happens to map onto one plane, which is a coincidence rather than a rule.
- *  - **It is the unit that survives.** Inverters are implementation: swap one and
+ *    step-down all attach here.
+ *  - **It is the unit that survives.** Plant is implementation: replace it and
  *    the system is the same system, with the same contract and the same history.
- *
- * A flat register of inverters would put twenty-two rows from one site into a
- * portfolio list; a register with no way down to a box would leave nobody able to
- * act on the one that failed. Two levels, which is the arrangement `/sites` and
- * `/gensets` already make between a place and its machines.
  *
  * ## `id` is the site's id, and that is a statement about the model
  *
@@ -114,75 +84,49 @@ export type SolarSystem = {
   /** The site's own name — `WPKL-0207`. */
   siteName: string;
   locationLabel: string;
+  /**
+   * Where the system is, and which division owns it.
+   *
+   * All three are the **site's**, copied down rather than derived: a system is
+   * everything PV at one place, so its position is that place's position and its
+   * region is that place's region. They are here because the register now has a map
+   * and a region filter, and both need the fact on the row rather than a `siteSeed`
+   * lookup per cell — the same reason `locationLabel` above was already copied down.
+   *
+   * A reader can move a site's pin or change its region from its Settings tab, and
+   * `systems.ts` reads the seeds live, so these follow.
+   */
+  latitude: number;
+  longitude: number;
+  customer: CustomerId;
   role: SitePowerRole;
   /** System capacity, kWp DC — the number the system is named and sold by. */
   kwp: number;
-  /** The inverters' combined AC rating, kW. */
-  acKw: number;
-  inverters: Array<Inverter>;
-  /** Strings across every inverter. */
+  /** How many strings the array is wired in. */
   strings: number;
   /**
    * How many modules are on the roof, and what each is rated at.
    *
    * The design's home page asks for `Number of panels`, and nothing in the model
    * answered it — so it is derived here from `kwp` at one module rating, exactly as
-   * `strings` is derived from the DC behind each box. It is not seeded: a module
-   * count stated independently of the capacity is a number that can disagree with
-   * the thing it is a count of, and this estate's arithmetic is built so that
-   * cannot happen.
+   * `strings` is. It is not seeded: a module count stated independently of the
+   * capacity is a number that can disagree with the thing it is a count of, and
+   * this estate's arithmetic is built so that cannot happen.
    *
    * `moduleWatts` travels with it so a page can say *248 × 580 W* rather than
    * quoting a bare count a reader has no way to check.
    */
   modules: number;
   moduleWatts: number;
-  /** How many of those are dark, for a reason other than the hour. */
+  /** How many of those strings are dark, for a reason other than the hour. */
   downStrings: number;
   commissionedAt: string;
-  /** The most recent contact across every inverter. */
+  /** When this system was last heard from. */
   lastUpdated: string;
-  /** Rolled up from the boxes — see `systemState`. */
-  state: InverterState;
-  /** What the system is putting out now, kW — summed over the boxes we can hear. */
+  state: SystemState;
+  /** What the system is putting out now, kW. `0` on a system nobody can hear. */
   outputKw: number;
-  /**
-   * The DC capacity currently reporting, kWp.
-   *
-   * Below `kwp` whenever an inverter has gone quiet, and the page prints both. A
-   * system with one silent box out of twenty-two is not an offline system — it is
-   * a system four percent of which we cannot see, and those are different jobs.
-   */
-  reportingKwp: number;
 };
-
-/**
- * The system's state, rolled up from its boxes.
- *
- * `OFFLINE` only when **every** inverter is silent, which is the whole reason the
- * roll-up is a function rather than a field copied off the first box. One quiet
- * inverter in twenty-two does not make a plant offline; it makes an alert, and
- * `reportingKwp` carries how much of the plant it costs us.
- *
- * `GENERATING` wins over `IDLE` for the same kind of reason in the other
- * direction: if any part of the system is delivering, the system is delivering.
- */
-export const systemState = (inverters: Array<Inverter>): InverterState => {
-  if (inverters.length === 0) return 'OFFLINE';
-  if (inverters.every((one) => one.state === 'OFFLINE')) return 'OFFLINE';
-  return inverters.some((one) => one.state === 'GENERATING') ? 'GENERATING' : 'IDLE';
-};
-
-export const reportingInverters = (system: SolarSystem): Array<Inverter> =>
-  system.inverters.filter((one) => one.state !== 'OFFLINE');
-
-export const silentInverters = (system: SolarSystem): Array<Inverter> =>
-  system.inverters.filter((one) => one.state === 'OFFLINE');
-
-export const inverterById = (
-  system: SolarSystem,
-  inverterId: string,
-): Inverter | undefined => system.inverters.find((one) => one.id === inverterId);
 
 /**
  * `WPKL-0207 | 42 kWp` — the header, the breadcrumb and the document title.
@@ -195,10 +139,3 @@ export const inverterById = (
  */
 export const systemName = (system: SolarSystem): string =>
   `${system.siteName} | ${system.kwp} kWp`;
-
-/** Sort key within a condition: something silent first, then working, then dark. */
-export const INVERTER_STATE_ORDER: Record<InverterState, number> = {
-  OFFLINE: 0,
-  GENERATING: 1,
-  IDLE: 2,
-};

@@ -3,10 +3,14 @@ import {useSyncExternalStore} from 'react';
 import type {Genset, GensetActivity} from '../types/genset.type';
 import type {ServiceRecord} from '../types/service.type';
 import {gensetInstallations} from './installations';
-import {gensetRefuelOrders} from './refuelOrders';
 
 /**
  * The activity log, assembled from the systems that actually witness events.
+ *
+ * **Nothing renders this any more.** The "Activity" band closed the genset home
+ * page and the fleet panel; both are gone, the same way `/solar`'s feed went.
+ * The derivation, the note store and `ActivityFeed` are all still here and still
+ * correct, unreferenced, if it is wanted back.
  *
  * The feed used to be one seeded list per genset, which made it a display with
  * no inlet: nothing an operator did anywhere in the app could put a line in
@@ -21,9 +25,6 @@ import {gensetRefuelOrders} from './refuelOrders';
  *    reason, stops, faults. Seeded in `fleet.ts`, as telemetry would be.
  *  - **Dispatch** — one line when a posting opens, one when it closes, read
  *    off the same `Installation` rows the dispatch feed lists.
- *  - **Refuel order** — issue and completion, read off the same orders the
- *    Refuel pages list. The seeded "Refuelled to full" controller line is
- *    dropped in favour of these: two records of one delivery would drift.
  *  - **Service log** — one line per recorded service, as before.
  *  - **Manual** — an operator's own note, typed on the dashboard and held in
  *    `localStorage` with the same posture as every other override store in
@@ -130,32 +131,6 @@ const installationEntries = (genset: Genset): Array<GensetActivity> =>
     return entries;
   });
 
-const refuelEntries = (genset: Genset): Array<GensetActivity> =>
-  gensetRefuelOrders(genset.id).flatMap((order) => {
-    const litres = order.litres.toLocaleString('en-MY');
-    const entries: Array<GensetActivity> = [
-      {
-        id: `${order.id}-issued`,
-        kind: 'REFUEL',
-        message: `Refuel order for ${litres} L issued by ${order.issuedBy}`,
-        at: order.issuedAt,
-        source: 'Refuel order',
-      },
-    ];
-
-    if (order.refueledAt !== null) {
-      entries.push({
-        id: `${order.id}-done`,
-        kind: 'REFUEL',
-        message: `Refuelled ${litres} L`,
-        at: order.refueledAt,
-        source: 'Refuel order',
-      });
-    }
-
-    return entries;
-  });
-
 const serviceEntries = (genset: Genset, records: Array<ServiceRecord>): Array<GensetActivity> =>
   records
     .filter((record) => record.gensetId === genset.id)
@@ -181,23 +156,24 @@ const noteEntries = (genset: Genset, all: Array<ActivityNote>): Array<GensetActi
 /**
  * Everything known to have happened to this machine, newest first.
  *
- * The controller's seeded refuel line is dropped here: completed refuel
- * orders carry the same event with an order behind it, and a delivery that
- * appeared twice with two figures would cost the feed its authority.
+ * The controller's own "Refuelled to full" line is the delivery record again. It
+ * used to be filtered out in favour of a completed refuel order, which carried the
+ * same event with a booking behind it; with the order log gone (GEN-25) the
+ * controller is the only witness left, and one record of one delivery is the point.
  */
 export const gensetActivityLog = (
   genset: Genset,
   records: Array<ServiceRecord>,
   allNotes: Array<ActivityNote>,
 ): Array<GensetActivity> => {
-  const controller = genset.activity
-    .filter((event) => event.kind !== 'REFUEL')
-    .map((event) => ({...event, source: event.source ?? 'Controller'}));
+  const controller = genset.activity.map((event) => ({
+    ...event,
+    source: event.source ?? 'Controller',
+  }));
 
   return [
     ...controller,
     ...installationEntries(genset),
-    ...refuelEntries(genset),
     ...serviceEntries(genset, records),
     ...noteEntries(genset, allNotes),
   ].sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime());

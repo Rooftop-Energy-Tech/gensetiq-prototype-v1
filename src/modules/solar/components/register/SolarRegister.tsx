@@ -1,264 +1,260 @@
-import {Link} from '@tanstack/react-router';
-import {SearchIcon, SearchXIcon} from 'lucide-react';
-import {useMemo, useState} from 'react';
+import {Suspense, lazy, useMemo, useRef, useState} from 'react';
+import {SearchXIcon} from 'lucide-react';
 
-import {Badge} from '@/components/ui/badge';
-import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
-import {amount} from '@/lib/format';
-import {cn} from '@/lib/utils';
-import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
-import {systemDetail} from '../../data/systemDetail';
-import {systemHealth} from '../../data/systemHealth';
+import {PlantToolbar} from '@/components/global/PlantToolbar';
+import {useIsCompact} from '@/lib/useIsCompact';
+import {useVisibleRowIds} from '@/lib/useVisibleRows';
+import {CUSTOMER_TERM} from '@/modules/site/data/customers';
+import {
+  filterSolarRows,
+  searchSolarRows,
+  solarRows,
+  solarSummary,
+  sortSolarRows,
+} from '../../data/register';
 import {useSolarSystems} from '../../data/systems';
-import type {SystemCondition} from '../../types/health.type';
-import type {SolarSystem} from '../../types/system.type';
-import {INVERTER_STATE_META} from '../inverterStateMeta';
+import {SolarSummaryCards} from './SolarSummaryCards';
+import {SolarTable} from './SolarTable';
+import {SystemPreviewPanel} from './SystemPreviewPanel';
 import type {SolarRegisterSearch} from '../../types/register.type';
 
 /**
- * `/solar` — a row per solar system, the way `/gensets` is a row per machine.
+ * MapLibre is ~800 kB, so the map's chunk is fetched on its own — the split is the
+ * default view here as it is on the fleet, which means the map is on this route's
+ * first paint and there is no bytes-saved argument left.
  *
- * ## What a row is
- *
- * A **system**: everything PV at one site, taken together. Not an inverter — a
- * flat register of boxes would put ten rows from one mini-grid into a portfolio
- * list. Not an array either, which is the correction this page was rebuilt
- * around: an array is the half of a PV system with no electronics, so nothing
- * reads from it, and every "array" reading in a monitoring product is really an
- * inverter describing its own terminals.
- *
- * The system is what a customer names and what survives its own plant being
- * replaced. The boxes are one click down, in `Devices`.
- *
- * ## Sorted by attention, and not by a column header
- *
- * By condition, then by output — worst first. This is a screen read to find work,
- * and a healthy system is not work; `/gensets` sorts by attention for the same
- * reason and neither makes the reader discover it.
- *
- * The sort is applied here rather than in `solarSystems`, and the first draft had
- * it the other way. That function can only sort by *state*, since it does not
- * build a detail — and state is not condition: a system with a string down is
- * generating perfectly well and is the row somebody needs to see, while a healthy
- * one is also `Generating`. Sorting by state put an `Optimum` system above a
- * `Critical` one, which is a list that quietly stops being read.
- *
- * ## Scale
- *
- * One table, one search box, and nothing that grows with the estate — the rule
- * the README states for the solar screens. Each row builds a `systemDetail` to
- * reach its condition and passes `includeCurve: false`, because the intraday
- * curve is the expensive part of that call and no row draws one.
+ * The split stays for a better reason than it was made for: the toolbar, the cards and
+ * the table render while the map's chunk is still in flight, so the screen is
+ * *readable* before it is complete. The `Suspense` fallback below is what the map's
+ * half shows in the meantime.
  */
+const SolarMap = lazy(() =>
+  import('./SolarMap').then((module) => ({default: module.SolarMap})),
+);
 
-/** Worst first — the order the rows come out in. */
-const CONDITION_ORDER: Record<SystemCondition, number> = {
-  CRITICAL: 0,
-  ATTENTION: 1,
-  OPTIMUM: 2,
-};
+/** Design width of the preview panel, and its inset from the map's edge. */
+const PANEL_WIDTH = 393;
+const PANEL_INSET = 8;
 
-type RegisterRow = {
-  system: SolarSystem;
-  condition: SystemCondition;
-  /** The worst thing wrong, in the rule's own words, or `undefined`. */
-  headline: string | undefined;
-};
-
-const COLUMNS = [
-  {label: 'System', width: '25%'},
-  {label: 'State', width: '15%'},
-  {label: 'Output', width: '11%'},
-  {label: 'Capacity', width: '12%'},
-  {label: 'Inverters', width: '15%'},
-  {label: 'Health', width: '22%'},
-] as const;
-
+/**
+ * `/solar` — the array register, now built the way `/gensets` is.
+ *
+ * ## What this page used to be, and what it grew
+ *
+ * A table, a search box and a line counting the estate's plant. Its own note argued
+ * against a view switch: *"The generation report has cards and a table because it
+ * draws a chart per array. A register is a table of facts, and a second view of it
+ * would be a control with no question behind it."*
+ *
+ * That reasoning was about a **card** view, and it still holds — there is no card list
+ * here. What it did not consider is the map, and the map is not a second rendering of
+ * the table: it is the one fact a table cannot state. `Kapit` in a Location cell does
+ * not tell a reader that the site is four hours upriver, and *"which of the dark ones
+ * are near each other"* is a question with no column. So the register keeps its table
+ * and gains the fleet screen's other two views, its region filter, its card strip and
+ * its preview panel — the same estate, the same controls, a different kind of plant.
+ *
+ * Everything structural is `GensetsPage`'s and deliberately so: same view union with
+ * `split` as the default, same URL-carried state, same phone rules, same
+ * scroll-syncs-the-map behaviour in the split. Two registers in one product that
+ * filter differently or select differently read as two products.
+ *
+ * ## What is genuinely different
+ *
+ * **The cards are placeholders** — four readings rather than four filters. See
+ * `SolarSummaryCards` for what that does and does not mean.
+ *
+ * **There is no card list at phone width.** The fleet has `GensetsCards` because a
+ * genset row is six columns of short values; a system row carries two-line cells and
+ * survives a horizontal scroll, which is what it did before this change. So the
+ * compact width keeps the table and loses only the map and the panel, which have no
+ * phone form.
+ */
 export const SolarRegister = ({
   search,
   onSearchChange,
 }: {
   search: SolarRegisterSearch;
-  onSearchChange: (next: SolarRegisterSearch) => void;
+  /** Patch the URL search params; anything omitted is left as-is. */
+  onSearchChange: (next: Partial<SolarRegisterSearch>) => void;
 }) => {
-  // One clock for the page. See `useSolarSystems`.
+  const {view, q = '', id, panel, customer} = search;
+
+  /**
+   * At phone width this screen is the toolbar, the cards and the table.
+   *
+   * Not a narrowed version of the desktop screen: the map's own controls and its
+   * floating 393px panel have no phone form, and a map with a preview sheet over it is
+   * a screen of its own rather than this one at a smaller size. `view` in the URL is
+   * left exactly as it is — a phone reading a link to `?view=map` shows the table and,
+   * followed on a desktop, that same link still opens the map. The reader's device
+   * decides the presentation, not the URL.
+   */
+  const compact = useIsCompact();
+
+  // One clock for the page. Every row's output, silence and step are then read at the
+  // same instant — see `useSolarSystems` for why a defaulted `Date.now()` would let
+  // one screen read two different moments.
   const [now] = useState(() => Date.now());
   const systems = useSolarSystems(now);
 
-  const rows: Array<RegisterRow> = useMemo(
-    () =>
-      systems.flatMap((system) => {
-        const detail = systemDetail(system, now, false);
-        if (detail === undefined) return [];
+  const all = useMemo(() => solarRows(systems, now), [systems, now]);
 
-        const {alerts, condition} = systemHealth(system, detail, now);
+  // Counted over the whole register, deliberately — see `solarSummary`. The strip and
+  // the region dropdown are a picture of the estate that holds still while the table
+  // below answers a narrower question.
+  const summary = useMemo(() => solarSummary(all), [all]);
 
-        return [
-          {
-            system,
-            condition,
-            // The worst one only. A register cell listing three faults would be a
-            // page of its own squeezed into a sixth of a row; the system's own
-            // health band is one click away and lists them all.
-            headline: alerts[0]?.name,
-          },
-        ];
-      }),
-    [systems, now],
+  const rows = useMemo(
+    () => sortSolarRows(filterSolarRows(searchSolarRows(all, q), {customer})),
+    [all, q, customer],
   );
 
-  const ordered = useMemo(
-    () =>
-      [...rows].sort(
-        (left, right) =>
-          CONDITION_ORDER[left.condition] - CONDITION_ORDER[right.condition] ||
-          // Within a condition, the biggest plant first. Two criticals are not
-          // equally urgent, and a megawatt down the road matters more today than
-          // twenty kilowatts on a rooftop.
-          right.system.kwp - left.system.kwp,
-      ),
-    [rows],
-  );
+  // Resolved against the *filtered* rows, not the whole estate: if a search hides the
+  // selected system, the panel should say so rather than describing a row the reader
+  // can no longer see.
+  const selected = useMemo(() => rows.find((row) => row.system.id === id), [rows, id]);
 
-  const query = (search.q ?? '').trim().toLowerCase();
-  const shown =
-    query === ''
-      ? ordered
-      : ordered.filter(
-          (row) =>
-            row.system.siteName.toLowerCase().includes(query) ||
-            row.system.locationLabel.toLowerCase().includes(query) ||
-            row.system.inverters.some((one) => one.model.toLowerCase().includes(query)),
-        );
+  const showMap = (view === 'map' || view === 'split') && !compact;
+  const showList = view !== 'map' || compact;
+  const split = showMap && showList;
 
-  const totalKwp = systems.reduce((sum, one) => sum + one.kwp, 0);
+  // No explicit toggle yet → the selection decides. An empty panel is 393px of
+  // placeholder taken off the table, which is worth showing to somebody who asked for
+  // a preview and not to somebody who has just arrived.
+  const panelOpen = (panel ?? id !== undefined) && !compact;
+  // The panel floats over the map wherever there is a map under it, so the inset
+  // applies to the split view as well as the full-width one.
+  const mapPanelInset = showMap && panelOpen ? PANEL_WIDTH + PANEL_INSET : 0;
+
+  /**
+   * The rows on screen, and what the map frames in the split view — so scrolling the
+   * list walks the map down the country.
+   *
+   * Only in `split`: the other two views have nothing to sync, and observing rows for
+   * a map that is not there would fit the full-width map to whatever the list last
+   * showed.
+   */
+  const listRef = useRef<HTMLDivElement>(null);
+  const rowIds = useMemo(() => rows.map((row) => row.system.id), [rows]);
+  const {ids: visibleIds, suppress} = useVisibleRowIds(listRef, rowIds, split);
+
+  /**
+   * Selecting a system opens the panel, whether or not the toggle was on.
+   *
+   * `GensetsPage`'s rule, for its reason: selection has no other visible effect — a
+   * tinted row, a recoloured pin — so with the panel closed, clicking is a dead end
+   * that reads as a broken control. The toggle is best understood as "hide the preview
+   * until I next ask for one".
+   */
+  const selectSystem = (next: string) => onSearchChange({id: next, panel: true});
+
+  /**
+   * Clicking the basemap — not a pin, not a cluster — puts the selection down.
+   *
+   * `panel` goes back to *unset* rather than to `false`, because unset is how "let the
+   * selection decide" is spelled here. Guarded, so clicking around a map with nothing
+   * selected is not a stream of navigations to the search params it already has.
+   */
+  const deselectSystem = () => {
+    if (id === undefined && panel === undefined) return;
+    onSearchChange({id: undefined, panel: undefined});
+  };
+
+  const empty = rows.length === 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-24 md:pb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-secondary">
-          {systems.length} {systems.length === 1 ? 'system' : 'systems'} ·{' '}
-          {Math.round(totalKwp).toLocaleString('en-MY')} kWp installed
-        </p>
+    <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-24 md:pb-4">
+      <PlantToolbar
+        query={q}
+        onQueryChange={(next) => onSearchChange({q: next || undefined})}
+        placeholder="System name"
+        searchLabel="Search solar systems"
+        regions={summary.byCustomer}
+        regionLabel={CUSTOMER_TERM}
+        region={customer}
+        onRegionChange={(next) => onSearchChange({customer: next})}
+        view={view}
+        onViewChange={(next) => onSearchChange({view: next})}
+        panelOpen={panelOpen}
+        onPanelOpenChange={(next) => onSearchChange({panel: next})}
+        showViewControls={!compact}
+      />
 
-        <InputGroup className="w-full sm:w-64">
-          <InputGroupAddon>
-            <SearchIcon className="size-4" aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            value={search.q ?? ''}
-            onChange={(event) => onSearchChange({q: event.target.value || undefined})}
-            placeholder="Site, place or inverter"
-            aria-label="Search solar systems"
+      <SolarSummaryCards summary={summary} showing={rows.length} />
+
+      <div className="relative flex min-h-0 flex-1 gap-3">
+        {showList &&
+          (empty ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+              <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
+              <p className="text-sm text-secondary">
+                {summary.total === 0
+                  ? 'No site on this estate is configured as a solar hybrid.'
+                  : 'No system matches the current filters.'}
+              </p>
+            </div>
+          ) : (
+            <div className="min-h-0 min-w-0 flex-1">
+              <SolarTable
+                rows={rows}
+                // Full width means every column; beside the map the nameplate one is
+                // dropped rather than squeezed. See `SolarTable`'s `COLUMNS`.
+                wide={!split}
+                selectedId={id}
+                onSelect={selectSystem}
+                scrollRef={listRef}
+                onBeforeAutoScroll={suppress}
+              />
+            </div>
+          ))}
+
+        {showMap && (
+          <div
+            className={
+              // Full width on its own; beside the list it takes a shade over half.
+              //
+              // Sized for the panel whether or not the panel is showing, which is the
+              // fleet screen's rule: a selection should change what the screen says,
+              // not where it is.
+              split
+                ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
+                : 'min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element'
+            }
+          >
+            <Suspense
+              fallback={
+                <div className="flex size-full items-center justify-center text-sm text-secondary">
+                  Loading map…
+                </div>
+              }
+            >
+              <SolarMap
+                rows={rows}
+                selectedId={id}
+                onSelect={selectSystem}
+                onDeselect={deselectSystem}
+                panelInset={mapPanelInset}
+                focusIds={split ? visibleIds : undefined}
+              />
+            </Suspense>
+          </div>
+        )}
+
+        {panelOpen && (
+          <SystemPreviewPanel
+            row={selected}
+            className={
+              // Over the map, the panel floats — the basemap should keep running
+              // underneath it. In the list-only view it takes its own column instead,
+              // so it cannot sit on top of the table's last two columns.
+              showMap
+                ? 'absolute inset-y-2 right-2 z-10 w-[393px] shadow-lg'
+                : 'w-[393px] shrink-0'
+            }
           />
-        </InputGroup>
+        )}
       </div>
-
-      {shown.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-16 text-center">
-          <SearchXIcon className="size-5 text-secondary" aria-hidden="true" />
-          <p className="text-sm text-secondary">
-            {systems.length === 0
-              ? 'No site on this estate is configured as a solar hybrid.'
-              : 'No system matches that.'}
-          </p>
-        </div>
-      ) : (
-        <div className="min-h-0 overflow-auto">
-          <table className="w-full min-w-[720px] table-fixed border-separate border-spacing-0 text-sm">
-            <caption className="sr-only">
-              Every solar system on the estate — where it is, what it is rated at, what it is
-              doing now and what is wrong with it
-            </caption>
-            <colgroup>
-              {COLUMNS.map((column) => (
-                <col key={column.label} style={{width: column.width}} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
-                {COLUMNS.map((column) => (
-                  <th
-                    key={column.label}
-                    scope="col"
-                    className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas px-2 text-left font-medium whitespace-nowrap text-secondary"
-                  >
-                    {column.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((row) => {
-                const {system} = row;
-                const meta = CONDITION_META[row.condition];
-                const state = INVERTER_STATE_META[system.state];
-                const silent = system.inverters.filter((one) => one.state === 'OFFLINE').length;
-
-                return (
-                  <tr key={system.id}>
-                    <td className="h-13 truncate border-b border-subtle p-2 font-medium">
-                      {/* The name is the door, as it is on the fleet list. */}
-                      <Link
-                        to="/solar/$systemId"
-                        params={{systemId: system.id}}
-                        className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-                      >
-                        {system.siteName}
-                      </Link>
-                      <span className="block truncate text-xs text-tertiary">
-                        {system.locationLabel}
-                      </span>
-                    </td>
-
-                    <td className="h-13 border-b border-subtle p-2">
-                      <Badge variant="element" className="border-subtle">
-                        <state.icon
-                          className={cn('size-3', state.iconClassName)}
-                          aria-hidden="true"
-                        />
-                        {state.label}
-                      </Badge>
-                      {/* The line that the old model could not draw. A system with
-                          one silent box out of ten is not offline — it is a system
-                          we can only partly see, and that is a different job. */}
-                      {silent > 0 && system.state !== 'OFFLINE' && (
-                        <span className="block truncate text-xs text-severity-warning">
-                          {system.inverters.length - silent} of {system.inverters.length} reporting
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-primary tabular-nums">
-                      {system.state === 'GENERATING' ? amount(system.outputKw, 'kW', 1) : '—'}
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-secondary tabular-nums">
-                      {system.kwp.toLocaleString('en-MY')} kWp
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-secondary tabular-nums">
-                      {system.inverters.length} × {system.inverters[0]?.ratedKw} kW
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2">
-                      <span className={cn('flex items-center gap-1.5', meta.textClassName)}>
-                        <meta.icon className="size-4 shrink-0" aria-hidden="true" />
-                        {meta.label}
-                      </span>
-                      {row.headline !== undefined && (
-                        <span className="block truncate text-xs text-tertiary">
-                          {row.headline}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 };
