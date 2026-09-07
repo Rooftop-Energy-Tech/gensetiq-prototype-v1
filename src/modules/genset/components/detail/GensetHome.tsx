@@ -259,8 +259,45 @@ export const GensetHome = ({
 
       <hr className="border-subtle" />
 
-      {/* Band 4 — what the machine is, in the `DetailBand` all four detail pages
-          share.
+      {/* Band 4 — how much this engine has run over time. `TrendPanel` held to the
+          one metric this page is about, exactly as the solar and battery pages hold
+          it to theirs, and handed **this genset alone** rather than the yard's set:
+          the site page's own band is where a reader compares two machines.
+
+          Hours rather than the kilowatts this drew before. A set's output is its
+          site's load reflected back — the curve is a rectangle whatever the day
+          did — where its hours are the number the estate is actually managed in,
+          and the number an abnormal week shows up in. See `gensetHoursIn`.
+
+          Absent at the depot. See the note on `seed` above — an undeployed set has
+          no site, and a chart of its runtime would be a flat line claiming a
+          measurement nobody took. */}
+      {seed !== undefined && (
+        <>
+          <TrendPanel
+            seed={seed}
+            role={role}
+            gensetIds={[genset.id]}
+            metrics={['GENSET']}
+            now={now}
+            ariaLabel="Genset runtime"
+          />
+
+          {/* Inside the condition with the chart it closes. An undeployed set
+              draws no trend, and a rule left standing on its own would double the
+              one above it. */}
+          <hr className="border-subtle" />
+        </>
+      )}
+
+      {/* Band 5 — what the machine is, in the `DetailBand` all four detail pages
+          share, and last of the bands that describe it rather than report on it.
+
+          Under the chart rather than above it, which is the order all four detail
+          pages now keep: nothing in this band changes between one visit and the
+          next, and it was sitting between the fuel panel and the runtime trend —
+          two live bands a reader reads together — with a block of nameplates
+          wedged in the middle.
 
           The frame puts the *site's* `Supply` and `Installed capacity` here, which
           is the site page's own band copied across — a genset page stating how the
@@ -299,32 +336,6 @@ export const GensetHome = ({
             : [{label: 'Number plate', value: genset.plateNumber}]),
         ]}
       />
-
-      <hr className="border-subtle" />
-
-      {/* Band 5 — how much this engine has run over time. `TrendPanel` held to the
-          one metric this page is about, exactly as the solar and battery pages hold
-          it to theirs, and handed **this genset alone** rather than the yard's set:
-          the site page's own band is where a reader compares two machines.
-
-          Hours rather than the kilowatts this drew before. A set's output is its
-          site's load reflected back — the curve is a rectangle whatever the day
-          did — where its hours are the number the estate is actually managed in,
-          and the number an abnormal week shows up in. See `gensetHoursIn`.
-
-          Absent at the depot. See the note on `seed` above — an undeployed set has
-          no site, and a chart of its runtime would be a flat line claiming a
-          measurement nobody took. */}
-      {seed !== undefined && (
-        <TrendPanel
-          seed={seed}
-          role={role}
-          gensetIds={[genset.id]}
-          metrics={['GENSET']}
-          now={now}
-          ariaLabel="Genset runtime"
-        />
-      )}
 
       {/* Band 6 — thresholds and the numbers behind them. */}
       <AlertsSection

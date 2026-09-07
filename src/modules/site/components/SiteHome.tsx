@@ -79,7 +79,11 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
 
       <SiteCircuit summary={summary} role={role} now={now} />
 
-      {/* ## Band 3: what the site *is*, under the drawing rather than beside it
+      <div className="border-t border-subtle" />
+
+      <SiteDiagnostics summary={summary} now={now} />
+
+      {/* ## Band 4: what the site *is*, last on the page
 
           The details were the right half of band 2, captioning the diagram from
           across a 10-unit gap. Two things were wrong with that. The diagram is a
@@ -89,20 +93,21 @@ export const SiteHome = ({summary}: {summary: SiteSummary}) => {
           caption set beside a picture reads as a legend *for* it, which invited the
           question of which box `Installed capacity` referred to.
 
-          Underneath, in a narrow block between two rules, it reads as what it is: a
-          short statement about the installation, closing the band above and opening
-          the chart below. The rules are the design's and they are doing the work the
-          gap used to — they say where the picture stops. */}
+          Below the drawing was the first fix and below the **charts** is the
+          second, which is the order all four detail pages now keep: the live bands
+          first, then the reference block. Nothing in here changes between one visit
+          and the next — it is what a reader consults once, having already read the
+          strip, the circuit and the trend, and it was previously holding the two
+          things somebody opens this page for a screen apart.
+
+          The rule above is the design's and it is doing the work the gap used to:
+          it says where the live part of the page stops. */}
       <div className="border-t border-subtle" />
 
       {/* The band's own `<section>`, padding and two-column split all live in
           `DetailBand` now — the genset, solar and battery pages carry the same band
           and used to carry the same markup each. `SiteDetails` supplies the rows. */}
       <SiteDetails summary={summary} role={role} />
-
-      <div className="border-t border-subtle" />
-
-      <SiteDiagnostics summary={summary} now={now} />
     </div>
   );
 };

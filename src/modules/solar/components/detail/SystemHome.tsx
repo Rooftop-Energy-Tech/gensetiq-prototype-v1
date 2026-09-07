@@ -170,9 +170,30 @@ export const SystemHome = ({
 
       <div className="border-t border-subtle" />
 
-      {/* Band 3 — what the system *is*, in the `DetailBand` all four detail pages
+      {/* Band 3 — generation over time. `TrendPanel` with one metric, which is the
+          site page's diagnostics band held to the only quantity this page is about;
+          a picker offering the bank and the genset here would be the register's own
+          boundary dissolving. A system whose site has been flipped away from solar
+          cannot reach this page at all, so `seed` is only ever missing for an id
+          the router already 404s. */}
+      {seed !== undefined && (
+        <TrendPanel
+          seed={seed}
+          role={system.role}
+          gensetIds={[]}
+          metrics={['SOLAR']}
+          now={now}
+          ariaLabel="Generation"
+        />
+      )}
+
+      <div className="border-t border-subtle" />
+
+      {/* Band 4 — what the system *is*, in the `DetailBand` all four detail pages
           share. Three nameplate facts and nothing live: this band should read the
-          same on a Tuesday morning as it does on a Sunday night.
+          same on a Tuesday morning as it does on a Sunday night — which is why it
+          sits *under* the chart on all four of them now, and not between the dial
+          and the trend it was separating.
 
           It was four. `Installed capacity` was the inverters' combined AC rating,
           and it sat beside the kWp deliberately: the ratio between the two was
@@ -202,25 +223,6 @@ export const SystemHome = ({
           {label: 'Commissioned', value: stampDate(system.commissionedAt)},
         ]}
       />
-
-      <div className="border-t border-subtle" />
-
-      {/* Band 4 — generation over time. `TrendPanel` with one metric, which is the
-          site page's diagnostics band held to the only quantity this page is about;
-          a picker offering the bank and the genset here would be the register's own
-          boundary dissolving. A system whose site has been flipped away from solar
-          cannot reach this page at all, so `seed` is only ever missing for an id
-          the router already 404s. */}
-      {seed !== undefined && (
-        <TrendPanel
-          seed={seed}
-          role={system.role}
-          gensetIds={[]}
-          metrics={['SOLAR']}
-          now={now}
-          ariaLabel="Generation"
-        />
-      )}
 
       {/* Band 5 — what is wrong, and the numbers behind it. Every rule the system
           carries: this is the page somebody opens to find out whether anything
