@@ -8,8 +8,7 @@
         "run",
         "dev"
       ],
-      "port": 3400,
-      "autoPort": true
+      "port": 3400
     }
   ]
 }
