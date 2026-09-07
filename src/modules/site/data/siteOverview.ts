@@ -70,15 +70,25 @@ const DAY_STEP_HOURS = 0.5;
 const MONTH_STEP_HOURS = 1;
 
 /**
- * Six-hourly across a year.
+ * A year is sampled hourly like a month and then **averaged into one point per
+ * day**, which is the one place this chart stops being a literal power record.
  *
- * A frank compromise. NetEco keeps the same power curve at every window and hands
- * the reader a range brush to zoom back into it; without that brush a year at any
- * finer grain is 8,760 strokes of mush. Six hours keeps the *seasonal* shape — the
- * monsoon weeks where the array falls away and the genset picks up — which is the
- * only thing a year of this chart can honestly show. See the note on `sampleHours`.
+ * A frank compromise, and it was tried the other way first. NetEco keeps the raw
+ * curve at every window and hands the reader a range brush to zoom back into it;
+ * drawn without that brush, three hundred and sixty-five day/night cycles at any
+ * sub-daily grain is a solid block of colour — every series saturates its own band
+ * and nothing is legible, which is not a chart, it is a texture.
+ *
+ * A daily mean loses the intraday shape and keeps the only thing a year can
+ * honestly show: the **season**. The monsoon weeks where the array falls away and
+ * the genset picks up are exactly the pattern a year view is opened for, and they
+ * are visible in the means. The caption says the grain so nobody reads a mean as a
+ * peak.
+ *
+ * Whether the year should instead carry NetEco's brush over the raw curve is on the
+ * open-questions list; it is the better answer and a much larger one.
  */
-const YEAR_STEP_HOURS = 6;
+const YEAR_SAMPLE_HOURS = 1;
 
 export const OVERVIEW_SERIES = ['SOLAR', 'GENSET', 'BATTERY', 'LOAD'] as const;
 
@@ -291,9 +301,13 @@ const sampleHours = (period: SiteTrendPeriod): number => {
     case 'month':
       return MONTH_STEP_HOURS;
     default:
-      return YEAR_STEP_HOURS;
+      return YEAR_SAMPLE_HOURS;
   }
 };
+
+/** Does this window publish one point per day rather than one per sample. */
+const isDailyMean = (period: SiteTrendPeriod): boolean =>
+  period === 'year' || period === 'lifetime';
 
 /** How many days the window spans back from, and including, its last day. */
 const windowDays = (period: SiteTrendPeriod): number => {
@@ -352,6 +366,8 @@ export const siteOverview = (
   let dischargeKwh = 0;
   let loadKwh = 0;
 
+  const daily = isDailyMean(period);
+
   for (let index = 0; index < days; index += 1) {
     const dayStart = firstDay + index * 86_400_000;
     // The day's own facts, read once outside the hour loop: they are properties of
@@ -359,31 +375,44 @@ export const siteOverview = (
     const dayKwh = hasSolar(role) ? fullDayKwh(seed, role, dayStart) : 0;
     const block = gensetDay(seed, role, ratedKw, dayStart);
 
+    // Where the window publishes daily means, the day's samples are summed here and
+    // divided once at the end of the day. Unused at `day` and `month`, where every
+    // sample is published as it is taken.
+    let daySolar = 0;
+    let dayGenset = 0;
+    let dayLoad = 0;
+    let dayBattery = 0;
+    let taken = 0;
+
     for (let hour = 0; hour < HOURS_PER_DAY; hour += step) {
       const at = dayStart + hour * 3_600_000;
 
-      labels.push(
-        period === 'day'
-          ? clockLabel(hour)
-          : new Date(at).toLocaleDateString('en-MY', {day: 'numeric', month: 'short'}),
-      );
-      stamps.push(
-        new Date(at).toLocaleString('en-MY', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        }),
-      );
+      if (!daily) {
+        labels.push(
+          period === 'day'
+            ? clockLabel(hour)
+            : new Date(at).toLocaleDateString('en-MY', {day: 'numeric', month: 'short'}),
+        );
+        stamps.push(
+          new Date(at).toLocaleString('en-MY', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }),
+        );
+      }
 
       // Beyond the clock there is no record. Four nulls rather than four zeroes —
       // see `OverviewSeries.values`.
       if (at > now) {
-        solar.push(null);
-        genset.push(null);
-        battery.push(null);
-        load.push(null);
+        if (!daily) {
+          solar.push(null);
+          genset.push(null);
+          battery.push(null);
+          load.push(null);
+        }
         continue;
       }
 
@@ -395,16 +424,42 @@ export const siteOverview = (
       // with it.
       const batteryKw = KW(solarKw + gensetKw - loadKw);
 
-      solar.push(solarKw);
-      genset.push(gensetKw);
-      battery.push(batteryKw);
-      load.push(loadKw);
+      if (daily) {
+        daySolar += solarKw;
+        dayGenset += gensetKw;
+        dayLoad += loadKw;
+        dayBattery += batteryKw;
+        taken += 1;
+      } else {
+        solar.push(solarKw);
+        genset.push(gensetKw);
+        battery.push(batteryKw);
+        load.push(loadKw);
+      }
 
       solarKwh += solarKw * step;
       gensetKwh += gensetKw * step;
       loadKwh += loadKw * step;
       if (batteryKw > 0) chargeKwh += batteryKw * step;
       else dischargeKwh += -batteryKw * step;
+    }
+
+    if (daily) {
+      const dayLabel = new Date(dayStart).toLocaleDateString('en-MY', {
+        day: 'numeric',
+        month: 'short',
+      });
+      labels.push(dayLabel);
+      stamps.push(`${dayLabel} · daily mean`);
+      // A day the clock has not reached at all publishes nulls, the same way an
+      // unreached half-hour does. A day part-way through reports the mean of what
+      // has happened, which is what its own samples come to.
+      const mean = (total: number): number | null =>
+        taken === 0 ? null : KW(total / taken);
+      solar.push(mean(daySolar));
+      genset.push(mean(dayGenset));
+      battery.push(mean(dayBattery));
+      load.push(mean(dayLoad));
     }
   }
 
@@ -443,7 +498,11 @@ export const siteOverview = (
   });
 
   const grain =
-    period === 'day' ? 'half-hourly' : period === 'month' ? 'hourly' : 'six-hourly';
+    period === 'day'
+      ? 'half-hourly'
+      : period === 'month'
+        ? 'hourly'
+        : 'as a daily mean — the intraday peaks are higher';
   const span =
     period === 'day'
       ? 'through the day'
