@@ -7,10 +7,11 @@ import {fuelHeadline} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import type {SiteSummary} from '../data/sites';
-import {SITE_KIND_LABEL} from '../data/sites';
+import {siteFeed} from '../data/sites';
 import {FALLBACK_POWER_ROLE} from '../data/siteConfig';
+import {SITE_POWER_ROLE_LABEL} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
-import {supplyLabel} from './supplyMeta';
+import {supplyMeta} from './supplyMeta';
 
 /**
  * The sites list — not a frame in the design, which names `Sites` in the sidebar
@@ -22,36 +23,46 @@ import {supplyLabel} from './supplyMeta';
  * header, 52px rows, hairline rules — rather than as a new pattern, because the
  * two lists answer the same shape of question about different objects.
  *
- * The columns are the site-level facts, in the order they get asked: *where is
- * it*, *is anything wrong*, *how is it fed and what is standing there*, *does it
- * need a tanker*. Site draw is deliberately not among them — it is instantaneous
- * and changes while you read the list, which makes it a detail-page figure.
+ * The columns are the site-level facts, in the order they get asked: *what is it
+ * and how is it built*, *is anything wrong*, *what is carrying it right now*,
+ * *does it need a tanker*. Site draw is deliberately not among them — it is
+ * instantaneous and changes while you read the list, which makes it a
+ * detail-page figure.
  *
- * ## Why `Supply` and not `Gensets`
+ * ## Why the configuration sits under the name, and not in its own column
  *
- * The column used to be the genset count and how many of them were turning, which
- * answered *what is standing there* and left *what kind of site is this* to be
- * discovered by clicking in. It is now `supplyLabel` — `Mains + 2 gensets`, `Solar
- * + battery + 2 gensets` — which is a superset: the count is still in it, and the
- * configuration the row is about is now legible from the list.
+ * The name cell's second line used to be the site *kind* — `Rural coverage site`,
+ * `Switching centre` — which says what the site is for and nothing about what
+ * stands in the yard. It is now the power role — `Solar hybrid`, `Diesel prime` —
+ * because that is the fact the rest of the row has to be read against: a running
+ * set is ordinary at a diesel-prime site and an escalation at a hybrid, and the
+ * row could not say which without it. It rides under the name rather than taking
+ * a column because it is a property *of the site*, the same way the name is.
  *
- * That label is the same one the site's own Details tab prints, deliberately. See
- * `supplyMeta.ts` for why the supply is phrased in exactly one place.
+ * ## Why `Supply` is what is carrying, not what is installed
+ *
+ * The column used to be `supplyLabel` — `Mains + 2 gensets` — which is the
+ * installed plant, and once the configuration moved under the name that label was
+ * saying the same thing twice. It is now `supplyMeta`: **who has the load at this
+ * moment** — on mains, on solar, on battery, genset carrying, not served — which
+ * is the one site-level fact that changes and the reason to be scanning the list
+ * at all. It is the same badge the preview panel and the site's own metric strip
+ * draw, so the three cannot disagree; see `supplyMeta.ts` for why the supply is
+ * phrased in exactly one place.
  *
  * ## Why `Fuel on site` comes and goes
  *
  * It is the widest column and the one least often the reason for opening this
  * screen, and beside the map there is no room for both it and a supply that reads
  * as a sentence. So it is drawn on the list-only view, where the table has the full
- * width, and dropped on the split view, where the map has half of it. The four
+ * width, and dropped on the split view, where the map has half of it. The three
  * remaining columns share the width it gives up — hence two widths per column.
  */
 const COLUMNS = [
-  {label: 'Site', withFuel: '22%', withoutFuel: '24%', fuel: false},
-  {label: 'Location', withFuel: '21%', withoutFuel: '26%', fuel: false},
-  {label: 'Condition', withFuel: '14%', withoutFuel: '16%', fuel: false},
-  {label: 'Supply', withFuel: '23%', withoutFuel: '34%', fuel: false},
-  {label: 'Fuel on site', withFuel: '20%', withoutFuel: '0%', fuel: true},
+  {label: 'Site', withFuel: '30%', withoutFuel: '36%', fuel: false},
+  {label: 'Condition', withFuel: '18%', withoutFuel: '22%', fuel: false},
+  {label: 'Supply', withFuel: '30%', withoutFuel: '42%', fuel: false},
+  {label: 'Fuel on site', withFuel: '22%', withoutFuel: '0%', fuel: true},
 ] as const;
 
 type SitesTableProps = {
@@ -119,8 +130,8 @@ export const SitesTable = ({
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           {showFuel
-            ? 'Sites, with condition, how each is supplied and fuel on site'
-            : 'Sites, with condition and how each is supplied'}
+            ? 'Sites, with condition, what is supplying each right now and fuel on site'
+            : 'Sites, with condition and what is supplying each right now'}
         </caption>
         <colgroup>
           {columns.map((column) => (
@@ -152,6 +163,15 @@ export const SitesTable = ({
             // no seed behind it is a site we know nothing about, and grid-backed is
             // the safe reading rather than a hybrid we would then draw an array for.
             const role = roles[summary.site.id] ?? FALLBACK_POWER_ROLE;
+            // The panel's own reading of who has the load, off `defaultDutyId` —
+            // the set the changeover starts on — so a row and the preview it opens
+            // cannot name two different sources. See `SiteDetailPanel`.
+            const supply = supplyMeta(
+              siteFeed(summary, summary.defaultDutyId, role),
+              role,
+              summary.gensets.length,
+            );
+            const SupplyIcon = supply.icon;
 
             return (
               <tr
@@ -184,11 +204,8 @@ export const SitesTable = ({
                     {summary.site.name}
                   </Link>
                   <span className="block truncate text-xs text-secondary">
-                    {SITE_KIND_LABEL[summary.site.kind]}
+                    {SITE_POWER_ROLE_LABEL[role]}
                   </span>
-                </td>
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {summary.site.locationLabel}
                 </td>
                 <td className="h-13 border-b border-subtle p-2">
                   <Badge variant="secondary">
@@ -196,14 +213,23 @@ export const SitesTable = ({
                     {condition.label}
                   </Badge>
                 </td>
-                {/* Two lines, the shape the Site cell already uses: the
-                    configuration on top, and how much of it is turning under it.
-                    A running set means something different in each configuration —
-                    ordinary at a prime site, the backstop called on at a hybrid —
-                    so the count is worth keeping beside the words that frame it. */}
+                {/* Two lines, the shape the Site cell already uses: who has the
+                    load on top, and how many sets are turning under it. The count
+                    stays because it is not implied by the line above it — a site
+                    reading `On mains` with a set turning is a test run, and one
+                    reading it with none is an ordinary day. Icon rather than the
+                    strip's badge: `Condition` is already a pill in the next column
+                    over, and two pills a row reads as a row of chips. */}
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  <span className="block truncate">
-                    {supplyLabel(role, summary.gensets.length)}
+                  <span className="flex items-center gap-1.5 truncate">
+                    <SupplyIcon
+                      className={cn(
+                        'size-3.5 shrink-0',
+                        supply.live ? 'text-teal' : 'text-tertiary',
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">{supply.label}</span>
                   </span>
                   <span
                     className={cn(
