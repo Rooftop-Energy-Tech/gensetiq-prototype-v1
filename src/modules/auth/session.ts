@@ -55,8 +55,6 @@ export const signOut = () => {
   emit();
 };
 
-export const getSession = (): Session | null => snapshot;
-
 export const isSignedIn = (): boolean => snapshot !== null;
 
 const subscribe = (listener: () => void) => {

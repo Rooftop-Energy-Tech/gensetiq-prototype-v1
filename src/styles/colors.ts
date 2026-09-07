@@ -456,11 +456,6 @@ export const severity = (): ColorMap => {
   return SEVERITY;
 };
 
-/** Misc color tokens (brand text, scrollbar, outline, destructive, fill-text). */
-export const misc = (): ColorMap => {
-  return MISC;
-};
-
 /** Registry of every token group serialized into the theme. */
 const GROUPS: Array<ColorMap> = [
   BACKGROUND,
@@ -488,22 +483,14 @@ export const colorThemeCss = (): string =>
   `:root {\n${declarations('light')}\n}\n.dark {\n${declarations('dark')}\n}`;
 
 /**
- * Resolved dark-mode values, for the places that cannot read a CSS variable.
+ * Resolved light-mode values, for the places that cannot read a CSS variable.
  *
  * MapLibre's paint properties are the reason this exists: they're evaluated in a
  * WebGL shader, not by the CSS engine, so `var(--status-running)` is meaningless
  * there and the literal has to be handed over. Anything that *can* use a
- * Tailwind utility should — reach for this only from map style code.
- */
-export const darkToken = Object.fromEntries(
-  GROUPS.flatMap((group) => Object.entries(group).map(([name, token]) => [name, token.dark])),
-) as Record<string, string>;
-
-/**
- * The light-mode counterpart, for the same WebGL reason.
- *
- * This white-label build ships light-only, so the map paint reads these. The
- * dark table above stays for the day the toggle returns.
+ * Tailwind utility should — reach for this only from map style code. This
+ * white-label build ships light-only, which is why there is one table and not
+ * two.
  */
 export const lightToken = Object.fromEntries(
   GROUPS.flatMap((group) => Object.entries(group).map(([name, token]) => [name, token.light])),
