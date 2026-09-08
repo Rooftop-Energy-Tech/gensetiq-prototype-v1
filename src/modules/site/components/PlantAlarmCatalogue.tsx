@@ -91,9 +91,14 @@ const CategoryLink = ({
   const className =
     'rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline';
 
+  // The cabinet's own tab, now that it has one. This pointed at the *site's* pooled
+  // tab, which was the one page a reader clicking this chip could already be looking
+  // at — a cross-reference to where you are. All seventeen `SITE` rows are the
+  // cabinet's, so `Cabinet 17` goes to the cabinet, exactly as `Battery 28` goes to
+  // the bank.
   if (category === 'SITE') {
     return (
-      <Link to="/sites/$siteId/alarms" params={{siteId}} className={className}>
+      <Link to="/cabinet/$cabinetId/alarms" params={{cabinetId: siteId}} className={className}>
         {label}
       </Link>
     );

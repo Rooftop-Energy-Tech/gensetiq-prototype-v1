@@ -18,6 +18,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
 import { Route as AuthenticatedSolarRouteImport } from './routes/_authenticated/solar'
 import { Route as AuthenticatedBatteryBankIdRouteImport } from './routes/_authenticated/battery_.$bankId'
+import { Route as AuthenticatedCabinetCabinetIdRouteImport } from './routes/_authenticated/cabinet_.$cabinetId'
 import { Route as AuthenticatedGensetsGensetIdRouteImport } from './routes/_authenticated/gensets_.$gensetId'
 import { Route as AuthenticatedSitesSiteIdRouteImport } from './routes/_authenticated/sites_.$siteId'
 import { Route as AuthenticatedSolarSystemIdRouteImport } from './routes/_authenticated/solar_.$systemId'
@@ -27,6 +28,10 @@ import { Route as AuthenticatedBatteryBankIdAnalysisRouteImport } from './routes
 import { Route as AuthenticatedBatteryBankIdEquipmentRouteImport } from './routes/_authenticated/battery_.$bankId.equipment'
 import { Route as AuthenticatedBatteryBankIdServiceRouteImport } from './routes/_authenticated/battery_.$bankId.service'
 import { Route as AuthenticatedBatteryBankIdSettingsRouteImport } from './routes/_authenticated/battery_.$bankId.settings'
+import { Route as AuthenticatedCabinetCabinetIdIndexRouteImport } from './routes/_authenticated/cabinet_.$cabinetId.index'
+import { Route as AuthenticatedCabinetCabinetIdAlarmsRouteImport } from './routes/_authenticated/cabinet_.$cabinetId.alarms'
+import { Route as AuthenticatedCabinetCabinetIdEquipmentRouteImport } from './routes/_authenticated/cabinet_.$cabinetId.equipment'
+import { Route as AuthenticatedCabinetCabinetIdSettingsRouteImport } from './routes/_authenticated/cabinet_.$cabinetId.settings'
 import { Route as AuthenticatedGensetsGensetIdIndexRouteImport } from './routes/_authenticated/gensets_.$gensetId.index'
 import { Route as AuthenticatedGensetsGensetIdAlarmsRouteImport } from './routes/_authenticated/gensets_.$gensetId.alarms'
 import { Route as AuthenticatedGensetsGensetIdAnalysisRouteImport } from './routes/_authenticated/gensets_.$gensetId.analysis'
@@ -91,6 +96,12 @@ const AuthenticatedBatteryBankIdRoute =
     path: '/battery/$bankId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedCabinetCabinetIdRoute =
+  AuthenticatedCabinetCabinetIdRouteImport.update({
+    id: '/cabinet_/$cabinetId',
+    path: '/cabinet/$cabinetId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedGensetsGensetIdRoute =
   AuthenticatedGensetsGensetIdRouteImport.update({
     id: '/gensets_/$gensetId',
@@ -144,6 +155,30 @@ const AuthenticatedBatteryBankIdSettingsRoute =
     id: '/settings',
     path: '/settings',
     getParentRoute: () => AuthenticatedBatteryBankIdRoute,
+  } as any)
+const AuthenticatedCabinetCabinetIdIndexRoute =
+  AuthenticatedCabinetCabinetIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedCabinetCabinetIdRoute,
+  } as any)
+const AuthenticatedCabinetCabinetIdAlarmsRoute =
+  AuthenticatedCabinetCabinetIdAlarmsRouteImport.update({
+    id: '/alarms',
+    path: '/alarms',
+    getParentRoute: () => AuthenticatedCabinetCabinetIdRoute,
+  } as any)
+const AuthenticatedCabinetCabinetIdEquipmentRoute =
+  AuthenticatedCabinetCabinetIdEquipmentRouteImport.update({
+    id: '/equipment',
+    path: '/equipment',
+    getParentRoute: () => AuthenticatedCabinetCabinetIdRoute,
+  } as any)
+const AuthenticatedCabinetCabinetIdSettingsRoute =
+  AuthenticatedCabinetCabinetIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedCabinetCabinetIdRoute,
   } as any)
 const AuthenticatedGensetsGensetIdIndexRoute =
   AuthenticatedGensetsGensetIdIndexRouteImport.update({
@@ -263,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/sites': typeof AuthenticatedSitesRoute
   '/solar': typeof AuthenticatedSolarRoute
   '/battery/$bankId': typeof AuthenticatedBatteryBankIdRouteWithChildren
+  '/cabinet/$cabinetId': typeof AuthenticatedCabinetCabinetIdRouteWithChildren
   '/gensets/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
   '/sites/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
   '/solar/$systemId': typeof AuthenticatedSolarSystemIdRouteWithChildren
@@ -271,6 +307,9 @@ export interface FileRoutesByFullPath {
   '/battery/$bankId/equipment': typeof AuthenticatedBatteryBankIdEquipmentRoute
   '/battery/$bankId/service': typeof AuthenticatedBatteryBankIdServiceRoute
   '/battery/$bankId/settings': typeof AuthenticatedBatteryBankIdSettingsRoute
+  '/cabinet/$cabinetId/alarms': typeof AuthenticatedCabinetCabinetIdAlarmsRoute
+  '/cabinet/$cabinetId/equipment': typeof AuthenticatedCabinetCabinetIdEquipmentRoute
+  '/cabinet/$cabinetId/settings': typeof AuthenticatedCabinetCabinetIdSettingsRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/gensets/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
@@ -287,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/solar/$systemId/service': typeof AuthenticatedSolarSystemIdServiceRoute
   '/solar/$systemId/settings': typeof AuthenticatedSolarSystemIdSettingsRoute
   '/battery/$bankId/': typeof AuthenticatedBatteryBankIdIndexRoute
+  '/cabinet/$cabinetId/': typeof AuthenticatedCabinetCabinetIdIndexRoute
   '/gensets/$gensetId/': typeof AuthenticatedGensetsGensetIdIndexRoute
   '/sites/$siteId/': typeof AuthenticatedSitesSiteIdIndexRoute
   '/solar/$systemId/': typeof AuthenticatedSolarSystemIdIndexRoute
@@ -304,6 +344,9 @@ export interface FileRoutesByTo {
   '/battery/$bankId/equipment': typeof AuthenticatedBatteryBankIdEquipmentRoute
   '/battery/$bankId/service': typeof AuthenticatedBatteryBankIdServiceRoute
   '/battery/$bankId/settings': typeof AuthenticatedBatteryBankIdSettingsRoute
+  '/cabinet/$cabinetId/alarms': typeof AuthenticatedCabinetCabinetIdAlarmsRoute
+  '/cabinet/$cabinetId/equipment': typeof AuthenticatedCabinetCabinetIdEquipmentRoute
+  '/cabinet/$cabinetId/settings': typeof AuthenticatedCabinetCabinetIdSettingsRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/gensets/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
@@ -320,6 +363,7 @@ export interface FileRoutesByTo {
   '/solar/$systemId/service': typeof AuthenticatedSolarSystemIdServiceRoute
   '/solar/$systemId/settings': typeof AuthenticatedSolarSystemIdSettingsRoute
   '/battery/$bankId': typeof AuthenticatedBatteryBankIdIndexRoute
+  '/cabinet/$cabinetId': typeof AuthenticatedCabinetCabinetIdIndexRoute
   '/gensets/$gensetId': typeof AuthenticatedGensetsGensetIdIndexRoute
   '/sites/$siteId': typeof AuthenticatedSitesSiteIdIndexRoute
   '/solar/$systemId': typeof AuthenticatedSolarSystemIdIndexRoute
@@ -335,6 +379,7 @@ export interface FileRoutesById {
   '/_authenticated/sites': typeof AuthenticatedSitesRoute
   '/_authenticated/solar': typeof AuthenticatedSolarRoute
   '/_authenticated/battery_/$bankId': typeof AuthenticatedBatteryBankIdRouteWithChildren
+  '/_authenticated/cabinet_/$cabinetId': typeof AuthenticatedCabinetCabinetIdRouteWithChildren
   '/_authenticated/gensets_/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
   '/_authenticated/sites_/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
   '/_authenticated/solar_/$systemId': typeof AuthenticatedSolarSystemIdRouteWithChildren
@@ -343,6 +388,9 @@ export interface FileRoutesById {
   '/_authenticated/battery_/$bankId/equipment': typeof AuthenticatedBatteryBankIdEquipmentRoute
   '/_authenticated/battery_/$bankId/service': typeof AuthenticatedBatteryBankIdServiceRoute
   '/_authenticated/battery_/$bankId/settings': typeof AuthenticatedBatteryBankIdSettingsRoute
+  '/_authenticated/cabinet_/$cabinetId/alarms': typeof AuthenticatedCabinetCabinetIdAlarmsRoute
+  '/_authenticated/cabinet_/$cabinetId/equipment': typeof AuthenticatedCabinetCabinetIdEquipmentRoute
+  '/_authenticated/cabinet_/$cabinetId/settings': typeof AuthenticatedCabinetCabinetIdSettingsRoute
   '/_authenticated/gensets_/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/_authenticated/gensets_/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/_authenticated/gensets_/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
@@ -359,6 +407,7 @@ export interface FileRoutesById {
   '/_authenticated/solar_/$systemId/service': typeof AuthenticatedSolarSystemIdServiceRoute
   '/_authenticated/solar_/$systemId/settings': typeof AuthenticatedSolarSystemIdSettingsRoute
   '/_authenticated/battery_/$bankId/': typeof AuthenticatedBatteryBankIdIndexRoute
+  '/_authenticated/cabinet_/$cabinetId/': typeof AuthenticatedCabinetCabinetIdIndexRoute
   '/_authenticated/gensets_/$gensetId/': typeof AuthenticatedGensetsGensetIdIndexRoute
   '/_authenticated/sites_/$siteId/': typeof AuthenticatedSitesSiteIdIndexRoute
   '/_authenticated/solar_/$systemId/': typeof AuthenticatedSolarSystemIdIndexRoute
@@ -374,6 +423,7 @@ export interface FileRouteTypes {
     | '/sites'
     | '/solar'
     | '/battery/$bankId'
+    | '/cabinet/$cabinetId'
     | '/gensets/$gensetId'
     | '/sites/$siteId'
     | '/solar/$systemId'
@@ -382,6 +432,9 @@ export interface FileRouteTypes {
     | '/battery/$bankId/equipment'
     | '/battery/$bankId/service'
     | '/battery/$bankId/settings'
+    | '/cabinet/$cabinetId/alarms'
+    | '/cabinet/$cabinetId/equipment'
+    | '/cabinet/$cabinetId/settings'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
     | '/gensets/$gensetId/equipment'
@@ -398,6 +451,7 @@ export interface FileRouteTypes {
     | '/solar/$systemId/service'
     | '/solar/$systemId/settings'
     | '/battery/$bankId/'
+    | '/cabinet/$cabinetId/'
     | '/gensets/$gensetId/'
     | '/sites/$siteId/'
     | '/solar/$systemId/'
@@ -415,6 +469,9 @@ export interface FileRouteTypes {
     | '/battery/$bankId/equipment'
     | '/battery/$bankId/service'
     | '/battery/$bankId/settings'
+    | '/cabinet/$cabinetId/alarms'
+    | '/cabinet/$cabinetId/equipment'
+    | '/cabinet/$cabinetId/settings'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
     | '/gensets/$gensetId/equipment'
@@ -431,6 +488,7 @@ export interface FileRouteTypes {
     | '/solar/$systemId/service'
     | '/solar/$systemId/settings'
     | '/battery/$bankId'
+    | '/cabinet/$cabinetId'
     | '/gensets/$gensetId'
     | '/sites/$siteId'
     | '/solar/$systemId'
@@ -445,6 +503,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sites'
     | '/_authenticated/solar'
     | '/_authenticated/battery_/$bankId'
+    | '/_authenticated/cabinet_/$cabinetId'
     | '/_authenticated/gensets_/$gensetId'
     | '/_authenticated/sites_/$siteId'
     | '/_authenticated/solar_/$systemId'
@@ -453,6 +512,9 @@ export interface FileRouteTypes {
     | '/_authenticated/battery_/$bankId/equipment'
     | '/_authenticated/battery_/$bankId/service'
     | '/_authenticated/battery_/$bankId/settings'
+    | '/_authenticated/cabinet_/$cabinetId/alarms'
+    | '/_authenticated/cabinet_/$cabinetId/equipment'
+    | '/_authenticated/cabinet_/$cabinetId/settings'
     | '/_authenticated/gensets_/$gensetId/alarms'
     | '/_authenticated/gensets_/$gensetId/analysis'
     | '/_authenticated/gensets_/$gensetId/equipment'
@@ -469,6 +531,7 @@ export interface FileRouteTypes {
     | '/_authenticated/solar_/$systemId/service'
     | '/_authenticated/solar_/$systemId/settings'
     | '/_authenticated/battery_/$bankId/'
+    | '/_authenticated/cabinet_/$cabinetId/'
     | '/_authenticated/gensets_/$gensetId/'
     | '/_authenticated/sites_/$siteId/'
     | '/_authenticated/solar_/$systemId/'
@@ -545,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBatteryBankIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/cabinet_/$cabinetId': {
+      id: '/_authenticated/cabinet_/$cabinetId'
+      path: '/cabinet/$cabinetId'
+      fullPath: '/cabinet/$cabinetId'
+      preLoaderRoute: typeof AuthenticatedCabinetCabinetIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/gensets_/$gensetId': {
       id: '/_authenticated/gensets_/$gensetId'
       path: '/gensets/$gensetId'
@@ -607,6 +677,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/battery/$bankId/settings'
       preLoaderRoute: typeof AuthenticatedBatteryBankIdSettingsRouteImport
       parentRoute: typeof AuthenticatedBatteryBankIdRoute
+    }
+    '/_authenticated/cabinet_/$cabinetId/': {
+      id: '/_authenticated/cabinet_/$cabinetId/'
+      path: '/'
+      fullPath: '/cabinet/$cabinetId/'
+      preLoaderRoute: typeof AuthenticatedCabinetCabinetIdIndexRouteImport
+      parentRoute: typeof AuthenticatedCabinetCabinetIdRoute
+    }
+    '/_authenticated/cabinet_/$cabinetId/alarms': {
+      id: '/_authenticated/cabinet_/$cabinetId/alarms'
+      path: '/alarms'
+      fullPath: '/cabinet/$cabinetId/alarms'
+      preLoaderRoute: typeof AuthenticatedCabinetCabinetIdAlarmsRouteImport
+      parentRoute: typeof AuthenticatedCabinetCabinetIdRoute
+    }
+    '/_authenticated/cabinet_/$cabinetId/equipment': {
+      id: '/_authenticated/cabinet_/$cabinetId/equipment'
+      path: '/equipment'
+      fullPath: '/cabinet/$cabinetId/equipment'
+      preLoaderRoute: typeof AuthenticatedCabinetCabinetIdEquipmentRouteImport
+      parentRoute: typeof AuthenticatedCabinetCabinetIdRoute
+    }
+    '/_authenticated/cabinet_/$cabinetId/settings': {
+      id: '/_authenticated/cabinet_/$cabinetId/settings'
+      path: '/settings'
+      fullPath: '/cabinet/$cabinetId/settings'
+      preLoaderRoute: typeof AuthenticatedCabinetCabinetIdSettingsRouteImport
+      parentRoute: typeof AuthenticatedCabinetCabinetIdRoute
     }
     '/_authenticated/gensets_/$gensetId/': {
       id: '/_authenticated/gensets_/$gensetId/'
@@ -766,6 +864,30 @@ const AuthenticatedBatteryBankIdRouteWithChildren =
     AuthenticatedBatteryBankIdRouteChildren,
   )
 
+interface AuthenticatedCabinetCabinetIdRouteChildren {
+  AuthenticatedCabinetCabinetIdAlarmsRoute: typeof AuthenticatedCabinetCabinetIdAlarmsRoute
+  AuthenticatedCabinetCabinetIdEquipmentRoute: typeof AuthenticatedCabinetCabinetIdEquipmentRoute
+  AuthenticatedCabinetCabinetIdSettingsRoute: typeof AuthenticatedCabinetCabinetIdSettingsRoute
+  AuthenticatedCabinetCabinetIdIndexRoute: typeof AuthenticatedCabinetCabinetIdIndexRoute
+}
+
+const AuthenticatedCabinetCabinetIdRouteChildren: AuthenticatedCabinetCabinetIdRouteChildren =
+  {
+    AuthenticatedCabinetCabinetIdAlarmsRoute:
+      AuthenticatedCabinetCabinetIdAlarmsRoute,
+    AuthenticatedCabinetCabinetIdEquipmentRoute:
+      AuthenticatedCabinetCabinetIdEquipmentRoute,
+    AuthenticatedCabinetCabinetIdSettingsRoute:
+      AuthenticatedCabinetCabinetIdSettingsRoute,
+    AuthenticatedCabinetCabinetIdIndexRoute:
+      AuthenticatedCabinetCabinetIdIndexRoute,
+  }
+
+const AuthenticatedCabinetCabinetIdRouteWithChildren =
+  AuthenticatedCabinetCabinetIdRoute._addFileChildren(
+    AuthenticatedCabinetCabinetIdRouteChildren,
+  )
+
 interface AuthenticatedGensetsGensetIdRouteChildren {
   AuthenticatedGensetsGensetIdAlarmsRoute: typeof AuthenticatedGensetsGensetIdAlarmsRoute
   AuthenticatedGensetsGensetIdAnalysisRoute: typeof AuthenticatedGensetsGensetIdAnalysisRoute
@@ -859,6 +981,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
   AuthenticatedSolarRoute: typeof AuthenticatedSolarRoute
   AuthenticatedBatteryBankIdRoute: typeof AuthenticatedBatteryBankIdRouteWithChildren
+  AuthenticatedCabinetCabinetIdRoute: typeof AuthenticatedCabinetCabinetIdRouteWithChildren
   AuthenticatedGensetsGensetIdRoute: typeof AuthenticatedGensetsGensetIdRouteWithChildren
   AuthenticatedSitesSiteIdRoute: typeof AuthenticatedSitesSiteIdRouteWithChildren
   AuthenticatedSolarSystemIdRoute: typeof AuthenticatedSolarSystemIdRouteWithChildren
@@ -871,6 +994,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSitesRoute: AuthenticatedSitesRoute,
   AuthenticatedSolarRoute: AuthenticatedSolarRoute,
   AuthenticatedBatteryBankIdRoute: AuthenticatedBatteryBankIdRouteWithChildren,
+  AuthenticatedCabinetCabinetIdRoute:
+    AuthenticatedCabinetCabinetIdRouteWithChildren,
   AuthenticatedGensetsGensetIdRoute:
     AuthenticatedGensetsGensetIdRouteWithChildren,
   AuthenticatedSitesSiteIdRoute: AuthenticatedSitesSiteIdRouteWithChildren,

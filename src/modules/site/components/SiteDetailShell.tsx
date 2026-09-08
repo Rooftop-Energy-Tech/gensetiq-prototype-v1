@@ -6,6 +6,7 @@ import {
   ComponentIcon,
   LandPlotIcon,
   PanelsTopLeftIcon,
+  ServerIcon,
   SettingsIcon,
 } from 'lucide-react';
 
@@ -14,6 +15,7 @@ import type {DetailNavEntry, DetailNavItem} from '@/components/global/DetailSide
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {hybridPlant} from '../data/hybrid';
+import {isMonitored} from '../data/monitoringUnit';
 import {siteSeed} from '../data/siteSeed';
 import {useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
@@ -57,10 +59,19 @@ import {SiteSwitcher} from './SiteSwitcher';
 /**
  * The `Asset` group: only the plant this yard actually has.
  *
- * The design draws all three rows, at a site that has all three. Drawing them
+ * The design draws three rows, at a site that has all three. Drawing them
  * everywhere would put a `Solar` link on a diesel-prime yard with no array — a
  * door onto a page that can only say "nothing fitted", which is the mistake the
  * metric strip and the device rows both go out of their way to avoid.
+ *
+ * `Cabinet` is a fourth, and it is the one that is *rarest* rather than the one that
+ * is commonest — which is the opposite of what the hardware would suggest. Every
+ * telecom site has a DC power plant; only the site with a **monitoring unit** has a
+ * shelf whose module count and rating are known rather than sized from the load, and
+ * `cabinet.type.ts` argues why a sized shelf would be the wrong kind of number to
+ * build a page on. So the row appears at one site of twenty-five, and it appears
+ * *last*: the three above it are what a reader came for, and the cabinet is what
+ * they open once one of those has sent them looking for a rectifier.
  *
  * `Genset` goes to the **lead** set. `summary.gensets` is attention-ordered, so at
  * a multi-set yard that is the one turning, or the sickest if none is — the same
@@ -102,6 +113,21 @@ const assetItems = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavI
       icon: BatteryChargingIcon,
       to: '/battery/$bankId',
       params: {bankId: summary.site.id},
+      end: true,
+    });
+  }
+
+  // The subrack cabinet, wherever a monitoring unit makes its shelf a known
+  // quantity. `isMonitored` rather than a `subrackCabinet(...) !== undefined` call:
+  // this is a rail deciding whether to offer a door, and it should not have to
+  // assemble the room behind it to find out. The two agree by construction — the
+  // unit is the only thing either of them tests.
+  if (isMonitored(summary.site.id)) {
+    items.push({
+      label: 'Cabinet',
+      icon: ServerIcon,
+      to: '/cabinet/$cabinetId',
+      params: {cabinetId: summary.site.id},
       end: true,
     });
   }

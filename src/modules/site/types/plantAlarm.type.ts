@@ -62,8 +62,24 @@ export const PLANT_ALARM_CATEGORIES = ['SITE', 'BATTERY', 'GENSET', 'SOLAR'] as 
 
 export type PlantAlarmCategory = (typeof PLANT_ALARM_CATEGORIES)[number];
 
+/**
+ * How each category is written on a chip, a tag and a cross-reference.
+ *
+ * `SITE` reads **`Cabinet`**, and the gap between the id and the word is deliberate.
+ * The id is `SITE` because that is what these rows were called when the poll set was
+ * written and what the source document still calls them, and renaming it would touch
+ * every row of `plantAlarms.ts` to say the same thing. The word is `Cabinet` because
+ * after the 2026-09-08 recategorisation that is what the rows *are*: all seventeen
+ * are inside or on the `ICC330-H1-C8` — the surge arresters, the DC bus pair, the
+ * load fuse in the distribution unit, the door, water and smoke sensors on the
+ * enclosure, the rectifier shelf and the SSUs.
+ *
+ * It also has somewhere to point now. The cabinet is an asset with its own pages, so
+ * a reader clicking `Cabinet 2` on the site's pooled tab lands on a page called
+ * Subrack Cabinet; when the chip said `Site` it named the page it was already on.
+ */
 export const PLANT_ALARM_CATEGORY_LABEL: Record<PlantAlarmCategory, string> = {
-  SITE: 'Site',
+  SITE: 'Cabinet',
   BATTERY: 'Battery',
   GENSET: 'Genset',
   SOLAR: 'Solar',

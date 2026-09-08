@@ -1,4 +1,4 @@
-import {BatteryChargingIcon, BoomBoxIcon, RadioTowerIcon, SunMediumIcon} from 'lucide-react';
+import {BatteryChargingIcon, BoomBoxIcon, ServerIcon, SunMediumIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {PLANT_ALARM_CATEGORY_LABEL} from '../types/plantAlarm.type';
@@ -17,7 +17,10 @@ import type {PlantAlarmCategory} from '../types/plantAlarm.type';
  * into the data layer. `standingMeta.ts` splits for the same reason.
  */
 export const CATEGORY_META: Record<PlantAlarmCategory, {label: string; icon: LucideIcon}> = {
-  SITE: {label: PLANT_ALARM_CATEGORY_LABEL.SITE, icon: RadioTowerIcon},
+  // `ServerIcon`, a rack, where this used to be `RadioTowerIcon`. The tower was
+  // right while the category was called `Site` and meant the place; the rows are the
+  // cabinet's, and a shelf of modules is what a reader is being sent to open.
+  SITE: {label: PLANT_ALARM_CATEGORY_LABEL.SITE, icon: ServerIcon},
   BATTERY: {label: PLANT_ALARM_CATEGORY_LABEL.BATTERY, icon: BatteryChargingIcon},
   GENSET: {label: PLANT_ALARM_CATEGORY_LABEL.GENSET, icon: BoomBoxIcon},
   SOLAR: {label: PLANT_ALARM_CATEGORY_LABEL.SOLAR, icon: SunMediumIcon},

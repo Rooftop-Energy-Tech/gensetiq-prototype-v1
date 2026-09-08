@@ -1,4 +1,5 @@
 import {spread} from '@/modules/genset/data/spread';
+import {enclosureTempC} from '@/modules/site/data/enclosure';
 import type {BatteryBank} from '../types/bank.type';
 import type {BatteryModule} from '../types/module.type';
 
@@ -94,37 +95,6 @@ const LOOSE_SOH_BAND = 0.06;
 const TIGHT_TEMP_SPAN_C = 1.5;
 const LOOSE_TEMP_SPAN_C = 4.5;
 
-/**
- * The cabinet a rack sits in, before the bank does any work: 27–32 °C.
- *
- * Per **site**, not per module — it is one cabinet — and drawn from the bank's own
- * id so a site reads the same figure on every visit. The range is what a
- * ventilated equipment cabinet on a Malaysian tower actually runs at: ambient in
- * Sabah and Sarawak sits in the high twenties day and night, and a fan-cooled
- * enclosure holds a couple of degrees above it.
- *
- * There is no measured temperature anywhere in this model to derive it from — the
- * monitoring unit at the one instrumented site polls two probes for the whole
- * cabinet, and the other twenty-four sites have no probe at all. So this is the
- * baseline stated as a baseline rather than dressed up as a reading, and the
- * figures a card prints are it plus the two terms below.
- */
-const COOLEST_CABINET_C = 27;
-const WARMEST_CABINET_C = 32;
-
-/**
- * How much the bank warms itself at full continuous throughput, °C.
- *
- * Applied in proportion to what the bank is *actually* passing against its
- * `continuousKw` rating, which on this estate means the term is nearly always
- * small: a telecom bank rated at half its energy in kilowatts and floating a 4 kW
- * tower is working at under a tenth of what it can do, so it contributes half a
- * degree rather than six. That is the honest answer and not a disappointing one —
- * it is why the module spread is what a reader is actually looking at, and why a
- * bank being hammered by a load-shed event would visibly stand out.
- */
-const FULL_THROUGHPUT_RISE_C = 6;
-
 /** The ends of `hybridPlant`'s health spread — see the note above. */
 const HEALTHY_SOH = 0.98;
 const TIRED_SOH = 0.78;
@@ -138,19 +108,26 @@ const aged = (soh: number): number => clamp((HEALTHY_SOH - soh) / (HEALTHY_SOH -
 const band = (soh: number, tight: number, loose: number): number =>
   tight + aged(soh) * (loose - tight);
 
-/** The cabinet temperature the whole rack sits in, before any module's own offset. */
-const cabinetC = (bank: BatteryBank): number => {
-  const ambient =
-    COOLEST_CABINET_C +
-    spread(bank.id, 'bank/cabinet-temp') * (WARMEST_CABINET_C - COOLEST_CABINET_C);
-
-  // Guarded rather than assumed: `continuousKw` is a rounded product and a bank
-  // small enough to round to zero would otherwise make this term infinite.
-  const duty =
-    bank.continuousKw > 0 ? Math.min(1, Math.abs(bank.powerKw) / bank.continuousKw) : 0;
-
-  return ambient + duty * FULL_THROUGHPUT_RISE_C;
-};
+/**
+ * The battery cabinet the rack sits in, before any module's own offset.
+ *
+ * `enclosureTempC` is shared with the **subrack** cabinet, which is a different box
+ * on the same pad — the modules are in `ESC330-D6` cabinets and the rectifiers and
+ * SSUs are in the `ICC330-H1-C8`. Same rule, its own salt, its own duty, so the two
+ * read separately and cannot be mistaken for one measurement.
+ *
+ * The salt is unchanged from when this arithmetic lived here, so no module's
+ * temperature moves by extracting it.
+ *
+ * Duty is guarded rather than assumed: `continuousKw` is a rounded product and a
+ * bank small enough to round to zero would otherwise make the term infinite.
+ */
+const cabinetC = (bank: BatteryBank): number =>
+  enclosureTempC(
+    bank.id,
+    'bank/cabinet-temp',
+    bank.continuousKw > 0 ? Math.abs(bank.powerKw) / bank.continuousKw : 0,
+  );
 
 /**
  * A bank's modules, in **rack order** — `M01` first, whatever their condition.

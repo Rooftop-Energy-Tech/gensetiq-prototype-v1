@@ -63,14 +63,26 @@ export type MonitoringUnit = {
   /** Solar conversion units, one `SSU N Fault` and one `PV N Array Fault` each. */
   ssus: number;
   /**
-   * Rectifiers in the plant.
+   * Rectifiers in the plant, and what one of them is rated at.
    *
-   * Carried although **nothing in this app models a rectifier**: it is what
-   * `Rectifier Amount` should read, and it is the number that makes `Rectifier
-   * Missing` and `Low Rectifier Capacity` checkable at all. The alarm rows quote
-   * it; no equipment page does, because AC→DC conversion has no page here.
+   * `rectifiers` is what `Rectifier Amount` should read, and it is the number that
+   * makes `Rectifier Missing` and `Low Rectifier Capacity` checkable at all.
+   *
+   * The note that used to sit here said this was carried "although **nothing in this
+   * app models a rectifier** … no equipment page does, because AC→DC conversion has
+   * no page here". That stopped being true: the **subrack cabinet** is an asset now,
+   * and these two are its nameplate — see `cabinet/data/cabinets.ts`. The pair is
+   * why `rectifierKw` was added alongside; the count alone cannot say whether six
+   * modules can carry the tower.
+   *
+   * 4 kW is off the firmware's own reasoning about this plant — "six rectifiers at
+   * ~4 kW against a 3.2 kW load means five of six must be gone before headroom is
+   * tight", which is the argument for `Low Rectifier Capacity` essentially never
+   * firing here. ⚠️ It is a **stated figure, not a read one**: no register in the
+   * poll set reports a module's rating, and nobody has read the shelf's labels.
    */
   rectifiers: number;
+  rectifierKw: number;
 };
 
 /**
@@ -95,6 +107,7 @@ const UNITS: Readonly<Record<string, MonitoringUnit>> = {
     batteryModules: 13,
     ssus: 4,
     rectifiers: 6,
+    rectifierKw: 4,
   },
 };
 
