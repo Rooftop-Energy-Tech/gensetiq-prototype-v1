@@ -27,7 +27,6 @@ import type {SiteDeviceKey} from '../types/device.type';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {hybridPlant, hybridState, solarMonths, todaySoFarKwh} from '../data/hybrid';
-import {isMonitored} from '../data/monitoringUnit';
 import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
 import {siteSeed} from '../data/siteSeed';
 import {siteFeed} from '../data/sites';
@@ -253,8 +252,7 @@ export const siteDefaultDevice = (
  * it is the `title`, which is also the accessible name, so the numbers announce as
  * `Critical 2 · Warning 0 · Neutral 0` rather than as `2 0 0`.
  *
- * `to` and `params` are the caller's because the three assets have three routes and
- * one of them is conditional — see `hasAlarmsTab`.
+ * `to` and `params` are the caller's because the three assets have three routes.
  */
 const AlarmBadge = ({
   counts,
@@ -289,22 +287,20 @@ const AlarmBadge = ({
   );
 };
 
-/**
- * Where the array's and the bank's badges point.
+/*
+ * There was a `hasAlarmsTab` helper here, and it is gone.
  *
- * The Alarms tab where there is one, and the asset's home page where there is not.
- * Twenty-four of the twenty-five sites have no monitoring unit, so those two tabs
- * are placeholders there — and an array at one of them can still be carrying a
- * **derived** row, because this app's own rules over the generation series need no
- * device to fire. Sending a reader from a badge reading `1` to a page that says the
- * feature is coming would make the badge a liar about its own subject.
+ * It existed because the bank's and the array's Alarms tabs were gated on a
+ * monitoring unit being fitted, so at twenty-four sites they were placeholders — and
+ * an array at one of those can still carry a **derived** row, since this app's own
+ * rules over the generation series need no device to fire. A badge reading `1` that
+ * led to a page saying the feature was coming would have been a liar about its own
+ * subject, so the badge went to the asset's home page instead.
  *
- * So where the tab cannot list them, the badge goes to the asset's home page, whose
- * health band is exactly where those derived conditions are written out. The genset
- * needs none of this: a controller reports its own bits everywhere, so that tab is
- * real at every site.
+ * The gates are gone now — see the three alarm routes — and with them the reason for
+ * the detour. Every badge points at the tab that lists its rows, which is what it
+ * should always have done.
  */
-const hasAlarmsTab = (siteId: string): boolean => isMonitored(siteId);
 
 /**
  * The genset card, and the only one of the three the design fills in completely:
@@ -493,7 +489,7 @@ const SolarDeviceCard = ({
           {alarms.length > 0 && (
             <AlarmBadge
               counts={countBySeverity(alarms)}
-              to={hasAlarmsTab(siteId) ? '/solar/$systemId/alarms' : '/solar/$systemId'}
+              to="/solar/$systemId/alarms"
               params={{systemId: siteId}}
             />
           )}
@@ -575,7 +571,7 @@ const BatteryDeviceCard = ({
           {alarms.length > 0 && (
             <AlarmBadge
               counts={countBySeverity(alarms)}
-              to={hasAlarmsTab(siteId) ? '/battery/$bankId/alarms' : '/battery/$bankId'}
+              to="/battery/$bankId/alarms"
               params={{bankId: siteId}}
             />
           )}

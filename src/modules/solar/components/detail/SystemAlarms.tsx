@@ -91,7 +91,7 @@ export const SystemAlarms = ({systemId}: {systemId: string}) => {
           rows that used to be counted here are now `SITE` — see the note above — so a
           reader who remembers nine registers is owed the explanation rather than left
           to notice the number shrank. */}
-      {watched > 0 && (
+      {watched > 0 ? (
         <p className="max-w-prose text-xs text-tertiary">
           The site's monitoring unit polls {watched} registers against this array — one
           per string group, each separating a dead string from a passing cloud — and is
@@ -102,6 +102,20 @@ export const SystemAlarms = ({systemId}: {systemId: string}) => {
           at all: they are this app's own arithmetic over the generation series and the
           service schedule, and the system's home page draws each one against the
           reading behind it.
+        </p>
+      ) : (
+        // The other twenty-four sites, where every row here is `Derived` and the
+        // column already says so. What it cannot say is what is *missing*: a dead
+        // string at this array is invisible, because nothing here separates it from a
+        // cloud. That is a real limit on this page and the reader should have it.
+        <p className="max-w-prose text-xs text-tertiary">
+          Every row here is{' '}
+          <span className="text-secondary">Derived</span> — this app's own arithmetic
+          over the generation series and the service schedule, not a device's claim. No
+          monitoring unit is fitted at this site, so nothing reports on the array
+          itself, and the one thing that arithmetic cannot see is a dead string: less
+          current off the roof looks the same as a cloud going over. At SBH-1336 four
+          registers separate the two.
         </p>
       )}
     </div>

@@ -1,33 +1,31 @@
 import {createFileRoute, useParams} from '@tanstack/react-router';
-import {BellIcon} from 'lucide-react';
 
-import {ComingSoon} from '@/components/global/ComingSoon';
 import {SystemAlarms} from '@/modules/solar/components/detail/SystemAlarms';
-import {isMonitored} from '@/modules/site/data/monitoringUnit';
 
 /**
- * The array's alarms where a device is reporting them, and a placeholder where none
- * is.
+ * The array's alarms — the device's where there is a device, and this app's own
+ * arithmetic everywhere.
  *
- * What this tab's earlier placeholder asked for was history, acknowledgement, who
- * saw it and when, and thresholds as editable lines. The first three are here now
- * at the site that has a monitoring unit; the fourth is not, and cannot be, because
- * these rows have no thresholds — the setpoints live in configuration registers the
- * poll set does not read. See `SystemAlarms` on why that makes this page a
- * different claim from the health band on the system's home page.
+ * ## Why the `isMonitored` gate went
+ *
+ * It sent the three uninstrumented solar hybrids to a placeholder whose own copy
+ * admitted the problem: "the live conditions on the home page are this app's own
+ * arithmetic; no device is reporting here". Those conditions are **rows**. They have
+ * a name, a rule, a severity and a raised time, they are counted in the system's
+ * metric strip, and `systemAlerts` needs no register to fire — nothing on a roof can
+ * see that output stepped down in March or that a wash is 176 days overdue.
+ *
+ * So SBH-1495 and SWK-0559 carried one standing condition each and SWK-1163 two,
+ * every one of them printed on the home page, while this tab said the feature was
+ * coming. The gate was not protecting a reader from an empty page; it was hiding the
+ * page's contents.
+ *
+ * What the three still lack is a **poll table**, and that is said where it belongs —
+ * `SystemAlarms` prints the register denominator only when there is one, so an
+ * uninstrumented array simply does not claim any.
  */
 const SystemAlarmsRoute = () => {
   const {systemId} = useParams({from: '/_authenticated/solar_/$systemId'});
-
-  if (!isMonitored(systemId)) {
-    return (
-      <ComingSoon
-        icon={BellIcon}
-        title="Alarms"
-        description="This system's alarm history — raised, acknowledged, cleared and by whom. The live conditions on the home page are this app's own arithmetic; no device is reporting here. SBH-1336 has a monitoring unit, and four of its registers watch that array's strings."
-      />
-    );
-  }
 
   return <SystemAlarms key={systemId} systemId={systemId} />;
 };

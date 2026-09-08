@@ -230,16 +230,35 @@ export const SiteAlarms = ({siteId}: {siteId: string}) => {
         }}
       />
 
-      {/* Where the rows came from, because three devices is not guessable from the
+      {/* Where the rows came from, because the sources are not guessable from the
           table and the reader who needs to check one against its own tab needs to
-          know which tab that is. */}
+          know which tab that is.
+
+          It names **two** sources at a site with no monitoring unit and three where
+          there is one, rather than listing all three everywhere and leaving a reader
+          to wonder which registers they are being told about. This used to be the
+          only page in the section gated on a unit being fitted, and the sentence was
+          written for the one site that has one. */}
       <p className="max-w-prose text-xs text-tertiary">
-        This queue is every alarm standing on the site, pooled from the three things
-        that raise one here: the monitoring unit's registers, each genset controller's
-        own bits, and the conditions this app derives from the generation series and the
-        service schedule. It is the same set of rows as the battery, solar and genset
-        Alarms tabs added together — acknowledging or clearing one here does it there
-        too, because it is one alarm and not a copy.
+        This queue is every alarm standing on the site, pooled from{' '}
+        {unit === undefined ? 'the two things' : 'the three things'} that raise one
+        here:{' '}
+        {unit !== undefined && <>the monitoring unit's registers, </>}
+        each genset controller's own bits, and the conditions this app derives from the
+        generation series and the service schedule. It is the same set of rows as the
+        battery, solar, cabinet and genset Alarms tabs added together — acknowledging
+        or clearing one here does it there too, because it is one alarm and not a copy.
+        {unit === undefined && (
+          <>
+            {' '}
+            <span className="text-secondary">
+              No monitoring unit is fitted at this site,
+            </span>{' '}
+            so nothing here reports on the plant, the cabinet or the bank — a quiet
+            queue is the controllers asserting nothing, not the whole site having been
+            checked.
+          </>
+        )}
       </p>
 
       {/* The page this tab used to be, folded away.
