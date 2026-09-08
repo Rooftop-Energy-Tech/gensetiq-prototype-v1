@@ -75,8 +75,17 @@ export const standingOf = (handling: AlarmHandling): AlarmStanding =>
       ? 'ACKNOWLEDGED'
       : 'UNACKNOWLEDGED';
 
-/** Still standing — the test the whole app asks, and the reason this file exists. */
-export const isStanding = (alarm: TrackedAlarm): boolean => alarm.handling.clearedAt === null;
+/**
+ * Still standing — the test the whole app asks, and the reason this file exists.
+ *
+ * Typed on the one field it reads rather than on `TrackedAlarm`, so a row that
+ * carries a handling without being a controller bit passes through it too. The
+ * genset's Alarms page now shows two kinds of row in one table — its own register
+ * map's bits, and the registers the site's monitoring unit watches on the same
+ * set's AC output — and both are standing or cleared by the same question.
+ */
+export const isStanding = (alarm: {handling: AlarmHandling}): boolean =>
+  alarm.handling.clearedAt === null;
 
 /**
  * Sort for the active list: unacknowledged first, then worse severity first.
@@ -87,10 +96,10 @@ export const isStanding = (alarm: TrackedAlarm): boolean => alarm.handling.clear
  * a row nobody has claimed is the row worth putting at the top. Severity still
  * decides everything within each half.
  */
-export const byUrgency = (
-  severityRank: (alarm: TrackedAlarm) => number,
-): ((left: TrackedAlarm, right: TrackedAlarm) => number) => {
-  const claimed = (alarm: TrackedAlarm) => (alarm.handling.acknowledgedAt === null ? 0 : 1);
+export const byUrgency = <Alarm extends {handling: AlarmHandling}>(
+  severityRank: (alarm: Alarm) => number,
+): ((left: Alarm, right: Alarm) => number) => {
+  const claimed = (alarm: Alarm) => (alarm.handling.acknowledgedAt === null ? 0 : 1);
 
   return (left, right) =>
     claimed(left) - claimed(right) || severityRank(left) - severityRank(right);

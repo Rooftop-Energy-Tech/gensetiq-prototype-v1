@@ -5,10 +5,14 @@ import {MetricStrip} from '@/components/global/MetricStrip';
 import {Badge} from '@/components/ui/badge';
 import {amount, stampDate} from '@/lib/format';
 import {TickGauge} from '@/modules/genset/components/detail/TickGauge';
+import {useAlarmHandling} from '@/modules/genset/data/alarms';
+import {UNHANDLED, isStanding} from '@/modules/genset/types/alarmState.type';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {TrendPanel} from '@/modules/site/components/TrendPanel';
-import {systemHealth} from '../../data/systemHealth';
+import {solarAlarmQueue} from '../../data/solarAlarmQueue';
+import {systemAlerts} from '../../data/systemHealth';
+import {systemCondition} from '../../types/health.type';
 import type {SystemDetail} from '../../data/systemDetail';
 import type {SolarSystem} from '../../types/system.type';
 import {SystemHealth} from './SystemHealth';
@@ -89,8 +93,43 @@ export const SystemHome = ({
   const daylight = hour >= FIRST_LIGHT && hour <= LAST_LIGHT;
   const reporting = system.state !== 'OFFLINE';
 
-  const {alerts, condition} = systemHealth(system, detail, now);
   const seed = siteSeed(system.siteId);
+
+  /**
+   * Every alarm this array is carrying — the derived rules **and** the monitoring
+   * unit's registers — and it is the same call the Alarms tab makes.
+   *
+   * That is the whole point of `solarAlarmQueue` existing. The strip used to count
+   * `systemHealth`'s rules alone and read `1` while the tab listed `2` off the
+   * device; neither number was wrong about its own source, and a reader has no way
+   * to know there were two sources. Now band 1 and the tab are one list counted
+   * twice.
+   *
+   * Subscribed once here and handed down, for the reason `GensetHome` does it: the
+   * counts above and the cards below are claims about the same store, and two
+   * subscriptions is how they end up a render apart.
+   */
+  const handling = useAlarmHandling();
+  const {standing} = solarAlarmQueue(system, detail, now, handling);
+
+  /**
+   * Band 5 keeps only the derived rules, because it is the band that draws them.
+   *
+   * Every card in it prints the reading and the line the reading crossed, and the
+   * chart above it marks the same threshold — that is what makes a rule reviewable
+   * rather than merely announced. A register on a device nothing has read has no
+   * reading to draw and no axis to sit on, so the unit's rows stay on the Alarms
+   * tab and the footnote under the band says where they went.
+   *
+   * Filtered by the same handling as the strip, so clearing a wash from the tab
+   * empties the card here too. `condition` is recomputed from what survives rather
+   * than taken from `systemHealth` — a verdict of `Attention` over a band with
+   * nothing in it is the mismatch this whole file is about, in miniature.
+   */
+  const derived = systemAlerts(system, detail, now).filter(
+    (alert) => isStanding({handling: handling[alert.id] ?? UNHANDLED}),
+  );
+  const condition = systemCondition(derived);
 
   /**
    * Today's figures are the plant's, so a system nobody can hear has none.
@@ -115,7 +154,7 @@ export const SystemHome = ({
           {label: 'Solar capacity', value: amount(system.kwp, 'kWp')},
           {label: 'Generation today', value: generatedToday},
         ]}
-        counts={countBySeverity(alerts)}
+        counts={countBySeverity(standing)}
       />
 
       {/* Band 2 — one dial, centred, at hero size. The design gives the whole band
@@ -228,7 +267,7 @@ export const SystemHome = ({
           carries: this is the page somebody opens to find out whether anything
           needs doing, and it is now the only page that answers. */}
       <SystemHealth
-        alerts={alerts}
+        alerts={derived}
         condition={condition}
         readings={detail.readings}
         daylight={daylight}
@@ -236,6 +275,19 @@ export const SystemHome = ({
         now={now}
         heading="The system's own figures"
       />
+
+      {/* Why band 1 counts more than this band shows — stated on the page rather
+          than left as a discrepancy a reader has to notice and then distrust. */}
+      {standing.length > derived.length && (
+        <p className="max-w-prose text-xs text-tertiary">
+          The counts above also include {standing.length - derived.length}{' '}
+          {standing.length - derived.length === 1 ? 'alarm' : 'alarms'} asserted by the
+          site's monitoring unit against the conversion units and their arrays. They are
+          not carded here — this band draws each rule against the reading and threshold
+          behind it, and those registers carry no reading. The Alarms tab lists every row
+          from both sources, with what has been done about each one.
+        </p>
+      )}
     </div>
   );
 };

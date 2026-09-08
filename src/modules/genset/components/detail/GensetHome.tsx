@@ -17,6 +17,7 @@ import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {countBySeverity} from '../../types/alert.type';
+import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {AlertsSection} from './AlertsSection';
 import {ControlPad} from './ControlPad';
@@ -127,15 +128,40 @@ export const GensetHome = ({
   const integrity = useFuelIntegrity(genset.id, now);
 
   /**
-   * The register map's alarms still standing — not `detail.alerts`.
+   * One subscription for both alarm sources on this page.
    *
-   * Clearing one on the Alarms tab has to empty it out of band 6 and drop it from
-   * band 1's counts on the way back, without a reload. Subscribing here rather
-   * than inside `AlertsSection` keeps the strip and the section reading one list:
-   * the counts above and the cards below are the same claim made twice, and two
-   * subscriptions is how they end up a render apart.
+   * Clearing a row on the Alarms tab has to empty it out of band 6 and drop it
+   * from band 1's counts on the way back, without a reload. Read once here rather
+   * than inside each consumer: the strip's counts and the cards below are claims
+   * about the same store, and two subscriptions is how they end up a render apart.
    */
-  const alerts = standingAlarms(genset.id, useAlarmHandling());
+  const handling = useAlarmHandling();
+
+  /** The controller's own bits, still standing — not `detail.alerts`. */
+  const alerts = standingAlarms(genset.id, handling);
+
+  /**
+   * And the site monitoring unit's rows filed against this set — the nine
+   * per-phase AC registers, where the yard has a unit and no utility incomer.
+   *
+   * The **same call the Alarms tab makes**, which is the whole point of it being a
+   * function rather than a filter written twice. The strip said `2` while the tab
+   * listed `4`, because the tab merges both devices and the strip only knew about
+   * one; a summary that undercounts the page it summarises is worse than no
+   * summary, since a reader who trusts it never opens the tab.
+   *
+   * Band 6 is deliberately **not** given these rows. It is the thresholds band —
+   * every card in it prints the register, the reading and the line the reading
+   * crossed — and this prototype has read none of those registers, so there is no
+   * reading to draw. The footnote under it says so rather than leaving a reader to
+   * work out why the strip is ahead of the cards.
+   */
+  const plantStanding = plantAlarmQueue(
+    genset.siteId ?? '',
+    role,
+    'GENSET',
+    handling,
+  ).standing;
 
   return (
     <div className="flex flex-col gap-5 px-4 pb-24 md:pb-6">
@@ -170,7 +196,7 @@ export const GensetHome = ({
           },
           {label: 'Service', value: serviceHeadline(service)},
         ]}
-        counts={countBySeverity(alerts)}
+        counts={countBySeverity([...alerts, ...plantStanding])}
       />
 
       {/* Band 2 — the live dials, and the controls that act on the circuit
@@ -350,6 +376,20 @@ export const GensetHome = ({
         onFocusChange={onFocusChange}
       />
 
+      {/* Why band 1 counts more than band 6 shows.
+
+          Stated on the page rather than left as a discrepancy a reader has to
+          notice and then distrust. The strip is the total this set is carrying;
+          this band is the subset with a reading and a threshold behind it. */}
+      {plantStanding.length > 0 && (
+        <p className="max-w-prose text-xs text-tertiary">
+          The counts above also include {plantStanding.length} AC{' '}
+          {plantStanding.length === 1 ? 'alarm' : 'alarms'} asserted by the site's
+          monitoring unit, which are not carded here — this band draws each alert
+          against the reading and threshold behind it, and those registers have no
+          reading. They are listed in full on the Alarms tab.
+        </p>
+      )}
     </div>
   );
 };

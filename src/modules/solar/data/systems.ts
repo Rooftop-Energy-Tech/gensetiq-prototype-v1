@@ -2,6 +2,7 @@ import {useMemo} from 'react';
 
 import {spread, spreadBetween} from '@/modules/genset/data/spread';
 import {hybridPlant, hybridState, solarStep} from '@/modules/site/data/hybrid';
+import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
 import {FALLBACK_POWER_ROLE, useSitePowerRoles} from '@/modules/site/data/siteConfig';
 import {siteSeed, siteSeeds} from '@/modules/site/data/siteSeed';
 import {hasSolar} from '@/modules/site/types/site.type';
@@ -70,6 +71,28 @@ const MODULE_WATTS = 580;
  * both plants somebody could walk along.
  */
 const stringsOn = (siteId: string, kwp: number): number => {
+  /**
+   * Except at the one site with a **real monitoring unit on the wall**, where the
+   * count is hardware.
+   *
+   * Its poll table carries one `SSU N Fault` and one `PV N Array Fault` per
+   * conversion unit — four of each — and identity there is positional, so slot 3 is
+   * reliably SSU 3. An array reported as three strings under an alarm list that
+   * names four is a page contradicting the page beside it, and the alarm rows are
+   * the half that cannot move: they are addresses on a device.
+   *
+   * A string and a conversion unit are the same count here because that is how this
+   * plant is built — each SSU takes one array, which is exactly what makes `PV N
+   * Array Fault` locatable. On a plant where several strings landed on one unit they
+   * would be two numbers, and this would be the wrong place to reconcile them.
+   *
+   * The system's kWp is untouched, as the bank's kWh is: what changes is only how the
+   * same array is divided. See `battery/data/banks.ts` for the same argument at
+   * greater length.
+   */
+  const fitted = monitoringUnit(siteId)?.ssus;
+  if (fitted !== undefined && fitted >= 2) return fitted;
+
   const perString = spreadBetween(siteId, 'system/string-kwp', 6, 10);
   return Math.max(2, Math.round(kwp / perString));
 };

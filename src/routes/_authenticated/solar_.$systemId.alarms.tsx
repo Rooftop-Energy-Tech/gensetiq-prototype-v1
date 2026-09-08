@@ -1,32 +1,37 @@
-import {createFileRoute} from '@tanstack/react-router';
+import {createFileRoute, useParams} from '@tanstack/react-router';
 import {BellIcon} from 'lucide-react';
 
 import {ComingSoon} from '@/components/global/ComingSoon';
+import {SystemAlarms} from '@/modules/solar/components/detail/SystemAlarms';
+import {isMonitored} from '@/modules/site/data/monitoringUnit';
 
 /**
- * What changed since this placeholder was written at the section level.
+ * The array's alarms where a device is reporting them, and a placeholder where none
+ * is.
  *
- * It used to say the estate had no array alarms at all, and that was true. The
- * home page's health band now derives three — a silent system, strings down, an
- * overdue wash — from the generation model and the site's own telemetry.
- *
- * It derived five until the inverters went. A box silent while its neighbours were
- * not, and an insulation resistance below the level at which a box refuses to
- * start, were both an inverter's own readings, and a telco site has no inverter:
- * the array feeds a −48 V DC bus and there is no AC stage to invert to. A rule
- * this app cannot derive is a rule it must not print.
- *
- * What is still absent is everything that makes a set of live conditions an
- * *alarm system*: history, acknowledgement, who saw it and when, and the
- * thresholds as editable lines rather than constants in `systemHealth.ts`. That is
- * this tab, and it is the same gap the genset's Alarms tab is standing over.
+ * What this tab's earlier placeholder asked for was history, acknowledgement, who
+ * saw it and when, and thresholds as editable lines. The first three are here now
+ * at the site that has a monitoring unit; the fourth is not, and cannot be, because
+ * these rows have no thresholds — the setpoints live in configuration registers the
+ * poll set does not read. See `SystemAlarms` on why that makes this page a
+ * different claim from the health band on the system's home page.
  */
+const SystemAlarmsRoute = () => {
+  const {systemId} = useParams({from: '/_authenticated/solar_/$systemId'});
+
+  if (!isMonitored(systemId)) {
+    return (
+      <ComingSoon
+        icon={BellIcon}
+        title="Alarms"
+        description="This system's alarm history — raised, acknowledged, cleared and by whom. The live conditions on the home page are this app's own arithmetic; no device is reporting here. SBH-1336 has a monitoring unit, and four of its registers watch that array's strings."
+      />
+    );
+  }
+
+  return <SystemAlarms key={systemId} systemId={systemId} />;
+};
+
 export const Route = createFileRoute('/_authenticated/solar_/$systemId/alarms')({
-  component: () => (
-    <ComingSoon
-      icon={BellIcon}
-      title="Alarms"
-      description="This system's alarm history — raised, acknowledged, cleared and by whom — with each rule's threshold as a line somebody can move. The live conditions are on the home page; nothing yet records them. Empty."
-    />
-  ),
+  component: SystemAlarmsRoute,
 });

@@ -3,13 +3,12 @@ import type {ReactNode} from 'react';
 import {Badge} from '@/components/ui/badge';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount} from '@/lib/format';
-import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
-import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
-import type {AlertSeverity} from '@/modules/genset/types/alert.type';
+import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {hybridPlant, hybridState, todaySoFarKwh} from '../data/hybrid';
 import {siteSeed} from '../data/siteSeed';
+import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
 import {siteDcBus, siteFeed, siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 import {supplyMeta} from './supplyMeta';
@@ -27,7 +26,8 @@ import {supplyMeta} from './supplyMeta';
  * Three are fixed. **Site draw** is the site-level essential — it is the only
  * column that carries a figure about *the tower* rather than about the plant
  * standing beside it, and it is where the DC bus reading hangs (see below).
- * **Alarm** holds the third column at every site, because every site can have one.
+ * **Alarm** holds the third column at every site, because every site can have one —
+ * and it counts what the site's Alarms tab lists, not just the gensets'. See below.
  * **Supply** holds the fourth for the same reason: every site is being fed by
  * something, including by nothing.
  *
@@ -185,22 +185,22 @@ export const SiteMetricStrip = ({
     drawMetric(summary, role, now),
   ];
 
-  // One subscription for the yard, read per set below. The strip is a sum, and a
-  // sum that did not follow a clear would sit above cards that already had.
-  const handling = useAlarmHandling();
-
-  // Site-level, which means summed across the yard's sets. A site's alarm count is
-  // the count of everything standing on it — an operator triaging a fleet does not
-  // care which of two machines the two criticals came from until they have decided
-  // to come here at all.
-  const counts = summary.gensets.reduce<Record<AlertSeverity, number>>(
-    (total, member) => {
-      const own = countBySeverity(standingAlarms(member.genset.id, handling));
-      for (const severity of ALERT_SEVERITIES) total[severity] += own[severity];
-      return total;
-    },
-    {CRITICAL: 0, WARNING: 0, NEUTRAL: 0},
-  );
+  /**
+   * Everything standing on the yard — **the same list the Alarms tab shows**.
+   *
+   * This used to sum the yard's gensets' controller bits and nothing else, which was
+   * right when the controller was the only thing on a site that raised an alarm. It
+   * is not any more: the monitoring unit watches the plant, the cabinet, the bank and
+   * the array, and this app derives its own rules over the generation series. At
+   * SBH-1336 the old sum read two while the Alarms tab listed eleven, and a strip that
+   * undercounts the page it summarises is worse than no strip — a reader who trusts it
+   * never opens the tab.
+   *
+   * One call for both, so they cannot drift, and clearing a row on the tab drops this
+   * count on the way back. See `siteAlarmQueue.ts` for what the union is of.
+   */
+  const {standing} = useSiteAlarmQueue(summary.site.id, now);
+  const counts = countBySeverity(standing);
 
   return (
     <MetricStrip
