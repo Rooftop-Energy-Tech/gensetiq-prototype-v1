@@ -219,12 +219,25 @@ export type SwitchState = {
  *   test, or warming), and it is off-load while it is.
  */
 export const isolatorStateOf = (runState: RunState, duty: boolean): SwitchState => {
-  if (!duty) return {closed: false, live: false};
-
-  return {
-    closed: runState === 'RUNNING' || runState === 'IDLE',
-    live: runState === 'RUNNING',
-  };
+  /**
+   * Open unless this set is actually carrying, and that is a change of rule.
+   *
+   * It used to draw the duty set **closed onto a dead bus** whenever it was stopped
+   * but available — the classic standby position, a set sitting closed waiting for a
+   * transfer. That is real behaviour at a grid-backed site and it was the wrong thing
+   * to draw here, because the diagram's whole job is answering *what is feeding this
+   * tower*: a reader looking at a solar hybrid on a sunny afternoon saw a closed knife
+   * switch under a stopped engine and had to work out from the colour alone that no
+   * diesel was involved. A switch is the one mark in the drawing whose shape a reader
+   * takes in before any colour, and it was saying the opposite of the answer.
+   *
+   * So the position now follows the one fact the drawing is about: closed if this set
+   * is carrying, open if it is not. The standby-closed state is not lost from the app —
+   * the set's own run state is on its node's caption, its card and its page, in words
+   * (`stopped`, `off-load`) that do not need decoding.
+   */
+  const carrying = duty && runState === 'RUNNING';
+  return {closed: carrying, live: carrying};
 };
 
 /**
@@ -236,12 +249,13 @@ export const isolatorStateOf = (runState: RunState, duty: boolean): SwitchState 
  * this reads the two facts it acts on — the meter, and whether a set is already
  * carrying — and reports the position that follows.
  *
- * `closed` and `live` are the same value here, which they are *not* for a genset
- * isolator, and the asymmetry is the point: a genset can sit closed onto a dead
- * bus waiting for a mains failure, but the grid is either carrying the load or
- * disconnected from it. A transfer switch must never bridge the two sources — that
+ * `closed` and `live` are the same value here, and since `isolatorStateOf` took the
+ * same rule they are the same value on every source the diagram draws. The reason was
+ * always sharper for the grid: a transfer switch must never bridge two sources — that
  * is back-feed onto the utility, the one thing the interlock exists to prevent — so
- * there is no closed-and-dead mains position to draw.
+ * there was never a closed-and-dead mains position to draw. `SwitchState` keeps the
+ * two fields because they are two different facts and `Isolator` still renders all
+ * three combinations; nothing currently produces the fourth.
  *
  * A set that is carrying therefore *wins*: the contactor is open, and the meter's
  * verdict on the grid is reported next to it rather than in place of it. That is

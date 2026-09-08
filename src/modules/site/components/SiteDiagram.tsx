@@ -99,23 +99,29 @@ import type {SiteSummary} from '../data/sites';
  * it — and a page about *backup* power that never shows what is being backed up is
  * missing its subject.
  *
- * The two hybrid configurations add a **bank** the same way, and that is the
- * argument for putting all of them in this column rather than inventing a second
- * one: a bus is a bus, so every source is a row, and every measurement above
- * applies to each of them unchanged. Three sources at a solar hybrid with two sets
- * is the same drawing as one source at a diesel-prime site with one — taller, and
- * not otherwise different.
+ * The two hybrid configurations add a **bank** the same way, and a solar hybrid adds
+ * the **array**. That is the argument for putting all of them in one column rather
+ * than inventing a second: a bus is a bus, so every source is a row, and every
+ * measurement above applies to each of them unchanged. Four rows at a solar hybrid
+ * with two sets is the same drawing as one row at a diesel-prime site with one —
+ * taller, and not otherwise different.
  *
- * The **array** is the one thing that is not a row, because it is not on the bus.
- * It is DC-coupled: it charges the bank and reaches the load through the same
- * converter the bank does, so it is drawn where it actually sits — in its own
- * column to the left, on one conductor into the battery. Giving it an isolator of
- * its own said something false, that the array could carry the tower with the bank
- * disconnected.
+ * The array **was** the exception. It is DC-coupled rather than on the bus, so it was
+ * drawn in a column of its own to the left, on one conductor into the battery, with
+ * no isolator. That drawing was true and it read as an afterthought: the array sat
+ * somewhere no other source stood, in the one configuration where it is the source
+ * the whole site was built around.
  *
- * The order down the column is the order the site uses its sources in: grid, bank,
- * then gensets. Reading it downwards is reading the control strategy, which is why
- * the bank sits above the machine that charges it.
+ * It is a row now, and the coupling it lost comes back as a **tie riser down the left
+ * of the boxes** — the array into the bank, the bank into the sets. So the drawing
+ * carries a vertical line on each side and they say different things: the right one
+ * is the bus, what carries the tower; the left one is the DC tie, what charges the
+ * bank. See `TIE_X`.
+ *
+ * The order down the column is the order the site uses its sources in: array, grid,
+ * bank, then gensets. Reading it downwards is reading the control strategy, which is
+ * why the bank sits above the machine that charges it and the array above everything
+ * — it is the source that costs nothing to run.
  *
  * A `DIESEL_PRIME` site has no incomer and no plant, and draws exactly what it
  * drew before any of this existed.
@@ -143,14 +149,71 @@ const LOAD_X = BUS_X + TAP;
 const WIDTH = LOAD_X + NODE_W;
 
 /**
- * The array's own column, to the left of the bank it charges.
+ * The DC tie a solar hybrid adds down its column.
  *
- * Reusing `LEAD` rather than measuring a new gap: the array's run into the battery
- * is the same length as every genset's run into its isolator, so the drawing keeps
- * one horizontal rhythm whatever the site is made of. Sites without an array pay
- * nothing for this — the gutter is zero and the canvas is the design's 398px.
+ * ## What a bus was getting wrong here
+ *
+ * Every other site type is honestly a bus: two or three AC sources, each on its own
+ * switch, elbowing onto one riser that carries the tower. Reading it is reading a
+ * changeover.
+ *
+ * A solar hybrid is not that. The array, the bank and the set are **coupled through
+ * the bank** — the array charges it, the set charges it through its rectifier, and its
+ * converter is what the load hangs off. Drawing them onto a shared riser said the
+ * three were paralleled onto one node, which is the AC-coupled plant this site is
+ * not. And it drew the relationship a reader most needs — *the array feeds the
+ * battery* — as an incidental overlap between two riser segments.
+ *
+ * So at a solar hybrid the riser goes and two things take its place:
+ *
+ *  - a **tie down the boxes' own centreline**, box to box, so the array's line into
+ *    the bank and the set's line into the bank are the two most visible marks in the
+ *    drawing;
+ *  - the **junction** stays what it was: every source elbows to one point on the
+ *    drawing's centreline and one conductor runs from there into the load. See
+ *    `JUNCTION_X` — with right angles and a single meeting point there is no other
+ *    shape, and the array's run down to it and the set's run up to it overlap nowhere.
+ *
+ * Every other role keeps the bus, because for them it is the right drawing.
+ *
+ * ## The tie crosses the captions, deliberately
+ *
+ * The 64px between two boxes is where their caption lines live, so a tie down the
+ * middle runs through `PV array` and `93% charged`. The captions therefore carry the
+ * canvas colour behind them and the line breaks around the words — the label-over-a-
+ * conductor treatment any wiring drawing uses. Routing the tie around them instead
+ * would have meant either a line that starts 30px below the box it comes out of, or
+ * captions moved out beside every node.
  */
-const SOLAR_GUTTER = NODE_W + LEAD;
+const TIE_X = NODE_W / 2;
+
+/**
+ * Where every source's run meets, on the drawing's own centreline.
+ *
+ * ## One point, and what that forces
+ *
+ * Every conductor here is orthogonal, so each source arrives at the meeting place
+ * **vertically**. Meeting at one point therefore puts every source's vertical at that
+ * one x — there is no other arrangement. Spreading the arrivals 16px apart was the
+ * previous attempt and it gave three dots on one line rather than the single junction
+ * this drawing wants; converging with diagonals was the attempt before that, and it
+ * broke the right angles.
+ *
+ * So each source elbows out of its isolator to `BUS_X` and runs to the junction, and
+ * one conductor carries the design's 67px tap from there into the load.
+ *
+ * ## Why that is not the shared bus this drawing got rid of
+ *
+ * It looks close and it is not the same claim. The junction sits at the **midpoint of
+ * the sources**, so at a solar hybrid the array's run comes down from above it and the
+ * set's comes up from below: two verticals that touch at the point and overlap
+ * nowhere. Each source owns its whole path, which is what a reader tracing one needs.
+ *
+ * With four or more sources the outer runs do pass through the stretch the inner ones
+ * occupy, and that overlap is real — see `rows` on why the paint order is by liveness
+ * rather than by position, so a dead run can never be left covering a live one.
+ */
+const JUNCTION_X = BUS_X;
 
 /** Terminal centres inside the isolator, from the component's documentation. */
 const SOURCE_TERMINAL = 18;
@@ -225,11 +288,12 @@ const Conductor = ({points, live}: {points: Array<[number, number]>; live: boole
 /**
  * The isolator — a knife switch, per the design's own component.
  *
- * `closed` and `live` are separate inputs because they are separate facts: a
- * standby set sits closed onto a dead bus waiting for a mains failure, so a
- * closed-and-dead switch is the most common state at a healthy site, not an
- * inconsistency. Only `open` + `live` is impossible, and `switchStateOf` is what
- * guarantees it never reaches here.
+ * `closed` and `live` stay separate inputs, and this still draws all three sensible
+ * combinations. What changed is what reaches it: every source now reports the two as
+ * one value, because a switch drawn closed under a source that is feeding nothing was
+ * the shape of an answer contradicting the caption beside it. See `isolatorStateOf`.
+ *
+ * `open` + `live` remains impossible, and no producer can express it.
  */
 const Isolator = ({y, closed, live}: {y: number; closed: boolean; live: boolean}) => {
   const sourceX = SWITCH_X + SOURCE_TERMINAL;
@@ -362,17 +426,27 @@ const Node = ({
           />
         )}
       </div>
-      <p className="pt-1 text-center text-[11px] leading-[13px] whitespace-nowrap text-secondary">
-        {caption}
-      </p>
-      <p
-        className={cn(
-          'text-center text-[11px] leading-[13px] font-medium whitespace-nowrap',
-          powered ? 'text-primary' : 'text-tertiary',
-        )}
-      >
-        {power}
-      </p>
+      {/* The two caption lines, on a ground of their own.
+
+          `bg-canvas` is invisible everywhere except where it matters: at a solar
+          hybrid the DC tie runs down this box's centreline and through this text, and
+          the band is what breaks the conductor around the words instead of letting it
+          strike through them. `w-fit` so the ground hugs the text rather than masking
+          the full 88px — a 88px bar would put a visible gap in the tie the width of
+          the box. See `TIE_X`. */}
+      <div className="mx-auto w-fit bg-canvas px-1">
+        <p className="pt-1 text-center text-[11px] leading-[13px] whitespace-nowrap text-secondary">
+          {caption}
+        </p>
+        <p
+          className={cn(
+            'text-center text-[11px] leading-[13px] font-medium whitespace-nowrap',
+            powered ? 'text-primary' : 'text-tertiary',
+          )}
+        >
+          {power}
+        </p>
+      </div>
     </>
   );
 
@@ -468,7 +542,13 @@ type DiagramSource = {
  * either the bank or a genset's own id.
  */
 const deviceOfSource = (key: string): SiteDeviceKey | undefined =>
-  key === 'mains' ? undefined : key === 'battery' ? 'battery' : gensetDeviceKey(key);
+  key === 'mains'
+    ? undefined
+    : key === 'battery'
+      ? 'battery'
+      : key === 'solar'
+        ? 'solar'
+        : gensetDeviceKey(key);
 
 /** Everything the drawing needs to act as the page's device picker. */
 export type SiteDiagramSelection = {
@@ -493,31 +573,82 @@ const selectHandler = (
     : () => selection.onSelect(device);
 
 /**
- * The array beside the bank, on the two lines a node carries.
+ * The array as a row, or nothing at a site without one.
  *
- * Not a `DiagramSource`, and the difference is the whole point: a source has a
- * switch and a place on the bus, and the array has neither. It has a state — making
- * something, or not — and that state drives one conductor into the battery.
+ * ## Why it now carries an isolator
+ *
+ * It did not before, and the note that argued against one was right about the drawing
+ * it was in: the array had a single conductor into the battery and nothing else, so a
+ * switch on it would have implied the array could be isolated and the bank carry on —
+ * which is backwards, since it was the bank's converter the array reached the load
+ * through.
+ *
+ * With the array on the bus in its own right, an isolator is the true statement. A PV
+ * converter has a DC disconnect; pulling it takes the array off the plant and leaves
+ * the bank and the sets carrying the tower, which is exactly what the drawing then
+ * shows. The three rows being one shape is the secondary benefit — a row with no
+ * switch between two rows that have one reads as a drawing that forgot something.
+ *
+ * ## `night` rather than `0 kW`
+ *
+ * A converter exporting nothing is off, not idling, and there is no third state. Same
+ * rule the genset captions follow: a measurement of zero and an absence of one are
+ * different claims, and only one of them is true after dark.
  */
-type DiagramSolar = {
-  caption: string;
-  power: string;
-  /** Is it making anything. Its node's dot and its conductor both read this. */
-  generating: boolean;
+const solarSource = (
+  summary: SiteSummary,
+  role: SitePowerRole,
+): Array<DiagramSource> => {
+  if (!hasSolar(role)) return [];
+
+  const seed = siteSeed(summary.site.id);
+  const solarKw = seed === undefined ? 0 : hybridState(seed, role).solarKw;
+  const generating = solarKw > 0;
+
+  return [
+    {
+      key: 'solar',
+      icon: SunMediumIcon,
+      label: 'SOLAR',
+      caption: 'PV array',
+      power: generating ? amount(solarKw, 'kW', 1) : 'night',
+      /**
+       * Open after dark, not closed onto a dead run.
+       *
+       * Physically the DC disconnect is not thrown at sunset, and the earlier drawing
+       * said so. But the drawing answers *what is feeding this tower*, and a closed
+       * switch under a dark array was the shape of an answer contradicting the words
+       * beside it — see `isolatorStateOf`, which took the same decision for the sets.
+       * The caption still says `night`, which is the honest version of the same fact.
+       */
+      switchState: {closed: generating, live: generating},
+    },
+  ];
 };
 
 /**
- * Every source feeding this site's bus, top to bottom, and the array beside the bank.
+ * Every source feeding this site's bus, top to bottom.
  *
- * Mains first, and not arbitrarily: at a standby site it is the *normal* supply and
- * the gensets are what sit under it waiting. Reading the column downwards then
- * follows the order the site actually uses its sources in.
+ * ## The order, and what it says
+ *
+ * **Array, mains, bank, sets.** Reading the column downwards is reading the order
+ * the site uses its sources in — which is why the bank sits above the machine that
+ * charges it, and why the array, the one source that costs nothing to run, sits above
+ * everything.
+ *
+ * The array is in this list at all as of the column rework; it used to be a shape of
+ * its own in a column of its own. See `TIE_X` for what that cost and what came
+ * back in its place.
+ *
+ * No site has both an incomer and an array today — `hasMains` is `GRID_BACKUP` only
+ * and `hasSolar` is `SOLAR_HYBRID` only — so the relative order of those two is a
+ * decision nothing currently exercises.
  */
 const sourcesOf = (
   summary: SiteSummary,
   dutyId: string | undefined,
   role: SitePowerRole,
-): {sources: Array<DiagramSource>; solar: DiagramSolar | undefined} => {
+): Array<DiagramSource> => {
   const feed = siteFeed(summary, dutyId, role);
   const gensetCarrying = feed.source === 'GENSET';
 
@@ -534,7 +665,6 @@ const sourcesOf = (
   });
 
   const sources: Array<DiagramSource> = [];
-  let solar: DiagramSolar | undefined;
 
   if (hasMains(role)) {
     sources.push({
@@ -555,62 +685,57 @@ const sourcesOf = (
     const state =
       seed === undefined ? {solarKw: 0, soc: 0, batteryKw: 0} : hybridState(seed, role);
 
-    if (hasSolar(role)) {
-      // An array is connected whenever it is making anything, and disconnected at
-      // night. There is no third state: a PV converter that is exporting nothing is
-      // off, not idling, so `night` is the word rather than `0 kW`. The same rule
-      // the genset captions follow — a measurement of zero and an absence of one
-      // are different claims.
-      const generating = state.solarKw > 0;
-      solar = {
-        caption: 'PV array',
-        power: generating ? amount(state.solarKw, 'kW', 1) : 'night',
-        generating,
-      };
-    }
-
     // Charging and discharging are one node and two directions, which is why the
     // caption carries the state of charge and the power line carries the sign. A
     // bank drawn as two nodes would suggest the site has two of them.
     const discharging = state.batteryKw > 0 && !gensetCarrying;
-    // This one run is the **whole plant's** tie to the bus, not the bank's alone —
-    // the array reaches the load through the same converter — so it is live whenever
-    // either of them is delivering. Reading it off the bank by itself would draw the
-    // tower unserved at two in the afternoon, with an array beside it making more
-    // than the tower draws. That surplus is exactly the case where the bank is
-    // charging and the load is nonetheless being carried.
-    const delivering = !gensetCarrying && (discharging || state.solarKw > 0);
+
+    /**
+     * The bank's run is now the **bank's own**, which it was not before.
+     *
+     * It used to be live whenever the array *or* the bank was delivering, because the
+     * array had no path to the bus of its own — it reached the load through this
+     * converter, so reading the run off the bank alone drew the tower unserved at two
+     * in the afternoon with a full array beside it.
+     *
+     * The array has its own row and its own run now, so that borrowing is over: this
+     * conductor is live when the bank is discharging and dead when it is charging,
+     * which is the whole of what it claims. The afternoon-surplus case reads correctly
+     * and more sharply than before — the solar row carries, the bank's row is dead,
+     * and the caption says `charging`.
+     */
     sources.push({
       key: 'battery',
       icon: BatteryChargingIcon,
       label: 'BATTERY',
       caption: `${Math.round(state.soc * 100)}% charged`,
-      power: gensetCarrying
-        ? 'charging'
-        : discharging
-          ? amount(state.batteryKw, 'kW', 1)
-          : 'charging',
-      switchState: {closed: true, live: delivering},
+      power: discharging ? amount(state.batteryKw, 'kW', 1) : 'charging',
+      // Open while charging. A bank taking charge is a load on the plant rather than a
+      // source on it, and drawing its tie closed put a shut switch on the one run in
+      // the drawing that was carrying nothing towards the tower.
+      switchState: {closed: discharging, live: discharging},
     });
   }
 
-  return {sources: [...sources, ...gensets], solar};
+  return [...solarSource(summary, role), ...sources, ...gensets];
 };
 
 /**
  * How wide this site's canvas is, in the design's own pixels.
  *
- * Exported because the site page sizes the column it hands the drawing, and that
- * width is not a constant: an array adds its own column to the left of the bank.
- * Asked here rather than recomputed there so the drawing stays the only thing that
- * decides how wide it is — a caller that guessed 398 would clip every solar hybrid.
+ * A constant again, and kept as a function of the role on purpose.
  *
- * Reads the role rather than running `sourcesOf`, and the two agree by
- * construction: `solar` is set exactly when `hasSolar(role)` holds, since that
- * implies `hasBattery` and the array is built inside that branch.
+ * It has been three things: 398 for every site, then 530 at a solar hybrid when the
+ * array had a column of its own, then 418 when that became a 20px tie gutter. The
+ * array is a row and the tie runs down the boxes themselves, so there is no gutter and
+ * every role is back to the design's 398. A solar hybrid's drawing is **taller** than
+ * the others and no wider.
+ *
+ * Still exported, still takes the role: the site page grid-templates a column off it,
+ * and the next thing that widens one role's canvas should be a change here rather than
+ * a number to hunt for in a caller.
  */
-export const siteDiagramWidth = (role: SitePowerRole): number =>
-  (hasSolar(role) ? SOLAR_GUTTER : 0) + WIDTH;
+export const siteDiagramWidth = (_role: SitePowerRole): number => WIDTH;
 
 // ─── The diagram ─────────────────────────────────────────────────────────────
 
@@ -637,7 +762,7 @@ export const SiteDiagram = ({
   role: SitePowerRole;
   selection?: SiteDiagramSelection;
 }) => {
-  const {sources, solar} = sourcesOf(summary, dutyId, role);
+  const sources = sourcesOf(summary, dutyId, role);
   const count = Math.max(1, sources.length);
   const feed = siteFeed(summary, dutyId, role);
   // Who is feeding and how much are two questions, answered separately — see
@@ -646,31 +771,50 @@ export const SiteDiagram = ({
 
   /** Centreline of source `index` — where its conductor leaves the box. */
   const centreline = (index: number) => index * PITCH + NODE_H / 2;
-  // The load taps the bus at the midpoint of the sources feeding it, which is what
-  // puts a single-source site's load on the same line as its source and keeps a
-  // two-source site's symmetric — the design's arrangement in both cases.
-  const busY = (centreline(0) + centreline(count - 1)) / 2;
 
   const height = (count - 1) * PITCH + NODE_H + CAPTION;
+  const width = WIDTH;
   const anyLive = sources.some((source) => source.switchState.live);
 
   /**
-   * The array's column, and the row it sits on.
+   * Whether this site's column carries the DC tie down the boxes' centreline.
    *
-   * Everything else in the drawing shifts right by the gutter, which is why it is a
-   * translate on one group rather than a term in each coordinate: the design's
-   * measurements stay literal, and a site with no array pays nothing — the gutter is
-   * zero and the canvas is the 398px it always was.
-   *
-   * The array is drawn on the **battery's own row**, so the run between them is a
-   * straight horizontal line rather than a dogleg. `hasSolar` implies `hasBattery`,
-   * so the row is always there to find; the fallback is for a caller that ever
-   * breaks that, and puts the array on the top row rather than off the canvas.
+   * Keyed on the array rather than on the bank, and the reason is the coupling. A
+   * `DIESEL_HYBRID` bank sits on the bus beside its sets and is charged off it, which
+   * is what a bus draws correctly. A solar hybrid's array has no other way in — it is
+   * DC-coupled through the bank's own converter — so the bank stops being a source
+   * among several and becomes the node the other two hang off. See `TIE_X`.
    */
-  const gutter = solar === undefined ? 0 : SOLAR_GUTTER;
-  const width = gutter + WIDTH;
-  const batteryIndex = sources.findIndex((source) => source.key === 'battery');
-  const solarY = centreline(Math.max(0, batteryIndex));
+  const tied = hasSolar(role);
+  const batteryIndex = Math.max(0, sources.findIndex((source) => source.key === 'battery'));
+
+  /**
+   * The drawing's own centreline: the junction, the tap and the load box all sit on it.
+   *
+   * The **midpoint of the top and bottom sources**, in both drawings, which is the
+   * design's own arrangement — a single-source site's load lines up with its source and
+   * a two-source site's is symmetric between them. It is also the only answer to
+   * "centred between the array and the set" that stays true as sets are added; pinning
+   * it to the bank's row instead put the load level with the bank and left it visibly
+   * high at a two-set site.
+   */
+  const busY = (centreline(0) + centreline(count - 1)) / 2;
+
+  /**
+   * The tie between two neighbouring boxes, and whether it is carrying.
+   *
+   * Live is read off the row **further from the bank**, which is the one thing this
+   * conductor is actually about: the array's tie carries when the array is making
+   * something, and a set's tie carries when that set is running onto the plant.
+   * Reading it off either row would light the array's tie at midnight, the moment the
+   * bank started discharging — a line drawn as though power were flowing up to a dark
+   * roof.
+   */
+  const tieLive = (index: number): boolean => {
+    const away =
+      Math.abs(index - batteryIndex) >= Math.abs(index + 1 - batteryIndex) ? index : index + 1;
+    return sources[away]?.switchState.live ?? false;
+  };
 
   /**
    * The sources in **paint order: every dead run first, then every live one.**
@@ -741,7 +885,7 @@ export const SiteDiagram = ({
         role="img"
         aria-label={`${summary.site.name} single-line diagram: ${
           hasMains(role) ? 'mains supply, ' : ''
-        }${hasBattery(role) ? (hasSolar(role) ? 'PV array into the battery, ' : 'battery, ') : ''}${
+        }${hasSolar(role) ? 'PV array, ' : ''}${hasBattery(role) ? 'battery, ' : ''}${
           summary.gensets.length
         } genset${summary.gensets.length === 1 ? '' : 's'}, ${
           feed.source === 'GENSET'
@@ -755,19 +899,26 @@ export const SiteDiagram = ({
                   : 'nothing feeding the load'
         }${loadKw === null ? '' : ` at ${amount(loadKw, 'kW')}`}`}
       >
-        {/* The array's run into the battery: one conductor, no switch, drawn in the
-            gutter's own coordinates before everything else is shifted out of it. */}
-        {solar !== undefined && (
-          <Conductor
-            points={[
-              [NODE_W, solarY],
-              [gutter, solarY],
-            ]}
-            live={solar.generating}
-          />
-        )}
+        {/* The DC tie: one conductor per neighbouring pair, down the boxes' own
+            centreline, from the lower edge of one to the upper edge of the next.
 
-        <g transform={`translate(${gutter},0)`}>
+            Drawn per pair rather than as one riser because each pair is a separate
+            claim — the array into the bank, then the bank into the set — and each is
+            live or dead on its own. It passes behind the caption lines, which carry
+            the canvas colour so the words break the line rather than the line striking
+            the words. See `TIE_X`. */}
+        {tied &&
+          sources.slice(0, -1).map((source, index) => (
+            <Conductor
+              key={`tie-${source.key}`}
+              points={[
+                [TIE_X, index * PITCH + NODE_H],
+                [TIE_X, (index + 1) * PITCH],
+              ]}
+              live={tieLive(index)}
+            />
+          ))}
+
         {rows.map(({source, y}) => {
           const {closed, live} = source.switchState;
 
@@ -784,14 +935,18 @@ export const SiteDiagram = ({
 
               <Isolator y={y} closed={closed} live={live} />
 
-              {/* Switch → bus, as the design's elbow: out, then along the
-                  riser to the tap. An open switch's run is drawn dead all the
-                  way, because nothing past a lifted blade is energised. */}
+              {/* Switch → the junction, as the design's elbow: out to `JUNCTION_X`,
+                  then along it to the point every source meets at. Square the whole
+                  way — see `JUNCTION_X` for why one meeting point and right angles
+                  together leave no other shape.
+
+                  An open switch's run is drawn dead all the way, because nothing past
+                  a lifted blade is energised. */}
               <Conductor
                 points={[
                   [SWITCH_X + LOAD_TERMINAL, y],
-                  [BUS_X, y],
-                  [BUS_X, busY],
+                  [JUNCTION_X, y],
+                  [JUNCTION_X, busY],
                 ]}
                 live={live}
               />
@@ -799,40 +954,27 @@ export const SiteDiagram = ({
           );
         })}
 
-        {/* Bus → load. Live if anything at all is feeding the bus. */}
+        {/* The junction → the load: the design's 67px tap, and the one conductor in
+            the drawing that carries the tower. Live if anything at all is feeding. */}
         <Conductor
           points={[
-            [BUS_X, busY],
+            [JUNCTION_X, busY],
             [LOAD_X, busY],
           ]}
           live={anyLive}
         />
 
+        {/* The junction itself — one dot, where every source's run and the tap into
+            the load all meet. */}
         <circle
-          cx={BUS_X}
+          cx={JUNCTION_X}
           cy={busY}
           r={3.5}
           className={cn('stroke-current', anyLive ? 'text-teal' : 'text-tertiary')}
           strokeWidth={1.5}
           fill={anyLive ? 'currentColor' : 'var(--canvas)'}
         />
-        </g>
       </svg>
-
-      {solar !== undefined && (
-        <Node
-          icon={SunMediumIcon}
-          label="SOLAR"
-          caption={solar.caption}
-          power={solar.power}
-          powered={solar.generating}
-          live={solar.generating}
-          x={0}
-          y={solarY - NODE_H / 2}
-          onSelect={selectHandler(selection, 'solar')}
-          selected={selection?.selected === 'solar'}
-        />
-      )}
 
       {sources.map((source, index) => {
         const device = deviceOfSource(source.key);
@@ -846,7 +988,7 @@ export const SiteDiagram = ({
             power={source.power}
             powered={source.switchState.live}
             live={source.switchState.live}
-            x={gutter}
+            x={0}
             y={index * PITCH}
             onSelect={selectHandler(selection, device)}
             selected={device !== undefined && device === selection?.selected}
@@ -863,7 +1005,7 @@ export const SiteDiagram = ({
         caption="Site draw"
         power={loadKw === null ? 'not served' : amount(loadKw, 'kW')}
         powered={anyLive}
-        x={gutter + LOAD_X}
+        x={LOAD_X}
         y={busY - NODE_H / 2}
       />
       </div>
