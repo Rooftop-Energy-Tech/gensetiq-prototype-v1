@@ -52,8 +52,8 @@
  * `datasets/`, and the thing that collects them is a **virtual module built per
  * build** by the `brands` plugin in `vite.config.ts`.
  *
- * That is not tidiness. A hand-written `Record` of all three brands ships all
- * three: a customer's deployment would carry the other customers' names, marks and
+ * That is not tidiness. A hand-written `Record` of every brand ships every one
+ * of them: a customer's deployment would carry the other customers' names, marks and
  * twenty-five site names each, hidden behind a UI flag and one devtools tab away
  * from being read. Hiding the picker is a product decision; leaving the data out
  * of the bundle is the one that makes it true.
@@ -66,7 +66,7 @@
  */
 
 /** The brands this build can be compiled as. Add a customer by adding an entry. */
-export const BRAND_IDS = ['celcomdigi', 'sesb', 'gensetiq'] as const;
+export const BRAND_IDS = ['redtone', 'celcomdigi', 'sesb', 'gensetiq'] as const;
 
 export type BrandId = (typeof BRAND_IDS)[number];
 
@@ -107,7 +107,7 @@ export type BrandTheme = {
  * which is read by the Vite plugin in Node and inlined into the generated registry
  * as literals for only the brands a build includes. Putting them on this type
  * would mean the client importing a map of every brand's title — three short
- * strings, but three customers' names — which is the leak this whole structure
+ * strings, but every customer's name — which is the leak this whole structure
  * exists to close.
  */
 export type BrandIdentity = {

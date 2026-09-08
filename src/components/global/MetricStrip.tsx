@@ -1,8 +1,9 @@
-import {BellIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
+import {AlarmCounts, alarmPillClassName} from '@/components/global/AlarmCounts';
 import {Badge} from '@/components/ui/badge';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
+import {cn} from '@/lib/utils';
 import {ALERT_SEVERITIES} from '@/modules/genset/types/alert.type';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
@@ -90,17 +91,14 @@ export const MetricStrip = ({
       <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
         <span className="truncate text-sm font-medium text-secondary">Alarm</span>
         {/* Three counts in one pill, coloured rather than labelled — the design's
-            treatment, and the only way three numbers fit the column. The tooltip
-            spells them out, exactly as each device row's does. */}
+            treatment, and the only way three numbers fit the column. Any severity
+            with something standing fills its cell, so the strip says *something is
+            wrong here* before a reader has read a figure. The tooltip spells the
+            order out, exactly as each device row's does. */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant="secondary" className="cursor-help gap-1.5">
-              <BellIcon className="text-secondary" aria-hidden="true" />
-              {ALERT_SEVERITIES.map((severity) => (
-                <span key={severity} className={SEVERITY_META[severity].textClassName}>
-                  {counts[severity]}
-                </span>
-              ))}
+            <Badge variant="secondary" className={cn(alarmPillClassName, 'cursor-help')}>
+              <AlarmCounts counts={counts} />
             </Badge>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="flex flex-col gap-1">

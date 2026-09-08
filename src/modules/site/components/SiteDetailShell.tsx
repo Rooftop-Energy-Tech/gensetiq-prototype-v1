@@ -15,7 +15,8 @@ import type {DetailNavEntry, DetailNavItem} from '@/components/global/DetailSide
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {hybridPlant} from '../data/hybrid';
-import {isMonitored} from '../data/monitoringUnit';
+import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
+import {fromSite} from '../types/fromSearch.type';
 import {siteSeed} from '../data/siteSeed';
 import {useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
@@ -91,6 +92,7 @@ const assetItems = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavI
       icon: BoomBoxIcon,
       to: '/gensets/$gensetId',
       params: {gensetId: lead.genset.id},
+      search: fromSite(summary.site.id),
       end: true,
     });
   }
@@ -101,6 +103,7 @@ const assetItems = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavI
       icon: PanelsTopLeftIcon,
       to: '/solar/$systemId',
       params: {systemId: summary.site.id},
+      search: fromSite(summary.site.id),
       end: true,
     });
   }
@@ -113,21 +116,23 @@ const assetItems = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavI
       icon: BatteryChargingIcon,
       to: '/battery/$bankId',
       params: {bankId: summary.site.id},
+      search: fromSite(summary.site.id),
       end: true,
     });
   }
 
-  // The subrack cabinet, wherever a monitoring unit makes its shelf a known
-  // quantity. `isMonitored` rather than a `subrackCabinet(...) !== undefined` call:
+  // The subrack cabinet: every solar hybrid, plus the instrumented site whatever its
+  // role. `siteHasCabinet` rather than a `subrackCabinet(...) !== undefined` call:
   // this is a rail deciding whether to offer a door, and it should not have to
   // assemble the room behind it to find out. The two agree by construction — the
-  // unit is the only thing either of them tests.
-  if (isMonitored(summary.site.id)) {
+  // assembly tests this same predicate first.
+  if (siteHasCabinet(summary.site.id, role)) {
     items.push({
       label: 'Cabinet',
       icon: ServerIcon,
       to: '/cabinet/$cabinetId',
       params: {cabinetId: summary.site.id},
+      search: fromSite(summary.site.id),
       end: true,
     });
   }

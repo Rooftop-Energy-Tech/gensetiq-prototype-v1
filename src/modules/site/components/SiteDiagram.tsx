@@ -3,6 +3,7 @@ import {
   BatteryChargingIcon,
   BoomBoxIcon,
   FactoryIcon,
+  ServerIcon,
   SunMediumIcon,
   UtilityPoleIcon,
 } from 'lucide-react';
@@ -17,10 +18,11 @@ import {gensetDeviceKey} from '../types/device.type';
 import type {SiteDeviceKey} from '../types/device.type';
 import {hasBattery, hasMains, hasSolar, isolatorStateOf, mainsContactorStateOf} from '../types/site.type';
 import type {MainsSupply, SitePowerRole, SwitchState} from '../types/site.type';
+import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
 import {hybridState} from '../data/hybrid';
 import {siteSeed} from '../data/siteSeed';
 import {siteFeed, siteLoadKw} from '../data/sites';
-import type {SiteSummary} from '../data/sites';
+import type {SiteFeed, SiteSummary} from '../data/sites';
 
 /**
  * The site's single-line diagram: every genset, its isolator, the bus they share,
@@ -145,8 +147,24 @@ const CAPTION = 30;
 
 const SWITCH_X = NODE_W + LEAD;
 const BUS_X = SWITCH_X + SWITCH_W + ELBOW;
-const LOAD_X = BUS_X + TAP;
-const WIDTH = LOAD_X + NODE_W;
+
+/**
+ * Where the load box sits, and therefore how wide the canvas is.
+ *
+ * Two arrangements, and the cabinet is what picks between them. Without one the tap
+ * runs from the junction straight into the load, which is every drawing this file
+ * has ever produced. With one the cabinet's **left edge stands on the junction** and
+ * the tap runs from its right edge instead, so the load moves out by exactly the box
+ * it now has to clear.
+ *
+ * The cabinet is not given a tap of its own on the way in. Standing it on the
+ * junction is the claim — see `CABINET_X`.
+ */
+const LOAD_X_BARE = BUS_X + TAP;
+const LOAD_X_CABINET = BUS_X + NODE_W + TAP;
+
+const WIDTH_BARE = LOAD_X_BARE + NODE_W;
+const WIDTH_CABINET = LOAD_X_CABINET + NODE_W;
 
 /**
  * The DC tie a solar hybrid adds down its column.
@@ -171,7 +189,7 @@ const WIDTH = LOAD_X + NODE_W;
  *    drawing;
  *  - the **junction** stays what it was: every source elbows to one point on the
  *    drawing's centreline and one conductor runs from there into the load. See
- *    `JUNCTION_X` — with right angles and a single meeting point there is no other
+ *    `JUNCTION_X_BARE` — with right angles and a single meeting point there is no other
  *    shape, and the array's run down to it and the set's run up to it overlap nowhere.
  *
  * Every other role keeps the bus, because for them it is the right drawing.
@@ -213,7 +231,57 @@ const TIE_X = NODE_W / 2;
  * occupy, and that overlap is real — see `rows` on why the paint order is by liveness
  * rather than by position, so a dead run can never be left covering a live one.
  */
-const JUNCTION_X = BUS_X;
+const JUNCTION_X_BARE = BUS_X;
+/** Half a box further on, so a cabinet centred here still clears the isolators. */
+const JUNCTION_X_CABINET = BUS_X + NODE_W / 2;
+
+/**
+ * The cabinet's left edge. Its **centre** stands on the junction — see below.
+ *
+ * ## Why it stands on the point rather than beside it
+ *
+ * The junction is not a place on the way to the cabinet — it **is** the cabinet's DC
+ * bus. `SiteDiagram`'s own note on `JUNCTION_X_BARE` says every source arrives at one node
+ * "the array through its SSUs, the bank through its BLVD, the set through the
+ * rectifiers", and all three of those are modules in this box. So the honest drawing
+ * puts the box *on* the point every source reaches, and the sources arrive **at the
+ * cabinet** rather than at a dot that then feeds it.
+ *
+ * ## Centred on the meeting, not butted against it
+ *
+ * The first version put the box's left edge on the junction, which drew every source
+ * stopping at the cabinet's face — three wires touching the outside of a box. Runs
+ * into a DC plant do not stop at its skin; they land on a bar inside it, and that bar
+ * is the meeting. Centring the box on the junction is that picture: the array's run
+ * comes down through the top edge, the set's up through the bottom, the bank's in
+ * through the left, and they meet where the reader cannot see them, which is exactly
+ * where they meet in the cabinet.
+ *
+ * It costs nothing geometrically because the junction is a free parameter: pushing it
+ * half a box to the right lengthens each source's horizontal by 44px and leaves every
+ * angle square, the elbow's 47px of clearance off the isolators intact, and the tap
+ * and the load box where they already were.
+ *
+ * The alternative — a dot, a tap, then a cabinet — draws two nodes where the plant
+ * has one, which is the shared busbar this drawing removed in the first place,
+ * reintroduced at 67px long.
+ *
+ * ## Why the dot goes with it
+ *
+ * On the bare drawing the dot is doing real work: without it, three conductors ending
+ * on one invisible point in open space read as three lines that happen to cross. A
+ * **box** makes that claim on its own — conductors landing on one point of one edge
+ * are landing on one thing, and the thing is named in the box. Drawn as well, the dot
+ * would sit half under the border and read as an artefact rather than a node, so the
+ * cabinet takes over the job and the dot is drawn only where there is no cabinet.
+ *
+ * ## Only where the cabinet has a page
+ *
+ * `subrackCabinet` is defined at the instrumented site alone, and the box is a
+ * control — drawing it at the other twenty-four would put a node in the circuit whose
+ * click goes nowhere. The other twenty-four keep the drawing they had exactly.
+ */
+const CABINET_X = BUS_X;
 
 /** Terminal centres inside the isolator, from the component's documentation. */
 const SOURCE_TERMINAL = 18;
@@ -504,6 +572,25 @@ const powerLabel = (runState: RunState, live: boolean, loadKw: number | null): s
  * other case, and the two must never be drawn the same way: one is a chore somebody
  * scheduled, the other is why the site is on diesel.
  */
+/**
+ * What the cabinet is doing, written under its node.
+ *
+ * The same four states `cabinet.type.ts` gives `carrying`, and derived the same way
+ * from `siteFeed` — an incomer and a set both arrive through the rectifiers, the
+ * array through its SSUs, and the other two are the box converting nothing. They stay
+ * separate for that file's reason: a bank carrying is a solar hybrid working exactly
+ * as bought, every night, and an unserved tower is an outage.
+ *
+ * Derived here rather than read off an assembled `SubrackCabinet` so this component
+ * stays a pure function of its props — see `hasCabinet`.
+ */
+const cabinetPowerLabel = (source: SiteFeed['source']): string => {
+  if (source === 'MAINS' || source === 'GENSET') return 'rectifiers';
+  if (source === 'SOLAR') return 'SSUs';
+  if (source === 'BATTERY') return 'bank carrying';
+  return 'not served';
+};
+
 const mainsPowerLabel = (mains: MainsSupply, carrying: boolean): string => {
   if (!mains.live) return 'failed';
   if (!carrying) return 'off-load';
@@ -735,7 +822,15 @@ const sourcesOf = (
  * and the next thing that widens one role's canvas should be a change here rather than
  * a number to hunt for in a caller.
  */
-export const siteDiagramWidth = (_role: SitePowerRole): number => WIDTH;
+/**
+ * The canvas width, which the page needs before the drawing renders — it sizes the
+ * grid track the diagram sits in.
+ *
+ * Takes whether the site has a cabinet rather than the site itself, so the settings
+ * page's two live previews can ask for either arrangement without inventing a site.
+ */
+export const siteDiagramWidth = (_role: SitePowerRole, hasCabinet = false): number =>
+  hasCabinet ? WIDTH_CABINET : WIDTH_BARE;
 
 // ─── The diagram ─────────────────────────────────────────────────────────────
 
@@ -765,6 +860,16 @@ export const SiteDiagram = ({
   const sources = sourcesOf(summary, dutyId, role);
   const count = Math.max(1, sources.length);
   const feed = siteFeed(summary, dutyId, role);
+  // Whether this site has a DC plant to draw — every solar hybrid, plus the
+  // instrumented site whatever its role. `siteHasCabinet` rather than assembling the
+  // cabinet itself, for the reason the site rail gives: this is a drawing deciding
+  // whether to place a box, and it should not have to build the room behind it. It is
+  // also the only form that keeps this component pure — `subrackCabinet` defaults its
+  // clock to `Date.now()`, and the settings page renders this twice as a preview.
+  //
+  // Role-driven, so flipping a site to a solar hybrid on its Settings tab puts the
+  // cabinet into this drawing at once, exactly as it does the array and the bank.
+  const hasCabinet = siteHasCabinet(summary.site.id, role);
   // Who is feeding and how much are two questions, answered separately — see
   // `siteLoadKw`. `null` here means nothing is feeding the load at all.
   const loadKw = siteLoadKw(summary, dutyId, role);
@@ -773,7 +878,11 @@ export const SiteDiagram = ({
   const centreline = (index: number) => index * PITCH + NODE_H / 2;
 
   const height = (count - 1) * PITCH + NODE_H + CAPTION;
-  const width = WIDTH;
+  // The point every source's run meets at: the cabinet's centre where there is one,
+  // and the bare drawing's own elbow line where there is not. See `CABINET_X`.
+  const junctionX = hasCabinet ? JUNCTION_X_CABINET : JUNCTION_X_BARE;
+  const loadX = hasCabinet ? LOAD_X_CABINET : LOAD_X_BARE;
+  const width = hasCabinet ? WIDTH_CABINET : WIDTH_BARE;
   const anyLive = sources.some((source) => source.switchState.live);
 
   /**
@@ -935,9 +1044,9 @@ export const SiteDiagram = ({
 
               <Isolator y={y} closed={closed} live={live} />
 
-              {/* Switch → the junction, as the design's elbow: out to `JUNCTION_X`,
+              {/* Switch → the junction, as the design's elbow: out to `junctionX`,
                   then along it to the point every source meets at. Square the whole
-                  way — see `JUNCTION_X` for why one meeting point and right angles
+                  way — see `JUNCTION_X_BARE` for why one meeting point and right angles
                   together leave no other shape.
 
                   An open switch's run is drawn dead all the way, because nothing past
@@ -945,8 +1054,8 @@ export const SiteDiagram = ({
               <Conductor
                 points={[
                   [SWITCH_X + LOAD_TERMINAL, y],
-                  [JUNCTION_X, y],
-                  [JUNCTION_X, busY],
+                  [junctionX, y],
+                  [junctionX, busY],
                 ]}
                 live={live}
               />
@@ -955,25 +1064,34 @@ export const SiteDiagram = ({
         })}
 
         {/* The junction → the load: the design's 67px tap, and the one conductor in
-            the drawing that carries the tower. Live if anything at all is feeding. */}
+            the drawing that carries the tower. Live if anything at all is feeding.
+
+            Where there is a cabinet it leaves that box's right edge instead of the
+            junction, because the junction is now the box's left edge and a tap drawn
+            from there would run underneath it. The run is the same length either way
+            — see `CABINET_X`. */}
         <Conductor
           points={[
-            [JUNCTION_X, busY],
-            [LOAD_X, busY],
+            [hasCabinet ? CABINET_X + NODE_W : junctionX, busY],
+            [loadX, busY],
           ]}
           live={anyLive}
         />
 
         {/* The junction itself — one dot, where every source's run and the tap into
-            the load all meet. */}
-        <circle
-          cx={JUNCTION_X}
-          cy={busY}
-          r={3.5}
-          className={cn('stroke-current', anyLive ? 'text-teal' : 'text-tertiary')}
-          strokeWidth={1.5}
-          fill={anyLive ? 'currentColor' : 'var(--canvas)'}
-        />
+            the load all meet. Only where no cabinet stands on it: the box says the same
+            thing better, and both together is a dot bisected by a border. See
+            `CABINET_X`. */}
+        {!hasCabinet && (
+          <circle
+            cx={junctionX}
+            cy={busY}
+            r={3.5}
+            className={cn('stroke-current', anyLive ? 'text-teal' : 'text-tertiary')}
+            strokeWidth={1.5}
+            fill={anyLive ? 'currentColor' : 'var(--canvas)'}
+          />
+        )}
       </svg>
 
       {sources.map((source, index) => {
@@ -996,6 +1114,30 @@ export const SiteDiagram = ({
         );
       })}
 
+      {/* The DC plant, standing on the junction its sources arrive at. A control like
+          the source boxes — clicking it opens the cabinet in the panel beside the
+          drawing, which is the door this asset did not have. See `CABINET_X`. */}
+      {hasCabinet && (
+        <Node
+          icon={ServerIcon}
+          label="CABINET"
+          caption="DC plant"
+          power={cabinetPowerLabel(feed.source)}
+          // Dimmed unless the box is actually converting. `bank carrying` and `not
+          // served` are both words about a shelf doing nothing, and the power line's
+          // contract is that a bright value is a measurement.
+          powered={feed.source !== 'BATTERY' && feed.source !== 'NONE'}
+          // The bus is energised whenever anything is feeding the tower, including
+          // off the bank — the BLVD is in this box too. That is a different question
+          // from whether the *converters* are working, which the caption answers.
+          live={anyLive}
+          x={CABINET_X}
+          y={busY - NODE_H / 2}
+          onSelect={selectHandler(selection, 'cabinet')}
+          selected={selection?.selected === 'cabinet'}
+        />
+      )}
+
       <Node
         icon={FactoryIcon}
         label="LOAD"
@@ -1005,7 +1147,7 @@ export const SiteDiagram = ({
         caption="Site draw"
         power={loadKw === null ? 'not served' : amount(loadKw, 'kW')}
         powered={anyLive}
-        x={LOAD_X}
+        x={loadX}
         y={busY - NODE_H / 2}
       />
       </div>

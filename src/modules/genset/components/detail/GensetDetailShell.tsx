@@ -12,7 +12,7 @@ import {
 
 import {
   DetailSidebar,
-  DetailSidebarBackCard,
+  DetailSidebarBackLink,
   DetailSidebarLabel,
 } from '@/components/global/DetailSidebar';
 import type {DetailNavEntry} from '@/components/global/DetailSidebar';
@@ -60,17 +60,17 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
  *
  * ## The way back
  *
- * `DetailSidebarBackCard` at the top, which is the design's and is the piece that
- * makes the whole arrangement work — see that component for why it is a card. It
- * returns to `/sites/<id>`, which restores the site's rail; that is the whole of
- * the "back to the site" gesture, since the two rails are just what the two routes
- * render.
+ * `DetailSidebarBackLink` directly above the sections, which is the design's and is
+ * the piece that makes the whole arrangement work — see that component for why it
+ * sits there and not over the header. It returns to `/sites/<id>`, which restores
+ * the site's rail; that is the whole of the "back to the site" gesture, since the
+ * two rails are just what the two routes render.
  *
  * ## When there is no site
  *
  * A set can sit at the depot (`siteId: null`), and then there is no site to go back
- * to and no placename to print. The card is dropped rather than drawn dead, and the
- * rail opens on the machine's own tag. This is also what a reader arriving from
+ * to. The row is dropped rather than drawn dead, and the rail opens straight onto
+ * the machine's sections. This is also what a reader arriving from
  * `/gensets` at an undeployed set sees, which is correct: they did not come from a
  * site, so there is nothing to return to.
  */
@@ -82,47 +82,42 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <DetailSidebar
         ariaLabel="Genset sections"
+        backLink={
+          site === undefined ? undefined : (
+            <DetailSidebarBackLink siteId={site.id} name={site.name} />
+          )
+        }
         header={
-          <div className="flex flex-col gap-2">
-            {site !== undefined && (
-              <DetailSidebarBackCard
-                siteId={site.id}
-                name={site.name}
-                locationLabel={site.locationLabel}
-              />
-            )}
-
-            {/* What the rows below are about. The info glyph carries the nameplate
-                data the old header tooltip held — the fields that have no room in a
-                240px column and no band of their own on any of the eight pages. */}
-            <DetailSidebarLabel
-              aside={
-                <Tooltip>
-                  <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
-                    <InfoIcon className="size-4" aria-hidden="true" />
-                    <span className="sr-only">Asset details</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="flex flex-col gap-1">
-                    <span>Asset tag · {genset.tag}</span>
-                    <span>Model · {genset.model}</span>
-                    <span>Location · {genset.locationLabel}</span>
+          /* What the rows below are about. The info glyph carries the nameplate
+             data the old header tooltip held — the fields that have no room in a
+             240px column and no band of their own on any of the eight pages. */
+          <DetailSidebarLabel
+            aside={
+              <Tooltip>
+                <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
+                  <InfoIcon className="size-4" aria-hidden="true" />
+                  <span className="sr-only">Asset details</span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="flex flex-col gap-1">
+                  <span>Asset tag · {genset.tag}</span>
+                  <span>Model · {genset.model}</span>
+                  <span>Location · {genset.locationLabel}</span>
+                  <span>
+                    Tank · {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
+                  </span>
+                  {installation !== undefined && (
                     <span>
-                      Tank · {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
+                      Commissioned · {stampDate(installation.startedAt)} by{' '}
+                      {installation.installer}
                     </span>
-                    {installation !== undefined && (
-                      <span>
-                        Commissioned · {stampDate(installation.startedAt)} by{' '}
-                        {installation.installer}
-                      </span>
-                    )}
-                    <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>
-                  </TooltipContent>
-                </Tooltip>
-              }
-            >
-              {gensetName(genset)}
-            </DetailSidebarLabel>
-          </div>
+                  )}
+                  <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>
+                </TooltipContent>
+              </Tooltip>
+            }
+          >
+            {gensetName(genset)}
+          </DetailSidebarLabel>
         }
         entries={NAV_ENTRIES(genset.id)}
       />

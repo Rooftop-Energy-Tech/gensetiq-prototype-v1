@@ -3,7 +3,7 @@ import {BellIcon, CircuitBoardIcon, InfoIcon, ServerIcon, SettingsIcon} from 'lu
 
 import {
   DetailSidebar,
-  DetailSidebarBackCard,
+  DetailSidebarBackLink,
   DetailSidebarLabel,
 } from '@/components/global/DetailSidebar';
 import type {DetailNavEntry} from '@/components/global/DetailSidebar';
@@ -48,10 +48,10 @@ const NAV_ENTRIES = (cabinetId: string): Array<DetailNavEntry> => {
  * Everything one cabinet's pages share: the rail on the left, an `<Outlet />` beside
  * it — the fourth of four, and identical in construction to the other three.
  *
- * The back card is `DetailSidebarBackCard`, the same one a genset, a system and a
- * bank carry. A cabinet cannot be anywhere but at a site — it *is* the DC plant
- * there — so there is always somewhere to go back to and, unlike a genset, no depot
- * branch.
+ * The way back is `DetailSidebarBackLink`, the same row a genset, a system and a
+ * bank carry, above the sections rather than over the header. A cabinet cannot be
+ * anywhere but at a site — it *is* the DC plant there — so there is always somewhere
+ * to go back to and, unlike a genset, no depot branch.
  *
  * The info glyph carries what has no room in a 240px column and no band of its own:
  * the shelf's make-up, and the monitoring unit that reports every figure on these
@@ -62,37 +62,35 @@ export const CabinetDetailShell = ({cabinet}: {cabinet: SubrackCabinet}) => (
   <div className="flex min-h-0 flex-1 overflow-hidden">
     <DetailSidebar
       ariaLabel="Cabinet sections"
+      backLink={<DetailSidebarBackLink siteId={cabinet.siteId} name={cabinet.siteName} />}
       header={
-        <div className="flex flex-col gap-2">
-          <DetailSidebarBackCard
-            siteId={cabinet.siteId}
-            name={cabinet.siteName}
-            locationLabel={cabinet.locationLabel}
-          />
-
-          <DetailSidebarLabel
-            aside={
-              <Tooltip>
-                <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
-                  <InfoIcon className="size-4" aria-hidden="true" />
-                  <span className="sr-only">Cabinet details</span>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="flex flex-col gap-1">
-                  <span>
-                    Rectifiers · {cabinet.rectifiers} × {amount(cabinet.rectifierKw, 'kW')}
-                  </span>
-                  <span>Solar units · {cabinet.ssus}</span>
-                  <span>Capacity · {amount(cabinet.capacityKw, 'kW')} AC→DC</span>
-                  <span>
-                    Reported by · {cabinet.deviceName}, slave {cabinet.slaveId}
-                  </span>
-                </TooltipContent>
-              </Tooltip>
-            }
-          >
-            {cabinetName(cabinet)}
-          </DetailSidebarLabel>
-        </div>
+        <DetailSidebarLabel
+          aside={
+            <Tooltip>
+              <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
+                <InfoIcon className="size-4" aria-hidden="true" />
+                <span className="sr-only">Cabinet details</span>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="flex flex-col gap-1">
+                <span>
+                  Rectifiers · {cabinet.rectifiers} × {amount(cabinet.rectifierKw, 'kW')}
+                </span>
+                <span>Solar units · {cabinet.ssus}</span>
+                <span>Capacity · {amount(cabinet.capacityKw, 'kW')} AC→DC</span>
+                {/* Who is reporting, or — where nobody is — what the figures above
+                    are instead. The tooltip is the rail's whole account of the
+                    cabinet, so it must not leave a sized shelf looking read. */}
+                <span>
+                  {cabinet.deviceName === null
+                    ? 'Sized from the plant · no monitoring unit fitted'
+                    : `Reported by · ${cabinet.deviceName}, slave ${cabinet.slaveId}`}
+                </span>
+              </TooltipContent>
+            </Tooltip>
+          }
+        >
+          {cabinetName(cabinet)}
+        </DetailSidebarLabel>
       }
       entries={NAV_ENTRIES(cabinet.id)}
     />
@@ -101,7 +99,7 @@ export const CabinetDetailShell = ({cabinet}: {cabinet: SubrackCabinet}) => (
       {/* Drawn at every width, which is also what covers the phone: the rail is
           gone there and this is the only thing left saying what you are reading. */}
       <h1 className="shrink-0 truncate px-4 pt-4 pb-2 text-base font-medium text-primary">
-        Subrack Cabinet · {cabinetName(cabinet)}
+        {cabinetName(cabinet)}
       </h1>
 
       <div className="min-h-0 flex-1 overflow-y-auto">

@@ -5,7 +5,6 @@ import {gensetInstallations} from '../../data/installations';
 import {gensetDetail} from '../../data/detail';
 import {gensetRuns, historyStart} from '../../data/history';
 import {runsCsv, runsCsvFilename} from '../../data/runsCsv';
-import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 import type {RunRange} from '../../types/runsView.type';
 import {clearedRunsRange, runTotals, runsOverlapping, runsRange} from '../../types/runsView.type';
@@ -64,7 +63,10 @@ export const GensetRuns = ({
   const exportCsv = () => {
     const text = runsCsv({
       scope: 'Genset',
-      name: gensetName(genset),
+      // The bare tag: `scope` above is the word `Genset`, and the two are printed
+      // on one line — `Genset,Genset | BRF9540`. The site export pairs `Site` with
+      // a bare site code the same way.
+      name: genset.tag,
       place: genset.locationLabel,
       range,
       earliest,

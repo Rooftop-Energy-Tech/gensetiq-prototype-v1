@@ -1,6 +1,6 @@
 import {Link} from '@tanstack/react-router';
 import type {LinkProps} from '@tanstack/react-router';
-import {ChevronRightIcon, RadioTowerIcon} from 'lucide-react';
+import {ChevronLeftIcon, ChevronRightIcon, RadioTowerIcon} from 'lucide-react';
 import {useState} from 'react';
 import type {ComponentType, ReactNode} from 'react';
 
@@ -28,8 +28,9 @@ import {cn} from '@/lib/utils';
  *
  * The two frames draw the same component with different content: a 240px column,
  * a header block naming what you are looking at, then 32px rows. What differs is
- * the header's job — a site's switches sites, a genset's goes *back* to its site —
- * and the item list. Both of those are props.
+ * the header's job — a site's switches sites, a machine's simply says which machine
+ * — whether there is a way back out above the rows, and the item list. All three
+ * are props.
  *
  * Keeping one file means the geometry is stated once. The alternative was two
  * shells that agree about 240px, 32px rows and a 24px sub-indent by coincidence,
@@ -60,6 +61,14 @@ export type DetailNavItem = {
    */
   params?: Record<string, string>;
   /**
+   * Search params for `to`, typed as loosely as `params` is and for the same reason.
+   *
+   * The site's rail is the only caller so far: its asset rows pass `from`, so an
+   * asset opened here crumbs back to this site rather than to its register. See
+   * `fromSearch.type.ts`.
+   */
+  search?: Record<string, string>;
+  /**
    * Matched exactly. The section's landing row needs it — `/sites/x` prefixes
    * every one of its children, so without it `Site` stays lit on `Alarms`.
    */
@@ -86,11 +95,22 @@ const rowClassName =
 
 export const DetailSidebar = ({
   header,
+  backLink,
   entries,
   ariaLabel,
 }: {
-  /** The block above the nav: a site switcher, or a genset's back-to-site card. */
+  /** The block above the nav: a site switcher, or the name of the thing you are on. */
   header: ReactNode;
+  /**
+   * The way back out of this thing, on the rails that have one — a machine's
+   * return to the site it stands at.
+   *
+   * Its own slot rather than part of `header`, because the design puts it in its
+   * own band: the header's 8px padding closes above it, and the row sits flush
+   * against the nav below. That is the whole point of the arrangement — see
+   * `DetailSidebarBackLink`.
+   */
+  backLink?: ReactNode;
   entries: ReadonlyArray<DetailNavEntry>;
   ariaLabel: string;
 }) => (
@@ -98,6 +118,11 @@ export const DetailSidebar = ({
   // a phone layout, and `MobileNav` is the phone's answer to navigation.
   <aside className="hidden w-[240px] shrink-0 flex-col overflow-y-auto border-r border-subtle md:flex">
     <div className="shrink-0 p-2">{header}</div>
+
+    {/* `px-2` and no vertical padding: the row is 32px and the design butts it
+        straight up against the nav, so the only gap above it is the header's own
+        bottom padding. */}
+    {backLink !== undefined && <div className="shrink-0 px-2">{backLink}</div>}
 
     <nav aria-label={ariaLabel} className="flex flex-col gap-0 p-2">
       {entries.map((entry) =>
@@ -124,6 +149,20 @@ const DetailSidebarLink = ({
     <Link
       to={item.to}
       params={item.params as LinkProps['params']}
+      // An item's own search where it sets one — the site's asset rows, which
+      // introduce `from`. Otherwise **`from` alone, carried forward**, and the word
+      // alone is the whole of it: these tabs deliberately drop the rest of the query
+      // string, and a reader who walked in from a site has to keep walking the trail
+      // they arrived on. Without this, moving from a set's home to its Runs tab drops
+      // the site out of the breadcrumb mid-section and the crumb springs back to the
+      // fleet register the reader never visited. See `fromSearch.type.ts`.
+      search={
+        ((prev: Record<string, unknown>) => {
+          if (item.search !== undefined) return item.search;
+          const {from} = prev as {from?: string};
+          return from === undefined ? {} : {from};
+        }) as unknown as LinkProps['search']
+      }
       // `includeSearch: false` throughout: the genset home page carries its alert
       // filter in the query string, and with the default a reader who picked a
       // severity chip would un-light the row they are standing on.
@@ -185,47 +224,60 @@ const DetailNavDisclosure = ({group}: {group: DetailNavGroup}) => {
 };
 
 /**
- * The way back to the site a machine stands at: the bordered card at the top of a
- * genset's or a system's rail.
- *
- * ## Why it is a card and not a row
- *
- * Because it is the one control in the rail that *leaves* the thing the rail is
- * about. Drawn as another 32px row it would read as a section of the machine, and
- * a reader would find themselves at a site page wondering what they clicked. The
- * border says "this is a different subject", which is exactly what it is.
+ * The way back to the site a machine stands at: the row directly above a genset's,
+ * a system's, a bank's or a cabinet's sections.
  *
  * ## Why it exists at all
  *
  * A reader arrives here from a site — `Asset ▸ Genset` or `Asset ▸ Solar` in the
  * site's own rail — and the rail then swaps out from under them for the machine's
  * sections. Without this, going one level back up means the breadcrumb or the
- * browser's Back button, and neither is a *place*: the card names the site, so it
+ * browser's Back button, and neither is a *place*: the row names the site, so it
  * says both where you came from and where you are standing.
  *
- * The glyph is the sites rail's own. Using the icon that means "site" everywhere
- * else in the app is what says where this goes without a word of label.
+ * ## Why it is a row, and why it moved
+ *
+ * It was a bordered two-line card at the top of the rail — the site's name over its
+ * placename, a border around it to say "different subject" — and that border is
+ * exactly what went wrong. A bordered block at the top of a column is the shape of
+ * a summary card everywhere else in this app, so readers read it as one: a panel
+ * *stating* which site they were at rather than a control that goes there. The
+ * gesture the rail exists to offer was the one thing on it nobody clicked.
+ *
+ * So it is drawn as what it is. A 32px row, the same height and the same padding as
+ * the sections below it, sitting directly on top of them — because a row in a
+ * navigation column is unambiguously a place you can go, and a thing that looks
+ * like a nav item is clicked like one. The `ChevronLeft` is what keeps it from
+ * reading as a *section* of the machine despite the shape: it points out of the
+ * list, and no section row in this app carries one.
+ *
+ * The placename went with the card. Two lines is a card's shape, not a row's, and
+ * the site's placename is on the site page a click away — the row's job is to be
+ * recognisably a door, not to summarise what is behind it.
+ *
+ * The tower glyph is the sites rail's own. Using the icon that means "site"
+ * everywhere else in the app is what says where this goes without a word of label.
  */
-export const DetailSidebarBackCard = ({
-  siteId,
-  name,
-  locationLabel,
-}: {
-  siteId: string;
-  name: string;
-  locationLabel: string;
-}) => (
+export const DetailSidebarBackLink = ({siteId, name}: {siteId: string; name: string}) => (
   <Link
     to="/sites/$siteId"
     params={{siteId}}
-    className="flex items-center gap-2 rounded-lg border border-subtle p-2 transition-colors hover:bg-hover"
+    // The design's own measurements: the chevron sits at x=8, where a section
+    // row's *pill* starts rather than where its icon does, so the glyph that means
+    // "out of here" breaks the list's left margin by the width of one icon. Hence
+    // `pl-0` — the 8px is the rail's, not the row's. `pr-2` stays, so a long site
+    // name truncates against padding rather than against the border.
+    className={cn(rowClassName, 'h-8 pl-0 pr-2')}
+    // Never lit. `/sites/$siteId` is not a route this rail is ever rendered under,
+    // so the active styling could not fire anyway — but saying so here is what
+    // stops a future `activeOptions` default from making the way *out* look like
+    // the section you are standing in.
+    activeOptions={{exact: true}}
   >
-    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span className="truncate text-sm font-semibold text-primary">{name}</span>
-      <span className="truncate text-xs text-secondary">{locationLabel}</span>
-    </span>
-    <RadioTowerIcon className="size-5 shrink-0 text-secondary" aria-hidden="true" />
-    <span className="sr-only">Back to {name}</span>
+    <ChevronLeftIcon className="size-4 shrink-0" aria-hidden="true" />
+    <RadioTowerIcon className="size-4 shrink-0" aria-hidden="true" />
+    <span className="min-w-0 flex-1 truncate text-left">{name}</span>
+    <span className="sr-only">Back to site</span>
   </Link>
 );
 

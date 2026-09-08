@@ -201,8 +201,25 @@ export const CabinetHome = ({cabinet}: {cabinet: SubrackCabinet}) => {
           },
           {label: 'Solar conversion units', value: `${cabinet.ssus}`},
           {label: 'Rectifier capacity', value: amount(cabinet.capacityKw, 'kW')},
-          {label: 'Monitoring unit', value: cabinet.deviceName},
-          {label: 'Modbus slave', value: `${cabinet.slaveId}`},
+          // What the three figures above are worth. `Counted` is the unit's own
+          // hardware; `Sized` says a model put them there, and the row exists so the
+          // reader is told before they act on a module count rather than after. See
+          // `SubrackCabinet.shelf`.
+          {
+            label: 'Shelf make-up',
+            value: cabinet.shelf === 'READ' ? 'Counted on site' : 'Sized from the plant',
+          },
+          // The two device rows only where there is a device. A `Monitoring unit —`
+          // row would be the "0 is ambiguous three ways" mistake in a details band:
+          // an em-dash where a name goes reads as a unit whose name nobody recorded,
+          // when the fact is that no unit is fitted. That is the sentence the row
+          // above already carries, so these simply go.
+          ...(cabinet.deviceName === null
+            ? []
+            : [{label: 'Monitoring unit', value: cabinet.deviceName}]),
+          ...(cabinet.slaveId === null
+            ? []
+            : [{label: 'Modbus slave', value: `${cabinet.slaveId}`}]),
         ]}
       />
     </div>

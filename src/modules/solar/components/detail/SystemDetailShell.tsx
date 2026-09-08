@@ -11,7 +11,7 @@ import {
 
 import {
   DetailSidebar,
-  DetailSidebarBackCard,
+  DetailSidebarBackLink,
   DetailSidebarLabel,
 } from '@/components/global/DetailSidebar';
 import type {DetailNavEntry} from '@/components/global/DetailSidebar';
@@ -72,7 +72,7 @@ const NAV_ENTRIES = (systemId: string): Array<DetailNavEntry> => {
  *
  * ## The way back
  *
- * The same `DetailSidebarBackCard` the genset rail carries, and here for the same
+ * The same `DetailSidebarBackLink` the genset rail carries, and here for the same
  * reason: a reader arrives from `Asset ▸ Solar` in the site's own rail, and this
  * is what puts that rail back.
  *
@@ -92,35 +92,28 @@ export const SystemDetailShell = ({system}: {system: SolarSystem}) => (
   <div className="flex min-h-0 flex-1 overflow-hidden">
     <DetailSidebar
       ariaLabel="System sections"
+      backLink={<DetailSidebarBackLink siteId={system.siteId} name={system.siteName} />}
       header={
-        <div className="flex flex-col gap-2">
-          <DetailSidebarBackCard
-            siteId={system.siteId}
-            name={system.siteName}
-            locationLabel={system.locationLabel}
-          />
-
-          <DetailSidebarLabel
-            aside={
-              <Tooltip>
-                <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
-                  <InfoIcon className="size-4" aria-hidden="true" />
-                  <span className="sr-only">System details</span>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="flex flex-col gap-1">
-                  <span>
-                    Modules · {system.modules.toLocaleString('en-MY')} × {system.moduleWatts} W
-                  </span>
-                  <span>Strings · {system.strings}</span>
-                  <span>Commissioned · {stampDate(system.commissionedAt)}</span>
-                  <span>Telemetry · {relativeTime(system.lastUpdated)}</span>
-                </TooltipContent>
-              </Tooltip>
-            }
-          >
-            {systemName(system)}
-          </DetailSidebarLabel>
-        </div>
+        <DetailSidebarLabel
+          aside={
+            <Tooltip>
+              <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
+                <InfoIcon className="size-4" aria-hidden="true" />
+                <span className="sr-only">System details</span>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="flex flex-col gap-1">
+                <span>
+                  Modules · {system.modules.toLocaleString('en-MY')} × {system.moduleWatts} W
+                </span>
+                <span>Strings · {system.strings}</span>
+                <span>Commissioned · {stampDate(system.commissionedAt)}</span>
+                <span>Telemetry · {relativeTime(system.lastUpdated)}</span>
+              </TooltipContent>
+            </Tooltip>
+          }
+        >
+          {systemName(system)}
+        </DetailSidebarLabel>
       }
       entries={NAV_ENTRIES(system.id)}
     />

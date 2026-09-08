@@ -121,9 +121,32 @@ export const BANK_FLOW_LABEL: Record<BankFlow, string> = {
   IDLE: 'At rest',
 };
 
-/** `SBH-1495 | 96 kWh` — what the rail, the breadcrumb and the register all print. */
-export const bankName = (bank: BatteryBank): string =>
-  `${bank.siteName} | ${Math.round(bank.kwh).toLocaleString('en-MY')} kWh`;
+/**
+ * `Battery | SBH-1495` — what the rail, the breadcrumb and the register all print.
+ *
+ * ## The asset first, its site second
+ *
+ * This used to read `SBH-1495 | 96 kWh`, and every asset in the app was named the
+ * same way: the site code, then how big the thing is. The trouble is that a bank's
+ * id *is* its site's, so `SBH-1495` was the whole of what identified it — and a
+ * heading that opens on a site code, in an app whose first screen is a list of site
+ * codes, reads as a site. Readers arriving from the sites list at `SBH-1495 | 96
+ * kWh` took it for the site page with a figure appended.
+ *
+ * So the type of the thing leads and the site code identifies it. `Battery |
+ * SBH-1495` says both facts in the order a reader needs them — *what am I looking
+ * at*, then *whose* — and it is the same shape on all four assets, so a breadcrumb
+ * that reads `Battery ▸ Battery | SBH-1495` is a register and one of its rows
+ * rather than two unrelated labels.
+ *
+ * ## Where the capacity went
+ *
+ * Onto the page, which is where it always was: `Battery capacity · 63 kWh` is the
+ * first figure in the summary band, and the info glyph in the rail carries the
+ * module count and the converter rating beside it. A name is for telling two things
+ * apart, and no two banks on this estate are told apart by their kWh.
+ */
+export const bankName = (bank: BatteryBank): string => `Battery | ${bank.siteName}`;
 
 /**
  * `Reserve left at this load` — the label on `hoursLeft`, wherever it is printed.

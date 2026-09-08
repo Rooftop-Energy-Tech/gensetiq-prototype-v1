@@ -39,6 +39,19 @@ export type BrandManifestEntry = {
 };
 
 export const BRAND_MANIFEST: Record<BrandId, BrandManifestEntry> = {
+  redtone: {
+    module: '/src/brands/catalog/redtone.ts',
+    binding: 'REDTONE',
+    dataset: 'carrier',
+    tab: {
+      title: 'REDTONE Site Power',
+      description: 'Site power monitoring for REDTONE, powered by gensetIQ',
+      // The product's, until the customer supplies theirs. A favicon cut from the
+      // wordmark is illegible at 16px — it is seven letters wide — and inventing a
+      // monogram they do not use would put a mark on the tab that is nobody's.
+      faviconPath: 'favicon-gensetiq.svg',
+    },
+  },
   celcomdigi: {
     module: '/src/brands/catalog/celcomdigi.ts',
     binding: 'CELCOMDIGI',

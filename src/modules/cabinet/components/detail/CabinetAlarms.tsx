@@ -67,11 +67,21 @@ export const CabinetAlarms = ({cabinetId}: {cabinetId: string}) => {
         device="the monitoring unit"
       />
 
-      {/* The denominator, so the site tab's cross-reference reconciles with this
-          page — and the split inside it, because seventeen rows about one box come
-          from four quite different kinds of sensor and a reader deciding what to
-          carry to site needs to know which. */}
-      {watched > 0 && (
+      {/* Which of the two zeros this cabinet's is, exactly as the bank's tab does it
+          and for the same reason.
+
+          The cabinet stopped being a one-site asset when every solar hybrid got one,
+          and three of the four have no unit on the wall. `Nothing standing` at those
+          three would be the reassurance the source document forbids — worse here than
+          almost anywhere, because the rows this box would raise are the door, the
+          water sensor and the smoke sensor. A quiet smoke port and an absent one are
+          the same zero, and only one of them is good news.
+
+          The first paragraph also carries the denominator, so the site tab's
+          cross-reference reconciles with this page, and splits it: seventeen rows
+          about one box come from four quite different kinds of sensor, and a reader
+          deciding what to carry to site needs to know which. */}
+      {watched > 0 ? (
         <p className="max-w-prose text-xs text-tertiary">
           The monitoring unit on this cabinet's wall polls {watched} registers against
           it: the shelf as a group and each solar unit by slot, the DC bus it delivers
@@ -80,6 +90,20 @@ export const CabinetAlarms = ({cabinetId}: {cabinetId: string}) => {
           them names a module — their addresses are hand-set, so the shelf can only
           report itself as a whole. The same rows appear on the site's Alarms tab,
           pooled with the bank's, the array's and the gensets'.
+        </p>
+      ) : (
+        <p className="max-w-prose text-xs text-tertiary">
+          <span className="text-secondary">Nothing is watching this cabinet.</span>{' '}
+          There is no monitoring unit at this site, so nothing reports the shelf, the
+          bus, the load fuse, the surge arresters, or the door, water and smoke sensors
+          on the enclosure — the queue above is empty because nothing could put a row
+          in it, not because the box has been opened and found well. This app derives
+          no rule over a cabinet either: unlike an array, whose output can be argued
+          with from the weather, a rectifier that has stopped converting looks exactly
+          like a rectifier with nothing to do. The shelf's own make-up on the home tab
+          is sized from this site's plant rather than counted, and says so. At
+          SBH-1336, where a unit is fitted, seventeen of its fifty-eight registers are
+          about the cabinet.
         </p>
       )}
     </div>

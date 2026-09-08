@@ -3,6 +3,7 @@ import {useState} from 'react';
 import type {SiteSummary} from '../data/sites';
 import type {SiteDeviceKey} from '../types/device.type';
 import type {SitePowerRole} from '../types/site.type';
+import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
 import {SiteDiagram, siteDiagramWidth} from './SiteDiagram';
 import {SiteDevicePanel, siteDefaultDevice, siteDevices} from './SiteDevicePanel';
 
@@ -68,6 +69,9 @@ export const SiteCircuit = ({
   const [picked, setPicked] = useState<SiteDeviceKey | undefined>(undefined);
 
   const devices = siteDevices(summary, role);
+  // The drawing is a box wider where the site has a cabinet to place, and this track
+  // has to know before the diagram renders — see `siteDiagramWidth`.
+  const hasCabinet = siteHasCabinet(summary.site.id, role);
   const selected =
     picked !== undefined && devices.includes(picked)
       ? picked
@@ -92,9 +96,20 @@ export const SiteCircuit = ({
 
   return (
     <section aria-label="Site circuit">
+      {/* `items-stretch`, which is the grid default and was previously overridden to
+          `items-start`. The card is shorter than the drawing at every device — a
+          bank's three figures against a 380px canvas — so starting it left a ragged
+          band with the panel's border stopping a third of the way down beside a full
+          height diagram. Stretched, the two read as one band and the card's ground
+          runs the height of the thing it is describing.
+
+          The content stays top-aligned inside the card: it is the *box* that grows,
+          not the type, so nothing is centred against the drawing by accident. */}
       <div
-        className="flex flex-col gap-4 xl:grid xl:items-start"
-        style={{gridTemplateColumns: `${siteDiagramWidth(role)}px minmax(20rem, 1fr)`}}
+        className="flex flex-col gap-4 xl:grid xl:items-stretch"
+        style={{
+          gridTemplateColumns: `${siteDiagramWidth(role, hasCabinet)}px minmax(20rem, 1fr)`,
+        }}
       >
         {/* Centred while the band is a column, as the frame centres it, and left in
             its track once it is a row. Handed the width directly rather than sized
@@ -109,7 +124,11 @@ export const SiteCircuit = ({
           />
         </div>
 
-        <div className="min-w-0">
+        {/* `h-full` on the track and on the card inside it: a stretched grid item is
+            only as tall as its row, and the card is its child rather than the item
+            itself. Inert in the phone column, where the parent has no height to be a
+            fraction of. */}
+        <div className="h-full min-w-0">
           <SiteDevicePanel summary={summary} role={role} device={selected} now={now} />
         </div>
       </div>

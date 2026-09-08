@@ -8,6 +8,8 @@ import {
   gensetHomeSearchSchema,
 } from '@/modules/genset/types/detailView.type';
 import type {AlertFocus, GensetHomeSearch} from '@/modules/genset/types/detailView.type';
+import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';
+import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * The genset home page — the tab a click from the fleet list lands on.
@@ -55,7 +57,13 @@ const GensetHomeRoute = () => {
 };
 
 export const Route = createFileRoute('/_authenticated/gensets_/$gensetId/')({
-  validateSearch: (search: Record<string, unknown>): GensetHomeSearch =>
-    gensetHomeSearchSchema.parse(search),
+  // The tab's own params, plus `from` passed straight through. Without the second
+  // half a zod schema strips it as an unknown key and the router rewrites the URL
+  // without it, so a reader who walked in from a site loses that trail on the one
+  // tab that happens to filter — see `fromSearch.type.ts`.
+  validateSearch: (search: Record<string, unknown>): GensetHomeSearch & FromSearch => ({
+    ...gensetHomeSearchSchema.parse(search),
+    ...fromSearchSchema.parse(search),
+  }),
   component: GensetHomeRoute,
 });

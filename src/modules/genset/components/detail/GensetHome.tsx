@@ -328,7 +328,7 @@ export const GensetHome = ({
           The frame puts the *site's* `Supply` and `Installed capacity` here, which
           is the site page's own band copied across — a genset page stating how the
           yard is fed would be the machine answering a question about the yard, and
-          the rail's back card is one click from the page that does answer it. So
+          the rail's back row is one click from the page that does answer it. So
           the band keeps its place and takes this machine's identity instead.
 
           **Identity, and deliberately nothing else.** Which machine this is, what

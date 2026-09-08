@@ -7,19 +7,21 @@ A clickable prototype of gensetIQ, built from the
 and the
 [site page](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2478-7187).
 
-## Brands: one build, three customers
+## Brands: one build, four customers
 
-The brand is **configuration, not a branch**. `VITE_BRAND` picks it, and the three
-run on separate ports so you can have them open side by side:
+The brand is **configuration, not a branch**. `VITE_BRAND` picks it, and each one
+runs on its own port so you can have them open side by side:
 
 ```bash
-npm run dev            # CelcomDigi   :3100  (the default)
-npm run dev:sesb       # SESB         :3101
-npm run dev:unbranded  # gensetIQ     :3102
+npm run dev             # REDTONE      :3400  (the default)
+npm run dev:celcomdigi  # CelcomDigi   :3403
+npm run dev:sesb        # SESB         :3401
+npm run dev:unbranded   # gensetIQ     :3402
 ```
 
 | Brand | Estate | Rail | Tab |
 | --- | --- | --- | --- |
+| `redtone` | carrier — 25 towers, 29 sets | REDTONE near-black `#070707` | REDTONE Site Power |
 | `celcomdigi` | carrier — 25 towers, 29 sets | CelcomDigi navy `#001871` | CelcomDigi Site Power |
 | `sesb` | utility — 25 substations, 37 sets | SESB blue `#0F4586` | SESB Genset Monitoring |
 | `gensetiq` | carrier | design-system near-black | gensetIQ |
@@ -41,8 +43,8 @@ which emits static imports for those brands alone:
 
 | Build | Carries | Picker |
 | --- | --- | --- |
-| dev | all three | yes |
-| production, `gensetiq` | all three | yes |
+| dev | all four | yes |
+| production, `gensetiq` | all four | yes |
 | production, a customer's brand | that brand only | no |
 
 This is the difference between hiding a control and not shipping the data. A
@@ -315,7 +317,7 @@ looked at the picture.
 ### Brand
 
 **Four colours** are the customer's, and every other token in `styles/colors.ts` is
-the design system's, shared by all three brands: `brand` (the login CTA and primary
+the design system's, shared by every brand: `brand` (the login CTA and primary
 button), `brand-text` (what stays legible on it), `sidebar` (the rail), and
 optionally `battery`. Each is declared per brand in
 [`src/brands/identity.ts`](src/brands/identity.ts) with the variable name the

@@ -4,6 +4,8 @@ import {GensetAnalysis} from '@/modules/genset/components/detail/analysis/Genset
 import {gensetById, gensetDetail} from '@/modules/genset/data/detail';
 import {analysisSearchSchema} from '@/modules/genset/types/analysisView.type';
 import type {AnalysisSearch} from '@/modules/genset/types/analysisView.type';
+import {fromSearchSchema, keepFrom} from '@/modules/site/types/fromSearch.type';
+import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * The analysis tab — the genset's readings over time.
@@ -34,14 +36,20 @@ const GensetAnalysisRoute = () => {
         // Worth a Back. Swapping a reading or stepping into a run is how the
         // reader navigates this screen, and the browser's own back button is the
         // one control they will reach for to undo it.
-        void navigate({search: () => next, replace: false});
+        void navigate({search: (previous: FromSearch) => ({...next, ...keepFrom(previous)}), replace: false});
       }}
     />
   );
 };
 
 export const Route = createFileRoute('/_authenticated/gensets_/$gensetId/analysis')({
-  validateSearch: (search: Record<string, unknown>): AnalysisSearch =>
-    analysisSearchSchema.parse(search),
+  // The tab's own params, plus `from` passed straight through. Without the second
+  // half a zod schema strips it as an unknown key and the router rewrites the URL
+  // without it, so a reader who walked in from a site loses that trail on the one
+  // tab that happens to filter — see `fromSearch.type.ts`.
+  validateSearch: (search: Record<string, unknown>): AnalysisSearch & FromSearch => ({
+    ...analysisSearchSchema.parse(search),
+    ...fromSearchSchema.parse(search),
+  }),
   component: GensetAnalysisRoute,
 });

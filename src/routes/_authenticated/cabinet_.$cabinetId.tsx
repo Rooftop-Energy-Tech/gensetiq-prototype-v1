@@ -5,6 +5,8 @@ import {NotFound} from '@/components/global/NotFound';
 import {CabinetDetailShell} from '@/modules/cabinet/components/detail/CabinetDetailShell';
 import {cabinetForLoader, useSubrackCabinet} from '@/modules/cabinet/data/cabinets';
 import {cabinetName} from '@/modules/cabinet/types/cabinet.type';
+import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';
+import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * Annotated rather than inferred, for the reason the other three detail routes give:
@@ -66,6 +68,14 @@ export const Route = createFileRoute('/_authenticated/cabinet_/$cabinetId')({
 
     return {crumb: cabinetName(cabinet)};
   },
+  // Accepts `from` so an asset opened at a site crumbs back to that site rather
+  // than to its register — see `fromSearch.type.ts`. Declared on the section route
+  // so every tab under it carries the param without repeating the schema.
+  //
+  // It changes least here of the four: this parent is already the site register, so
+  // `from` only sharpens `Sites` into the one site the reader came from.
+  validateSearch: (search: Record<string, unknown>): FromSearch =>
+    fromSearchSchema.parse(search),
   // The site, not a register — there is none. This is the only detail section in the
   // app whose breadcrumb parent is the thing it stands on rather than a list of its
   // own kind, which is exactly what "one site has one" means.

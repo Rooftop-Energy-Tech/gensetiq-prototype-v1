@@ -5,10 +5,13 @@ import {CabinetAlarms} from '@/modules/cabinet/components/detail/CabinetAlarms';
 /**
  * The cabinet's Alarms tab.
  *
- * **No `isMonitored` gate**, unlike the bank's and the array's. Those two exist at
- * sites with no monitoring unit and have to say so; a cabinet only has a page where
- * the unit does, so the parent route has already 404'd every site that would have
- * needed the placeholder. There is no state in which this tab has nothing to show.
+ * **No gate**, the same as the bank's and the array's and now for the same reason.
+ * While the cabinet existed only at the instrumented site this route could not have
+ * an empty state — the parent had already 404'd every site without a unit. Extending
+ * the cabinet to every solar hybrid ended that: three of the four have no unit, so
+ * this tab now has the two-zeros problem the other assets have, and `CabinetAlarms`
+ * answers it there rather than here — **nothing standing** where a unit is watching,
+ * **nothing watching** where none is.
  */
 const CabinetAlarmsRoute = () => {
   const {cabinetId} = useParams({from: '/_authenticated/cabinet_/$cabinetId'});

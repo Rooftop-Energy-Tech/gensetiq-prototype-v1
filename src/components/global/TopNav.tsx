@@ -2,6 +2,7 @@ import {Link, useMatches, useRouter} from '@tanstack/react-router';
 import {ArrowLeftIcon, ChevronRightIcon} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
+import {siteSeed} from '@/modules/site/data/siteSeed';
 
 type Crumb = {label: string; to?: string};
 
@@ -34,6 +35,20 @@ type Crumb = {label: string; to?: string};
  * from the **first** labelled match only: it exists to bridge a sibling gap at
  * the top of a trail, and applying it further down would insert the same
  * ancestor twice.
+ *
+ * ## Where the reader came from, when the URL says
+ *
+ * `crumbParent` is static, so it can only ever describe one way into a page — and an
+ * asset page has two. Opened from its register the static parent is right; opened
+ * from a site it points at a list the reader has never seen, and walking up leaves
+ * the yard they were reading. A `from` search param carries the site id through the
+ * link, and where it names a real site the trail becomes
+ * `Sites / SBH-1336 / KTB3360 | FG Wilson 20 kVa` — the register still reachable, and
+ * the site sitting between it and the asset.
+ *
+ * The lookup is what makes an unknown id safe: a hand-edited or stale `from` finds no
+ * seed and the static parent stands, so the trail is never a crumb to nowhere. See
+ * `fromSearch.type.ts`.
  */
 const useCrumbs = (): Array<Crumb> => {
   const matches = useMatches();
@@ -46,7 +61,19 @@ const useCrumbs = (): Array<Crumb> => {
 
     if (trail.length === 0) {
       const parent = match.staticData.crumbParent;
-      if (parent !== undefined) trail.push({label: parent.label, to: parent.to});
+      const from = (match.search as {from?: string} | undefined)?.from;
+      const site = from === undefined ? undefined : siteSeed(from);
+
+      if (site === undefined) {
+        if (parent !== undefined) trail.push({label: parent.label, to: parent.to});
+      } else {
+        // The register first and the site under it, so walking up steps back along the
+        // trail actually taken rather than jumping to the top of it. The literal rather
+        // than `parent`, because the cabinet's static parent is already `Sites` and
+        // reusing it there would name the register twice.
+        trail.push({label: 'Sites', to: '/sites'});
+        trail.push({label: site.name, to: `/sites/${from}`});
+      }
     }
 
     trail.push({label, to: match.pathname});

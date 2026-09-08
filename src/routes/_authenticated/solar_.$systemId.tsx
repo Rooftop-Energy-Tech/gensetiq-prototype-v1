@@ -6,6 +6,8 @@ import {SystemDetailShell} from '@/modules/solar/components/detail/SystemDetailS
 import {solarSystem, useSolarSystem} from '@/modules/solar/data/systems';
 import {systemName} from '@/modules/solar/types/system.type';
 import {sitePowerRole} from '@/modules/site/data/siteConfig';
+import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';
+import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * Annotated rather than inferred, for the reason the genset route gives: `Route`'s
@@ -57,6 +59,11 @@ export const Route = createFileRoute('/_authenticated/solar_/$systemId')({
 
     return {crumb: systemName(system)};
   },
+  // Accepts `from` so an asset opened at a site crumbs back to that site rather
+  // than to its register — see `fromSearch.type.ts`. Declared on the section route
+  // so every tab under it carries the param without repeating the schema.
+  validateSearch: (search: Record<string, unknown>): FromSearch =>
+    fromSearchSchema.parse(search),
   staticData: {crumbParent: {label: 'Solar', to: '/solar'}},
   component: SystemDetailRoute,
 });

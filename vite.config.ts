@@ -13,7 +13,7 @@ import type {BrandId} from './src/brands/types';
  * The default when `VITE_BRAND` is unset — a developer running `npm run dev`,
  * not a typo. Kept in step with nothing else: this is the only statement of it.
  */
-const FALLBACK_BRAND: BrandId = 'celcomdigi';
+const FALLBACK_BRAND: BrandId = 'redtone';
 
 const VIRTUAL_ID = 'virtual:brands';
 const RESOLVED_VIRTUAL_ID = '\0virtual:brands';
@@ -23,8 +23,8 @@ const RESOLVED_VIRTUAL_ID = '\0virtual:brands';
  *
  * ## Why the registry is generated rather than written
  *
- * A hand-written `Record` of all three brands ships all three. That was the state
- * before this plugin: a production CelcomDigi bundle contained Sabah Electricity's
+ * A hand-written `Record` of every brand ships every one of them. That was the
+ * state before this plugin: a production CelcomDigi bundle contained SESB's
  * name, their logo as an emitted asset, and all twenty-five of their substation
  * names — hidden behind a UI flag and one devtools tab away from being read.
  *

@@ -11,7 +11,7 @@ import {
 
 import {
   DetailSidebar,
-  DetailSidebarBackCard,
+  DetailSidebarBackLink,
   DetailSidebarLabel,
 } from '@/components/global/DetailSidebar';
 import type {DetailNavEntry} from '@/components/global/DetailSidebar';
@@ -54,9 +54,10 @@ const NAV_ENTRIES = (bankId: string): Array<DetailNavEntry> => {
  * Everything one bank's pages share: the rail on the left, an `<Outlet />` beside
  * it — the third of three, and identical in construction to the other two.
  *
- * The back card is `DetailSidebarBackCard`, the same one a genset and a system
- * carry. A bank cannot be anywhere but at a site — it *is* the storage there — so
- * there is always somewhere to go back to and, unlike a genset, no depot branch.
+ * The way back is `DetailSidebarBackLink`, the same row a genset and a system
+ * carry, above the sections rather than over the header. A bank cannot be anywhere
+ * but at a site — it *is* the storage there — so there is always somewhere to go
+ * back to and, unlike a genset, no depot branch.
  *
  * The info glyph carries what has no room in a 240px column and no band of its own:
  * how the bank is built, what its converter can pass, and which hybrid
@@ -67,35 +68,28 @@ export const BankDetailShell = ({bank}: {bank: BatteryBank}) => (
   <div className="flex min-h-0 flex-1 overflow-hidden">
     <DetailSidebar
       ariaLabel="Bank sections"
+      backLink={<DetailSidebarBackLink siteId={bank.siteId} name={bank.siteName} />}
       header={
-        <div className="flex flex-col gap-2">
-          <DetailSidebarBackCard
-            siteId={bank.siteId}
-            name={bank.siteName}
-            locationLabel={bank.locationLabel}
-          />
-
-          <DetailSidebarLabel
-            aside={
-              <Tooltip>
-                <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
-                  <InfoIcon className="size-4" aria-hidden="true" />
-                  <span className="sr-only">Bank details</span>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="flex flex-col gap-1">
-                  <span>
-                    Modules · {bank.modules.toLocaleString('en-MY')} × {bank.moduleKwh} kWh
-                  </span>
-                  <span>Converter · {amount(bank.continuousKw, 'kW')} continuous</span>
-                  <span>Autonomy · {amount(bank.autonomyHours, 'h')} from full</span>
-                  <span>Configuration · {SITE_POWER_ROLE_LABEL[bank.role]}</span>
-                </TooltipContent>
-              </Tooltip>
-            }
-          >
-            {bankName(bank)}
-          </DetailSidebarLabel>
-        </div>
+        <DetailSidebarLabel
+          aside={
+            <Tooltip>
+              <TooltipTrigger className="cursor-help text-secondary hover:text-primary">
+                <InfoIcon className="size-4" aria-hidden="true" />
+                <span className="sr-only">Bank details</span>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="flex flex-col gap-1">
+                <span>
+                  Modules · {bank.modules.toLocaleString('en-MY')} × {bank.moduleKwh} kWh
+                </span>
+                <span>Converter · {amount(bank.continuousKw, 'kW')} continuous</span>
+                <span>Autonomy · {amount(bank.autonomyHours, 'h')} from full</span>
+                <span>Configuration · {SITE_POWER_ROLE_LABEL[bank.role]}</span>
+              </TooltipContent>
+            </Tooltip>
+          }
+        >
+          {bankName(bank)}
+        </DetailSidebarLabel>
       }
       entries={NAV_ENTRIES(bank.id)}
     />

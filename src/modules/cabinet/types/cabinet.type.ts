@@ -1,5 +1,3 @@
-import {amount} from '@/lib/format';
-
 /**
  * The DC power cabinet on a site — the subrack, and everything plugged into it.
  *
@@ -40,10 +38,29 @@ export type SubrackCabinet = {
   /** The site's own name — `SBH-1336`. */
   siteName: string;
   locationLabel: string;
-  /** The monitoring unit on this cabinet's wall, as its readings are labelled. */
-  deviceName: string;
-  /** Modbus slave id, as the gateway addresses it — the cabinet's own identity. */
-  slaveId: number;
+  /**
+   * The monitoring unit on this cabinet's wall, as its readings are labelled, or
+   * `null` where there is no unit — three of the four cabinets on this estate.
+   *
+   * `null` rather than a placeholder string, so every screen printing it has to say
+   * what it does with an uninstrumented plant instead of rendering the word
+   * "unknown" in the slot where a device name goes.
+   */
+  deviceName: string | null;
+  /** Modbus slave id, as the gateway addresses it, or `null` with no unit. */
+  slaveId: number | null;
+  /**
+   * Where the module counts come from.
+   *
+   * `READ` is `monitoringUnit.ts` — real hardware at the one site somebody has
+   * visited. `SIZED` is `shelf.ts`'s model, which is the same footing the bank's kWh
+   * and the array's kWp have stood on all along.
+   *
+   * It is on the cabinet rather than inferred from `deviceName` at each call site
+   * because it is a claim about the *numbers*, and a screen quoting a module count
+   * should not have to reason about a device name to find out how much to trust it.
+   */
+  shelf: 'READ' | 'SIZED';
   /** Rectifier modules in the shelf, and what one is rated at. */
   rectifiers: number;
   rectifierKw: number;
@@ -93,14 +110,19 @@ export type SubrackCabinet = {
 };
 
 /**
- * `SBH-1336 | 24 kW` — what the rail, the breadcrumb and the page heading print.
+ * `Cabinet | SBH-1336` — what the rail, the breadcrumb and the page heading print.
  *
- * The shelf's rating rather than the module count, matching the bank's `| 96 kWh`
- * and the array's `| 30 kWp`: the identity line on every asset in this app is the
- * name and the one figure that says how big the thing is.
+ * The asset first and its site code second, matching `Battery | SBH-1336` and
+ * `Solar | SBH-1336`: see `battery/types/bank.type.ts` for why every asset in this
+ * app is named that way round now. The shelf's rating that used to stand here is
+ * the third figure in the page's own summary band and a row in the rail's info
+ * glyph, and it never told two cabinets apart — there is one DC plant per site.
+ *
+ * This is also what let the page heading drop its `Subrack Cabinet · ` prefix. The
+ * heading said the type of the thing because the name did not; now the name does.
  */
 export const cabinetName = (cabinet: SubrackCabinet): string =>
-  `${cabinet.siteName} | ${amount(cabinet.capacityKw, 'kW')}`;
+  `Cabinet | ${cabinet.siteName}`;
 
 /**
  * How much of the shelf's capacity the tower's load would take, `0`–`1`.

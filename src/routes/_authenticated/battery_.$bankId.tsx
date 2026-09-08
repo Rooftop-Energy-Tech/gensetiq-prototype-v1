@@ -5,6 +5,8 @@ import {NotFound} from '@/components/global/NotFound';
 import {BankDetailShell} from '@/modules/battery/components/detail/BankDetailShell';
 import {bankForLoader, useBatteryBank} from '@/modules/battery/data/banks';
 import {bankName} from '@/modules/battery/types/bank.type';
+import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';
+import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * Annotated rather than inferred, for the reason the genset and solar routes give:
@@ -54,6 +56,11 @@ export const Route = createFileRoute('/_authenticated/battery_/$bankId')({
 
     return {crumb: bankName(bank)};
   },
+  // Accepts `from` so an asset opened at a site crumbs back to that site rather
+  // than to its register — see `fromSearch.type.ts`. Declared on the section route
+  // so every tab under it carries the param without repeating the schema.
+  validateSearch: (search: Record<string, unknown>): FromSearch =>
+    fromSearchSchema.parse(search),
   staticData: {crumbParent: {label: 'Battery', to: '/battery'}},
   component: BankDetailRoute,
 });

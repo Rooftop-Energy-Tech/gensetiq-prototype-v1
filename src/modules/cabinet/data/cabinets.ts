@@ -1,25 +1,30 @@
 import {useSitePowerRole, sitePowerRole} from '@/modules/site/data/siteConfig';
 import {enclosureTempC} from '@/modules/site/data/enclosure';
 import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
+import {siteSeed} from '@/modules/site/data/siteSeed';
 import {siteDcBus, siteFeed, siteLoadKw, siteSummary, useSiteSummary} from '@/modules/site/data/sites';
 import type {SiteSummary} from '@/modules/site/data/sites';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import type {SubrackCabinet} from '../types/cabinet.type';
+import {siteHasCabinet, sizedShelf} from './shelf';
 
 /**
  * The cabinet at a site, assembled from what is already known about that site.
  *
- * ## Nothing new is invented except the shelf's rating
+ * ## Where the counts come from, and why that differs by site
  *
- * The counts are `monitoringUnit`'s, which is the file that exists to hold **real
- * hardware** rather than sized guesses. The load, the bus voltage and the bus
- * current are `sites.ts`'s, the same three figures the site page's own strip prints,
- * so a reader moving from the site to its cabinet cannot be told two different
- * things about one bus. What is carrying comes from `siteFeed`, which is the same
- * function the site diagram colours its conductors from.
+ * At the site with a unit they are `monitoringUnit`'s — real hardware, and not
+ * negotiable, because seventeen alarm rows are addresses into that shelf. At the
+ * other three solar hybrids there is no unit and nothing indexing a slot, so they are
+ * `sizedShelf`'s model, which reproduces the read shelf exactly where the two overlap.
+ * `shelf` on the returned cabinet says which of the two a reader is looking at, and
+ * every screen printing a module count is expected to pass that on. See `shelf.ts`.
  *
- * The one addition is `rectifierKw`, and its note in `monitoringUnit.ts` is explicit
- * that it is a stated figure and not a read one.
+ * The load, the bus voltage and the bus current are `sites.ts`'s, the same three
+ * figures the site page's own strip prints, so a reader moving from the site to its
+ * cabinet cannot be told two different things about one bus. What is carrying comes
+ * from `siteFeed`, which is the same function the site diagram colours its conductors
+ * from — none of that varies with whether a unit is fitted.
  *
  * ## Why `carrying` is derived here and not asked of the reader
  *
@@ -43,8 +48,14 @@ const cabinetFrom = (
   role: SitePowerRole,
   now: number,
 ): SubrackCabinet | undefined => {
+  if (!siteHasCabinet(summary.site.id, role)) return undefined;
+
+  // The unit where there is one, the model where there is not — and the model's only
+  // input is the seed, so a site with no dataset row behind it has no cabinet either.
   const unit = monitoringUnit(summary.site.id);
-  if (unit === undefined) return undefined;
+  const seed = siteSeed(summary.site.id);
+  const shelf = unit ?? (seed === undefined ? undefined : sizedShelf(seed, role));
+  if (shelf === undefined) return undefined;
 
   const feed = siteFeed(summary, summary.defaultDutyId, role);
   const carrying =
@@ -58,18 +69,19 @@ const cabinetFrom = (
 
   const loadKw = siteLoadKw(summary, summary.defaultDutyId, role);
   const bus = siteDcBus(summary, summary.defaultDutyId, role, now);
-  const capacityKw = unit.rectifiers * unit.rectifierKw;
+  const capacityKw = shelf.rectifiers * shelf.rectifierKw;
 
   return {
     id: summary.site.id,
     siteId: summary.site.id,
     siteName: summary.site.name,
     locationLabel: summary.site.locationLabel,
-    deviceName: unit.deviceName,
-    slaveId: unit.slaveId,
-    rectifiers: unit.rectifiers,
-    rectifierKw: unit.rectifierKw,
-    ssus: unit.ssus,
+    deviceName: unit?.deviceName ?? null,
+    slaveId: unit?.slaveId ?? null,
+    shelf: unit === undefined ? 'SIZED' : 'READ',
+    rectifiers: shelf.rectifiers,
+    rectifierKw: shelf.rectifierKw,
+    ssus: shelf.ssus,
     capacityKw,
     loadKw,
     busVolts: bus?.volts ?? null,
@@ -91,7 +103,7 @@ const cabinetFrom = (
   };
 };
 
-/** One cabinet, or `undefined` — which is twenty-four of the twenty-five sites. */
+/** One cabinet, or `undefined` — which is twenty-one of the twenty-five sites. */
 export const subrackCabinet = (
   cabinetId: string,
   role: SitePowerRole,

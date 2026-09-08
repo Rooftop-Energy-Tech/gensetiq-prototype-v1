@@ -10,12 +10,13 @@
  *
  * ## Why only the genset carries an id
  *
- * A site has any number of sets and at most one array and one bank — one converter,
- * one DC bus, see `hybridPlant`. So `solar` and `battery` are complete names and a
- * set needs saying which. The `genset:` prefix is what keeps a tag like `battery`
- * on a machine from ever reading as the bank.
+ * A site has any number of sets and at most one array, one bank and one cabinet —
+ * one converter, one DC bus, one DC plant, see `hybridPlant` and `subrackCabinet`.
+ * So `solar`, `battery` and `cabinet` are complete names and a set needs saying
+ * which. The `genset:` prefix is what keeps a tag like `battery` on a machine from
+ * ever reading as the bank.
  */
-export type SiteDeviceKey = `genset:${string}` | 'solar' | 'battery';
+export type SiteDeviceKey = `genset:${string}` | 'solar' | 'battery' | 'cabinet';
 
 const GENSET_PREFIX = 'genset:';
 

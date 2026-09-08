@@ -3,18 +3,19 @@ import type {LinkProps} from '@tanstack/react-router';
 import {
   ActivityIcon,
   BatteryChargingIcon,
-  BellIcon,
   DropletIcon,
+  ServerIcon,
   SunMediumIcon,
 } from 'lucide-react';
 
+import {AlarmCounts, alarmPillClassName} from '@/components/global/AlarmCounts';
 import {Badge} from '@/components/ui/badge';
 import {amount, fuelHeadline} from '@/lib/format';
+import {cn} from '@/lib/utils';
 import {BANK_RESERVE_LABEL} from '@/modules/battery/types/bank.type';
 import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
-import {gensetName} from '@/modules/genset/types/genset.type';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {CurrentRunCard} from '@/modules/genset/components/detail/CurrentRunCard';
 import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
@@ -22,12 +23,15 @@ import {useFuelIntegrity} from '@/modules/genset/data/fuelIntegrity';
 import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
 import {isLeak} from '@/modules/genset/types/fuelIntegrity.type';
+import {useSubrackCabinet} from '@/modules/cabinet/data/cabinets';
+import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
 import {deviceGensetId, gensetDeviceKey} from '../types/device.type';
 import type {SiteDeviceKey} from '../types/device.type';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {hybridPlant, hybridState, solarMonths, todaySoFarKwh} from '../data/hybrid';
 import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
+import {fromSite} from '../types/fromSearch.type';
 import {siteSeed} from '../data/siteSeed';
 import {siteFeed} from '../data/sites';
 import type {SiteGenset, SiteSummary} from '../data/sites';
@@ -119,6 +123,7 @@ export const SiteDevicePanel = ({
   if (member !== undefined) {
     return (
       <GensetDeviceCard
+        siteId={summary.site.id}
         member={member}
         role={role}
         onLoad={member.genset.id === summary.defaultDutyId}
@@ -153,10 +158,118 @@ export const SiteDevicePanel = ({
     );
   }
 
+  if (device === 'cabinet') {
+    return (
+      <CabinetDeviceCard
+        siteId={summary.site.id}
+        // The cabinet's rows are the site queue's `SITE` slice, sliced the same way
+        // the array's and the bank's are — and `SITE` is the category that reads
+        // `Cabinet` on every chip since the recategorisation. See
+        // `plantAlarm.type.ts` on why the id and the word differ.
+        alarms={standing.filter((row) => row.asset === 'SITE')}
+        now={now}
+      />
+    );
+  }
+
   return (
     <p className="px-1 text-sm text-secondary">
       No plant is installed at this site — there is nothing here to report on.
     </p>
+  );
+};
+
+/**
+ * The cabinet: what the shelf could carry, what the bus is delivering, and how warm
+ * the box is.
+ *
+ * ## Why the figures are the page's own three
+ *
+ * `Rectifier capacity`, `Bus output` and `Enclosure` are exactly the summary band at
+ * the head of the cabinet page, in the same order and off the same assembly. The
+ * capacity moves into the identity line because that is where every other card puts
+ * a rating — `PV array | 12 kWp`, `Bank | 93 kWh` — which leaves the two readings for
+ * the figures and keeps this card the same shape as its three neighbours.
+ *
+ * ## The badge says what is converting, and it can be nothing
+ *
+ * `carrying` has four states and two of them mean the shelf is passing none of the
+ * tower: a bank carrying, which is this hybrid working exactly as bought, and an
+ * unserved tower, which is an outage. `cabinet.type.ts` argues at length why those
+ * must not collapse into one word, and the badge honours it — the icon dims for both
+ * and the wording separates them.
+ */
+const CabinetDeviceCard = ({
+  siteId,
+  alarms,
+  now,
+}: {
+  siteId: string;
+  /** This cabinet's slice of the site's queue — see the note in `SiteDevicePanel`. */
+  alarms: Array<AlarmView>;
+  now: number;
+}) => {
+  const cabinet = useSubrackCabinet(siteId, now);
+  if (cabinet === undefined) return null;
+
+  const converting = cabinet.carrying === 'RECTIFIERS' || cabinet.carrying === 'SSUS';
+  const carryingLabel =
+    cabinet.carrying === 'RECTIFIERS'
+      ? 'Rectifiers carrying'
+      : cabinet.carrying === 'SSUS'
+        ? 'SSUs carrying'
+        : cabinet.carrying === 'BATTERY'
+          ? 'Shelf on standby'
+          : 'Not served';
+
+  return (
+    <SiteDeviceCard
+      label="Cabinet"
+      identity={
+        <Link
+          to="/cabinet/$cabinetId"
+          params={{cabinetId: siteId}}
+          search={fromSite(siteId)}
+          className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+        >
+          Subrack | {amount(cabinet.capacityKw, 'kW')}
+        </Link>
+      }
+      badges={
+        <>
+          <Badge variant="secondary">
+            <ServerIcon
+              className={converting ? 'text-teal' : 'text-tertiary'}
+              aria-hidden="true"
+            />
+            {carryingLabel}
+          </Badge>
+
+          {alarms.length > 0 && (
+            <AlarmBadge
+              counts={countBySeverity(alarms)}
+              to="/cabinet/$cabinetId/alarms"
+              params={{cabinetId: siteId}}
+              search={fromSite(siteId)}
+            />
+          )}
+        </>
+      }
+    >
+      <SiteDeviceFigures
+        figures={[
+          {
+            // `Not served` in words rather than `0 kW`, the same call the load box in
+            // the diagram makes: a measurement of zero and an unserved tower are
+            // different claims.
+            label: 'Bus output',
+            value: cabinet.loadKw === null ? 'Not served' : `${cabinet.loadKw.toFixed(1)}`,
+            unit: cabinet.loadKw === null ? undefined : 'kW',
+          },
+          {label: 'Enclosure', value: `${cabinet.tempC.toFixed(1)}`, unit: '°C'},
+        ]}
+      />
+    </SiteDeviceCard>
   );
 };
 
@@ -187,6 +300,12 @@ export const siteDevices = (
     ...(seed !== undefined && hasBattery(role) && (plant?.batteryKwh ?? 0) > 0
       ? (['battery'] as const)
       : []),
+    // Last, as it is last in the site rail and for the same reason: the three above
+    // are what a reader came for, and the cabinet is what they open once one of those
+    // has sent them looking for a rectifier. `siteHasCabinet` is the same predicate
+    // the drawing places its box on, so the box and this list cannot disagree about
+    // whether the node is a control.
+    ...(siteHasCabinet(summary.site.id, role) ? (['cabinet'] as const) : []),
   ];
 };
 
@@ -241,6 +360,10 @@ export const siteDefaultDevice = (
  * same page — where the tooltip spells the order out, so a reader meeting the
  * pattern here has been taught it a few hundred pixels above.
  *
+ * A severity with anything standing fills its cell rather than only changing its
+ * digit — see `AlarmCounts`, which is where the pill itself now lives, so the two
+ * renderings of it cannot drift apart again.
+ *
  * ## Why it is a link and no longer has a tooltip
  *
  * A count is a question — *which two?* — and the panel cannot answer it: there is no
@@ -258,30 +381,33 @@ const AlarmBadge = ({
   counts,
   to,
   params,
+  search,
 }: {
   counts: Record<AlertSeverity, number>;
   to: LinkProps['to'];
   params?: LinkProps['params'];
+  /** Carries `from` through, so a badge clicked at a site crumbs back to it. */
+  search?: LinkProps['search'];
 }) => {
   const legend = ALERT_SEVERITIES.map(
     (severity) => `${SEVERITY_META[severity].label} ${counts[severity]}`,
   ).join(' · ');
 
   return (
-    <Badge asChild variant="secondary" className="gap-1.5 transition-colors hover:bg-highlight">
+    <Badge
+      asChild
+      variant="secondary"
+      className={cn(alarmPillClassName, 'transition-colors hover:bg-highlight')}
+    >
       <Link
         to={to}
         params={params}
+        search={search}
         aria-label={legend}
         title={legend}
         className="outline-none focus-visible:ring-2 focus-visible:ring-outline"
       >
-        <BellIcon className="text-secondary" aria-hidden="true" />
-        {ALERT_SEVERITIES.map((severity) => (
-          <span key={severity} className={SEVERITY_META[severity].textClassName}>
-            {counts[severity]}
-          </span>
-        ))}
+        <AlarmCounts counts={counts} />
       </Link>
     </Badge>
   );
@@ -312,11 +438,14 @@ const AlarmBadge = ({
  * maintaining a second copy of a card that already exists two directories away.
  */
 const GensetDeviceCard = ({
+  siteId,
   member,
   role,
   onLoad,
   now,
 }: {
+  /** The yard this set stands in — carried into its links so they crumb back here. */
+  siteId: string;
   member: SiteGenset;
   role: SitePowerRole;
   onLoad: boolean;
@@ -367,9 +496,16 @@ const GensetDeviceCard = ({
         <Link
           to="/gensets/$gensetId"
           params={{gensetId: genset.id}}
+          search={fromSite(siteId)}
           className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
         >
-          {gensetName(genset)}
+          {/* The machine's own tag and model, not `gensetName` — `label` above
+              already says `Genset`, and the name now leads with that word, so the
+              helper would print it twice. This is the shape its two siblings use
+              here as well: `PV array | 42 kWp`, `Bank | 96 kWh`, and the site is
+              already known on this page, so the identity line's job is which
+              machine and how big rather than which site. */}
+          {genset.tag} | {genset.model}
         </Link>
       }
       aside={
@@ -411,6 +547,7 @@ const GensetDeviceCard = ({
               counts={counts}
               to="/gensets/$gensetId/alarms"
               params={{gensetId: genset.id}}
+              search={fromSite(siteId)}
             />
           )}
         </>
@@ -469,6 +606,7 @@ const SolarDeviceCard = ({
         <Link
           to="/solar/$systemId"
           params={{systemId: siteId}}
+          search={fromSite(siteId)}
           className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
         >
           PV array | {amount(plant.solarKwp, 'kWp')}
@@ -491,6 +629,7 @@ const SolarDeviceCard = ({
               counts={countBySeverity(alarms)}
               to="/solar/$systemId/alarms"
               params={{systemId: siteId}}
+              search={fromSite(siteId)}
             />
           )}
         </>
@@ -549,6 +688,7 @@ const BatteryDeviceCard = ({
         <Link
           to="/battery/$bankId"
           params={{bankId: siteId}}
+          search={fromSite(siteId)}
           className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
         >
           Bank | {amount(plantKwh, 'kWh')}
@@ -573,6 +713,7 @@ const BatteryDeviceCard = ({
               counts={countBySeverity(alarms)}
               to="/battery/$bankId/alarms"
               params={{bankId: siteId}}
+              search={fromSite(siteId)}
             />
           )}
         </>

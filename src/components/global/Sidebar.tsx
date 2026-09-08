@@ -87,25 +87,30 @@ export const Sidebar = () => {
     // do have mobile layouts are the ones the floating bar offers.
     <aside className="hidden h-full w-[94px] flex-col items-center pt-2 md:flex">
       <div className="flex w-full items-center justify-center py-3.5">
-        {/* The customer's own mark, cropped out of their official lockup — the
-            rail is 94px and the full wordmark has no legible form at that width,
-            the same call the IQ mark made for the product's own brand. The crop
-            is the artwork's own left edge to the start of the "c", viewBox
-            `-6 0 408 439.61`; both dimensions are set so the flex row can't
-            stretch it.
+        {/* Whatever of the customer's lockup reads at 94px — which is a per-brand
+            call, and the two brands here answer it differently. CelcomDigi's is
+            *cropped* out of their official artwork, the left edge to the start of
+            the "c" (viewBox `-6 0 408 439.61`), because their full wordmark has no
+            legible form at this width — the same call the IQ mark made for the
+            product's own brand. Redtone's is the whole wordmark: seven letters on
+            one line, and it holds up at 76px.
 
-            The full-colour cut, not the reversed one. CelcomDigi's inverted
-            artwork only whitens the *wordmark* — the mark itself is the same
-            blue-to-yellow in both files — and the wordmark is exactly what this
-            crop drops. So the two cuts are identical here, and the rail is navy
-            (`--sidebar`, #001871) precisely so the mark's own #009BDF → #0064DC
-            gradient has a ground to sit on. */}
+            Whichever it is, it is the cut drawn for a *dark* ground, because the
+            rail always is one. CelcomDigi's inverted artwork only whitens the
+            wordmark their crop drops, so their two cuts are identical here and
+            navy (#001871) is chosen so the mark's own #009BDF → #0064DC gradient
+            has something to sit on; Redtone ships two genuinely different cuts and
+            this is the one whose "tone" is white.
+
+            Both dimensions are set so the flex row cannot stretch it, and
+            `object-contain` so a `markSize` that rounds off the artwork's own
+            ratio letterboxes by half a pixel rather than squashing the letters. */}
         <img
           src={BRAND.mark}
           alt={BRAND.name}
           width={BRAND.markSize.width}
           height={BRAND.markSize.height}
-          className="shrink-0"
+          className="shrink-0 object-contain"
         />
       </div>
 

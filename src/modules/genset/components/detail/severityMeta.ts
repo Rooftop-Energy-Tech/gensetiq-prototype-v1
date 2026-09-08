@@ -20,11 +20,26 @@ import type {AlertSeverity, GensetCondition} from '../../types/alert.type';
  */
 export const SEVERITY_META: Record<
   AlertSeverity,
-  {label: string; textClassName: string; strokeClassName: string; fillClassName: string}
+  {
+    label: string;
+    textClassName: string;
+    /**
+     * The severity as a *surface* rather than as ink — background and the text
+     * that sits on it — for the alarm pill's filled cell (`AlarmCounts`).
+     *
+     * Here rather than in the pill because it is the same colour as
+     * `textClassName` and this file exists so those cannot be picked twice.
+     * Named for the state it marks: a severity with alarms standing.
+     */
+    standingClassName: string;
+    strokeClassName: string;
+    fillClassName: string;
+  }
 > = {
   CRITICAL: {
     label: 'Critical',
     textClassName: 'text-severity-critical',
+    standingClassName: 'bg-severity-critical text-white',
     // The SVG pair, for the analysis chart's threshold lines. Tailwind resolves
     // `stroke-*` and `fill-*` from the same token as `text-*`, so an alarm line
     // and its caption cannot end up different shades of the same red.
@@ -34,12 +49,18 @@ export const SEVERITY_META: Record<
   WARNING: {
     label: 'Warning',
     textClassName: 'text-severity-warning',
+    standingClassName: 'bg-severity-warning text-white',
     strokeClassName: 'stroke-severity-warning',
     fillClassName: 'fill-severity-warning',
   },
   NEUTRAL: {
     label: 'Neutral',
     textClassName: 'text-primary',
+    // `bg-fill`, not `bg-primary`: the design fills this cell with the text
+    // colour and writes on it in white, which inverts to white-on-white in dark
+    // mode. `fill`/`fill-text` is the token pair for the inverted solid surface,
+    // so the cell stays legible in both. See the note in `AlarmCounts.tsx`.
+    standingClassName: 'bg-fill text-fill-text',
     strokeClassName: 'stroke-primary',
     fillClassName: 'fill-primary',
   },

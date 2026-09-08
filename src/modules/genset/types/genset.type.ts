@@ -101,5 +101,19 @@ export type Genset = {
   activity: Array<GensetActivity>;
 };
 
-/** `BRF9540 | Cummins 1000 kVa` — the label the design uses everywhere. */
-export const gensetName = (genset: Genset): string => `${genset.tag} | ${genset.model}`;
+/**
+ * `Genset | BRF9540` — the label the design uses everywhere.
+ *
+ * The asset first, then the code that identifies it, which is the shape all four
+ * assets now share — `bank.type.ts` argues why. **A genset's code is its own tag,
+ * not its site's**, and it is the one asset here where those differ: four sites on
+ * this estate hold a pair, so `Genset | WPKL-0207` would name two machines. The
+ * bank, the array and the cabinet are one-per-site and take the site code.
+ *
+ * The model this used to carry is in the rail's info glyph, one row under the asset
+ * tag. It was the right second half when the first half was already a machine's tag
+ * — two sets on one plinth are told apart by what they are — but it is not what
+ * identifies a set, and the name's job here is to say *what kind of thing* the page
+ * is about before saying which one.
+ */
+export const gensetName = (genset: Genset): string => `Genset | ${genset.tag}`;

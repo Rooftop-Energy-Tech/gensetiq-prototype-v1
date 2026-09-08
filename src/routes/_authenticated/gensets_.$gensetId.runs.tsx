@@ -4,6 +4,8 @@ import {GensetRuns} from '@/modules/genset/components/runs/GensetRuns';
 import {gensetById} from '@/modules/genset/data/detail';
 import {runsSearchSchema} from '@/modules/genset/types/runsView.type';
 import type {RunsSearch} from '@/modules/genset/types/runsView.type';
+import {fromSearchSchema, keepFrom} from '@/modules/site/types/fromSearch.type';
+import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * The runs tab — every run this genset has closed, and the open one at the head.
@@ -35,14 +37,20 @@ const GensetRunsRoute = () => {
       onSearchChange={(next: RunsSearch) => {
         // Worth a Back. Changing the window is how a reader works this screen, and
         // the browser's own back button is what they will reach for to undo it.
-        void navigate({search: () => next, replace: false});
+        void navigate({search: (previous: FromSearch) => ({...next, ...keepFrom(previous)}), replace: false});
       }}
     />
   );
 };
 
 export const Route = createFileRoute('/_authenticated/gensets_/$gensetId/runs')({
-  validateSearch: (search: Record<string, unknown>): RunsSearch =>
-    runsSearchSchema.parse(search),
+  // The tab's own params, plus `from` passed straight through. Without the second
+  // half a zod schema strips it as an unknown key and the router rewrites the URL
+  // without it, so a reader who walked in from a site loses that trail on the one
+  // tab that happens to filter — see `fromSearch.type.ts`.
+  validateSearch: (search: Record<string, unknown>): RunsSearch & FromSearch => ({
+    ...runsSearchSchema.parse(search),
+    ...fromSearchSchema.parse(search),
+  }),
   component: GensetRunsRoute,
 });

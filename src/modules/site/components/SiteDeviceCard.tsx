@@ -56,7 +56,7 @@ export const SiteDeviceCard = ({
   aside?: ReactNode;
   children?: ReactNode;
 }) => (
-  <div className="flex flex-col gap-3 rounded-md border border-subtle bg-element p-3">
+  <div className="flex h-full flex-col gap-3 rounded-md border border-subtle bg-element p-3">
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <span className="text-sm font-medium text-secondary">{label}</span>
       <span className="min-w-0 truncate text-sm font-medium text-primary">{identity}</span>

@@ -129,13 +129,15 @@ export type SolarSystem = {
 };
 
 /**
- * `WPKL-0207 | 42 kWp` — the header, the breadcrumb and the document title.
+ * `Solar | WPKL-0207` — the header, the breadcrumb and the document title.
  *
- * Built the way `gensetName` is, from the two facts that identify a unit to
- * somebody who works on them: *which one* and *how big*. A genset's second half
- * is its model, because two sets at one site are told apart by what they are; a
- * system's is its capacity, because there is one per site and the size is what a
- * reader needs before any figure on the page means anything.
+ * Built the way `bankName`, `gensetName` and `cabinetName` are, and see the first
+ * of those for why the asset leads and its code follows. A system's code is its
+ * site's, because there is one array per site here — the day that stops being true
+ * `id` stops equalling `siteId` and this is the line that has to change with it.
+ *
+ * The capacity this used to carry is on the page: `kWp` heads the nameplate band
+ * under the chart, and the rail's info glyph states the module count and string
+ * count beside it. It was never what told two arrays apart.
  */
-export const systemName = (system: SolarSystem): string =>
-  `${system.siteName} | ${system.kwp} kWp`;
+export const systemName = (system: SolarSystem): string => `Solar | ${system.siteName}`;
