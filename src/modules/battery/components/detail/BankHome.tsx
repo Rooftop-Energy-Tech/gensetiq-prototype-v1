@@ -5,10 +5,14 @@ import {MetricStrip} from '@/components/global/MetricStrip';
 import {TankGlyph} from '@/components/global/TankGlyph';
 import {Badge} from '@/components/ui/badge';
 import {amount} from '@/lib/format';
+import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
+import {useAlarmHandling} from '@/modules/genset/data/alarms';
+import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {CHARGE_VIEW, TrendPanel} from '@/modules/site/components/TrendPanel';
+import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {siteSummary} from '@/modules/site/data/sites';
-import {BANK_FLOW_LABEL, bankFlow} from '../../types/bank.type';
+import {BANK_FLOW_LABEL, BANK_RESERVE_LABEL, bankFlow} from '../../types/bank.type';
 import type {BatteryBank} from '../../types/bank.type';
 import {ModuleRack} from './ModuleRack';
 
@@ -16,14 +20,15 @@ import {ModuleRack} from './ModuleRack';
  * A bank's home page, in the bands the solar page uses — because it is the same
  * design, over the other half of the hybrid.
  *
- * 1. **The strip** — how big the bank is, how long it would carry the site, and
- *    the alarm counts.
- * 2. **The charge** — the bank drawn as a battery, and beside it the rack of
- *    modules it is built from, each with its own level.
- * 3. **The details** — what the bank *is*, in a narrow block between two rules.
+ * 1. **The strip** — how big the bank is, how long it would carry the site *from
+ *    here*, and the alarm counts.
+ * 2. **The charge** — the bank drawn as a battery, with what it is doing under it.
+ * 3. **The modules** — the rack it is built from, one card per module, each with
+ *    its own charge, health, temperature and stored energy.
  * 4. **The chart** — state of charge, with a day stepper and a period control.
+ * 5. **The details** — what the bank *is*, in a narrow block between two rules.
  *
- * ## Why there are four bands and not seven
+ * ## Why there are five bands and not seven
  *
  * Because a bank has no boxes to list, no alert rules and no activity to feed —
  * see below. The bands that exist are the design's, in the design's order, and the
@@ -31,15 +36,24 @@ import {ModuleRack} from './ModuleRack';
  * chose to drop them. Each has a section of its own in the rail saying what it will
  * hold, which is the same way `/solar` was stood up before it had a register.
  *
- * ## The alarm column, and why it reads zero
+ * ## The alarm column, and why it no longer always reads zero
  *
- * Honestly. Nothing in this app raises a battery alarm — no cell imbalance, no
- * over-temperature, no low-charge rule, no BMS fault — and the `Alarms` section
- * says so in as many words. The strip keeps the column because it is the design's
- * fixed third and because a reader moving between a genset, an array and a bank
- * should find it in the same place on all three; what it must not do is invent a
- * count. Zeros here mean *no rule has ever been written*, and the section behind
- * the rail's `Alarms` row is where that gets fixed.
+ * It used to read three hard-coded zeros everywhere, with a comment explaining that
+ * nothing in this app raised a battery alarm — no cell imbalance, no
+ * over-temperature, no low-charge rule, no BMS fault — and that a truthful zero beat
+ * an invented count.
+ *
+ * That is still the answer at twenty-four of the twenty-five sites. At the one with
+ * a **monitoring unit** on its DC plant it is not: twenty-eight of that unit's
+ * fifty-eight registers are about the battery, and the rail's `Alarms` row now lists
+ * the ones it is asserting.
+ *
+ * So the column is read from the same function that page's Standing table is —
+ * `plantAlarmQueue` — rather than counted again here. Two numbers about one bank on
+ * two adjacent pages is precisely the pair that drifts, and an honest zero that has
+ * quietly become a wrong number is worse than either. **Cleared alarms are not in
+ * it**, so clearing a row on the tab drops the count here, which is the first thing
+ * a reader will check.
  *
  * ## The reading is charge, not power
  *
@@ -64,13 +78,28 @@ import {ModuleRack} from './ModuleRack';
  * an empty one and which way it drains. The page is asking "will this last the
  * night", so the glyph that answers it should be the one that reads as a level.
  *
- * It also makes the rack beside it possible. Twelve small dials would be twelve
- * scales to read; twelve small batteries are the same picture twelve times, which
+ * It also makes the rack below it possible. A dozen small dials would be a dozen
+ * scales to read; a dozen small batteries are the same picture a dozen times, which
  * is the entire mechanism `ModuleRack` works by.
  */
 export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
   const flow = bankFlow(bank);
   const seed = siteSeed(bank.siteId);
+
+  /**
+   * The alarm column, live.
+   *
+   * Subscribed rather than read once, so acknowledging or clearing a row on the
+   * Alarms tab is reflected here without a reload — the two pages are one asset and
+   * a reader will move straight between them to check exactly that.
+   *
+   * The bank's id *is* its site's, so no lookup is needed to reach the unit on the
+   * wall beside it. `useSitePowerRole` is what makes the count follow a reader
+   * flipping the site's configuration on its settings tab.
+   */
+  const handling = useAlarmHandling();
+  const role = useSitePowerRole(bank.id);
+  const counts = countBySeverity(plantAlarmQueue(bank.id, role, 'BATTERY', handling).standing);
   /**
    * Nameplate across the sets in this bank's yard, which is what sizes the genset
    * band of the charge mix — see `gensetDay`.
@@ -89,85 +118,93 @@ export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
         ariaLabel="Bank summary"
         metrics={[
           {label: 'Battery capacity', value: amount(bank.kwh, 'kWh')},
-          {label: 'Autonomy from full', value: amount(bank.autonomyHours, 'h')},
+          /* What the bank would carry **from here**, not from full.
+
+             This column was `Autonomy from full` — the specification, and the wrong
+             figure for the top of a page somebody opens to decide whether to send a
+             genset out tonight. SBH-1336 is rated 19 hours from full and has six
+             from where it actually sits, because it is at 57% charge on 93% health
+             carrying a live load. The nineteen was answering a question about a bank
+             this one no longer is, and answering it three times too generously.
+
+             The specification has not been dropped, it has gone to where nameplates
+             belong: the rail's details tooltip beside the converter rating, and the
+             register's `Autonomy` column.
+
+             The site page's battery card makes exactly this swap, in those words,
+             for exactly this reason. */
+          {label: BANK_RESERVE_LABEL, value: amount(bank.hoursLeft, 'h', 1)},
         ]}
-        // See the note above: no battery rule exists to count, and a fabricated
-        // number would be worse than a truthful zero.
-        counts={{CRITICAL: 0, WARNING: 0, NEUTRAL: 0}}
+        // Standing only, and from the Alarms tab's own reading of it. Still three
+        // zeros at every bank with nothing watching it — see the note above.
+        counts={counts}
       />
 
-      {/* A container query rather than a breakpoint, for `DetailBand`'s reason: this
-          band sits inside the app's rail and the section's, which take 334px between
-          them, so the viewport width says nothing about how much room the rack
-          actually has. The pack and the rack stack until the band itself is wide
-          enough to set them side by side. */}
-      <section aria-label="Charge now" className="@container py-6">
-        <div className="flex flex-col items-center gap-8 @2xl:flex-row @2xl:items-start @2xl:gap-12">
-          {/* The pack: one battery, its figure, and what it is doing. Left-aligned
-              once the rack is beside it, because the two are read left to right —
-              the pack's answer, then whether its modules agree with it. */}
-          <div className="flex shrink-0 flex-col items-center gap-3 px-6">
-            <div className="flex items-center gap-3">
-              <TankGlyph fraction={bank.soc} tone="battery" />
+      {/* The pack, centred, and nothing else in the band.
 
-              {/* The figure beside the glyph rather than under it, which is the
-                  design's arrangement and the one that reads as a caption to the
-                  battery rather than as a second thing to look at. `sr-only` because
-                  "61 %" on its own is a number with no subject — the dial this
-                  replaced carried its label in the arc's `aria-label`. */}
-              <p className="flex items-center gap-0.5">
-                <span className="sr-only">State of charge</span>
-                <span className="text-lg leading-7 font-semibold text-primary">
-                  {Math.round(bank.soc * 100)}
-                </span>
-                <span className="text-xs font-medium text-primary">%</span>
-              </p>
-            </div>
+          The rack of modules used to sit to the right of this glyph in a container
+          query — the two side by side were one statement, the pack's answer and then
+          whether its modules agreed with it. A module is four figures now rather than
+          one, and four figures do not fit in the column that was left over. So the
+          rack is its own band directly below, and `ModuleRack` carries the argument
+          about what that trade cost and what buys it back. */}
+      <section aria-label="Charge now" className="flex justify-center py-6">
+        <div className="flex flex-col items-center gap-3 px-6">
+          <div className="flex items-center gap-3">
+            <TankGlyph fraction={bank.soc} tone="battery" />
 
-            {/* The direction, under the level. Which way the energy is going is a
-                fact about the same instant the battery draws, and separating them
-                into two bands would make a reader hold one while they went looking
-                for the other. `At rest` is a real third state, not a rounding of the
-                two — a bank floating on a bus is neither charging nor carrying.
-
-                Stacked rather than wrapped in a row: the design sets them one above
-                the other, and with the rack now taking the width beside them a row
-                of two pills would have been the widest thing in this column. */}
-            <div className="flex flex-col items-center gap-2">
-              <Badge variant="secondary" className="whitespace-pre">
-                <BatteryChargingIcon
-                  className={flow === 'IDLE' ? 'text-tertiary' : 'text-battery'}
-                  aria-hidden="true"
-                />
-                {BANK_FLOW_LABEL[flow]}
-                {flow !== 'IDLE' && (
-                  <>
-                    <span className="text-secondary"> | </span>
-                    {amount(Math.abs(bank.powerKw), 'kW')}
-                  </>
-                )}
-              </Badge>
-
-              {/* What the bank would carry *from here*, not from full — and the badge
-                  that would get somebody out of bed.
-
-                  This used to be `autonomyHours × soc`, computed on this page, and it
-                  was optimistic twice over: it spent the quarter of the pack the plant
-                  sheds at, and it spent it out of a nameplate the bank no longer holds.
-                  At SWK-0794 that read six hours where the site had under two. It now
-                  comes from `hybridState`, so the badge, the site page's strip and the
-                  register are one number rather than three implementations of it. */}
-              <Badge variant="secondary">
-                {amount(bank.hoursLeft, 'h', 1)} left at this load
-              </Badge>
-            </div>
+            {/* The figure beside the glyph rather than under it, which is the
+                design's arrangement and the one that reads as a caption to the
+                battery rather than as a second thing to look at. `sr-only` because
+                "61 %" on its own is a number with no subject — the dial this
+                replaced carried its label in the arc's `aria-label`. */}
+            <p className="flex items-center gap-0.5">
+              <span className="sr-only">State of charge</span>
+              <span className="text-lg leading-7 font-semibold text-primary">
+                {Math.round(bank.soc * 100)}
+              </span>
+              <span className="text-xs font-medium text-primary">%</span>
+            </p>
           </div>
 
-          {/* The same battery, once per module — see `ModuleRack` for why it is here
-              and not in a band of its own. */}
-          <ModuleRack bank={bank} />
+          {/* The direction, under the level. Which way the energy is going is a
+              fact about the same instant the battery draws, and separating them
+              into two bands would make a reader hold one while they went looking
+              for the other. `At rest` is a real third state, not a rounding of the
+              two — a bank floating on a bus is neither charging nor carrying.
+
+              One badge, where there were two. The second was
+              `5.9 h left at this load`, and it is gone because that figure is now
+              the strip's second column at the top of the page. Keeping both would
+              have printed one number twice on one screen, six hundred pixels apart —
+              which is not merely redundant: two copies of a live figure are two
+              things to keep in step, and the pair that drifts is always the pair
+              nobody remembers is a pair.
+
+              The strip is the right home for it of the two. It is a figure a reader
+              scans for before deciding whether to read anything else, and the strip
+              is the band this page puts those in; down here it was a caption to the
+              glyph, which is what the direction is. */}
+          <Badge variant="secondary" className="whitespace-pre">
+            <BatteryChargingIcon
+              className={flow === 'IDLE' ? 'text-tertiary' : 'text-battery'}
+              aria-hidden="true"
+            />
+            {BANK_FLOW_LABEL[flow]}
+            {flow !== 'IDLE' && (
+              <>
+                <span className="text-secondary"> | </span>
+                {amount(Math.abs(bank.powerKw), 'kW')}
+              </>
+            )}
+          </Badge>
         </div>
       </section>
+
+      <div className="border-t border-subtle" />
+
+      {/* The same battery, once per module, each with its own four figures. */}
+      <ModuleRack bank={bank} />
 
       <div className="border-t border-subtle" />
 

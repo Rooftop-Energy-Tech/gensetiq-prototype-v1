@@ -124,3 +124,43 @@ export const BANK_FLOW_LABEL: Record<BankFlow, string> = {
 /** `SBH-1495 | 96 kWh` — what the rail, the breadcrumb and the register all print. */
 export const bankName = (bank: BatteryBank): string =>
   `${bank.siteName} | ${Math.round(bank.kwh).toLocaleString('en-MY')} kWh`;
+
+/**
+ * `Reserve left at this load` — the label on `hoursLeft`, wherever it is printed.
+ *
+ * A constant because two screens print this figure — the bank page's strip and the
+ * site page's battery card — and a label is exactly the kind of thing that gets
+ * reworded on one of them. Two names for one quantity make a reader wonder whether
+ * they are looking at two quantities, which is the same failure the two pages'
+ * alarm counts were fixed for.
+ *
+ * ## Why `Reserve` and not the three words that came before it
+ *
+ * **Not `Autonomy`**, which is the specification: what the bank would do from full
+ * and healthy. That figure still exists — the rail's details tooltip and the
+ * register's `Autonomy` column carry it — but it is not what a reader deciding
+ * whether to send a genset out tonight needs, and at SBH-1336 it reads 19 hours
+ * against this figure's six.
+ *
+ * **Not `Runtime`**, which is engine vocabulary. This app already spends it on the
+ * diesel side — `RunState`, `Last run`, `CurrentRunCard`, the site's `Runs` tab — and
+ * a bank does not run, it holds. Borrowing the genset's word makes two unlike things
+ * sound like one.
+ *
+ * **Not `Backup`**, which describes a role none of these banks has. `hasBattery` is
+ * true for `DIESEL_HYBRID` and `SOLAR_HYBRID` only, so every bank on this estate is
+ * at a hybrid site and cycles daily as part of the supply — SBH-1336's is taking
+ * 4 kW of charge as this is written. A bank that works every day is not standing by.
+ *
+ * `Reserve` is the term telecom DC power uses for exactly this, and it is neutral
+ * about whether the bank is the emergency or the everyday.
+ *
+ * ## Why the qualifier stays
+ *
+ * `at this load` is not padding. The figure divides the energy left by the draw the
+ * site is pulling *now*, and a tower's draw moves through the day — so the same
+ * charge reads differently at three in the afternoon than at midnight. Without the
+ * qualifier the number reads as a property of the bank; with it, it reads as the
+ * answer to a question asked at a moment, which is what it is.
+ */
+export const BANK_RESERVE_LABEL = 'Reserve left at this load';

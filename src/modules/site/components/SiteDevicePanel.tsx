@@ -1,4 +1,5 @@
 import {Link} from '@tanstack/react-router';
+import type {LinkProps} from '@tanstack/react-router';
 import {
   ActivityIcon,
   BatteryChargingIcon,
@@ -8,21 +9,26 @@ import {
 } from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
-import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, fuelHeadline} from '@/lib/format';
+import {BANK_RESERVE_LABEL} from '@/modules/battery/types/bank.type';
 import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
+import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {gensetName} from '@/modules/genset/types/genset.type';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {CurrentRunCard} from '@/modules/genset/components/detail/CurrentRunCard';
 import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useFuelIntegrity} from '@/modules/genset/data/fuelIntegrity';
 import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
+import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
 import {isLeak} from '@/modules/genset/types/fuelIntegrity.type';
 import {deviceGensetId, gensetDeviceKey} from '../types/device.type';
 import type {SiteDeviceKey} from '../types/device.type';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {hybridPlant, hybridState, solarMonths, todaySoFarKwh} from '../data/hybrid';
+import {isMonitored} from '../data/monitoringUnit';
+import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
 import {siteSeed} from '../data/siteSeed';
 import {siteFeed} from '../data/sites';
 import type {SiteGenset, SiteSummary} from '../data/sites';
@@ -86,6 +92,26 @@ export const SiteDevicePanel = ({
       ? undefined
       : summary.gensets.find(({genset}) => genset.id === gensetId);
 
+  /**
+   * The array's and the bank's rows, taken as slices of **the site's own queue.**
+   *
+   * Not re-derived here, and that is the point. `useSiteAlarmQueue` is the union the
+   * strip at the top of this page counts and the Alarms tab lists, with every row
+   * tagged by the asset it belongs to — so slicing it is the one way of getting these
+   * two numbers that cannot disagree with the two screens either side of it. A second
+   * call to `assertedPlantAlarms` here would give the same answer today and be a
+   * second place for it to stop doing so.
+   *
+   * One tag each is enough for these two because a site has one array and one bank.
+   * The gensets are not sliced this way: a yard can have several, they share the
+   * monitoring unit's AC rows, and each card is about one machine — so the genset
+   * card does its own union, from the same two sources its own page does.
+   *
+   * Read before the branches below, not inside them: a hook cannot sit behind an
+   * early return, and this component returns from four places.
+   */
+  const {standing} = useSiteAlarmQueue(summary.site.id, now);
+
   // `device` comes from `siteDevices` — through a reader's click and a fallback that
   // re-checks the list — so every branch below is reachable and the `undefined` tail
   // is the genuinely empty site rather than a lookup that failed. Written as a
@@ -95,6 +121,7 @@ export const SiteDevicePanel = ({
     return (
       <GensetDeviceCard
         member={member}
+        role={role}
         onLoad={member.genset.id === summary.defaultDutyId}
         now={now}
       />
@@ -102,7 +129,15 @@ export const SiteDevicePanel = ({
   }
 
   if (device === 'solar' && seed !== undefined) {
-    return <SolarDeviceCard siteId={summary.site.id} seed={seed} role={role} now={now} />;
+    return (
+      <SolarDeviceCard
+        siteId={summary.site.id}
+        seed={seed}
+        role={role}
+        alarms={standing.filter((row) => row.asset === 'SOLAR')}
+        now={now}
+      />
+    );
   }
 
   if (device === 'battery' && seed !== undefined) {
@@ -113,6 +148,7 @@ export const SiteDevicePanel = ({
         role={role}
         plantKwh={plant?.batteryKwh ?? 0}
         soh={plant?.soh ?? 0}
+        alarms={standing.filter((row) => row.asset === 'BATTERY')}
         now={now}
       />
     );
@@ -188,6 +224,89 @@ export const siteDefaultDevice = (
 };
 
 /**
+ * What this device is carrying, and the way through to the rows themselves.
+ *
+ * ## One element, three cards
+ *
+ * The genset card had this badge and the array's and the bank's did not, which made
+ * the panel say different things depending on which box a reader had clicked: a set
+ * with two criticals showed them, an array with two showed nothing and read as an
+ * array with nothing wrong. There is no reason the count belongs to engines — every
+ * asset here raises alarms, and the site's own strip at the top of the page counts
+ * all of them together. So the badge is a component now and all three use it.
+ *
+ * ## Three numbers, coloured rather than labelled
+ *
+ * `Critical · Warning · Neutral`, in that order and in their own colours. It is the
+ * treatment the design specifies and `MetricStrip` already uses at the top of this
+ * same page — where the tooltip spells the order out, so a reader meeting the
+ * pattern here has been taught it a few hundred pixels above.
+ *
+ * ## Why it is a link and no longer has a tooltip
+ *
+ * A count is a question — *which two?* — and the panel cannot answer it: there is no
+ * room for a queue beside a drawing. Every one of these badges now goes to the tab
+ * that can, so the reading is one click rather than a title, a nav and a tab.
+ *
+ * That costs the hover legend, because a target that is both clickable and hovered
+ * is fussy — the pointer lands on it and two things happen. The legend is not lost:
+ * it is the `title`, which is also the accessible name, so the numbers announce as
+ * `Critical 2 · Warning 0 · Neutral 0` rather than as `2 0 0`.
+ *
+ * `to` and `params` are the caller's because the three assets have three routes and
+ * one of them is conditional — see `hasAlarmsTab`.
+ */
+const AlarmBadge = ({
+  counts,
+  to,
+  params,
+}: {
+  counts: Record<AlertSeverity, number>;
+  to: LinkProps['to'];
+  params?: LinkProps['params'];
+}) => {
+  const legend = ALERT_SEVERITIES.map(
+    (severity) => `${SEVERITY_META[severity].label} ${counts[severity]}`,
+  ).join(' · ');
+
+  return (
+    <Badge asChild variant="secondary" className="gap-1.5 transition-colors hover:bg-highlight">
+      <Link
+        to={to}
+        params={params}
+        aria-label={legend}
+        title={legend}
+        className="outline-none focus-visible:ring-2 focus-visible:ring-outline"
+      >
+        <BellIcon className="text-secondary" aria-hidden="true" />
+        {ALERT_SEVERITIES.map((severity) => (
+          <span key={severity} className={SEVERITY_META[severity].textClassName}>
+            {counts[severity]}
+          </span>
+        ))}
+      </Link>
+    </Badge>
+  );
+};
+
+/**
+ * Where the array's and the bank's badges point.
+ *
+ * The Alarms tab where there is one, and the asset's home page where there is not.
+ * Twenty-four of the twenty-five sites have no monitoring unit, so those two tabs
+ * are placeholders there — and an array at one of them can still be carrying a
+ * **derived** row, because this app's own rules over the generation series need no
+ * device to fire. Sending a reader from a badge reading `1` to a page that says the
+ * feature is coming would make the badge a liar about its own subject.
+ *
+ * So where the tab cannot list them, the badge goes to the asset's home page, whose
+ * health band is exactly where those derived conditions are written out. The genset
+ * needs none of this: a controller reports its own bits everywhere, so that tab is
+ * real at every site.
+ */
+const hasAlarmsTab = (siteId: string): boolean => isMonitored(siteId);
+
+/**
  * The genset card, and the only one of the three the design fills in completely:
  * the badge row, the tank, the leak notice and the last run.
  *
@@ -198,10 +317,12 @@ export const siteDefaultDevice = (
  */
 const GensetDeviceCard = ({
   member,
+  role,
   onLoad,
   now,
 }: {
   member: SiteGenset;
+  role: SitePowerRole;
   onLoad: boolean;
   now: number;
 }) => {
@@ -210,11 +331,29 @@ const GensetDeviceCard = ({
   const StateIcon = stateMeta.icon;
   const conditionMeta = CONDITION_META[detail.condition];
 
-  // The alarms still standing, live — a row cleared on a genset's Alarms tab has
-  // to leave this card's badge on the way back to the site, and `detail.alerts`
-  // is the fixture's raw list and cannot know about it.
-  const alerts = standingAlarms(genset.id, useAlarmHandling());
-  const counts = countBySeverity(alerts);
+  /**
+   * Everything standing on this machine — **both** things that report on it.
+   *
+   * Live, because a row cleared on the genset's Alarms tab has to leave this badge
+   * on the way back to the site, and `detail.alerts` is the fixture's raw list and
+   * cannot know about it.
+   *
+   * The second source is the correction. This counted the Deep Sea controller's own
+   * bits and nothing else, which was right when the controller was the only thing
+   * watching a set. The **site's monitoring unit** also watches the AC feeding the
+   * rectifiers, and at a site with no utility incomer that AC is this engine's own
+   * output — so a dropped phase there is a dropped phase here. Those rows are on the
+   * genset's page and on its Alarms tab, and leaving them out made this card read
+   * `2` against that page's `4`, one click apart.
+   *
+   * Same union as `GensetHome`, from the same two calls, so the badge and the page it
+   * links to count one list.
+   */
+  const handling = useAlarmHandling();
+  const alerts = standingAlarms(genset.id, handling);
+  const plantStanding = plantAlarmQueue(genset.siteId ?? '', role, 'GENSET', handling).standing;
+  const standing = [...alerts, ...plantStanding];
+  const counts = countBySeverity(standing);
 
   // Live, so lowering the leak threshold on the settings tab raises the notice here
   // without a reload — the behaviour `useFuelIntegrity` exists for.
@@ -268,26 +407,15 @@ const GensetDeviceCard = ({
             {conditionMeta.label}
           </Badge>
 
-          {alerts.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="secondary" className="cursor-help gap-1.5">
-                  <BellIcon className="text-secondary" aria-hidden="true" />
-                  {ALERT_SEVERITIES.map((severity) => (
-                    <span key={severity} className={SEVERITY_META[severity].textClassName}>
-                      {counts[severity]}
-                    </span>
-                  ))}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="flex flex-col gap-1">
-                {ALERT_SEVERITIES.map((severity) => (
-                  <span key={severity}>
-                    {SEVERITY_META[severity].label} · {counts[severity]}
-                  </span>
-                ))}
-              </TooltipContent>
-            </Tooltip>
+          {/* Only when there is something to say. A `0 0 0` badge is an
+              alarm-shaped element on a healthy machine, which is how a row of
+              badges stops being read. */}
+          {standing.length > 0 && (
+            <AlarmBadge
+              counts={counts}
+              to="/gensets/$gensetId/alarms"
+              params={{gensetId: genset.id}}
+            />
           )}
         </>
       }
@@ -315,11 +443,14 @@ const SolarDeviceCard = ({
   siteId,
   seed,
   role,
+  alarms,
   now,
 }: {
   siteId: string;
   seed: ReturnType<typeof siteSeed> & {};
   role: SitePowerRole;
+  /** This array's slice of the site's queue — see the note in `SiteDevicePanel`. */
+  alarms: Array<AlarmView>;
   now: number;
 }) => {
   const plant = hybridPlant(seed, role);
@@ -348,15 +479,25 @@ const SolarDeviceCard = ({
         </Link>
       }
       badges={
-        <Badge variant="secondary">
-          <SunMediumIcon
-            className={state.solarKw > 0 ? 'text-solar' : 'text-tertiary'}
-            aria-hidden="true"
-          />
-          {/* An array is generating or it is dark, and at night "Idle" would read as
-              a fault rather than as the sun having set. */}
-          {state.solarKw > 0 ? `Generating | ${amount(state.solarKw, 'kW')}` : 'Dark'}
-        </Badge>
+        <>
+          <Badge variant="secondary">
+            <SunMediumIcon
+              className={state.solarKw > 0 ? 'text-solar' : 'text-tertiary'}
+              aria-hidden="true"
+            />
+            {/* An array is generating or it is dark, and at night "Idle" would read as
+                a fault rather than as the sun having set. */}
+            {state.solarKw > 0 ? `Generating | ${amount(state.solarKw, 'kW')}` : 'Dark'}
+          </Badge>
+
+          {alarms.length > 0 && (
+            <AlarmBadge
+              counts={countBySeverity(alarms)}
+              to={hasAlarmsTab(siteId) ? '/solar/$systemId/alarms' : '/solar/$systemId'}
+              params={{systemId: siteId}}
+            />
+          )}
+        </>
       }
     >
       <SiteDeviceFigures
@@ -388,6 +529,7 @@ const BatteryDeviceCard = ({
   role,
   plantKwh,
   soh,
+  alarms,
   now,
 }: {
   siteId: string;
@@ -395,6 +537,8 @@ const BatteryDeviceCard = ({
   role: SitePowerRole;
   plantKwh: number;
   soh: number;
+  /** This bank's slice of the site's queue — see the note in `SiteDevicePanel`. */
+  alarms: Array<AlarmView>;
   now: number;
 }) => {
   const state = hybridState(seed, role, now);
@@ -415,17 +559,27 @@ const BatteryDeviceCard = ({
         </Link>
       }
       badges={
-        <Badge variant="secondary" className="whitespace-pre">
-          <BatteryChargingIcon
-            className={charging ? 'text-battery' : 'text-tertiary'}
-            aria-hidden="true"
-          />
-          {/* Which way the energy is going, and at what. The sign convention is
-              `hybridState`'s: negative is into the bank. */}
-          {charging ? 'Charging' : 'Discharging'}
-          <span className="text-secondary"> | </span>
-          {amount(Math.abs(state.batteryKw), 'kW')}
-        </Badge>
+        <>
+          <Badge variant="secondary" className="whitespace-pre">
+            <BatteryChargingIcon
+              className={charging ? 'text-battery' : 'text-tertiary'}
+              aria-hidden="true"
+            />
+            {/* Which way the energy is going, and at what. The sign convention is
+                `hybridState`'s: negative is into the bank. */}
+            {charging ? 'Charging' : 'Discharging'}
+            <span className="text-secondary"> | </span>
+            {amount(Math.abs(state.batteryKw), 'kW')}
+          </Badge>
+
+          {alarms.length > 0 && (
+            <AlarmBadge
+              counts={countBySeverity(alarms)}
+              to={hasAlarmsTab(siteId) ? '/battery/$bankId/alarms' : '/battery/$bankId'}
+              params={{bankId: siteId}}
+            />
+          )}
+        </>
       }
     >
       <SiteDeviceFigures
@@ -435,9 +589,14 @@ const BatteryDeviceCard = ({
             // The figure that decides whether a genset has to be sent for tonight.
             // It used to be `Autonomy from full` — the specification, which answers a
             // question nobody is asking at 42% charge on an aged bank. That figure
-            // has not been dropped, it has gone to the bank page's strip, where it
-            // sits beside the capacity it belongs with.
-            label: 'Left at this load',
+            // has not been dropped; it is on the bank's own rail, in the details
+            // tooltip beside the converter rating, and in the register's `Autonomy`
+            // column — where nameplates belong.
+            //
+            // The label is the bank module's constant, not a literal, so this card
+            // and the bank page's strip cannot end up wording one figure two ways.
+            // `BANK_RESERVE_LABEL` carries the argument for the wording.
+            label: BANK_RESERVE_LABEL,
             value: `${state.hoursLeft}`,
             unit: 'h',
           },
