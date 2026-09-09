@@ -84,7 +84,17 @@ import {
 const MIN_WIDTH = 460;
 
 /** A label column either side of the compound, in pixels. */
-const GUTTER = 128;
+const GUTTER = 136;
+
+/**
+ * How far a label floats clear of the block's own outer edge, in pixels.
+ *
+ * They used to be flush against it, which read as though they had been pushed off the
+ * drawing and pinned to the frame. A label is a note *on* the scene, so it sits inside the
+ * block with air around it. The leader still arrives at the label's inner edge, so the
+ * inset moves the card's outer side and nothing else.
+ */
+const LABEL_INSET = 12;
 
 /**
  * Vertical room a stacked label needs before the next one starts.
@@ -633,7 +643,7 @@ export const SitePlantScene = ({
           aria-hidden="true"
         >
           {anchored.map(({node, point, side}) => {
-            const y = (stacked[side].get(node.key) ?? point.top) + 14;
+            const y = Math.max(LABEL_INSET, stacked[side].get(node.key) ?? point.top) + 14;
             const edge = side === 'left' ? GUTTER - 6 : frame - GUTTER + 6;
             // A shoulder at the label end, and a straight run from the object to it.
             //
@@ -675,9 +685,12 @@ export const SitePlantScene = ({
               key={`label-${node.key}`}
               className="absolute"
               style={{
-                left: side === 'left' ? 0 : frame - GUTTER + 6,
-                top: y,
-                width: GUTTER - 6,
+                left: side === 'left' ? LABEL_INSET : frame - GUTTER + 6,
+                // Never above the block's own top padding: the stacker starts a gutter at
+                // its topmost anchor, and an object drawn high in the frame would otherwise
+                // hang its label off the top edge.
+                top: Math.max(LABEL_INSET, y),
+                width: GUTTER - 6 - LABEL_INSET,
               }}
             >
               <Label

@@ -56,13 +56,14 @@ export const SiteDeviceCard = ({
    */
   aside?: ReactNode;
   /**
-   * A reading over time about the same device, at the **foot** of the card.
+   * A reading over time about the same device, directly under its figures.
    *
-   * `mt-auto` is the whole reason it is a slot rather than more `children`. The card is
-   * stretched to the height of the drawing beside it, and on every device but the genset
-   * that left a large empty panel under three figures — a chart pushed to the bottom of
-   * that space is the space being used, where the same chart in a second card below was
-   * one more border in a column that already had one.
+   * A slot rather than more `children` because it is a different kind of statement — the
+   * figures are now and this is the day — and it takes the hairline that says so. It sits
+   * where it falls in the column rather than being pushed to the foot of the card: the
+   * card is stretched to the height of the drawing beside it, and a chart driven to the
+   * bottom of that leaves a gap between the figures and their own trend, which is a worse
+   * reading than the empty space it was filling.
    */
   telemetry?: ReactNode;
   children?: ReactNode;
@@ -83,7 +84,7 @@ export const SiteDeviceCard = ({
     {aside !== undefined && <div className="mt-1 flex w-full">{aside}</div>}
 
     {telemetry !== undefined && (
-      <div className="mt-auto flex w-full flex-col border-t border-subtle pt-3">{telemetry}</div>
+      <div className="flex w-full flex-col border-t border-subtle pt-3">{telemetry}</div>
     )}
   </div>
 );
