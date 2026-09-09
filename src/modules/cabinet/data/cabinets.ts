@@ -1,5 +1,6 @@
 import {useSitePowerRole, sitePowerRole} from '@/modules/site/data/siteConfig';
 import {enclosureTempC} from '@/modules/site/data/enclosure';
+import {hybridState} from '@/modules/site/data/hybrid';
 import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {siteDcBus, siteFeed, siteLoadKw, siteSummary, useSiteSummary} from '@/modules/site/data/sites';
@@ -69,6 +70,13 @@ const cabinetFrom = (
 
   const loadKw = siteLoadKw(summary, summary.defaultDutyId, role);
   const bus = siteDcBus(summary, summary.defaultDutyId, role, now);
+
+  /* What the roof is making and what the bank is doing, at the instant asked for.
+     `siteFeed` above reads the same curves but takes no `now`, so `carrying` follows
+     the wall clock while these follow the page's. That is the existing asymmetry and
+     not one this introduces; it matters only in a probe, since every screen passes
+     the real clock. Both are `0` where no plant is fitted. */
+  const plant = seed === undefined ? undefined : hybridState(seed, role, now);
   const capacityKw = shelf.rectifiers * shelf.rectifierKw;
 
   return {
@@ -84,6 +92,8 @@ const cabinetFrom = (
     ssus: shelf.ssus,
     capacityKw,
     loadKw,
+    solarKw: plant?.solarKw ?? 0,
+    batteryKw: plant?.batteryKw ?? 0,
     busVolts: bus?.volts ?? null,
     busAmps: bus?.amps ?? null,
     carrying,

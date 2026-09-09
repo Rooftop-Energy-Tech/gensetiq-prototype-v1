@@ -19,11 +19,13 @@ import type {SubrackModule, SubrackSlotFault} from '../types/subrackModule.type'
  *
  * ## Where each figure comes from
  *
- * **Output** is the tower's load divided across whichever group is carrying, evenly.
- * Evenly is not a simplification — a telecom rectifier shelf load-shares by design,
- * which is the whole point of running N+1: six modules at a sixth each is what the
- * plant is *for*. The other group reads zero, and that is the plant working
- * correctly rather than a fault. See `SubrackCabinet.carrying`.
+ * **Output** comes from a different figure for each group, and that asymmetry is the
+ * important thing in this file. The rectifiers divide the **tower's load** and only
+ * while they are the ones carrying it; the SSUs divide **what the array is making**,
+ * whoever is carrying. A rectifier converts on demand and a solar unit converts what
+ * it is given, so gating both on `carrying` drew a generating array as four bays
+ * reading zero. Evenly within each group, which is not a simplification: a telecom
+ * shelf load-shares by design. See the note on the shares below.
  *
  * **Temperature** is the enclosure's plus the module's own work. A module passing
  * nothing sits at cabinet temperature; one at its rating sits `FULL_LOAD_RISE_C`
@@ -83,13 +85,35 @@ export const subrackModules = (
   const faulted = faultedSsuSlots(cabinet.siteId, role, handling);
   const load = cabinet.loadKw ?? 0;
 
-  // Each group's share, and only for the group that is actually converting.
+  /**
+   * Each group's share — and the two groups are read from different figures, which is
+   * a correction rather than a refinement.
+   *
+   * Both used to be `load / count`, handed to whichever group `carrying` named and
+   * zero to the other. That drew four SSU bays reading `0.0 kW` at 08:40 while the
+   * roof was making 1.1 kW, because 1.1 kW is less than the 5 kW tower so `siteFeed`
+   * names the bank and the SSUs lost their own output to a rounding of the question.
+   *
+   * The two groups are not symmetrical:
+   *
+   * - **Rectifiers** pass the tower's load, and only when they are the ones passing
+   *   it. A rectifier shelf converts on demand — it makes what is drawn from it — so
+   *   `carrying` really is the whole story for them, and a shelf idling behind a
+   *   generating array or a discharging bank is the plant working as specified.
+   * - **SSUs** pass what the array makes. An MPPT converter takes what the roof gives
+   *   it whoever is carrying the tower; the bus decides where it goes, and the surplus
+   *   over the load is what charges the bank. So `carrying` is the wrong gate for
+   *   them entirely and `solarKw` is the figure.
+   *
+   * Evenly within each group, which is not a simplification either way: a telecom
+   * rectifier shelf load-shares by design, and the SSUs sit across an array split
+   * into as many sub-arrays as there are units.
+   */
   const rectifierShare =
     cabinet.carrying === 'RECTIFIERS' && cabinet.rectifiers > 0
       ? load / cabinet.rectifiers
       : 0;
-  const ssuShare =
-    cabinet.carrying === 'SSUS' && cabinet.ssus > 0 ? load / cabinet.ssus : 0;
+  const ssuShare = cabinet.ssus > 0 ? cabinet.solarKw / cabinet.ssus : 0;
 
   const build = (
     kind: SubrackModule['kind'],
@@ -116,9 +140,19 @@ export const subrackModules = (
         kind,
         slot,
         outputKw,
+        /* The enclosure's temperature, plus this module's own work, plus a little
+           per-slot scatter for airflow across the shelf.
+           The duty is **clamped**, and it has to be now that an SSU's output is the
+           array's rather than a share of the tower's load. `rectifierKw` is the only
+           per-module rating this cabinet publishes — `monitoringUnit` states 4 kW for
+           the rectifiers and nothing at all for the SSUs — so a bright noon, when the
+           roof makes 13.7 kW across four units, would otherwise push a bay past its
+           full-load rise on a denominator that was never its rating. Clamping says
+           "at least at full load" rather than inventing a number for the ceiling. */
         tempC:
           cabinet.tempC +
-          (cabinet.rectifierKw > 0 ? outputKw / cabinet.rectifierKw : 0) * FULL_LOAD_RISE_C +
+          Math.min(1, cabinet.rectifierKw > 0 ? outputKw / cabinet.rectifierKw : 0) *
+            FULL_LOAD_RISE_C +
           scatter * SLOT_SCATTER_C,
         fault: fault(slot),
       };

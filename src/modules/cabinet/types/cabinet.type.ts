@@ -83,6 +83,35 @@ export type SubrackCabinet = {
    * a load that had gone away. Every figure below is `null` in the same breath.
    */
   loadKw: number | null;
+  /**
+   * What the array is making, kW — and therefore what the SSUs are converting.
+   *
+   * `0` at night and at a site with no array. It is **not** a share of `loadKw` and
+   * that is the point: at 08:40 this site's roof makes 1.1 kW against a 5 kW tower, so
+   * the bank carries and `carrying` reads `BATTERY` — but 1.1 kW is flowing through
+   * the solar units onto the bus the whole time.
+   *
+   * The shelf used to divide the tower's load across whichever group `carrying` named
+   * and give the other group zero, which drew four SSU bays reading `0.0 kW` under a
+   * generating array. One group can be the one *carrying the tower*; both can be
+   * *converting*. See `subrackModules`.
+   */
+  solarKw: number;
+  /**
+   * What the bank is doing, kW — **positive discharging, negative charging.**
+   *
+   * Carried so the shelf's caption can say whether the array is charging the bank or
+   * merely offsetting it, which is the difference between a hybrid working and a
+   * hybrid falling behind. The sign convention is `HybridState.batteryKw`'s and is
+   * not reinterpreted here.
+   *
+   * ⚠️ **Not an energy balance with `solarKw` and `loadKw`.** At noon this site makes
+   * 13.7 kW against a 5 kW tower while the bank charges at 4.4 kW, and 13.7 − 5 is
+   * not 4.4. `hybridState` models the three curves separately and nothing in this app
+   * reconciles them, so the caption reads the *sign* of this figure and never
+   * subtracts it from anything.
+   */
+  batteryKw: number;
   /** The −48 V bus this cabinet delivers on, or `null` in an outage. */
   busVolts: number | null;
   busAmps: number | null;
@@ -125,40 +154,63 @@ export const cabinetName = (cabinet: SubrackCabinet): string =>
   `Cabinet | ${cabinet.siteName}`;
 
 /**
- * How much of the shelf's capacity the tower's load would take, `0`–`1`.
+ * What is happening on this cabinet's bus, in the words the shelf's caption prints.
  *
- * A **headroom** question rather than a throughput one: *could this shelf carry this
- * tower.* That distinction is the whole of why it is computed against the load rather
- * than against what the rectifiers are actually passing — which, at this site, is
- * nothing for most of the day.
+ * ## Why it is clauses and not one of four labels
  *
- * A shelf idling behind a generating array or a discharging bank is the plant working
- * as designed, and a reading of zero through all of it would have nothing to say on
- * the one question a plant engineer opens this page with. Read as headroom it is true
- * in every state: 5 kW against 24 says the shelf could take the tower the moment the
- * sun goes in, which is exactly the event it exists for.
+ * It was a `Record` keyed on `carrying`, which said exactly one thing was going on.
+ * That is wrong about a hybrid, and wrong in the ordinary case rather than an edge
+ * one: `carrying` names whichever source is holding the *tower* up, and at 08:40 here
+ * that is the bank — while 1.1 kW from the roof is running through the solar units
+ * onto the same bus. Both facts are true and a single label had to drop one.
  *
- * ## It is a badge now, not a dial
+ * So each thing that is happening contributes a clause and they are joined. Every
+ * combination the plant can reach comes out readable, including the two-source ones
+ * the old map could not express — a grid-backed site converting mains through the
+ * rectifiers *and* sun through the SSUs at the same time.
  *
- * This was the page's hero `TickGauge` and it is `79% headroom` in a badge instead.
- * The argument above survives the change intact and is the reason for it: a dial
- * looks like a measurement of *now*, and this was never that — it was an answer to a
- * hypothetical, sitting a fifth of the way round a scale whose two ends were both
- * printed in the strip directly above it.
+ * ## What each clause is read from
  *
- * As a percentage it also says the thing a reader wants, which the arc could not. A
- * telecom plant is specified N+1 and this one is nearer N+4 — six modules at 4 kW
- * against a 5 kW tower — so `79% headroom` is four of the six gone before the fifth
- * is in trouble. A needle sitting low was merely low.
+ * - **Rectifiers** from `carrying`, because they only pass the tower's load and only
+ *   when they are the ones passing it.
+ * - **Solar units** from `solarKw`, because they convert whatever the roof makes
+ *   whoever is carrying.
+ * - **The bank** from the *sign* of `batteryKw`, never from arithmetic on the other
+ *   two — see the warning on that field.
  *
- * The badges beside it are what say whether the shelf is currently converting at all,
- * and the bays in the figure below read `0.0 kW` and `standby` when it is not.
+ * `Nothing served, shelf idle` only when no clause fired at all, which is a genuine
+ * outage rather than a quiet shelf.
  *
- * `0` in an outage rather than `null`: an unserved tower is genuinely drawing nothing,
- * so the headroom is genuinely total. The strip says `Not served` in words, which is
- * where that fact belongs.
+ * ## Why this replaced `cabinetDuty`
+ *
+ * The page used to carry a hero dial of the tower's load against the shelf's ceiling,
+ * then three badges where the dial had been, and now neither: the shelf itself is the
+ * page. `cabinetDuty` existed for that dial and then for a `79% headroom` badge, and
+ * both figures it was built from — the load and the capacity — are columns in the
+ * strip at the top of the page, so it went with them rather than staying as an export
+ * nothing called.
+ *
+ * This is the one thing those badges said that the strip cannot. A bus output of 5 kW
+ * does not say whether the rectifiers, the solar units or the bank is providing it,
+ * and that is the first question anybody opens a cabinet page with. It belongs on the
+ * shelf's caption rather than in a band of its own, because it is a fact *about the
+ * shelf* — the bays in the drawing under it agree with it to the kilowatt.
  */
-export const cabinetDuty = (cabinet: SubrackCabinet): number =>
-  cabinet.capacityKw > 0 && cabinet.loadKw !== null
-    ? Math.min(1, cabinet.loadKw / cabinet.capacityKw)
-    : 0;
+export const cabinetFlowLabel = (cabinet: SubrackCabinet): string => {
+  const clauses: Array<string> = [];
+
+  if (cabinet.carrying === 'RECTIFIERS') clauses.push('rectifiers carrying');
+  if (cabinet.solarKw > 0) clauses.push('solar units converting');
+
+  if (cabinet.batteryKw < 0) clauses.push('bank charging');
+  else if (cabinet.batteryKw > 0) clauses.push('bank carrying');
+
+  if (clauses.length === 0) return 'Nothing served, shelf idle';
+
+  // Every clause is written lower case and the sentence is capitalised once, at the
+  // front, whichever clause got there first. Capitalising them individually read as
+  // `Bank carrying` at night and `Solar units converting, bank carrying` by day —
+  // the same clause with two different capitals depending on what else was true.
+  const sentence = clauses.join(', ');
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+};

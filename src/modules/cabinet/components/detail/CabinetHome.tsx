@@ -1,19 +1,10 @@
-import {
-  BatteryChargingIcon,
-  SunMediumIcon,
-  ThermometerIcon,
-  UtilityPoleIcon,
-} from 'lucide-react';
-
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
-import {Badge} from '@/components/ui/badge';
 import {amount} from '@/lib/format';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
-import {cabinetDuty} from '../../types/cabinet.type';
 import type {SubrackCabinet} from '../../types/cabinet.type';
 import {SubrackShelf} from './SubrackShelf';
 
@@ -22,34 +13,38 @@ import {SubrackShelf} from './SubrackShelf';
  *
  * 1. **The strip** — what the shelf can pass, what the bus is delivering, how warm
  *    the box is, and the alarm counts.
- * 2. **The state** — which group is converting, the enclosure temperature, and how
- *    much headroom is left, as three badges.
- * 3. **The shelf** — the cabinet drawn front-on, bay by bay, with the selected bay
- *    beside it.
- * 4. **The details** — what the cabinet *is*, in the band all four pages share.
+ * 2. **The shelf** — the cabinet drawn front-on, bay by bay, with the selected bay
+ *    beside it. The centrepiece, and the reason the page exists.
+ * 3. **The details** — what the cabinet *is*, in the band all four pages share.
  *
- * ## Why the second band has no dial
+ * ## Three bands, and the middle one used to be two
  *
- * It had one — a hero `TickGauge` reading `Tower load against shelf capacity`, 5 kW
- * of 24 — and it was removed. Two reasons, and the second is the one that matters.
+ * There was a hero `TickGauge` between the strip and the shelf, reading `Tower load
+ * against shelf capacity` — 5 kW of 24. Then there were three badges where the dial
+ * had been: which group was carrying, the enclosure temperature, and `79% headroom`.
+ * Both are gone, and the shelf moved up into the space.
  *
- * **Every figure in it was already on the page.** The load is the strip's `Bus
- * output` column, the ceiling is its `Rectifier capacity` column, and the ratio is
- * the `79% headroom` badge. A dial earns its band when it puts a needle somewhere on
- * a scale a reader cannot infer; this one put a needle a fifth of the way round two
- * numbers printed an inch above it.
+ * **Almost everything they said was already in the strip an inch above.** The dial's
+ * load is the `Bus output` column and its ceiling is `Rectifier capacity`, so the
+ * needle sat a fifth of the way round two numbers already printed. The temperature
+ * badge repeated the `Enclosure` column outright. The headroom was the ratio of the
+ * strip's first two columns — genuinely useful phrased as a percentage, and still one
+ * division away from a reader who wants it.
  *
- * **And it was the weakest reading here.** A dial has to point at something, and what
- * this cabinet is passing is nothing for most of the day — the array carries by day
- * and the bank by night — so it was drawn against a hypothetical instead: what the
- * shelf *could* take if the sun went in. That is a genuinely useful question and a
- * badge answers it better than an arc, because an arc looks like a measurement of
- * now. `cabinetDuty` carries the rest of that argument.
+ * **The dial was also pointing at a hypothetical.** A dial has to point at something,
+ * and what this cabinet is passing is nothing for most of the day — the array carries
+ * by day and the bank by night — so it was drawn against *what the shelf could take
+ * if the sun went in*. An arc looks like a measurement of now, which that was not.
  *
- * The headroom itself is worth keeping in words. Six rectifiers at 4 kW against a
- * 5 kW tower is nearer N+4 than the N+1 a telecom plant is specified at: four of the
- * six can be gone before the fifth is in trouble. `79% headroom` says that; a needle
- * sitting low did not.
+ * **One thing they said had no other home**, and it is the first question anybody
+ * opens this page with: which of the three sources is actually feeding the tower. A
+ * bus output of 5 kW does not say. That clause now leads the shelf band's own
+ * caption, which is where it belonged — it is a fact about the shelf, and the bays
+ * drawn under it agree with it to the kilowatt. See `CABINET_CARRYING_LABEL`.
+ *
+ * What is left is a page whose middle is the cabinet itself, at the size a drawing
+ * needs to be read against the open door, rather than a dial and three chips in front
+ * of it.
  *
  * ## What is not here
  *
@@ -77,10 +72,6 @@ export const CabinetHome = ({cabinet}: {cabinet: SubrackCabinet}) => {
   const counts = countBySeverity(
     plantAlarmQueue(cabinet.siteId, role, 'SITE', handling).standing,
   );
-
-  const duty = cabinetDuty(cabinet);
-  const converting = cabinet.carrying === 'RECTIFIERS' || cabinet.carrying === 'SSUS';
-  const CarryingIcon = cabinet.carrying === 'SSUS' ? SunMediumIcon : UtilityPoleIcon;
 
   return (
     <div className="flex flex-col gap-3.5 px-4 pt-3 pb-24 md:pb-6">
@@ -115,60 +106,6 @@ export const CabinetHome = ({cabinet}: {cabinet: SubrackCabinet}) => {
         ]}
         counts={counts}
       />
-
-      {/* What is holding the tower up, how warm the box is, and how much room the
-          shelf has left. Three badges, where there used to be a dial above them —
-          see `Why the second band has no dial` above.
-
-          They stay because none of the three is redundant with the strip.
-          `Bank carrying | shelf on standby` is the only element on the page that says
-          which group is converting, and the bays in the figure below agree with it to
-          the kilowatt. */}
-      <section aria-label="What the shelf is carrying" className="flex justify-center pt-1 pb-5">
-        <div className="flex flex-wrap items-center justify-center gap-2 px-6">
-          {converting ? (
-            <Badge variant="secondary" className="whitespace-pre">
-              <CarryingIcon
-                className={cabinet.carrying === 'SSUS' ? 'text-solar' : 'text-teal'}
-                aria-hidden="true"
-              />
-              {cabinet.carrying === 'SSUS' ? 'Solar units carrying' : 'Rectifiers carrying'}
-              <span className="text-secondary"> | </span>
-              {amount(cabinet.loadKw ?? 0, 'kW')}
-            </Badge>
-          ) : (
-            // Two states, two sentences. A bank carrying is a solar hybrid doing
-            // exactly what it was bought for and happens every night here; an
-            // unserved tower is an outage. Both leave this cabinet converting
-            // nothing, and saying so in one neutral phrase would flatten the
-            // difference a reader most needs.
-            <Badge variant="secondary" className="whitespace-pre">
-              <BatteryChargingIcon
-                className={cabinet.carrying === 'BATTERY' ? 'text-battery' : 'text-tertiary'}
-                aria-hidden="true"
-              />
-              {cabinet.carrying === 'BATTERY'
-                ? 'Bank carrying | shelf on standby'
-                : 'Nothing served | shelf idle'}
-            </Badge>
-          )}
-
-          <Badge variant="secondary" className="whitespace-pre">
-            <ThermometerIcon className="text-tertiary" aria-hidden="true" />
-            {cabinet.tempC.toFixed(1)} °C
-          </Badge>
-
-          {/* The headroom in words, which is the whole of what the dial above this
-              used to be for and says it better. `79% headroom` against a shelf of
-              six 4 kW modules is four of the six gone before the fifth is in
-              trouble — a telecom plant is specified N+1 and this one is nearer
-              N+4. An arc could not have said that, and how many can be lost is the
-              question a plant engineer is actually asking. */}
-          <Badge variant="secondary">{Math.round((1 - duty) * 100)}% headroom</Badge>
-        </div>
-      </section>
-
-      <div className="border-t border-subtle" />
 
       <SubrackShelf cabinet={cabinet} />
 

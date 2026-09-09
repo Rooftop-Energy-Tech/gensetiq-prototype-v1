@@ -58,9 +58,24 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  * - **Blanks** are a dashed outline and nothing else. See `SubrackPanel`.
  */
 
-/** How tall a module bay is, and the shorter distribution row above them. */
-const BAY_HEIGHT = '3rem';
-const DISTRIBUTION_HEIGHT = '2.25rem';
+/**
+ * How tall a module bay is, and the shorter distribution row above them.
+ *
+ * Both grew by a quarter when the drawing became the page's centrepiece. The band of
+ * badges that used to sit between the strip and the shelf is gone, and the shelf moved
+ * up into the space rather than leaving it empty.
+ *
+ * At 3.75rem a bay has room for its name at `text-sm` over its figure at `text-xs`,
+ * which is what makes this read as a larger drawing rather than a stretched one — the
+ * cells did not merely get taller, the type in them got legible at the distance
+ * somebody holds a screen while looking into a cabinet.
+ *
+ * The distribution strip stays proportionally shorter. It is shorter on the metal, and
+ * giving three branches the same weight as six rectifiers would say something false
+ * about which of the two a reader came here for.
+ */
+const BAY_HEIGHT = '3.75rem';
+const DISTRIBUTION_HEIGHT = '2.75rem';
 
 /**
  * The row heights for one shelf.
@@ -88,7 +103,7 @@ const bayClassName = (
   selected: boolean,
 ): string => {
   const base =
-    'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-sm border px-1.5 text-center transition-colors';
+    'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-sm border px-2 text-center transition-colors';
 
   if (position.kind === 'BLANK') {
     return cn(base, 'border-dashed border-subtle');
@@ -155,7 +170,7 @@ const BayIcon = ({module}: {module: SubrackModule}) => {
   if (module.fault === 'ASSERTED') {
     return (
       <TriangleAlertIcon
-        className="size-3.5 shrink-0 text-severity-warning"
+        className="size-4 shrink-0 text-severity-warning"
         aria-hidden="true"
       />
     );
@@ -166,7 +181,7 @@ const BayIcon = ({module}: {module: SubrackModule}) => {
 
   return (
     <Icon
-      className={cn('size-3.5 shrink-0', module.outputKw > 0 ? lit : 'text-tertiary')}
+      className={cn('size-4 shrink-0', module.outputKw > 0 ? lit : 'text-tertiary')}
       aria-hidden="true"
     />
   );
@@ -198,14 +213,14 @@ export const SubrackFigure = ({
       : undefined;
 
   return (
-    <div className="flex w-full max-w-[36rem] flex-col gap-5">
+    <div className="flex w-full max-w-[44rem] flex-col gap-5">
       {CABINET_SHELVES.map((shelf) => (
         <figure key={shelf.key} className="m-0 flex flex-col gap-1.5">
           {/* The shelf's own frame, in the inset surface, so the bays read as being
               inside a box rather than as loose tiles on the page. */}
-          <div className="rounded-md border border-default bg-inset p-1.5">
+          <div className="rounded-md border border-default bg-inset p-2">
             <div
-              className="grid gap-1"
+              className="grid gap-1.5"
               style={{
                 gridTemplateColumns: `repeat(${SHELF_COLUMNS}, minmax(0, 1fr))`,
                 gridTemplateRows: rowTemplate(shelf),
@@ -239,7 +254,7 @@ export const SubrackFigure = ({
                     title={bayLabel(position, module)}
                     onClick={() => onSelect(position.key)}
                   >
-                    <span className="flex min-w-0 items-center gap-1 text-xs font-medium">
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
                       {module !== undefined && <BayIcon module={module} />}
                       <span className="min-w-0 truncate">{position.label}</span>
                     </span>

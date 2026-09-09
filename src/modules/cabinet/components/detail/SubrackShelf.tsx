@@ -6,6 +6,7 @@ import {plantAlarmsIn} from '@/modules/site/data/plantAlarms';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {CABINET_SHELVES, bayKey, shelfLayoutFits, shelfPositions} from '../../data/shelfLayout';
 import {reportedSlots, subrackModules} from '../../data/subrackModules';
+import {cabinetFlowLabel} from '../../types/cabinet.type';
 import type {SubrackCabinet} from '../../types/cabinet.type';
 import type {SubrackModule} from '../../types/subrackModule.type';
 import {SubrackFigure} from './SubrackFigure';
@@ -89,26 +90,42 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
     <section aria-label="Subrack" className="flex flex-col gap-3 py-6">
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-medium text-primary">The shelf</h2>
-        {/* The three facts the drawing cannot print in its bays, in the order they
-            matter. The make-up first, because it is what the page is about; then how
-            much of it the unit reports on individually, which is the shelf's real
-            headline — four parts of eighteen, with every rectifier among the
-            fourteen that are silent. That ratio is the honest version of a drawing
-            in which most bays look fine because nothing is looking at them. */}
+        {/* What the drawing cannot print in its bays, live fact first.
+
+            **Which group is carrying** leads, and it is the one clause here that
+            changes minute to minute. It used to be a badge in a band of its own above
+            this one, along with the enclosure temperature and a headroom figure; those
+            two are columns in the strip at the top of the page and went, and this one
+            came down here because it has no other home and because it is a fact about
+            the shelf — the bays below agree with it to the kilowatt. In
+            `text-secondary` against the rest's tertiary, so the live clause and the
+            specification do not read as one sentence.
+
+            Then the make-up, because it is what the page is about. Then how much of it
+            the unit reports on individually, which is the shelf's real headline — four
+            parts of eighteen, with every rectifier among the fourteen that are silent.
+            That ratio is the honest version of a drawing in which most bays look fine
+            because nothing is looking at them. */}
         <p className="text-xs text-tertiary">
-          {`${cabinet.rectifiers} rectifiers of ${cabinet.rectifierKw} kW · ${cabinet.ssus} solar units · ${reported} of ${parts} parts reported individually`}
+          <span className="text-secondary">{cabinetFlowLabel(cabinet)}</span>
+          {` · ${cabinet.rectifiers} rectifiers of ${cabinet.rectifierKw} kW · ${cabinet.ssus} solar units · ${reported} of ${parts} parts reported individually`}
         </p>
       </div>
 
-      {/* 36rem is where `Rectifier 1` and its figure stop wrapping in a
-          three-of-twelve bay; the panel takes the rest and never goes under 20rem,
-          which is `Rows published ── 58 alarm · 22 telemetry`. One column until
-          `xl`, because the two side by side inside the app's rail and the section's
-          leaves the drawing about 300px, and a shelf read through a letterbox is the
-          grid it replaced with extra steps. */}
+      {/* 44rem for the drawing, up from 36rem when it became the centrepiece, and it
+          is what the design width has to spare: 1440px less the app's rail and the
+          section's 334px and the band's own padding leaves 1074px, so 44rem of drawing
+          plus the gap still leaves the panel 346px — comfortably over the 20rem that
+          `Rows published ── 58 alarm · 22 telemetry` needs.
+
+          `minmax(0, …)` rather than a fixed track, so on a narrower window the drawing
+          gives the panel its minimum first instead of pushing the band sideways. One
+          column until `xl`, because the two side by side inside those same rails leaves
+          the drawing about 300px, and a shelf read through a letterbox is the grid it
+          replaced with extra steps. */}
       <div
         className="flex flex-col gap-4 xl:grid xl:items-start xl:gap-6"
-        style={{gridTemplateColumns: 'minmax(0, 36rem) minmax(20rem, 1fr)'}}
+        style={{gridTemplateColumns: 'minmax(0, 44rem) minmax(20rem, 1fr)'}}
       >
         <SubrackFigure modules={modules} selected={selected} onSelect={setPicked} />
 
