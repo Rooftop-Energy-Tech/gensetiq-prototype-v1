@@ -278,7 +278,7 @@ export const SiteTrendChart = ({
                 .map(({index, value}) => `${x(index)},${y(value)}`),
             ].join(' ')}
             className={cn('fill-current', trend.band.token)}
-            opacity={0.16}
+            opacity={0.25}
           />
         )}
 
