@@ -11,11 +11,17 @@ import type {Shelf, ShelfPosition} from '../types/shelfPosition.type';
  *
  * ```
  *  row 1   200 A ····· 200 A ····· 200 A          DCDU-600AN1
- *  row 2   SSU 1   SSU 2   [SMU]   [GIM]
+ *  row 2   SSU 1   SSU 2   [SMU]   [GIM]     ┐ one row of shelf,
+ *          └───────┴───────┴───┘   [UIM]     ┘ two rows of grid
  *  row 3   ······  Rect 1  Rect 2  Rect 3
  *  row 4   AC in   Rect 4  Rect 5  Rect 6
  *  row 5   ······  SSU 3   SSU 4   M48500
  * ```
+ *
+ * The top-right corner holds **two** modules, the GIM above a UIM, in one bay's worth
+ * of height. That is the only place the drawing needs a row finer than a bay, and it
+ * is why row heights are an explicit list on the `Shelf` rather than a count times a
+ * constant — see `Shelf.rowHeights`.
  *
  * Nothing here is computed and nothing should be. It is a drawing of one shelf, and
  * that is exactly why it is worth having: the app already had a wrapping grid of ten
@@ -66,6 +72,34 @@ import type {Shelf, ShelfPosition} from '../types/shelfPosition.type';
 export const DRAWN_RECTIFIERS = 6;
 export const DRAWN_SSUS = 4;
 
+/**
+ * How tall each kind of row is, and how the two half-rows add up to a whole one.
+ *
+ * A bay is `3.75rem`, up a quarter from the 3rem it was when the drawing sat under a
+ * band of badges rather than being the page. At that height a bay holds its name at
+ * `text-sm` over its figure at `text-xs`, which is what makes this read as a larger
+ * drawing rather than a stretched one — the cells did not merely get taller, the type
+ * in them got legible at the distance somebody holds a screen while looking into a
+ * cabinet.
+ *
+ * The distribution strip stays proportionally shorter. It is shorter on the metal, and
+ * giving three branches the same weight as six rectifiers would say something false
+ * about which of the two a reader came here for.
+ *
+ * `HALF_BAY` is the arithmetic that matters. The GIM sits above a UIM in one bay's
+ * worth of space, so that row is two rows in the grid — and two half-bays plus the
+ * gap between them must come to exactly one bay, or the SSUs and the SMU spanning
+ * both would stand taller than the rectifiers below them and the shelf would look
+ * built out of two different drawings.
+ */
+const BAY = 3.75;
+const DISTRIBUTION = 2.75;
+/** The grid's own `gap-1.5`, which sits between the two halves and must be paid for. */
+const ROW_GAP = 0.375;
+const HALF_BAY = (BAY - ROW_GAP) / 2;
+
+const rem = (value: number): string => `${value}rem`;
+
 /** Is this elevation a drawing of *this* cabinet — see the note above. */
 export const shelfLayoutFits = (cabinet: SubrackCabinet): boolean =>
   cabinet.shelf === 'READ' &&
@@ -94,13 +128,32 @@ const bay = (
   label: string,
   col: number,
   row: number,
-): ShelfPosition => ({key: bayKey(kind, slot), kind, label, slot, col, row, span: 3});
+  rowSpan?: number,
+): ShelfPosition => ({
+  key: bayKey(kind, slot),
+  kind,
+  label,
+  slot,
+  col,
+  row,
+  span: 3,
+  ...(rowSpan === undefined ? {} : {rowSpan}),
+});
 
 const SUBRACK: Shelf = {
   key: 'subrack',
   name: 'ICC330-H1-C8',
   caption: 'The subrack, front on — DCDU-600AN1 distribution along the top',
-  rows: 5,
+  // Six rows for five rows of shelf: the second is split in half so the GIM can sit
+  // above the UIM, and everything else on that row spans both halves.
+  rowHeights: [
+    rem(DISTRIBUTION),
+    rem(HALF_BAY),
+    rem(HALF_BAY),
+    rem(BAY),
+    rem(BAY),
+    rem(BAY),
+  ],
   positions: [
     // The DCDU's three branches. Each cell prints its rating rather than a name:
     // three cells reading `DCDU-600AN1` would be one part drawn three times, and the
@@ -109,25 +162,28 @@ const SUBRACK: Shelf = {
     {key: 'dcdu-2', kind: 'DISTRIBUTION', label: '200 A', slot: 2, col: 5, row: 1, span: 4},
     {key: 'dcdu-3', kind: 'DISTRIBUTION', label: '200 A', slot: 3, col: 9, row: 1, span: 4},
 
-    bay('SSU', 1, 'SSU 1', 1, 2),
-    bay('SSU', 2, 'SSU 2', 4, 2),
-    {key: 'smu', kind: 'SMU', label: 'SMU', col: 7, row: 2, span: 3},
+    // Rows 2 and 3 are the two halves of one row of shelf. These three span both.
+    bay('SSU', 1, 'SSU 1', 1, 2, 2),
+    bay('SSU', 2, 'SSU 2', 4, 2, 2),
+    {key: 'smu', kind: 'SMU', label: 'SMU', col: 7, row: 2, span: 3, rowSpan: 2},
+    // And these two are stacked in the corner, half a bay each.
     {key: 'gim', kind: 'GIM', label: 'GIM', col: 10, row: 2, span: 3},
+    {key: 'uim', kind: 'UIM', label: 'UIM', col: 10, row: 3, span: 3},
 
-    {key: 'blank-upper', kind: 'BLANK', label: '', col: 1, row: 3, span: 3},
-    bay('RECTIFIER', 1, 'Rectifier 1', 4, 3),
-    bay('RECTIFIER', 2, 'Rectifier 2', 7, 3),
-    bay('RECTIFIER', 3, 'Rectifier 3', 10, 3),
+    {key: 'blank-upper', kind: 'BLANK', label: '', col: 1, row: 4, span: 3},
+    bay('RECTIFIER', 1, 'Rectifier 1', 4, 4),
+    bay('RECTIFIER', 2, 'Rectifier 2', 7, 4),
+    bay('RECTIFIER', 3, 'Rectifier 3', 10, 4),
 
-    {key: 'ac-input', kind: 'AC_INPUT', label: 'AC input', col: 1, row: 4, span: 3},
-    bay('RECTIFIER', 4, 'Rectifier 4', 4, 4),
-    bay('RECTIFIER', 5, 'Rectifier 5', 7, 4),
-    bay('RECTIFIER', 6, 'Rectifier 6', 10, 4),
+    {key: 'ac-input', kind: 'AC_INPUT', label: 'AC input', col: 1, row: 5, span: 3},
+    bay('RECTIFIER', 4, 'Rectifier 4', 4, 5),
+    bay('RECTIFIER', 5, 'Rectifier 5', 7, 5),
+    bay('RECTIFIER', 6, 'Rectifier 6', 10, 5),
 
-    {key: 'blank-lower', kind: 'BLANK', label: '', col: 1, row: 5, span: 3},
-    bay('SSU', 3, 'SSU 3', 4, 5),
-    bay('SSU', 4, 'SSU 4', 7, 5),
-    {key: 'm48500', kind: 'CONVERTER', label: 'M48500', col: 10, row: 5, span: 3},
+    {key: 'blank-lower', kind: 'BLANK', label: '', col: 1, row: 6, span: 3},
+    bay('SSU', 3, 'SSU 3', 4, 6),
+    bay('SSU', 4, 'SSU 4', 7, 6),
+    {key: 'm48500', kind: 'CONVERTER', label: 'M48500', col: 10, row: 6, span: 3},
   ],
 };
 
@@ -139,19 +195,36 @@ const SUBRACK: Shelf = {
  * no rating, no reading, and not one register in the poll table addresses it. Its
  * panel says that rather than implying an unmonitored part is a healthy one.
  *
- * The left cell is the connector and breaker cluster on the photograph. It carries no
- * label because naming it would be a guess, and an unlabelled bay in the right place
- * is still the difference between this drawing lining up with the metal and not.
+ * **Three equal inverter slots and nothing else**, which is what the shelf is. One is
+ * fitted.
+ *
+ * Drawing them evenly and edge to edge is the whole point. A fitted inverter beside
+ * one wide blank said only that something was there and something else was not; three
+ * equal slots say *the shelf is a third full* at a glance, which is the fact worth
+ * having — two more inverters fit here with no change to the rack, and nothing else in
+ * the app states that.
+ *
+ * The connector clusters at each edge of the photograph are not drawn. They were, as
+ * unlabelled blanks, and that made five bays out of a shelf with three: a reader
+ * counting slots in the drawing would have counted wrong, which is worse than losing
+ * two pieces of trim nobody has named. On the subrack the blanks earn their place by
+ * holding labelled bays in the right column; here there is nothing either side of them
+ * to hold.
  */
 const INVERTER_SHELF: Shelf = {
   key: 'inverter',
   name: 'ETP23006',
-  caption: 'The inverter shelf below it — nothing here is polled',
-  rows: 1,
+  caption: 'The inverter shelf below it — one slot of three fitted, nothing here is polled',
+  rowHeights: [rem(BAY)],
+  // Three slots of four columns, filling the shelf edge to edge. It went through two
+  // wrong shapes first: one inverter beside a single wide blank, which said nothing
+  // about how many slots there were, and then three slots pinched between a connector
+  // block on each edge, which drew five bays for a shelf that has three. The shelf is
+  // three slots, so the drawing is three slots.
   positions: [
-    {key: 'etp-gear', kind: 'BLANK', label: '', col: 1, row: 1, span: 2},
-    {key: 'inverter', kind: 'INVERTER', label: 'Inverter', col: 3, row: 1, span: 4},
-    {key: 'etp-spare', kind: 'BLANK', label: '', col: 7, row: 1, span: 6},
+    {key: 'inverter-1', kind: 'INVERTER', label: 'Inverter', slot: 1, fitted: true, col: 1, row: 1, span: 4},
+    {key: 'inverter-2', kind: 'INVERTER', label: 'Slot 2', slot: 2, fitted: false, col: 5, row: 1, span: 4},
+    {key: 'inverter-3', kind: 'INVERTER', label: 'Slot 3', slot: 3, fitted: false, col: 9, row: 1, span: 4},
   ],
 };
 

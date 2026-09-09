@@ -28,19 +28,21 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  * `BankAlarms` borrows the genset module's alarm tables rather than growing a second
  * set that could disagree.
  *
- * ## The eight bays with nothing behind them are the reason this exists
+ * ## The nine bays with nothing behind them are the reason this exists
  *
- * Ten of the eighteen named parts are modules with readings, and this panel prints
- * them the way the cards it replaced did. The other eight are the interesting part:
- * the three distribution branches, the SMU, the GIM, the M48500, the AC input and the
- * inverter. Each of those says, in words, that nothing is polled from it — except the
- * four that do carry cross-referenced alarm rows, the three distribution branches and
- * the AC input, which name their rows and say whether any is standing.
+ * Ten of the nineteen named parts are modules with readings, and this panel prints
+ * them the way the cards it replaced did. The other nine are the interesting part: the
+ * three distribution branches, the SMU, the GIM, the UIM, the M48500, the AC input and
+ * the fitted inverter. Each of those says, in words, that nothing is polled from it —
+ * except the four that do carry cross-referenced alarm rows, the three distribution
+ * branches and the AC input, which name their rows and say whether any is standing.
+ * The two empty inverter slots get a panel of their own saying what could go in
+ * them.
  *
  * That is a real answer and not a shrug. The whole alarm model in this app is built
  * on the argument that a quiet row means one of three things — nothing wrong, nothing
  * watching, or nothing fitted — and that presenting the second as the first is the
- * one failure mode worth designing against. Eight parts where a person would
+ * one failure mode worth designing against. Nine parts where a person would
  * reasonably expect a reading and there is none is exactly that situation, drawn to
  * scale, and a click is the cheapest way to say which of the three each one is.
  *
@@ -387,12 +389,29 @@ export const SubrackPanel = ({
       );
     }
 
+    /* The two stacked modules in the top-right corner. Separate bays because they are
+       separate modules, and separate panels because saying "one of the two boards up
+       there" would be the drawing admitting it had not looked. Neither acronym is
+       expanded: they are what the shelf is silkscreened, nobody has confirmed what
+       either stands for, and a plausible expansion under a confident heading is the
+       kind of invention this whole page is written against. */
     case 'GIM':
       return (
         <InertBay label="Interface module" identity="GIM">
-          An interface module in the upper right of the subrack. Not one register in
-          the poll table addresses this bay, and the app does not model what it does —
-          so a quiet drawing here means nobody is looking, not that it is well.
+          The upper of the two modules in the top-right corner, above the UIM. Not one
+          register in the poll table addresses this bay, and the app does not model
+          what it does — so a quiet drawing here means nobody is looking, not that it
+          is well.
+        </InertBay>
+      );
+
+    case 'UIM':
+      return (
+        <InertBay label="Interface module" identity="UIM">
+          Directly under the GIM, sharing the same bay's height. Nothing in the poll
+          table addresses it either. It is drawn as its own half rather than folded
+          into the GIM above it because it is a separate module on a separate handle —
+          a technician sent to swap one must not be looking at a cell that names both.
         </InertBay>
       );
 
@@ -405,14 +424,35 @@ export const SubrackPanel = ({
         </InertBay>
       );
 
-    case 'INVERTER':
+    case 'INVERTER': {
+      /* An empty slot says so, and says which of the three it is.
+         This is the one absence in the drawing worth a panel of its own. Every other
+         gap is either a part that reports nothing or a blank nobody has identified;
+         this is a known slot for a known kind of module with nothing in it, so the
+         useful fact is capacity — the shelf takes three inverters and this cabinet
+         has one. Nothing else in the app says that. */
+      if (position.fitted === false) {
+        return (
+          <InertBay
+            label="Inverter slot"
+            identity={`${position.label} of 3 · empty`}
+          >
+            Nothing is fitted in this slot. The ETP23006 takes three inverters and this
+            cabinet has one, in the slot to the left — so the shelf has room for two
+            more without any change to the rack.
+          </InertBay>
+        );
+      }
+
       return (
-        <InertBay label="Inverter" identity="ETP23006">
-          The inverter on the 1U shelf below the subrack. It has no rating, no reading
-          and no alarm row anywhere in this app — it is drawn because it is in the rack
-          and a reader at the open door will see it.
+        <InertBay label="Inverter" identity={`ETP23006 · slot ${position.slot} of 3`}>
+          The inverter on the 1U shelf below the subrack, and the only one of the
+          shelf's three slots that is fitted. It has no rating, no reading and no alarm
+          row anywhere in this app — it is drawn because it is in the rack and a reader
+          at the open door will see it.
         </InertBay>
       );
+    }
 
     /* A blank is never selected, so there is nothing to show for one.
        It is drawn and left inert on purpose. Two of the three sit where the

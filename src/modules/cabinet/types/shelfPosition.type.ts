@@ -6,16 +6,17 @@
  *
  * `SubrackModule` is *a thing the app has readings for* — ten of them, six
  * rectifiers and four SSUs. A **position** is a rectangle in the drawing, and there
- * are twenty-two across the two shelves: the ten modules, plus the three
- * distribution branches along the top, the SMU's own display, the GIM, the M48500,
- * the AC input, the inverter on the shelf below, and four blanking plates. Most of
- * them have no reading at all.
+ * are twenty-three across the two shelves: the ten modules, plus the three
+ * distribution branches along the top, the SMU's own display, the GIM and the UIM
+ * stacked above and below each other, the M48500, the AC input, the ETP23006's three
+ * inverter slots of which one is fitted, and two blanking plates. Most of them have
+ * no reading at all.
  *
  * That gap is the whole reason this type exists rather than the figure being drawn
  * straight from `subrackModules`. A drawing of ten modules floating in space is a
  * grid with extra steps; a drawing a reader can hold up against the open cabinet has
  * to include the parts the gateway is silent about, precisely *because* it is silent
- * about them. Eight of the eighteen **named parts** answer "what is this?" with
+ * about them. Nine of the nineteen **named parts** answer "what is this?" with
  * "nothing here is polled", and a reader who clicks one learns something true that no
  * other screen in the app says.
  *
@@ -45,10 +46,14 @@
  * - `SMU` — the monitoring unit's own display and ports. Every figure on the cabinet
  *   page arrives through this position, which makes it the one inert bay a reader
  *   should probably click.
- * - `GIM` — the interface module on the upper right.
+ * - `GIM` — the interface module in the upper right corner.
+ * - `UIM` — the module directly under it. The two share one bay's height, half each,
+ *   and are separate positions because they are separate modules a technician pulls
+ *   separately — one cell with two words in it would draw them as one board.
  * - `CONVERTER` — the `M48500` in the bottom right bay.
  * - `AC_INPUT` — where the incomer lands, on the left of the third row.
- * - `INVERTER` — the `ETP23006`'s inverter, on the shelf below the subrack.
+ * - `INVERTER` — one of the `ETP23006`'s three inverter slots, on the shelf below the
+ *   subrack. This cabinet fits one of the three; `fitted` says which.
  * - `BLANK` — a bay with nothing in it.
  */
 export const SHELF_POSITION_KINDS = [
@@ -57,6 +62,7 @@ export const SHELF_POSITION_KINDS = [
   'DISTRIBUTION',
   'SMU',
   'GIM',
+  'UIM',
   'CONVERTER',
   'AC_INPUT',
   'INVERTER',
@@ -94,12 +100,49 @@ export type ShelfPosition = {
    * a cell captioned `Blank` is a label claiming to be a part.
    */
   label: string;
-  /** 1-based position within its own kind, for the two kinds that have readings. */
+  /**
+   * 1-based position within its own kind — the two kinds that have readings, and the
+   * inverter slots, which are counted so an empty one can say which it is.
+   */
   slot?: number;
+  /**
+   * Whether anything is actually in this slot.
+   *
+   * `undefined` on every position where the question does not arise, which is most of
+   * them: a distribution branch, the SMU's display and the AC input are not slots that
+   * could be empty, they are parts of the shelf. It is `true` or `false` only where a
+   * bay is one of several identical slots and some are unpopulated — the ETP23006's
+   * three inverter slots, of which this cabinet fits one.
+   *
+   * ## Why an empty slot is drawn as a slot and not as a blank
+   *
+   * `BLANK` means *drawn, inert, and nothing claimed* — it exists where the photograph
+   * shows hardware nobody has named, and saying "empty bay" there would be a confident
+   * claim about the one thing that cannot be identified. An unpopulated inverter slot
+   * is the opposite case: it is known to be a slot, known to be for an inverter, and
+   * known to be empty. That is worth drawing, because *two more inverters could go in
+   * this shelf* is a real fact about the site and nothing else in the app says it.
+   *
+   * It does not count as a part. `SubrackShelf`'s caption counts named parts against
+   * the number the unit reports on individually, and a space where a part could go is
+   * not a part — counting it would inflate the denominator with absences.
+   */
+  fitted?: boolean;
   /** 1-based grid column and row, and how many columns the cell spans. */
   col: number;
   row: number;
   span: number;
+  /**
+   * How many rows the cell spans. `undefined` is one, which is almost every bay.
+   *
+   * It exists because one bay of the shelf is **two modules stacked** — the GIM sits
+   * above a UIM in the top-right corner — so that row of the drawing is two half-rows
+   * and everything else in it spans both. Half a bay is not a size this drawing
+   * invents for effect: it is what the photograph shows, and the two are separate
+   * modules a technician pulls separately, so they cannot be one cell with two words
+   * in it.
+   */
+  rowSpan?: number;
 };
 
 /**
@@ -115,8 +158,18 @@ export type Shelf = {
   name: string;
   /** The line under the name, saying what the reader is looking at. */
   caption: string;
-  /** Grid rows, top to bottom. Columns are always `SHELF_COLUMNS`. */
-  rows: number;
+  /**
+   * Every row's height, top to bottom, as a CSS length. Columns are always
+   * `SHELF_COLUMNS` and are always equal; rows are not.
+   *
+   * Written out rather than derived from a row count and a constant, which is what it
+   * was. The rows of this drawing are genuinely different heights — the distribution
+   * strip is shorter than a bay because it is shorter on the metal, and the row
+   * holding the GIM over the UIM is two half-bays — so a count and a multiplier could
+   * not describe it without the figure re-deriving which rows were special. An
+   * explicit list is the geometry, and the geometry is what this file is.
+   */
+  rowHeights: ReadonlyArray<string>;
   positions: ReadonlyArray<ShelfPosition>;
 };
 

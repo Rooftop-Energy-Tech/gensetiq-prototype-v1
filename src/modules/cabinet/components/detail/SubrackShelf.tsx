@@ -74,14 +74,19 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
   /**
    * How many named parts the drawing has, which is the denominator the caption needs.
    *
-   * Blanking plates are excluded. Twenty-two positions are drawn and four of them are
-   * blanks, so "four of twenty-two" would be counting empty metal against reported
-   * hardware — and it would understate the gap it exists to state. Eighteen parts,
-   * four of them reported on individually, is the true and worse number.
+   * Two kinds of position are excluded and for the same reason: they are not parts.
+   * **Blanking plates**, which are metal nobody has identified, and **empty slots** —
+   * two of the ETP23006's three inverter bays. Twenty-three positions are drawn, two
+   * are blanks and two are empty slots, so nineteen are parts. Counting the other four
+   * would put absences in a denominator that exists to say how much of the real
+   * hardware anybody is watching, and it would understate the gap rather than state
+   * it.
    */
   const parts = CABINET_SHELVES.reduce(
     (total, shelf) =>
-      total + shelf.positions.filter((bay) => bay.kind !== 'BLANK').length,
+      total +
+      shelf.positions.filter((bay) => bay.kind !== 'BLANK' && bay.fitted !== false)
+        .length,
     0,
   );
   const reported = reportedSlots(modules);
@@ -103,7 +108,7 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
 
             Then the make-up, because it is what the page is about. Then how much of it
             the unit reports on individually, which is the shelf's real headline — four
-            parts of eighteen, with every rectifier among the fourteen that are silent.
+            parts of nineteen, with every rectifier among the fifteen that are silent.
             That ratio is the honest version of a drawing in which most bays look fine
             because nothing is looking at them. */}
         <p className="text-xs text-tertiary">

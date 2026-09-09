@@ -3,7 +3,7 @@ import {SunMediumIcon, TriangleAlertIcon, UtilityPoleIcon} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {CABINET_SHELVES} from '../../data/shelfLayout';
 import {SHELF_COLUMNS, isModulePosition} from '../../types/shelfPosition.type';
-import type {Shelf, ShelfPosition} from '../../types/shelfPosition.type';
+import type {ShelfPosition} from '../../types/shelfPosition.type';
 import type {SubrackModule} from '../../types/subrackModule.type';
 
 /**
@@ -26,9 +26,9 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  * What it costs is the grid's one real advantage: ten cards printed forty figures at
  * once and this prints two per bay, with the rest a click away. The compensation is
  * that the two it keeps are the two that matter — what the bay is delivering, and
- * whether it is faulted — and that the drawing shows twelve more positions than the
- * grid could show at all: eight named parts the app has no reading for, and four
- * blanking plates that hold the rest in the right place.
+ * whether it is faulted — and that the drawing shows thirteen more positions than the
+ * grid could show at all: nine named parts the app has no reading for, two empty
+ * inverter slots, and two blanking plates that hold the rest in the right column.
  *
  * ## Why HTML and not SVG
  *
@@ -55,46 +55,11 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  *   rack and the battery's modules use.
  * - **Inert bays** are tertiary text on the element background: present, named, and
  *   visibly not reporting anything.
+ * - **Empty slots** are dashed and unfilled, but keep their label and stay
+ *   selectable: two of the ETP23006's three inverter slots are unpopulated, and a
+ *   shelf a third full should look a third full.
  * - **Blanks** are a dashed outline and nothing else. See `SubrackPanel`.
  */
-
-/**
- * How tall a module bay is, and the shorter distribution row above them.
- *
- * Both grew by a quarter when the drawing became the page's centrepiece. The band of
- * badges that used to sit between the strip and the shelf is gone, and the shelf moved
- * up into the space rather than leaving it empty.
- *
- * At 3.75rem a bay has room for its name at `text-sm` over its figure at `text-xs`,
- * which is what makes this read as a larger drawing rather than a stretched one — the
- * cells did not merely get taller, the type in them got legible at the distance
- * somebody holds a screen while looking into a cabinet.
- *
- * The distribution strip stays proportionally shorter. It is shorter on the metal, and
- * giving three branches the same weight as six rectifiers would say something false
- * about which of the two a reader came here for.
- */
-const BAY_HEIGHT = '3.75rem';
-const DISTRIBUTION_HEIGHT = '2.75rem';
-
-/**
- * The row heights for one shelf.
- *
- * Read off the positions rather than declared on the `Shelf`, so a drawing cannot end
- * up with a row template that disagrees with what is in its rows. The distribution
- * strip is shorter than a bay because it is on the metal — and because giving the
- * three branches the same weight as six rectifiers would say something false about
- * which of the two a reader came here for.
- */
-const rowTemplate = (shelf: Shelf): string => {
-  const shortTop = shelf.positions.some(
-    (position) => position.row === 1 && position.kind === 'DISTRIBUTION',
-  );
-
-  return shortTop
-    ? `${DISTRIBUTION_HEIGHT} repeat(${shelf.rows - 1}, ${BAY_HEIGHT})`
-    : `repeat(${shelf.rows}, ${BAY_HEIGHT})`;
-};
 
 /** How a bay is filled, edged and coloured — the argument is in the doc above. */
 const bayClassName = (
@@ -110,6 +75,13 @@ const bayClassName = (
   }
 
   const ring = selected ? 'ring-2 ring-outline' : 'hover:ring-1 hover:ring-strong';
+
+  // An empty slot: dashed like a blank, because it is a space — but on the element
+  // background and selectable, because unlike a blank it is a *known* space, for a
+  // known kind of thing, and clicking it says which slot of how many.
+  if (position.fitted === false) {
+    return cn(base, 'cursor-pointer border-dashed border-subtle text-tertiary', ring);
+  }
 
   if (module === undefined) {
     return cn(base, 'border-subtle bg-element text-tertiary cursor-pointer', ring);
@@ -144,6 +116,10 @@ const bayClassName = (
  * rectifiers are on standby behind a generating array.
  */
 const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): string => {
+  if (position.fitted === false) {
+    return `${position.label}: empty, no inverter fitted`;
+  }
+
   if (module === undefined) return position.label === '' ? 'Empty bay' : position.label;
 
   const state =
@@ -223,7 +199,7 @@ export const SubrackFigure = ({
               className="grid gap-1.5"
               style={{
                 gridTemplateColumns: `repeat(${SHELF_COLUMNS}, minmax(0, 1fr))`,
-                gridTemplateRows: rowTemplate(shelf),
+                gridTemplateRows: shelf.rowHeights.join(' '),
               }}
             >
               {shelf.positions.map((position) => {
@@ -231,7 +207,9 @@ export const SubrackFigure = ({
                 const isSelected = position.key === selected;
                 const style = {
                   gridColumn: `${position.col} / span ${position.span}`,
-                  gridRow: position.row,
+                  // `rowSpan` is one unless the bay shares its row — the GIM and the
+                  // UIM each take half of one, so everything beside them spans both.
+                  gridRow: `${position.row} / span ${position.rowSpan ?? 1}`,
                 };
                 const className = bayClassName(position, module, isSelected);
 
