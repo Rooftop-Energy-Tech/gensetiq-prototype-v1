@@ -846,7 +846,7 @@ const periodTrend = (
   // `SiteTrend.bands` and `.mix`. Each bar divides at the walk's fractions,
   // scaled to the bar's own figure so the segments close on it exactly and the
   // table's totals match the bars'.
-  const banded = ((): Pick<SiteTrend, 'bands' | 'mix' | 'mixHeading' | 'paired'> => {
+  const banded = ((): Pick<SiteTrend, 'bands' | 'mix' | 'mixHeading' | 'paired' | 'reference'> => {
     if (metric === 'SOLAR') {
       const from: Array<number | null> = [];
       const to: Array<number | null> = [];
@@ -933,6 +933,18 @@ const periodTrend = (
           to: gensetTo,
           value: KWH(gensetKwh),
         });
+      // Where each bucket *started* — capacity times the state of charge at its
+      // first instant, in the same kilowatt-hours the flows are in. It is the
+      // figure that stops a reader deducting discharge from charge and calling
+      // the difference "what's left": what's left is stated, on its own line.
+      const capacityKwh = hybridPlant(seed, role).batteryKwh;
+      const stored = spine.map((bucket) =>
+        bucket.from > now
+          ? null
+          : Math.round(capacityKwh * hybridState(seed, role, bucket.from).soc),
+      );
+      const storedDrawn = stored.filter((value): value is number => value !== null);
+
       return {
         bands,
         mix: chargeMix(solarKwh, gensetKwh, hasSolar(role), ratedKw > 0),
@@ -943,6 +955,16 @@ const periodTrend = (
           values: discharge,
           value: KWH(dischargeKwh),
         },
+        reference:
+          storedDrawn.length === 0
+            ? undefined
+            : {
+                label: daily ? 'Stored at day start' : 'Stored at month start',
+                values: stored,
+                value: Math.round(
+                  storedDrawn.reduce((total, value) => total + value, 0) / storedDrawn.length,
+                ),
+              },
       };
     }
 
@@ -957,7 +979,7 @@ const periodTrend = (
     metric,
     period,
     points,
-    reference,
+    reference: reference ?? banded.reference,
     bands: banded.bands,
     mix: banded.mix,
     mixHeading: banded.mixHeading,
