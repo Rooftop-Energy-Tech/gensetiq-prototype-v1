@@ -985,16 +985,16 @@ const periodTrend = (
     mixHeading: banded.mixHeading,
     paired: banded.paired,
     shape: 'bars',
-    unit: metric === 'GENSET' ? 'h' : 'kWh',
+    unit: metric === 'GENSET' ? 'L' : 'kWh',
     caption:
       metric === 'BATTERY'
         ? `Battery charge / discharge per ${grain}${extent}`
         : metric === 'GENSET'
-          ? `Hours run per ${grain}${extent}`
+          ? `Fuel burned per ${grain}${extent}`
           : `Energy per ${grain}${extent}`,
     total:
       metric === 'GENSET'
-        ? {label: 'Total', value: hoursLabel(sum)}
+        ? {label: 'Total', value: `${NUMBER.format(Math.round(sum))} L`}
         : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
   };
 };
@@ -1045,7 +1045,17 @@ const bucketValue = (
     case 'SOLAR':
       return solar?.actualKwh ?? 0;
     case 'GENSET':
-      return gensetHoursIn(gensetIds, window.from, window.to, now);
+      // Fuel rather than hours: the question a month of genset buckets answers
+      // is what the running *cost*, and the run log already prices every run
+      // through the one SFC curve the tank chart and the reports use. Summed
+      // unrounded across the sets, rounded once here — see `runTotalsIn`.
+      return Math.round(
+        gensetIds.reduce(
+          (litres, gensetId) =>
+            litres + runTotalsIn(gensetId, window.from, window.to, now).fuelLitres,
+          0,
+        ),
+      );
     case 'BATTERY': {
       // Sampled every three hours across the bucket and averaged. A single reading
       // at midnight would report the trough of the cycle as the day's level.
