@@ -51,41 +51,50 @@ import type {Shelf, ShelfPosition} from '../types/shelfPosition.type';
  * alarm rows keep the acronym they are addressed by, which is why the panel's identity
  * line still prints `SSU 3` — that is the string the two screens join on.
  *
- * ## Why the layout is a constant and every cabinet is still checked against it
+ * ## Why the geometry is traced and the fit-out is not
  *
- * `shelfLayoutFits` asks two questions, and the second is the important one.
+ * The drawing is one photograph of one cabinet, and it is now drawn at **all four**
+ * solar hybrids. Two things make that honest, and they are different claims:
  *
- * **Were these modules counted, or sized?** `shelf.ts` gives a cabinet to every solar
- * hybrid, sizing the shelf from the bank's recharge duty where no unit is fitted, and
- * that model is trusted precisely because it reproduces SBH-1336's own six-and-four.
- * A sized shelf is a good enough answer to *how many rectifiers* and no answer at all
- * to *what does the front of this box look like* — nobody has opened it. This drawing
- * is traced off a photograph of one cabinet, and it carries an SMU bay, a GIM and an
- * M48500 that no model put there. So it is drawn only where `shelf === 'READ'`.
+ * **The bays are the cabinet model's.** Every one of these sites has the same
+ * `ICC330-H1-C8`, and the front of it does not change because a different site's load
+ * is smaller. The SMU bay, the two corner boards, the auxiliary converter, the
+ * distribution strip and the inverter shelf are facts about the product — so they are
+ * drawn everywhere, at their traced positions, whether or not anybody has opened that
+ * particular door.
  *
- * That is not a hypothetical guard. `swk-0559` currently sizes to six rectifiers and
- * five SSUs — one SSU away from matching — so a count check alone would start drawing
- * a monitoring unit into a cabinet at a site that has none the moment `hybridPlant`'s
- * figures shifted.
+ * **The modules in them are the site's.** This is what `subrackShelf` varies. `SBH-1495`
+ * and `SWK-1163` fit five rectifiers, so their sixth bay is drawn empty; `SWK-0559`
+ * fits five solar units, so its lower blanking plate is that fifth bay. Drawing five
+ * bays instead of six-with-one-empty would say the metal has five, which is the one
+ * thing an elevation exists to get right.
  *
- * **And does it have the bays this drawing has?** Six and four. That agrees at the one
- * site with a unit, so this half never fires today — it fires the day a second unit is
- * added to `UNITS` with a different shelf, and on that day this elevation is a picture
- * of somebody else's hardware.
+ * ## What this replaced, and what the old guard was protecting
  *
- * Either way the page falls back to the card rack, which is a worse answer to *which
- * one do I pull* and a perfectly good one to *what is in this shelf*.
+ * `shelfLayoutFits` used to require `shelf === 'READ'` — counts read off a device
+ * rather than sized — and exactly six and four. The argument was that a sized shelf
+ * answers *how many rectifiers* and not *what does the front of this box look like*,
+ * since nobody has opened it, and that `swk-0559` sat one solar unit away from matching
+ * a count-only check.
+ *
+ * Both halves are gone. The `READ` half is answered by the split above: the nine
+ * unread bays are the model's, not the site's. The exact-count half is answered by
+ * `fitted`, because a five-rectifier shelf is this drawing with one bay empty rather
+ * than a different drawing. What is left is only whether the counts land inside the
+ * bays the geometry has, and a shelf outside those bounds still falls back to the card
+ * rack — which answers *what is in this shelf* perfectly well and only fails to answer
+ * *which one do I pull*.
+ *
+ * The one thing this drawing extrapolates past the photograph is a fifth and sixth
+ * solar bay, placed on the two unidentified blanking plates. A blank is exactly where
+ * a module could go, which is why those two are the only positions it will borrow.
  */
-
-/** How many of each kind this drawing has bays for. */
-export const DRAWN_RECTIFIERS = 6;
-export const DRAWN_SSUS = 4;
 
 /**
  * Rectifier positions the shelf has, filled or not — nine, of which six are fitted.
  *
  * A fact about the metal rather than about this site's fit-out, which is why it is a
- * constant here beside `DRAWN_RECTIFIERS` and not a field on the cabinet. It counts
+ * constant here and not a field on the cabinet. It counts
  * **rectifiers only**: the solar units sit in bays of their own, so six plus four was
  * never over-subscribing a nine-slot shelf.
  *
@@ -160,11 +169,46 @@ const TWO_LINE_REM = 2.5;
 export const isCompactPosition = (shelf: Shelf, position: ShelfPosition): boolean =>
   positionHeightRem(shelf, position) < TWO_LINE_REM;
 
-/** Is this elevation a drawing of *this* cabinet — see the note above. */
+/**
+ * Can this elevation describe this cabinet's shelf — the only question left.
+ *
+ * ## What it used to ask, and why that changed
+ *
+ * Two things: that the counts were **read off a device** rather than sized, and that
+ * they were exactly six and four. Both are gone, and deliberately.
+ *
+ * The `READ` half was the stronger argument and it was about the nine bays with no
+ * readings. Nothing sizes an SMU bay or a GIM, so drawing them at a site whose shelf
+ * was modelled meant drawing hardware nobody had looked at. The counter-argument, taken
+ * now, is that those nine are a fact about **the cabinet model** — every solar hybrid on
+ * this estate has the same `ICC330-H1-C8`, and its front does not change because a
+ * different site's load is smaller. What varies is the module count, and `subrackShelf`
+ * now says which bays are filled rather than assuming six and four.
+ *
+ * The exact-count half went with it for the same reason: a five-rectifier shelf is this
+ * drawing with one bay empty, not a different drawing.
+ *
+ * ## What is left
+ *
+ * Only whether the counts land inside what the geometry has bays for. They do at all
+ * four cabinets on this estate; a shelf needing a seventh rectifier or a seventh solar
+ * unit falls back to the card rack, which answers *what is in this shelf* perfectly
+ * well and only fails to answer *which one do I pull*.
+ *
+ * That fallback is not decoration. `sizedShelf` grows the shelf with the bank's
+ * recharge duty, so flipping a heavy site to `SOLAR_HYBRID` on its settings tab asks
+ * for shelves this drawing cannot describe — eleven of the twenty-five sites would,
+ * and `wpkl-0207` would ask for a hundred and seventy-two rectifiers. A drawing of one
+ * cabinet's front cannot be stretched to that, and the grid of cards can.
+ *
+ * `>= 1` as well as the ceiling, because a cabinet with no modules at all is not a
+ * shelf a reader should be shown bays for.
+ */
 export const shelfLayoutFits = (cabinet: SubrackCabinet): boolean =>
-  cabinet.shelf === 'READ' &&
-  cabinet.rectifiers === DRAWN_RECTIFIERS &&
-  cabinet.ssus === DRAWN_SSUS;
+  cabinet.rectifiers >= 1 &&
+  cabinet.rectifiers <= MAX_DRAWN_RECTIFIERS &&
+  cabinet.ssus >= 1 &&
+  cabinet.ssus <= MAX_DRAWN_SSUS;
 
 /**
  * `psu-3`, `ssu-1` — a module bay's key, from the one place that builds it.
@@ -203,13 +247,22 @@ const INVERTER_MODULE = 'I23002G1';
  */
 export const INVERTER_SHELF_PART = 'ETP23006-C1A1';
 
-/** `Rectifier 3` at column 7, row 3 — the module bays, which are most of the shelf. */
+/**
+ * `Rectifier 3` at column 7, row 3 — the module bays, which are most of the shelf.
+ *
+ * `fitted` says whether this site has a module in it. The bays are drawn either way:
+ * a shelf with five rectifiers in six bays is a shelf with an empty bay, and drawing
+ * five bays instead would tell a reader the metal has five. That is the same argument
+ * the ETP23006's two unpopulated inverter slots already made — see
+ * `ShelfPosition.fitted`.
+ */
 const bay = (
   kind: 'RECTIFIER' | 'SSU',
   slot: number,
   label: string,
   col: number,
   row: number,
+  fitted: boolean,
   rowSpan?: number,
 ): ShelfPosition => ({
   key: bayKey(kind, slot),
@@ -220,13 +273,52 @@ const bay = (
   // identical strings is ten chances to mistype one.
   part: kind === 'RECTIFIER' ? 'R4875G5' : 'S4875G1',
   slot,
+  fitted,
   col,
   row,
   span: 3,
   ...(rowSpan === undefined ? {} : {rowSpan}),
 });
 
-const SUBRACK: Shelf = {
+/**
+ * How many of each kind this elevation has room to draw.
+ *
+ * Six rectifier bays and four solar bays are what the photograph shows. Two more solar
+ * bays are drawable beyond that, because the traced shelf has an unidentified blanking
+ * plate at the left of rows 4 and 6, and a blank is exactly where a module could go —
+ * `SWK-0559` sizes to five solar units and the lower blank is where its fifth is drawn.
+ * That is the one place this drawing extrapolates past the photograph, and it is
+ * bounded: a shelf needing a seventh of either is one this elevation cannot describe,
+ * and `shelfLayoutFits` sends it to the card rack.
+ */
+const MAX_DRAWN_RECTIFIERS = 6;
+const MAX_DRAWN_SSUS = 6;
+
+/**
+ * The subrack, built for one cabinet's own module counts.
+ *
+ * ## Why this stopped being a constant
+ *
+ * It was traced off one photograph and drawn only at the site that photograph is of,
+ * on the argument that the front of a box is not something a model can size. That
+ * argument was about the **nine bays with no readings** — the SMU, the two corner
+ * boards, the auxiliary converter, the distribution strip, the inverter shelf. It is
+ * now overruled for them deliberately: they are drawn at every solar hybrid because
+ * they are a fact about the *cabinet model*, which every one of these sites has, rather
+ * than about a site visit.
+ *
+ * What genuinely varies is the **module count**, and it varies in a way the drawing can
+ * state honestly, because the bays are in the metal whether or not a site has a module
+ * in each. So the geometry is still the tracing — every bay sits where the photograph
+ * puts it — and `fitted` carries the difference: `SBH-1495` and `SWK-1163` have five
+ * rectifiers, so their sixth bay is drawn empty, and `SWK-0559` has five solar units,
+ * so its lower blanking plate becomes a fifth solar bay.
+ *
+ * Drawing five bays where the metal has six would be the worse answer. It would tell a
+ * reader there is nowhere to put a sixth, when the whole point of an elevation is to
+ * show what the door actually opens onto.
+ */
+const subrackShelf = (rectifiers: number, ssus: number): Shelf => ({
   key: 'subrack',
   name: 'ICC330-H1-C8',
   caption: `The subrack, front on — ${DCDU} distribution along the top`,
@@ -249,37 +341,43 @@ const SUBRACK: Shelf = {
     {key: 'dcdu-3', kind: 'DISTRIBUTION', label: 'Distribution', part: DCDU, rating: '200 A', slot: 3, col: 9, row: 1, span: 4},
 
     // Rows 2 and 3 are the two halves of one row of shelf. These three span both.
-    bay('SSU', 1, 'Solar Supply Unit 1', 1, 2, 2),
-    bay('SSU', 2, 'Solar Supply Unit 2', 4, 2, 2),
+    bay('SSU', 1, 'Solar Supply Unit 1', 1, 2, ssus >= 1, 2),
+    bay('SSU', 2, 'Solar Supply Unit 2', 4, 2, ssus >= 2, 2),
     // `SMU02C` and not `Huawei SMU02C`: the model is stamped on the metal and is a
     // fact about this drawing, where the vendor's prefix and the device's own name are
     // facts about a site. The panel prints `cabinet.deviceName` for that, so the
-    // constant stays a constant. See `ShelfPosition.sub`.
+    // geometry stays independent of any one site. See `ShelfPosition.part`.
     {key: 'smu', kind: 'SMU', label: 'Monitoring unit', part: 'SMU02C', col: 7, row: 2, span: 3, rowSpan: 2},
     // And these two are stacked in the corner, half a bay each — so no second line,
     // whatever they might have carried. `positionHeightRem` is what enforces that.
     {key: 'gim', kind: 'GIM', label: 'Genset I/O', part: 'GIM01C', col: 10, row: 2, span: 3},
     {key: 'uim', kind: 'UIM', label: 'Environment I/O', part: 'UIM05B1', col: 10, row: 3, span: 3},
 
-    {key: 'blank-upper', kind: 'BLANK', label: '', col: 1, row: 4, span: 3},
-    bay('RECTIFIER', 1, 'Rectifier 1', 4, 4),
-    bay('RECTIFIER', 2, 'Rectifier 2', 7, 4),
-    bay('RECTIFIER', 3, 'Rectifier 3', 10, 4),
+    // The upper blanking plate, or a sixth solar bay at a shelf that has six.
+    ssus >= 6
+      ? bay('SSU', 6, 'Solar Supply Unit 6', 1, 4, true)
+      : {key: 'blank-upper', kind: 'BLANK', label: '', col: 1, row: 4, span: 3},
+    bay('RECTIFIER', 1, 'Rectifier 1', 4, 4, rectifiers >= 1),
+    bay('RECTIFIER', 2, 'Rectifier 2', 7, 4, rectifiers >= 2),
+    bay('RECTIFIER', 3, 'Rectifier 3', 10, 4, rectifiers >= 3),
 
     // No `part`: this bay is the incomer and a 30 kA arrester, and the site record
     // does not name the arrester's model. The panel says `Not recorded` rather than
     // dropping the row — see `ShelfPosition.part`.
     {key: 'ac-input', kind: 'AC_INPUT', label: 'AC input', col: 1, row: 5, span: 3},
-    bay('RECTIFIER', 4, 'Rectifier 4', 4, 5),
-    bay('RECTIFIER', 5, 'Rectifier 5', 7, 5),
-    bay('RECTIFIER', 6, 'Rectifier 6', 10, 5),
+    bay('RECTIFIER', 4, 'Rectifier 4', 4, 5, rectifiers >= 4),
+    bay('RECTIFIER', 5, 'Rectifier 5', 7, 5, rectifiers >= 5),
+    bay('RECTIFIER', 6, 'Rectifier 6', 10, 5, rectifiers >= 6),
 
-    {key: 'blank-lower', kind: 'BLANK', label: '', col: 1, row: 6, span: 3},
-    bay('SSU', 3, 'Solar Supply Unit 3', 4, 6),
-    bay('SSU', 4, 'Solar Supply Unit 4', 7, 6),
+    // And the lower plate, which is where a fifth solar unit goes.
+    ssus >= 5
+      ? bay('SSU', 5, 'Solar Supply Unit 5', 1, 6, true)
+      : {key: 'blank-lower', kind: 'BLANK', label: '', col: 1, row: 6, span: 3},
+    bay('SSU', 3, 'Solar Supply Unit 3', 4, 6, ssus >= 3),
+    bay('SSU', 4, 'Solar Supply Unit 4', 7, 6, ssus >= 4),
     {key: 'm48500', kind: 'CONVERTER', label: 'Auxiliary power', part: 'M48500N1', col: 10, row: 6, span: 3},
   ],
-};
+});
 
 /**
  * The 1U shelf under the subrack, which holds an inverter and two empty bays.
@@ -331,11 +429,23 @@ const INVERTER_SHELF: Shelf = {
   ],
 };
 
-export const CABINET_SHELVES: ReadonlyArray<Shelf> = [SUBRACK, INVERTER_SHELF];
+/**
+ * Both shelves of one cabinet, drawn for its own module counts.
+ *
+ * The inverter shelf is the same at every site — one fitted module of three slots, and
+ * nothing sizes it — so only the subrack varies. Called once per render in the band and
+ * handed to the figure, rather than each of them building its own: two callers deriving
+ * the same geometry from the same counts is two chances for a bay to be in one place in
+ * the drawing and another in the lookup that resolves a click.
+ */
+export const cabinetShelves = (cabinet: SubrackCabinet): ReadonlyArray<Shelf> => [
+  subrackShelf(cabinet.rectifiers, cabinet.ssus),
+  INVERTER_SHELF,
+];
 
 /** Every position across both shelves, for a lookup by key. */
-export const shelfPositions = (): ReadonlyArray<ShelfPosition> =>
-  CABINET_SHELVES.flatMap((shelf) => shelf.positions);
+export const shelfPositions = (cabinet: SubrackCabinet): ReadonlyArray<ShelfPosition> =>
+  cabinetShelves(cabinet).flatMap((shelf) => shelf.positions);
 
 /**
  * Which alarm rows concern this bay, by their exact published names.

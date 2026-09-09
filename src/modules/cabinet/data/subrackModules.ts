@@ -1,9 +1,11 @@
 import {spread} from '@/modules/genset/data/spread';
 import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
+import {isStanding} from '@/modules/genset/types/alarmState.type';
 import type {AlarmHandling} from '@/modules/genset/types/alarmState.type';
+import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import type {SubrackCabinet} from '../types/cabinet.type';
-import type {SubrackModule, SubrackSlotFault} from '../types/subrackModule.type';
+import type {SubrackModule} from '../types/subrackModule.type';
 
 /**
  * What is in the shelf: the rectifiers, then the SSUs, in slot order.
@@ -50,7 +52,11 @@ const FULL_LOAD_RISE_C = 9;
 const SLOT_SCATTER_C = 0.8;
 
 /**
- * Which SSU slots the unit is currently asserting a fault against.
+ * Which SSU slots the unit is currently asserting a fault against, and the row.
+ *
+ * The row rather than a bare slot number, because the **drawing** edges a faulted bay
+ * in the row's own severity now and a `Set<number>` cannot say what that is. Keyed on
+ * the slot exactly as before, so the join is unchanged.
  *
  * Parsed out of the row's own label rather than its address, because the label is
  * what the gateway publishes and what every other screen keys on — and because the
@@ -62,17 +68,29 @@ const SLOT_SCATTER_C = 0.8;
  * module in the slot — the pair is the device's best diagnostic precisely because the
  * two are separable, and marking a module faulted because the array behind it has a
  * dead string would throw that away. Those rows are on the array's own tab.
+ *
+ * ## Standing, not merely asserted
+ *
+ * `assertedPlantAlarms` returns the rows somebody has **cleared** as well as the ones
+ * still up — that is what the Alarms tab's second table is — so the `isStanding`
+ * filter is what this join actually needs. Without it, clearing `SSU 4 Fault` left
+ * bay 4 amber on the drawing and a `Fault` badge on its panel while the panel's own
+ * cross-reference two lines below (which reads `standing`) had already emptied: one
+ * card disagreeing with itself about one alarm. `SubrackShelf` has documented the
+ * corrected behaviour since the day the drawing was built.
  */
-const faultedSsuSlots = (
+const faultedSsuRows = (
   siteId: string,
   role: SitePowerRole,
   handling: Record<string, AlarmHandling>,
-): Set<number> => {
-  const slots = new Set<number>();
+): Map<number, AlarmView> => {
+  const slots = new Map<number, AlarmView>();
 
   for (const row of assertedPlantAlarms(siteId, role, 'SITE', handling)) {
+    if (!isStanding(row)) continue;
+
     const match = /^SSU (\d+) Fault$/.exec(row.name);
-    if (match?.[1] !== undefined) slots.add(Number(match[1]));
+    if (match?.[1] !== undefined) slots.set(Number(match[1]), row);
   }
 
   return slots;
@@ -83,7 +101,7 @@ export const subrackModules = (
   role: SitePowerRole,
   handling: Record<string, AlarmHandling>,
 ): Array<SubrackModule> => {
-  const faulted = faultedSsuSlots(cabinet.siteId, role, handling);
+  const faulted = faultedSsuRows(cabinet.siteId, role, handling);
   const load = cabinet.loadKw ?? 0;
 
   /**
@@ -126,7 +144,12 @@ export const subrackModules = (
     outputKw: number,
     /** What one of this kind is rated at, for the temperature rise. */
     ratedKw: number | null,
-    fault: (slot: number) => SubrackSlotFault,
+    /**
+     * Both fault fields at once, because they are one answer: a slot is asserted
+     * *with* a severity or it is not asserted at all. Returning them separately is
+     * how the pair ends up disagreeing.
+     */
+    fault: (slot: number) => Pick<SubrackModule, 'fault' | 'faultSeverity'>,
   ): Array<SubrackModule> =>
     Array.from({length: count}, (_unused, index) => {
       const slot = index + 1;
@@ -161,7 +184,7 @@ export const subrackModules = (
             : 0) *
             FULL_LOAD_RISE_C +
           scatter * SLOT_SCATTER_C,
-        fault: fault(slot),
+        ...fault(slot),
       };
     });
 
@@ -173,16 +196,20 @@ export const subrackModules = (
       'r',
       rectifierShare,
       cabinet.rectifierKw,
-      () => 'NOT_REPORTED',
+      () => ({fault: 'NOT_REPORTED', faultSeverity: null}),
     ),
     // `SSU 3`, not `Solar unit 3`, and the reason is the Alarms tab: the row a
     // reader is matching this card against says `SSU 3 Fault`, in the device's own
     // words, and history downstream is keyed on that raw string. A card that
     // renamed it would make the two screens name one module two ways. The plain
     // English is on the card's `Type` row, which is where an explanation belongs.
-    ...build('SSU', cabinet.ssus, 'SSU', 's', ssuShare, cabinet.ssuKw, (slot) =>
-      faulted.has(slot) ? 'ASSERTED' : 'CLEAR',
-    ),
+    ...build('SSU', cabinet.ssus, 'SSU', 's', ssuShare, cabinet.ssuKw, (slot) => {
+      const row = faulted.get(slot);
+
+      return row === undefined
+        ? {fault: 'CLEAR', faultSeverity: null}
+        : {fault: 'ASSERTED', faultSeverity: row.severity};
+    }),
   ];
 };
 

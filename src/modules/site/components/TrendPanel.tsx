@@ -44,7 +44,7 @@ export type TrendView = SiteTrendMetric | typeof OVERVIEW_VIEW | typeof CHARGE_V
 const COMPOSITIONS: ReadonlyArray<TrendView> = [OVERVIEW_VIEW, CHARGE_VIEW];
 
 const VIEW_LABEL: Record<typeof OVERVIEW_VIEW | typeof CHARGE_VIEW, string> = {
-  [OVERVIEW_VIEW]: 'Energy overview',
+  [OVERVIEW_VIEW]: 'Power Supply Distribution',
   [CHARGE_VIEW]: 'Charge mix',
 };
 
@@ -62,7 +62,7 @@ const viewLabel = (view: TrendView): string =>
  * `Day / Month / Year / Lifetime` over a full-width chart, and the only thing that
  * differs between them is how many metrics the picker offers: the site page offers
  * everything the yard can answer for, a system's page offers generation, a bank's
- * offers what charged it and the level it reached.
+ * offers its state of charge.
  *
  * That difference is one prop. Three copies of a date stepper is how the forward
  * stop ends up disabled on one page and not the others.

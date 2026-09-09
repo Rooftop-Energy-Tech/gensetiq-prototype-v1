@@ -1,3 +1,5 @@
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
+
 /**
  * One module plugged into the cabinet's shelf.
  *
@@ -63,4 +65,25 @@ export type SubrackModule = {
   /** The module's own temperature — the enclosure's, plus its own work. */
   tempC: number;
   fault: SubrackSlotFault;
+  /**
+   * How the site ranks the row that faulted this slot — `null` unless `fault` is
+   * `ASSERTED`.
+   *
+   * Here so the **drawing** can colour a bay's edge by it, which is the one place the
+   * severity is needed and the one place it was not available: `SubrackFigure` is a
+   * pure function of this type and `SubrackPanel` already finds the row itself for its
+   * cross-reference. Every `SSU N Fault` on this estate is `CRITICAL` and the bay was
+   * drawn amber, which is the warning colour standing in for the only red in the app.
+   *
+   * Nullable rather than a discriminated union on `fault`, which would express the
+   * pairing exactly and cost every reader of `fault` a narrowing it does not need. The
+   * one consumer falls back to `WARNING` if it ever sees the impossible combination,
+   * because a bay drawn in the wrong amber is better than a bay drawn unmarked.
+   *
+   * Huawei's own class is deliberately **not** what this is. `AlarmView.className`
+   * carries that, and the two disagree on thirty of the fifty-eight rows — see
+   * `plantAlarm.type.ts`. What a reader picking a bay out of the shelf wants is this
+   * site's ranking, which is what the severity chip beside the row says.
+   */
+  faultSeverity: AlertSeverity | null;
 };

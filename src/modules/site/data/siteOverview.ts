@@ -93,23 +93,27 @@ const DAY_STEP_HOURS = 0.5;
 const MONTH_STEP_HOURS = 1;
 
 /**
- * A year is sampled hourly like a month and then **averaged into one point per
+ * Every window past a day is sampled hourly and then **averaged into one point per
  * day**, which is the one place this chart stops being a literal power record.
  *
  * A frank compromise, and it was tried the other way first. NetEco keeps the raw
  * curve at every window and hands the reader a range brush to zoom back into it;
- * drawn without that brush, three hundred and sixty-five day/night cycles at any
- * sub-daily grain is a solid block of colour — every series saturates its own band
- * and nothing is legible, which is not a chart, it is a texture.
+ * drawn without that brush, day/night cycles at any sub-daily grain saturate into
+ * a solid block of colour at a year — and at a month they read as a different
+ * *kind* of picture from the year beside them, which had readers hunting for a
+ * distinction that was only sampling. So the month view takes the year's
+ * treatment rather than the other way round: one grain of story — the day — at
+ * every window past a day.
  *
- * A daily mean loses the intraday shape and keeps the only thing a year can
- * honestly show: the **season**. The monsoon weeks where the array falls away and
- * the genset picks up are exactly the pattern a year view is opened for, and they
- * are visible in the means. The caption says the grain so nobody reads a mean as a
- * peak.
+ * A daily mean loses the intraday shape and keeps what these windows can honestly
+ * show: the **season**. The monsoon weeks where the array falls away and the
+ * genset picks up are exactly the pattern they are opened for, and they are
+ * visible in the means. The caption says the grain so nobody reads a mean as a
+ * peak. The intraday story — solar at noon, genset at night — lives on the Day
+ * tab, which is the only width it fits.
  *
- * Whether the year should instead carry NetEco's brush over the raw curve is on the
- * open-questions list; it is the better answer and a much larger one.
+ * Whether these windows should instead carry NetEco's brush over the raw curve is
+ * on the open-questions list; it is the better answer and a much larger one.
  */
 const YEAR_SAMPLE_HOURS = 1;
 
@@ -187,6 +191,13 @@ export type SiteOverview = {
   caption: string;
   /** The figures beside the legend when nothing is hovered. */
   totals: Array<{label: string; value: string}>;
+  /**
+   * The stack as a table: each source's energy to the load over this window, and
+   * its share of the load. The `LOAD` row closes the table at 100% — it is the
+   * denominator, kept in the list so the reader sees what the shares are of.
+   * Absent on the charge view, whose stack has no total to be a share of.
+   */
+  mix?: Array<{id: OverviewSeriesId; label: string; token: string; energy: string; share: string}>;
 };
 
 /**
@@ -218,18 +229,13 @@ const clockLabel = (hour: number): string =>
   `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 === 0 ? '00' : '30'}`;
 
 /**
- * How finely to sample, and how far back to start, for each window.
+ * How finely to sample each window before any daily averaging.
  *
- * The grain coarsens with the window rather than the *quantity* changing with it,
- * which is the one place this follows NetEco against this codebase's own instinct.
- * `siteTrend` switches from a power curve to energy bars the moment the window
- * exceeds a day, on the argument that a month has no shape between buckets to draw
- * a line through. That argument is right about a bar chart of daily totals and it
- * does not apply here: this is not one reading per day, it is a **continuous power
- * record sampled hourly**, so the line between two samples is an hour of real plant
- * behaviour and not an interpolation.
- *
- * What is lost is legibility at a year, and that is on the open-questions list.
+ * The grain coarsens with the window rather than the *quantity* changing with it:
+ * this stays a power record in kW at every window, unlike `siteTrend`, which
+ * switches to energy bars past a day. The sample step is what the daily mean is
+ * computed *from* — hourly is fine for a mean — and only the day view publishes
+ * the samples themselves.
  */
 const sampleHours = (period: SiteTrendPeriod): number => {
   switch (period) {
@@ -243,8 +249,7 @@ const sampleHours = (period: SiteTrendPeriod): number => {
 };
 
 /** Does this window publish one point per day rather than one per sample. */
-const isDailyMean = (period: SiteTrendPeriod): boolean =>
-  period === 'year' || period === 'lifetime';
+const isDailyMean = (period: SiteTrendPeriod): boolean => period !== 'day';
 
 /** How many days the window spans back from, and including, its last day. */
 const windowDays = (period: SiteTrendPeriod): number => {
@@ -396,7 +401,7 @@ const shares = (
 
       const solarKw = hasSolar(role) ? KW(intradayKw(dayKwh, hour)) : 0;
       const gensetKw = KW(gensetKwAt(role, block, hour));
-      const loadKw = KW(seed.loadKw * loadShape(hour));
+      const loadKw = KW(seed.loadKw * loadShape(at));
 
       // The shares of that load, dispatched in order and each clipped to what was
       // left for it — see the module note. Clipped per sample rather than at the
@@ -476,9 +481,7 @@ const windowWords = (period: SiteTrendPeriod): {span: string; grain: string} => 
   grain:
     period === 'day'
       ? 'half-hourly'
-      : period === 'month'
-        ? 'hourly'
-        : 'as a daily mean — the intraday peaks are higher',
+      : 'as a daily mean — the intraday peaks are higher',
   span:
     period === 'day'
       ? 'through the day'
@@ -550,6 +553,43 @@ export const siteOverview = (
   totals.push({label: 'Battery', value: KWH(energy.batteryToLoad)});
   totals.push({label: 'Load', value: KWH(energy.load)});
 
+  // The same figures as shares. `—` rather than 0% before the record has anything
+  // in it: a chart with no samples yet has no composition, not one that is all zeros.
+  const percent = (part: number): string =>
+    energy.load <= 0 ? '—' : `${((part / energy.load) * 100).toFixed(1)}%`;
+
+  const mix: SiteOverview['mix'] = [];
+  if (hasSolar(role))
+    mix.push({
+      id: 'SOLAR',
+      label: 'Solar',
+      token: OVERVIEW_SERIES_TOKEN.SOLAR,
+      energy: KWH(energy.solarToLoad),
+      share: percent(energy.solarToLoad),
+    });
+  if (ratedKw > 0)
+    mix.push({
+      id: 'GENSET',
+      label: 'Genset',
+      token: OVERVIEW_SERIES_TOKEN.GENSET,
+      energy: KWH(energy.gensetToLoad),
+      share: percent(energy.gensetToLoad),
+    });
+  mix.push({
+    id: 'BATTERY',
+    label: 'Battery',
+    token: OVERVIEW_SERIES_TOKEN.BATTERY,
+    energy: KWH(energy.batteryToLoad),
+    share: percent(energy.batteryToLoad),
+  });
+  mix.push({
+    id: 'LOAD',
+    label: 'Site load',
+    token: OVERVIEW_SERIES_TOKEN.LOAD,
+    energy: KWH(energy.load),
+    share: energy.load <= 0 ? '—' : '100%',
+  });
+
   return {
     period,
     labels,
@@ -558,6 +598,7 @@ export const siteOverview = (
     unit: 'kW',
     caption: `Power ${span}, ${grain} · sources stacked to the load`,
     totals,
+    mix,
   };
 };
 

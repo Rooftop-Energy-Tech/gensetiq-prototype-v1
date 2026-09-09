@@ -2,8 +2,9 @@ import {runTotalsIn} from '@/modules/genset/data/history';
 
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
-import {chargeSourceAt} from './dispatch';
+import {chargeSourceAt, fullDayKwh, gensetDay, gensetKwAt} from './dispatch';
 import {
+  expectedSolarKwh,
   hybridPlant,
   hybridState,
   intradayKw,
@@ -69,19 +70,23 @@ export const SITE_TREND_PERIOD_LABEL: Record<SiteTrendPeriod, string> = {
 /**
  * What the picker calls each series.
  *
- * `LOAD` is **Site load**, which is also what `OVERVIEW_SERIES_LABEL` calls it on the
+ * `LOAD` is **Site Load**, which is also what `OVERVIEW_SERIES_LABEL` calls it on the
  * energy-overview chart the same band draws. It read `Consumption` here, and the two
  * labels were the same quantity under two names on one page — a reader stepping from the
- * overview's legend to the picker beside it had no way to know that. `Site load` is the
+ * overview's legend to the picker beside it had no way to know that. `Site Load` is the
  * one that survives, because it names the thing rather than the act: the site's own draw
  * is what the other three series are measured against, and it is a load whether or not
  * anybody is consuming anything at that moment.
+ *
+ * Title Case throughout, which is the other three's own convention as of the same day —
+ * the merge that brought them in is what settled the casing, and a table with one entry
+ * in sentence case would have read as an oversight rather than as a distinction.
  */
 export const SITE_TREND_METRIC_LABEL: Record<SiteTrendMetric, string> = {
-  SOLAR: 'Solar generation',
-  BATTERY: 'Battery level',
-  GENSET: 'Genset runtime',
-  LOAD: 'Site load',
+  SOLAR: 'Solar Generation',
+  BATTERY: 'Battery SoC Profile',
+  GENSET: 'Genset Fuel Consumption',
+  LOAD: 'Site Load',
 };
 
 /**
@@ -149,6 +154,61 @@ export type SiteTrend = {
   caption: string;
   /** The one figure the series adds up to, for the readout beside the picker. */
   total: {label: string; value: string} | undefined;
+  /**
+   * A second window figure beside the total — a companion fact in another unit.
+   * The genset views carry it: the fuel bars say what the running cost, and this
+   * says how long it ran.
+   */
+  extra?: {label: string; value: string};
+  /**
+   * What each bucket *should* have made, aligned index-for-index with `points` —
+   * drawn as a stepped dashed line over the bars, so a bar is judged against the
+   * piece of the line directly above it. Per bucket rather than one flat rule
+   * because the expectation genuinely moves: the monsoon factor and 28-versus-31
+   * day months shift it about 15% across a year, and a flat line would report a
+   * short February as a poor one. `null` over the bucket still in progress, whose
+   * part-window bar has no full-window promise to be held against.
+   *
+   * `value` is the mean of the drawn steps — the one figure the staircase comes
+   * to, stated beside the average's so the strip reads promised-versus-delivered.
+   */
+  reference?: {label: string; values: Array<number | null>; value: number};
+  /**
+   * Shaded slices of the series — each the region between its `from` and `to`,
+   * index-aligned with `points`, in its own token, stacked bottom-up.
+   *
+   * The array's views carry one (the part of the generation charging the bank, in
+   * the bank's blue); the bank's bars carry two (its charge attributed to solar
+   * and to the genset, in their own colours). On a curve each slice is an area
+   * between two lines; on bars each is a segment of the bar. The series' own fill
+   * runs up to the first slice's `from`, so the slices and the fill always close
+   * on the series exactly. `value` is each slice integrated over the window, for
+   * the strip.
+   */
+  bands?: Array<{
+    label: string;
+    token: string;
+    from: Array<number | null>;
+    to: Array<number | null>;
+    value: string;
+  }>;
+  /** The first column's heading on the `mix` table — `Destination`, `Source`. */
+  mixHeading?: string;
+  /**
+   * A second bar beside each bucket's own, drawn lighter — the other half of a
+   * balance. The bank's bars carry it: charge in beside discharge out to the
+   * load, so a bucket reads as flow through the bank rather than a fill from
+   * empty. Same unit as the axis; `value` is the window's total, for the strip.
+   */
+  paired?: {label: string; token: string; values: Array<number | null>; value: string};
+  /**
+   * The series split into where it went, as a table under the chart — each row a
+   * destination with its energy and its share, closed by the total at 100%. The
+   * array's views carry it: generation is one figure until it is divided into
+   * what the tower took and what the bank was offered, and that division is the
+   * same dispatch the band above shades.
+   */
+  mix?: Array<{label: string; token: string; energy: string; share: string}>;
   /**
    * The colours a point may name in `TrendPoint.tint`, and what each one means.
    *
@@ -265,12 +325,126 @@ export const siteTrendMetrics = (
 
 const NUMBER = new Intl.NumberFormat('en-MY', {maximumFractionDigits: 0});
 
+const KWH = (value: number): string => `${NUMBER.format(Math.round(value))} kWh`;
+
+/**
+ * The array's output split by destination over `[from, to)` — what the tower took
+ * against what the bank was offered — walked hourly through the same dispatch
+ * order every chart uses: solar to the load first, the remainder to the bank.
+ */
+const solarSplitKwh = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  from: number,
+  to: number,
+  now: number,
+): {toLoad: number; toBank: number} => {
+  let toLoad = 0;
+  let toBank = 0;
+  const end = Math.min(to, now);
+  for (let dayStart = startOfDay(from); dayStart < end; dayStart += 86_400_000) {
+    const dayKwh = todayFullKwh(seed, role, dayStart + 12 * 3_600_000);
+    if (dayKwh === 0) continue;
+    for (let hour = 0; hour < 24; hour += 1) {
+      const at = dayStart + hour * 3_600_000;
+      if (at < from || at >= end) continue;
+      const solarKw = intradayKw(dayKwh, hour);
+      const taken = Math.min(solarKw, seed.loadKw * loadShape(at));
+      toLoad += taken;
+      toBank += solarKw - taken;
+    }
+  }
+  return {toLoad, toBank};
+};
+
+/**
+ * What charged the bank over `[from, to)`, by source — the surplus walk the
+ * charge-mix chart uses, at hour grain: each source first serves the load, and
+ * what it has over is what the bank was offered.
+ */
+const bankChargeSplitKwh = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  ratedKw: number,
+  from: number,
+  to: number,
+  now: number,
+): {solarIn: number; gensetIn: number; discharge: number} => {
+  let solarIn = 0;
+  let gensetIn = 0;
+  let discharge = 0;
+  const end = Math.min(to, now);
+  for (let dayStart = startOfDay(from); dayStart < end; dayStart += 86_400_000) {
+    const dayKwh = hasSolar(role) ? fullDayKwh(seed, role, dayStart) : 0;
+    const block = gensetDay(seed, role, ratedKw, dayStart);
+    for (let hour = 0; hour < 24; hour += 1) {
+      const at = dayStart + hour * 3_600_000;
+      if (at < from || at >= end) continue;
+      const solarKw = dayKwh === 0 ? 0 : intradayKw(dayKwh, hour);
+      const gensetKw = gensetKwAt(role, block, hour);
+      const loadKw = seed.loadKw * loadShape(at);
+      const solarToLoad = Math.min(solarKw, loadKw);
+      const gensetToLoad = Math.min(gensetKw, Math.max(0, loadKw - solarToLoad));
+      solarIn += solarKw - solarToLoad;
+      gensetIn += gensetKw - gensetToLoad;
+      // What the bank paid back: the load neither source covered — the same
+      // residual the distribution chart draws as its battery band.
+      discharge += Math.max(0, loadKw - solarToLoad - gensetToLoad);
+    }
+  }
+  return {solarIn, gensetIn, discharge};
+};
+
+/**
+ * The charge split as table rows — see `SiteTrend.mix`. A source the site has not
+ * got is left off, per the app's rule about unfitted plant.
+ */
+const chargeMix = (
+  solarIn: number,
+  gensetIn: number,
+  withSolar: boolean,
+  withGenset: boolean,
+): SiteTrend['mix'] => {
+  const total = solarIn + gensetIn;
+  if (total <= 0) return undefined;
+  const percent = (part: number): string => `${((part / total) * 100).toFixed(1)}%`;
+
+  const rows: SiteTrend['mix'] = [];
+  if (withSolar)
+    rows.push({
+      label: 'Solar-charging',
+      token: SITE_TREND_METRIC_TOKEN.SOLAR,
+      energy: KWH(solarIn),
+      share: percent(solarIn),
+    });
+  if (withGenset)
+    rows.push({
+      label: 'Genset-charging',
+      token: SITE_TREND_METRIC_TOKEN.GENSET,
+      energy: KWH(gensetIn),
+      share: percent(gensetIn),
+    });
+  rows.push({label: 'Charge', token: 'text-primary', energy: KWH(total), share: '100%'});
+  return rows;
+};
+
+/** The split as table rows — see `SiteTrend.mix`. `undefined` until anything generated. */
+const solarMix = (toLoad: number, toBank: number): SiteTrend['mix'] => {
+  const total = toLoad + toBank;
+  if (total <= 0) return undefined;
+  const percent = (part: number): string => `${((part / total) * 100).toFixed(1)}%`;
+  return [
+    {label: 'To load', token: 'text-solar', energy: KWH(toLoad), share: percent(toLoad)},
+    {label: 'To battery', token: 'text-battery', energy: KWH(toBank), share: percent(toBank)},
+    {label: 'Generation', token: 'text-primary', energy: KWH(total), share: '100%'},
+  ];
+};
+
+
 /**
  * An hours figure for a readout — `6.2 h` while a tenth means something, `1,284 h`
- * once it does not.
- *
- * The threshold is a hundred hours, which is roughly where a reader stops thinking
- * in starts and shifts and starts thinking in service intervals.
+ * once it does not. A hundred hours is roughly where a reader stops thinking in
+ * starts and shifts and starts thinking in service intervals.
  */
 const hoursLabel = (hours: number): string =>
   hours < 100 ? `${Math.round(hours * 10) / 10} h` : `${NUMBER.format(Math.round(hours))} h`;
@@ -294,7 +468,7 @@ export const siteTrend = (
   now: number = Date.now(),
 ): SiteTrend => {
   if (period === 'day') return dayTrend(seed, role, gensetIds, ratedKw, metric, dayAt, now);
-  return periodTrend(seed, role, gensetIds, metric, period, now);
+  return periodTrend(seed, role, gensetIds, ratedKw, metric, period, now);
 };
 
 /**
@@ -387,10 +561,80 @@ const dayTrend = (
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   const peak = readings.length === 0 ? 0 : Math.max(...readings);
 
+  // The reference the bucketed views carry, at day grain. The expectation is not
+  // a level but the day's promised **bell** — `intradayKw` over the expected
+  // energy — drawn for the whole day, so the hours still to come show what they
+  // are supposed to bring.
+  const reference =
+    metric === 'SOLAR'
+      ? (() => {
+          const promisedKwh = expectedSolarKwh(seed, role, start, start + 86_400_000);
+          const values = points.map(
+            (_, index) => Math.round(intradayKw(promisedKwh, index * DAY_STEP_HOURS) * 10) / 10,
+          );
+          return {
+            label: 'Expected',
+            values,
+            value:
+              Math.round((values.reduce((total, value) => total + value, 0) / values.length) * 10) /
+              10,
+          };
+        })()
+      : undefined;
+
+  // The blue slice and its arithmetic — see `SiteTrend.bands` and `.mix`, both off
+  // the same per-sample dispatch: the tower takes first, the surplus is the bank's.
+  let bands: SiteTrend['bands'];
+  let mix: SiteTrend['mix'];
+  let mixHeading: string | undefined;
+  if (metric === 'BATTERY') {
+    // The day's charge, by source — the same split the bars carry, for the table.
+    const {solarIn, gensetIn} = bankChargeSplitKwh(
+      seed,
+      role,
+      ratedKw,
+      start,
+      start + 86_400_000,
+      now,
+    );
+    mix = chargeMix(solarIn, gensetIn, hasSolar(role), ratedKw > 0);
+    mixHeading = 'Source';
+  }
+  if (metric === 'SOLAR') {
+    const from: Array<number | null> = [];
+    const to: Array<number | null> = [];
+    let toLoadKwh = 0;
+    let toBankKwh = 0;
+
+    points.forEach((point, index) => {
+      if (point.value === null) {
+        from.push(null);
+        to.push(null);
+        return;
+      }
+      const at = start + index * DAY_STEP_HOURS * 3_600_000;
+      const taken = Math.min(point.value, seed.loadKw * loadShape(at));
+      from.push(Math.round(taken * 10) / 10);
+      to.push(point.value);
+      toLoadKwh += taken * DAY_STEP_HOURS;
+      toBankKwh += (point.value - taken) * DAY_STEP_HOURS;
+    });
+
+    if (toLoadKwh + toBankKwh > 0) {
+      bands = [{label: 'To battery', token: 'text-battery', from, to, value: KWH(toBankKwh)}];
+      mix = solarMix(toLoadKwh, toBankKwh);
+      mixHeading = 'Destination';
+    }
+  }
+
   return {
     metric,
     period: 'day',
     points,
+    reference,
+    bands,
+    mix,
+    mixHeading,
     shape: 'curve',
     unit: metric === 'BATTERY' ? '%' : 'kW',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
@@ -419,8 +663,8 @@ const dayTrend = (
  * tower back.
  */
 const CHARGE_TINTS: Record<string, {token: string; label: string}> = {
-  SOLAR: {token: SITE_TREND_METRIC_TOKEN.SOLAR, label: 'Charging from solar'},
-  GENSET: {token: SITE_TREND_METRIC_TOKEN.GENSET, label: 'Charging from genset'},
+  SOLAR: {token: SITE_TREND_METRIC_TOKEN.SOLAR, label: 'Solar-charging'},
+  GENSET: {token: SITE_TREND_METRIC_TOKEN.GENSET, label: 'Genset-charging'},
 };
 
 /**
@@ -447,7 +691,7 @@ const dayValue = (
       // module note. `at` places it on the right hour of the right day.
       return Math.round(hybridState(seed, role, at).soc * 100);
     default:
-      return Math.round(seed.loadKw * loadShape(hour) * 10) / 10;
+      return Math.round(seed.loadKw * loadShape(at) * 10) / 10;
   }
 };
 
@@ -470,28 +714,23 @@ const dayValue = (
  * height of the chart *meant*, which is the one thing a period control should not
  * do.
  *
- * ## Why minutes, and why the axis is fixed at the hour
+ * ## Litres, in hourly buckets
  *
- * An hour of clock time holds at most an hour of running, so the bar is a fraction
- * of its own bucket and the ceiling is known before the day is read — the same
- * argument state of charge makes for its 0–100 axis. Fixed, a full-height bar is
- * an hour turning start to finish and a half-height one is thirty minutes, on
- * every day and every machine; auto-scaled, a quiet day with one eight-minute
- * start would draw that start as a full-height bar.
+ * The day used to be minutes-run-per-hour — a duty profile — and it became fuel
+ * when the question the whole tab answers became *what did the running cost*.
+ * The run log prices every run through the one SFC curve the tank chart and the
+ * reports use, so an hour's bar here is the same litres the fuel ladder loses
+ * over that hour. The axis auto-scales: unlike minutes, an hour of burn has no
+ * natural ceiling — it depends on what is fitted and how hard it is loaded.
  *
- * Minutes rather than fractions of an hour because the axis has to be readable:
- * a fixed hour divides into `0 15 30 45 60`, where hours give `0 0.25 0.5` and a
- * tick row that cannot be written to one decimal place.
- *
- * A site with two sets gets a ceiling of two hours' worth — this sums engine
- * minutes across the yard, exactly as `gensetHoursIn` sums its hours, and the
- * ceiling has to be able to hold both machines turning at once.
+ * A site with two sets sums litres across the yard, exactly as `gensetHoursIn`
+ * sums its hours — unrounded per set, rounded once per bar.
  */
 const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): SiteTrend => {
   const start = startOfDay(dayAt);
   const today = startOfDay(now);
   // The hour in progress is drawn, and every hour after it is `null`. A part-hour
-  // bar is honest — the minutes in it did happen — and the chart marks where the
+  // bar is honest — the burn in it did happen — and the chart marks where the
   // record stops, so a short bar at the right edge is not read as a set that shut
   // down. Hours the day has not reached are absent rather than zero, for the
   // reason `TrendPoint.value` gives.
@@ -502,28 +741,36 @@ const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): S
 
     return {
       label: clockLabel(hour),
-      value: hour > edgeHour ? null : gensetMinutesIn(gensetIds, from, from + 3_600_000, now),
+      value:
+        hour > edgeHour
+          ? null
+          : Math.round(
+              gensetIds.reduce(
+                (litres, gensetId) =>
+                  litres + runTotalsIn(gensetId, from, from + 3_600_000, now).fuelLitres,
+                0,
+              ) * 10,
+            ) / 10,
     };
   });
 
-  const minutes = points.reduce((total, point) => total + (point.value ?? 0), 0);
+  const litres = points.reduce((total, point) => total + (point.value ?? 0), 0);
 
   return {
     metric: 'GENSET',
     period: 'day',
     points,
     shape: 'bars',
-    unit: 'min',
-    axisMax: 60 * Math.max(1, gensetIds.length),
+    unit: 'L',
     caption:
       gensetIds.length > 1
-        ? 'Engine minutes run in each hour, across the sets here'
-        : 'Minutes run in each hour of the day',
-    // Stated in hours even though the bars are minutes: `6.2 h` is how a day's
-    // running is spoken about everywhere else on the page — the service interval,
-    // the runs tab — and `372 min` would be the same fact in a unit nobody plans
-    // in.
-    total: {label: 'Hours run', value: hoursLabel(minutes / 60)},
+        ? 'Fuel consumption in each hour, across the sets here'
+        : 'Fuel consumption in each hour of the day',
+    total: {label: 'Total', value: `${NUMBER.format(Math.round(litres))} L`},
+    extra: {
+      label: 'Total genset runtime',
+      value: hoursLabel(gensetHoursIn(gensetIds, start, start + 86_400_000, now)),
+    },
   };
 };
 
@@ -541,6 +788,7 @@ const periodTrend = (
   seed: SiteSeed,
   role: SitePowerRole,
   gensetIds: Array<string>,
+  ratedKw: number,
   metric: SiteTrendMetric,
   period: Exclude<SiteTrendPeriod, 'day'>,
   now: number,
@@ -573,13 +821,178 @@ const periodTrend = (
         })
       : clockSpine(daily, now);
 
+  // The bank's bucketed view is **charge**, not level. A mean state of charge per
+  // day is a level with the story averaged out of it, and slicing it by source
+  // painted an energy fraction onto a percentage. Energy into the bank is the
+  // quantity a month can honestly stack — the same kilowatt-hours the Source
+  // table divides — so past a day the bank charts what filled it.
+  const chargeSplits =
+    metric === 'BATTERY'
+      ? spine.map((bucket) =>
+          bucket.from > now
+            ? null
+            : bankChargeSplitKwh(seed, role, ratedKw, bucket.from, bucket.to, now),
+        )
+      : undefined;
+
   const points: Array<TrendPoint> = spine.map((bucket, index) => ({
     label: bucket.label,
-    value: bucketValue(seed, role, gensetIds, metric, bucket, buckets[index], daily, now),
+    value:
+      chargeSplits !== undefined
+        ? chargeSplits[index] === null
+          ? null
+          : Math.round(chargeSplits[index]!.solarIn + chargeSplits[index]!.gensetIn)
+        : bucketValue(seed, role, gensetIds, metric, bucket, buckets[index], now),
   }));
 
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   const sum = readings.reduce((total, value) => total + value, 0);
+
+  // The promise beside the measurement — see `SiteTrend.reference`. Only the
+  // array carries one: the load has no physics to be held against and the sets'
+  // hours are scheduled, not promised.
+  const reference = (() => {
+    if (metric !== 'SOLAR') return undefined;
+    const values = spine.map((bucket) =>
+      bucket.to <= now ? expectedSolarKwh(seed, role, bucket.from, bucket.to) : null,
+    );
+    const drawn = values.filter((value): value is number => value !== null);
+    if (drawn.length === 0) return undefined;
+    return {
+      label: 'Expected',
+      values,
+      value: Math.round(drawn.reduce((total, value) => total + value, 0) / drawn.length),
+    };
+  })();
+
+  // The splits the day view carries, per bucket and in total — see
+  // `SiteTrend.bands` and `.mix`. Each bar divides at the walk's fractions,
+  // scaled to the bar's own figure so the segments close on it exactly and the
+  // table's totals match the bars'.
+  const banded = ((): Pick<SiteTrend, 'bands' | 'mix' | 'mixHeading' | 'paired' | 'reference'> => {
+    if (metric === 'SOLAR') {
+      const from: Array<number | null> = [];
+      const to: Array<number | null> = [];
+      let loadKwh = 0;
+      let bankKwh = 0;
+
+      spine.forEach((bucket, index) => {
+        const value = points[index]!.value;
+        if (value === null) {
+          from.push(null);
+          to.push(null);
+          return;
+        }
+        const split = solarSplitKwh(seed, role, bucket.from, bucket.to, now);
+        const total = split.toLoad + split.toBank;
+        const bank = total <= 0 ? 0 : (split.toBank / total) * value;
+        from.push(Math.round((value - bank) * 10) / 10);
+        to.push(value);
+        loadKwh += value - bank;
+        bankKwh += bank;
+      });
+
+      if (loadKwh + bankKwh <= 0) return {};
+      return {
+        bands: [{label: 'To battery', token: 'text-battery', from, to, value: KWH(bankKwh)}],
+        mix: solarMix(loadKwh, bankKwh),
+        mixHeading: 'Destination',
+      };
+    }
+
+    if (metric === 'BATTERY' && chargeSplits !== undefined) {
+      // Real kilowatt-hours stacking to real kilowatt-hours — the bars are the
+      // charge itself now, so each segment is measured-convention energy and the
+      // two close on the bucket's total exactly.
+      const solarFrom: Array<number | null> = [];
+      const solarTo: Array<number | null> = [];
+      const gensetFrom: Array<number | null> = [];
+      const gensetTo: Array<number | null> = [];
+      let solarKwh = 0;
+      let gensetKwh = 0;
+
+      chargeSplits.forEach((split) => {
+        if (split === null) {
+          solarFrom.push(null);
+          solarTo.push(null);
+          gensetFrom.push(null);
+          gensetTo.push(null);
+          return;
+        }
+        const boundary = Math.round(split.solarIn);
+        const total = Math.round(split.solarIn + split.gensetIn);
+        solarFrom.push(0);
+        solarTo.push(boundary);
+        gensetFrom.push(boundary);
+        gensetTo.push(total);
+        solarKwh += split.solarIn;
+        gensetKwh += split.gensetIn;
+      });
+
+      if (solarKwh + gensetKwh <= 0) return {};
+
+      const discharge = chargeSplits.map((split) =>
+        split === null ? null : Math.round(split.discharge),
+      );
+      const dischargeKwh = chargeSplits.reduce(
+        (total, split) => total + (split?.discharge ?? 0),
+        0,
+      );
+
+      const bands: SiteTrend['bands'] = [];
+      if (hasSolar(role))
+        bands.push({
+          label: 'Solar-charging',
+          token: SITE_TREND_METRIC_TOKEN.SOLAR,
+          from: solarFrom,
+          to: solarTo,
+          value: KWH(solarKwh),
+        });
+      if (ratedKw > 0)
+        bands.push({
+          label: 'Genset-charging',
+          token: SITE_TREND_METRIC_TOKEN.GENSET,
+          from: gensetFrom,
+          to: gensetTo,
+          value: KWH(gensetKwh),
+        });
+      // Where each bucket *started* — capacity times the state of charge at its
+      // first instant, in the same kilowatt-hours the flows are in. It is the
+      // figure that stops a reader deducting discharge from charge and calling
+      // the difference "what's left": what's left is stated, on its own line.
+      const capacityKwh = hybridPlant(seed, role).batteryKwh;
+      const stored = spine.map((bucket) =>
+        bucket.from > now
+          ? null
+          : Math.round(capacityKwh * hybridState(seed, role, bucket.from).soc),
+      );
+      const storedDrawn = stored.filter((value): value is number => value !== null);
+
+      return {
+        bands,
+        mix: chargeMix(solarKwh, gensetKwh, hasSolar(role), ratedKw > 0),
+        mixHeading: 'Source',
+        paired: {
+          label: 'Discharged to load',
+          token: 'text-battery',
+          values: discharge,
+          value: KWH(dischargeKwh),
+        },
+        reference:
+          storedDrawn.length === 0
+            ? undefined
+            : {
+                label: 'Initial battery level',
+                values: stored,
+                value: Math.round(
+                  storedDrawn.reduce((total, value) => total + value, 0) / storedDrawn.length,
+                ),
+              },
+      };
+    }
+
+    return {};
+  })();
 
   const grain = daily ? 'day' : 'month';
   // Only `lifetime` names its own extent — see the note on `buckets`.
@@ -589,24 +1002,32 @@ const periodTrend = (
     metric,
     period,
     points,
+    reference: reference ?? banded.reference,
+    bands: banded.bands,
+    mix: banded.mix,
+    mixHeading: banded.mixHeading,
+    paired: banded.paired,
     shape: 'bars',
-    unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
-    axisMax: metric === 'BATTERY' ? 100 : undefined,
+    unit: metric === 'GENSET' ? 'L' : 'kWh',
     caption:
       metric === 'BATTERY'
-        ? `Average state of charge, per ${grain}`
+        ? `Battery charge / discharge per ${grain}${extent}`
         : metric === 'GENSET'
-          ? `Hours run per ${grain}${extent}`
+          ? `Fuel consumption per ${grain}${extent}`
           : `Energy per ${grain}${extent}`,
     total:
-      metric === 'BATTERY'
+      metric === 'GENSET'
+        ? {label: 'Total', value: `${NUMBER.format(Math.round(sum))} L`}
+        : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
+    extra:
+      metric === 'GENSET' && spine.length > 0
         ? {
-            label: 'Mean',
-            value: `${readings.length === 0 ? 0 : Math.round(sum / readings.length)}%`,
+            label: 'Total genset runtime',
+            value: hoursLabel(
+              gensetHoursIn(gensetIds, spine[0]!.from, spine[spine.length - 1]!.to, now),
+            ),
           }
-        : metric === 'GENSET'
-          ? {label: 'Total', value: hoursLabel(sum)}
-          : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
+        : undefined,
   };
 };
 
@@ -650,14 +1071,23 @@ const bucketValue = (
   metric: SiteTrendMetric,
   window: {from: number; to: number},
   solar: {actualKwh: number} | undefined,
-  daily: boolean,
   now: number,
 ): number => {
   switch (metric) {
     case 'SOLAR':
       return solar?.actualKwh ?? 0;
     case 'GENSET':
-      return gensetHoursIn(gensetIds, window.from, window.to, now);
+      // Fuel rather than hours: the question a month of genset buckets answers
+      // is what the running *cost*, and the run log already prices every run
+      // through the one SFC curve the tank chart and the reports use. Summed
+      // unrounded across the sets, rounded once here — see `runTotalsIn`.
+      return Math.round(
+        gensetIds.reduce(
+          (litres, gensetId) =>
+            litres + runTotalsIn(gensetId, window.from, window.to, now).fuelLitres,
+          0,
+        ),
+      );
     case 'BATTERY': {
       // Sampled every three hours across the bucket and averaged. A single reading
       // at midnight would report the trough of the cycle as the day's level.
@@ -671,12 +1101,17 @@ const bucketValue = (
       return count === 0 ? 0 : Math.round(sum / count);
     }
     default: {
-      // The metered draw over the bucket. The shape averages to 1 across a whole
-      // day, so a day is `loadKw × 24` and a month is that times its own length —
-      // no double-counting of the diurnal curve.
-      const hours = Math.min(window.to, now + 86_400_000) - window.from;
-      const days = Math.max(0, hours) / 86_400_000;
-      return Math.round(seed.loadKw * 24 * (daily ? Math.min(1, days) : days));
+      // The metered draw over the bucket, one day at a time with each day priced
+      // at the slow wave's value at its noon — which is what lets the month's
+      // bars rise and fall with the same wave the distribution's crown draws,
+      // instead of both pretending the wave is not there. `now + 1 day` keeps
+      // today counted in full, as before.
+      const end = Math.min(window.to, now + 86_400_000);
+      let kwh = 0;
+      for (let at = window.from; at < end; at += 86_400_000) {
+        kwh += seed.loadKw * 24 * loadShape(at + 43_200_000);
+      }
+      return Math.round(kwh);
     }
   }
 };

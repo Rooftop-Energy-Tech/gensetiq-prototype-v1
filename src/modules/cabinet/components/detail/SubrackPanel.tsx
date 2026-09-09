@@ -289,10 +289,20 @@ export const SubrackPanel = ({
               <ThermometerIcon className="text-tertiary" aria-hidden="true" />
               {module.tempC.toFixed(1)} °C
             </Badge>
+            {/* The row's rank in its own words, matching the bay's colour in the
+                drawing and the battery rack's badge. It said `Fault` in flat amber,
+                which named the kind of mark and left the rank to be read off the
+                border — and the row it refers to is listed by `BayAlarms` a few lines
+                below in this same severity's colour, so the two now agree. */}
             {module.fault === 'ASSERTED' && (
               <Badge variant="secondary" className="whitespace-pre">
-                <TriangleAlertIcon className="text-severity-warning" aria-hidden="true" />
-                <span className="text-severity-warning">Fault</span>
+                <TriangleAlertIcon
+                  className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}
+                  aria-hidden="true"
+                />
+                <span className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}>
+                  {SEVERITY_META[module.faultSeverity ?? 'WARNING'].label}
+                </span>
               </Badge>
             )}
             {module.fault === 'NOT_REPORTED' && (
@@ -658,6 +668,46 @@ export const SubrackPanel = ({
             {label: 'Shelf DC input', value: '53.5 V · up to 120 A'},
             {label: 'Shelf AC output', value: '230 V ±3% · one 63 A'},
             {label: 'Alarm rows', value: 'None anywhere in this app'},
+          ]}
+        />
+      );
+    }
+
+    /* A module bay with nothing in it, which now happens at three of the four
+       cabinets: `SBH-1495` and `SWK-1163` fit five rectifiers into six bays.
+       It reaches here rather than the branch above because that branch needs a
+       `SubrackModule`, and there is no module to have readings for. Without this case
+       the bay fell through to `default` and drew an empty panel — a bay the drawing
+       invites you to click and then says nothing about. */
+    case 'RECTIFIER':
+    case 'SSU': {
+      const rectifierBay = position.kind === 'RECTIFIER';
+      const fittedCount = rectifierBay ? cabinet.rectifiers : cabinet.ssus;
+
+      return (
+        <InertBay
+          label={rectifierBay ? 'Rectifier bay' : 'Solar Supply Unit bay'}
+          identity={`${position.label} · empty`}
+          part={partNumberOf(position)}
+          line="Nothing is fitted in this bay, so the shelf is carrying less than its metal takes."
+          rows={[
+            {label: 'Takes', value: position.part ?? 'Unknown part'},
+            {
+              label: 'Fitted in this shelf',
+              value: rectifierBay
+                ? `${fittedCount} of ${RECTIFIER_POSITIONS} positions`
+                : `${fittedCount}`,
+            },
+            /* The reason an empty bay is worth a panel at all: it is headroom, and
+               headroom is the fact a person deciding what to take to site wants. */
+            {
+              label: 'Adding one gives',
+              value: rectifierBay
+                ? amount(cabinet.rectifierKw, 'kW')
+                : cabinet.ssuKw === null
+                  ? '—'
+                  : amount(cabinet.ssuKw, 'kW', 2),
+            },
           ]}
         />
       );

@@ -1,12 +1,19 @@
+import {Link} from '@tanstack/react-router';
 import {TriangleAlertIcon} from 'lucide-react';
 
 import {TankGlyph} from '@/components/global/TankGlyph';
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
+import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
+import {useAlarmHandling} from '@/modules/genset/data/alarms';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
+import type {AlarmView} from '@/modules/genset/types/alarmView.type';
+import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {
   IMBALANCE_POINTS,
   bankModules,
+  faultedModules,
   moduleChargeRange,
   moduleTempRange,
 } from '../../data/modules';
@@ -79,6 +86,41 @@ import type {BatteryModule} from '../../types/module.type';
  *
  * The scroll never appears on the estate the design was drawn for; it is what stops
  * the other estate from pushing the chart below it off the screen.
+ *
+ * ## Two marks, and the fill is what tells them apart
+ *
+ * A card can carry two completely different claims and they must not look alike:
+ *
+ * - **`Lithium Battery 4 Abnormal` is standing.** The module's own BMS reports a
+ *   problem with itself, on a register the site's monitoring unit polls. A *reported*
+ *   fact. The card takes an edge, a fill **and its badge** from the row's own severity
+ *   — red and `Critical` for what every module row on this estate is, amber and
+ *   `Warning` a rank down, and the achromatic grey `Neutral` for a note. All three
+ *   come out of one `SEVERITY_META` entry, so nothing on the card can disagree with
+ *   anything else on it about how bad the row is.
+ * - **The module is `IMBALANCE_POINTS` or more under the pack.** This app's own
+ *   arithmetic over figures it derived. It has no alarm and therefore no severity, so
+ *   it stays amber, takes the **edge** only, and keeps the plain `element` surface it
+ *   always had.
+ *
+ * Two rules say the same thing twice on purpose. **Hue**: red means a device reported
+ * it, amber means this app worked it out. **Fill**: a filled card is reported, an
+ * outlined one derived. Either alone would do it today — but hue alone fails the day
+ * a module row arrives at `WARNING` severity, when both marks would be amber and only
+ * the fill still separates them, and fill alone is what was here before and drew a
+ * critical fault in the warning colour.
+ *
+ * The estate proves the two are worth separating rather than merging. At SWK-0559 the
+ * faulted module is `M12` at 70.1% against a 66.5% pack — the **fullest module in the
+ * rack**, and permanently so: the per-module offsets are fixed and the pack's charge
+ * only shifts all thirteen together, so no hour of the day makes `M12` look like the
+ * problem it is. The BMS is asserting a fault on the one module this file's own spread
+ * is most confident about. A single mark covering both claims would have had to pick
+ * which of those two facts to report, and either choice loses the other.
+ *
+ * Both are drawn when both apply, fault first. Nothing on this estate is currently
+ * both — all four banks with a unit are 93–96% health, so no module is five points
+ * down — and it is a tired bank away from happening.
  */
 
 /** `57%` from `0.57` — the unit every percentage on the card is printed in. */
@@ -110,10 +152,74 @@ const noteFor = (module: BatteryModule, bank: BatteryBank, lowestId: string): Mo
   return module.id === lowestId ? {text: 'lowest', flagged: false} : undefined;
 };
 
+/**
+ * The reported mark: the row's severity, in the row's own words and colour.
+ *
+ * It said `Fault` in flat amber at every severity, which was one word doing two jobs
+ * badly — it named the *kind* of mark while the card's surface named the rank, so a
+ * critical module and a neutral note carried identical pills and a reader had to read
+ * the border to tell them apart. `Critical`, `Warning` and `Neutral` are the app's own
+ * severity words, the same three the Alarms tab ranks the row by and the same
+ * `SEVERITY_META` the surface is drawn from, so the pill and the card cannot disagree.
+ *
+ * `NEUTRAL` gets no hue, which is `SEVERITY_META`'s deliberate choice and not a gap: a
+ * neutral alert is a note rather than a problem, and giving it one would put it on the
+ * same footing as the two that are. It is still plainly a mark — the badge's own
+ * surface, a glyph, and the card's grey edge and shade — just an achromatic one.
+ */
+const FaultBadge = ({severity}: {severity: AlertSeverity}) => {
+  const meta = SEVERITY_META[severity];
+
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <TriangleAlertIcon className={meta.textClassName} aria-hidden="true" />
+      <span className={meta.textClassName}>{meta.label}</span>
+    </Badge>
+  );
+};
+
+/**
+ * The register behind the mark, linked to the tab that can act on it.
+ *
+ * The label the gateway publishes, exactly — `Lithium Battery 4 Abnormal` — because
+ * that raw string is what the Alarms tab lists, what history is keyed on, and what a
+ * reader is matching this card against. A card that tidied it to `Module 4 fault`
+ * would name one alarm two ways across two tabs of one asset.
+ *
+ * It exists here because the rack has no detail panel. The shelf can afford to mark a
+ * bay and let the card beside it name the row; a 10rem card in a wrapping grid is the
+ * only surface this mark has, so the name and the navigation come with it. Truncated
+ * rather than wrapped, with the whole string in the tooltip: two lines of register
+ * name would make the faulted card taller than its neighbours and break the grid's
+ * one useful property, which is that every module looks like every other until
+ * something is wrong with it.
+ */
+const FaultRow = ({bankId, fault}: {bankId: string; fault: AlarmView}) => (
+  <Link
+    to="/battery/$bankId/alarms"
+    params={{bankId}}
+    title={fault.name}
+    className="block min-w-0 truncate text-xs text-secondary underline-offset-2 outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+  >
+    {fault.name}
+  </Link>
+);
+
 export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
   const modules = bankModules(bank);
   const charge = moduleChargeRange(modules);
   const temperature = moduleTempRange(modules);
+
+  /**
+   * Live, exactly as the shelf's bays are: clearing `Lithium Battery 4 Abnormal` on
+   * this bank's Alarms tab unmarks `M04` on the way back, because the mark and the row
+   * are one alarm rather than a copy of it. The role is read for the same reason
+   * `assertedPlantAlarms` takes one — the catalogue a site publishes moves with how it
+   * is fed — and a bank's id is its site's, so no lookup stands between them.
+   */
+  const handling = useAlarmHandling();
+  const role = useSitePowerRole(bank.id);
+  const faults = faultedModules(bank, role, handling);
 
   // The rack is in slot order, so the lowest module has to be found rather than
   // read off an end — see `modules.ts` on why it is not sorted.
@@ -125,11 +231,17 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
         <h2 className="text-sm font-medium text-primary">The modules</h2>
         {/* What the cards cannot say at a glance, in one line.
 
-            The charge range leads, because it is the reason the rack is drawn and
-            the only thing here the page does not say elsewhere: `55–61%` under a
-            bank reading 57 is a pack in balance, and `38–68%` under the same 57 is a
-            module about to be replaced. The temperature range follows it for the
-            same reason — three degrees across a cabinet is airflow, nine is a
+            A standing module fault leads where there is one, because it is the only
+            clause here that somebody has to *do* something about — and because a
+            reader arriving at this band should not have to find the lit card in a
+            rack of thirteen to learn there is one. It is drawn only when it applies;
+            see its own note below.
+
+            The charge range leads otherwise, because it is the reason the rack is
+            drawn and the only thing here the page does not say elsewhere: `55–61%`
+            under a bank reading 57 is a pack in balance, and `38–68%` under the same
+            57 is a module about to be replaced. The temperature range follows it for
+            the same reason — three degrees across a cabinet is airflow, nine is a
             finding — and it also tells a reader what the `Temp` rows are to be read
             against, which no single card can.
 
@@ -139,6 +251,25 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
             should not have to scroll past a chart to find out what one card is — but
             they are the part already answered, so they go third. */}
         <p className="text-xs text-tertiary">
+          {/* The finding leads, in the same amber the cards below it are marked in —
+              which is what joins the sentence to the lit card a reader then goes
+              looking for. It is a clause rather than a permanent column, so it cannot
+              become chrome: **there is no zero state.** A rack with nothing faulted
+              simply opens with its ranges, because the three banks on this estate with
+              no monitoring unit would otherwise read `0 modules faulted` — nothing
+              watching, presented as nothing wrong, which is the one failure this app's
+              whole alarm model is designed against. `BankAlarms` says which of the two
+              zeros this bank's is, at length, one tab across.
+
+              Plural-safe though `groupOf` files all thirteen module addresses as one
+              group, so at most one module row can stand and the count is always one
+              today. That grouping is `assertedAlarms`' business and not this line's to
+              depend on. */}
+          {faults.size > 0 && (
+            <span className="text-severity-warning">
+              {`${faults.size} module${faults.size === 1 ? '' : 's'} faulted · `}
+            </span>
+          )}
           {`${percent(charge.low)}–${percent(charge.high)}% across the rack · ${temperature.low.toFixed(1)}–${temperature.high.toFixed(1)} °C · ${bank.modules.toLocaleString('en-MY')} modules of ${bank.moduleKwh} kWh`}
         </p>
       </div>
@@ -154,33 +285,59 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
           column would put 3,000px between the pack and the chart, and the estate that
           would put hundreds of modules here. */}
       <ul className="grid max-h-[48rem] grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3 overflow-y-auto">
-        {modules.map((module) => {
+        {modules.map((module, index) => {
           const note = noteFor(module, bank, lowest.id);
+          /* Keyed on the slot, not the id: the row's label counts modules from one
+             (`Lithium Battery 4 Abnormal`) and this rack indexes from zero, and the
+             card's own `M04` is that same one-based number padded. */
+          const fault = faults.get(index + 1);
 
           return (
             <li
               key={module.id}
               className={cn(
-                'flex flex-col gap-2.5 rounded-md border bg-element p-3',
-                note?.flagged === true ? 'border-severity-warning/40' : 'border-subtle',
+                'flex flex-col gap-2.5 rounded-md border p-3',
+                // Three states, not two — the doc at the top of this file argues why.
+                // A reported fault takes its **row's** edge and a tint; the derived
+                // imbalance takes an amber edge and no tint, because it has no row and
+                // therefore no severity to read. Fault wins the surface where both
+                // apply, and the imbalance still says itself in the badge row below.
+                fault !== undefined
+                  ? cn(
+                      SEVERITY_META[fault.severity].edgeClassName,
+                      SEVERITY_META[fault.severity].tintClassName,
+                    )
+                  : note?.flagged === true
+                    ? 'border-severity-warning/40 bg-element'
+                    : 'border-subtle bg-element',
               )}
             >
-              <div className="flex items-center justify-between gap-2">
+              {/* Wrapping, and `items-start` with it. Both marks together are about
+                  170px of badge against a card whose minimum is 160px, so the second
+                  drops to its own line rather than squeezing `M04` — which is the one
+                  thing on the card a person at the cabinet door is using. It costs a
+                  row of height on a card that is already the tallest in the rack, and
+                  only on the rack where both fire. */}
+              <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                 <span className="text-sm font-medium text-secondary">{module.label}</span>
 
-                {note !== undefined &&
-                  (note.flagged ? (
-                    <Badge variant="secondary" className="gap-1">
-                      <TriangleAlertIcon className="text-severity-warning" aria-hidden="true" />
-                      <span className="text-severity-warning">{note.text}</span>
-                    </Badge>
-                  ) : (
-                    // Not a badge. A pill is how this app draws a state worth
-                    // acting on, and `lowest` is a signpost — giving it the same
-                    // silhouette as the finding beside it would make the two read
-                    // as one severity at two wordings.
-                    <span className="text-xs text-tertiary">{note.text}</span>
-                  ))}
+                <span className="flex min-w-0 flex-wrap items-center justify-end gap-1">
+                  {fault !== undefined && <FaultBadge severity={fault.severity} />}
+
+                  {note !== undefined &&
+                    (note.flagged ? (
+                      <Badge variant="secondary" className="gap-1">
+                        <TriangleAlertIcon className="text-severity-warning" aria-hidden="true" />
+                        <span className="text-severity-warning">{note.text}</span>
+                      </Badge>
+                    ) : (
+                      // Not a badge. A pill is how this app draws a state worth
+                      // acting on, and `lowest` is a signpost — giving it the same
+                      // silhouette as the finding beside it would make the two read
+                      // as one severity at two wordings.
+                      <span className="text-xs text-tertiary">{note.text}</span>
+                    ))}
+                </span>
               </div>
 
               <div className="flex items-center gap-2.5">
@@ -207,6 +364,12 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
                 <MetricRow label="Temp" value={`${module.tempC.toFixed(1)} °C`} />
                 <MetricRow label="Stored" value={`${module.storedKwh.toFixed(2)} kWh`} />
               </div>
+
+              {/* Under the figures rather than beside the badge, because it is the
+                  answer to *why* and the figures are the answer to *how bad* — and a
+                  reader who has already decided to act on this card is the one who
+                  wants the register. */}
+              {fault !== undefined && <FaultRow bankId={bank.id} fault={fault} />}
             </li>
           );
         })}

@@ -5,6 +5,7 @@ import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {amount} from '@/lib/format';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
+import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {reportedSlots, subrackModules} from '../../data/subrackModules';
@@ -59,7 +60,13 @@ const KIND_META: Record<SubrackSlotKind, {label: string; icon: LucideIcon; tone:
 
 /** What the card says under its label, and how loudly. */
 const noteFor = (module: SubrackModule): {text: string; kind: 'fault' | 'quiet'} => {
-  if (module.fault === 'ASSERTED') return {text: 'fault', kind: 'fault'};
+  // The row's rank in its own words rather than the bare word `fault`, matching the
+  // elevation's bay and the battery rack's card. `WARNING` covers the combination the
+  // type permits and `subrackModules` never builds.
+  if (module.fault === 'ASSERTED') {
+    return {text: SEVERITY_META[module.faultSeverity ?? 'WARNING'].label, kind: 'fault'};
+  }
+
   if (module.fault === 'NOT_REPORTED') return {text: 'not reported', kind: 'quiet'};
   return module.outputKw > 0 ? {text: 'carrying', kind: 'quiet'} : {text: 'standby', kind: 'quiet'};
 };
@@ -99,8 +106,21 @@ export const SubrackRack = ({cabinet}: {cabinet: SubrackCabinet}) => {
             <li
               key={module.id}
               className={cn(
-                'flex flex-col gap-2.5 rounded-md border bg-element p-3',
-                note.kind === 'fault' ? 'border-severity-warning/40' : 'border-subtle',
+                'flex flex-col gap-2.5 rounded-md border p-3',
+                /* The same edge and tint the elevation gives a faulted bay, read from
+                   the same place — so a module the shelf drawing would mark red is not
+                   marked amber here just because this cabinet's counts fell outside
+                   what the elevation describes. It was `border-severity-warning/40`
+                   and no tint, which is what the battery's *derived* imbalance mark
+                   looks like; this claim is a device's, and it should not borrow the
+                   silhouette of one the app worked out. `faultSeverity` is never null
+                   on an asserted slot — see the fallback in `SubrackFigure`. */
+                note.kind === 'fault'
+                  ? cn(
+                      SEVERITY_META[module.faultSeverity ?? 'WARNING'].edgeClassName,
+                      SEVERITY_META[module.faultSeverity ?? 'WARNING'].tintClassName,
+                    )
+                  : 'border-subtle bg-element',
               )}
             >
               {/* The name on a line of its own, and `whitespace-nowrap` so it can
@@ -156,8 +176,15 @@ export const SubrackRack = ({cabinet}: {cabinet: SubrackCabinet}) => {
 
                 {note.kind === 'fault' ? (
                   <Badge variant="secondary" className="gap-1">
-                    <TriangleAlertIcon className="text-severity-warning" aria-hidden="true" />
-                    <span className="text-severity-warning">{note.text}</span>
+                    <TriangleAlertIcon
+                      className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}
+                    >
+                      {note.text}
+                    </span>
                   </Badge>
                 ) : (
                   // Not a badge. A pill is how this app draws a state worth acting

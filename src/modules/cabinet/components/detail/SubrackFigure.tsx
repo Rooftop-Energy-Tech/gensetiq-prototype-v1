@@ -1,9 +1,10 @@
 import {SunMediumIcon, TriangleAlertIcon, UtilityPoleIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
-import {CABINET_SHELVES, isCompactPosition} from '../../data/shelfLayout';
+import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
+import {isCompactPosition} from '../../data/shelfLayout';
 import {SHELF_COLUMNS, isModulePosition} from '../../types/shelfPosition.type';
-import type {ShelfPosition} from '../../types/shelfPosition.type';
+import type {Shelf, ShelfPosition} from '../../types/shelfPosition.type';
 import type {SubrackModule} from '../../types/subrackModule.type';
 
 /**
@@ -41,7 +42,11 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  *
  * ## What each bay's appearance says
  *
- * Colour is the kind and fill is the state, which keeps the two readable at once:
+ * Colour is the kind and fill is the state, which keeps the two readable at once —
+ * except on a faulted bay, where colour is the **severity** and both of the others
+ * give way. That is the ordering a person at the cabinet door needs: what sort of bay
+ * it is and whether it is carrying are answered on the panel beside the drawing, and
+ * which bay to open is answered only here.
  *
  * - **Rectifier** in the app's teal, the tone the site diagram gives an incomer and
  *   the sites list gives its supply badge — because that is what a rectifier
@@ -51,8 +56,12 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  *   group is ever carrying — in daylight the array feeds the tower through the SSUs
  *   and the six rectifiers deliver nothing — so an unlit rectifier row is the plant
  *   working exactly as specified and must not read as a fault.
- * - **Faulted** takes the warning edge, the same `border-severity-warning` the card
- *   rack and the battery's modules use.
+ * - **Faulted** takes its edge *and* its fill from **the row's own severity** — red
+ *   for the `CRITICAL` that every `SSU N Fault` on this estate is. It was flat amber,
+ *   which was the warning colour standing in for the only red in the app on a bay
+ *   whose row the Alarms tab one tab across ranks critical. The card rack and the
+ *   battery's module cards read the same pair from `SEVERITY_META`, so one row cannot
+ *   be three colours across three drawings of it.
  * - **Inert bays** are tertiary text on the element background: present, named, and
  *   visibly not reporting anything.
  * - **Empty slots** are dashed and unfilled, but keep their label and stay
@@ -114,11 +123,12 @@ const bayClassName = (
   }
 
   if (module.fault === 'ASSERTED') {
-    return cn(
-      base,
-      'border-severity-warning/60 bg-severity-warning/10 text-primary cursor-pointer',
-      ring,
-    );
+    // `WARNING` where the severity is somehow missing, which the type permits and
+    // `subrackModules` never produces: a bay drawn in the wrong amber is recoverable
+    // and a bay drawn as though nothing were wrong is not.
+    const meta = SEVERITY_META[module.faultSeverity ?? 'WARNING'];
+
+    return cn(base, meta.edgeClassName, meta.tintClassName, 'text-primary cursor-pointer', ring);
   }
 
   const carrying = module.outputKw > 0;
@@ -143,7 +153,10 @@ const bayClassName = (
  */
 const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): string => {
   if (position.fitted === false) {
-    return `${position.label}: empty, no inverter fitted`;
+    // Kind-neutral. It said "no inverter fitted", which was true while the inverter
+    // slots were the only bays that could be empty — a five-rectifier shelf has an
+    // empty rectifier bay, and it is not an inverter.
+    return `${position.label}: empty, nothing fitted`;
   }
 
   if (module === undefined) {
@@ -159,9 +172,12 @@ const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): s
     return second === undefined ? position.label : `${position.label}, ${second}`;
   }
 
+  // The rank is spoken, because it is the only thing the cell says about a faulted bay
+  // that a reader who cannot see it has no other route to: the colour is the whole
+  // message and there is no room in 88px for the word.
   const state =
     module.fault === 'ASSERTED'
-      ? 'faulted'
+      ? `faulted, ${SEVERITY_META[module.faultSeverity ?? 'WARNING'].label}`
       : module.outputKw > 0
         ? 'carrying'
         : 'on standby';
@@ -180,6 +196,13 @@ const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): s
  * glyph in a 3rem cell, and a bay a person has to go and look at should say so before
  * it says what sort of bay it is — the kind is on the card beside the drawing anyway.
  *
+ * In the row's own severity, like the bay's surface and like the badge on the panel
+ * beside it. There is no room for the severity in words in an 88px cell, so the glyph's
+ * colour is the whole of what it can say about rank — and a bay whose edge and shade
+ * are red while its glyph is amber is a cell disagreeing with itself. `NEUTRAL` takes
+ * no hue and does not need one: the glyph is still a triangle where every other bay
+ * has a sun or a utility pole, so such a bay is marked by shape even before colour.
+ *
  * Unlit when the bay is on standby, which is the same rule the fill follows: only one
  * group converts at a time and the idle one is not in trouble.
  */
@@ -187,7 +210,12 @@ const BayIcon = ({module}: {module: SubrackModule}) => {
   if (module.fault === 'ASSERTED') {
     return (
       <TriangleAlertIcon
-        className="size-4 shrink-0 text-severity-warning"
+        className={cn(
+          'size-4 shrink-0',
+          // `WARNING` for the combination the type permits and `subrackModules` never
+          // builds — the same fallback the cell's own surface takes.
+          SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName,
+        )}
         aria-hidden="true"
       />
     );
@@ -205,10 +233,20 @@ const BayIcon = ({module}: {module: SubrackModule}) => {
 };
 
 export const SubrackFigure = ({
+  shelves,
   modules,
   selected,
   onSelect,
 }: {
+  /**
+   * The two shelves, already built for this cabinet's counts.
+   *
+   * Handed in rather than derived here. The band beside this figure needs the same
+   * geometry — to resolve a click into a position and to count the parts in its
+   * caption — and two components building it from the same counts is two chances for
+   * the drawing and the lookup to disagree about where a bay is. See `cabinetShelves`.
+   */
+  shelves: ReadonlyArray<Shelf>;
   modules: ReadonlyArray<SubrackModule>;
   selected: string;
   onSelect: (key: string) => void;
@@ -231,7 +269,7 @@ export const SubrackFigure = ({
 
   return (
     <div className="flex w-full max-w-[44rem] flex-col gap-5">
-      {CABINET_SHELVES.map((shelf) => (
+      {shelves.map((shelf) => (
         <figure key={shelf.key} className="m-0 flex flex-col gap-1.5">
           {/* The shelf's own frame, in the inset surface, so the bays read as being
               inside a box rather than as loose tiles on the page. */}

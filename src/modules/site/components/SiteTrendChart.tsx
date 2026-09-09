@@ -55,13 +55,12 @@ const TICK_ROWS = 4;
 const tickLabel = (tick: number, step: number): string =>
   step >= 1 ? String(Math.round(tick)) : tick.toFixed(step >= 0.1 ? 1 : 2);
 
-/** A rounded axis ceiling that lands on `TICK_ROWS` clean divisions. */
-const niceMax = (max: number): number => {
-  if (max <= 0) return 1;
-  const step = 10 ** Math.floor(Math.log10(max / TICK_ROWS));
-  const normalised = max / TICK_ROWS / step;
-  const rounded = (normalised <= 1 ? 1 : normalised <= 2 ? 2 : normalised <= 5 ? 5 : 10) * step;
-  return rounded * TICK_ROWS;
+/** A rounded step that lands on clean divisions — same rule the overview uses. */
+const niceStep = (rough: number): number => {
+  if (rough <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const normalised = rough / magnitude;
+  return (normalised <= 1 ? 1 : normalised <= 2 ? 2 : normalised <= 5 ? 5 : 10) * magnitude;
 };
 
 /**
@@ -96,7 +95,24 @@ export const SiteTrendChart = ({
   const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
-  const top = trend.axisMax ?? niceMax(Math.max(...readings, 1));
+  // The reference is in the ceiling too: an expectation the bars all missed must
+  // sit inside the frame, not on its edge — the shortfall is the picture.
+  // A paired series mirrors below the axis, so the scale spans both halves —
+  // charge above the zero rule, discharge under it. A fixed ceiling (state of
+  // charge) keeps its zero floor, and everything else lands on clean divisions
+  // of the whole span.
+  const referenced = (trend.reference?.values ?? []).filter(
+    (value): value is number => value !== null,
+  );
+  const mirrored = (trend.paired?.values ?? []).filter((value): value is number => value !== null);
+  const high = trend.axisMax ?? Math.max(...readings, ...referenced, 1);
+  const low = mirrored.length === 0 ? 0 : -Math.max(...mirrored);
+  const tickStep =
+    trend.axisMax !== undefined
+      ? trend.axisMax / TICK_ROWS
+      : niceStep(Math.max(high - low, 1) / TICK_ROWS);
+  const top = trend.axisMax ?? Math.max(tickStep, Math.ceil(high / tickStep) * tickStep);
+  const bottom = Math.min(0, Math.floor(low / tickStep) * tickStep);
 
   // Bars are centred in their own slot; a curve's points sit on the edges, so the
   // first and last land on the axis rather than half a slot inside it.
@@ -105,7 +121,8 @@ export const SiteTrendChart = ({
     bars
       ? AXIS_WIDTH + slot * index + slot / 2
       : AXIS_WIDTH + (plotWidth * index) / Math.max(1, points.length - 1);
-  const y = (value: number) => PAD_TOP + plotHeight * (1 - Math.min(1, value / top));
+  const y = (value: number) =>
+    PAD_TOP + plotHeight * (1 - (value - bottom) / Math.max(1e-6, top - bottom));
 
   const measured = points.filter((point) => point.value !== null);
 
@@ -145,12 +162,26 @@ export const SiteTrendChart = ({
     return out;
   })();
 
-  /** One piece as `[area, line]` — the area closed to the floor under its own run. */
+  /**
+   * One piece as `[area, line]` — the area closed to the floor under its own run.
+   *
+   * Where a band is being drawn (the array's charging slice), the series' own
+   * fill stops at the band's lower boundary instead of the curve: the slice above
+   * it belongs to the bank and is filled in the bank's colour on the bare ground,
+   * so it reads in exactly the shade the SoC chart taught, not blue over orange.
+   */
   const shapeOf = (piece: {points: Array<number>}): {area: string; line: string} => {
     const line = piece.points.map((index) => `${x(index)},${y(points[index]!.value!)}`).join(' ');
+    const lower = trend.bands?.[0]?.from;
+    const areaTop =
+      lower === undefined
+        ? line
+        : piece.points
+            .map((index) => `${x(index)},${y(lower[index] ?? points[index]!.value!)}`)
+            .join(' ');
     const first = piece.points[0]!;
     const last = piece.points[piece.points.length - 1]!;
-    return {area: `${x(first)},${y(0)} ${line} ${x(last)},${y(0)}`, line};
+    return {area: `${x(first)},${y(0)} ${areaTop} ${x(last)},${y(0)}`, line};
   };
 
   /** Which tints this series actually used, in the order the model declares them. */
@@ -158,8 +189,9 @@ export const SiteTrendChart = ({
     points.some((point) => point.tint === id),
   );
 
-  const tickStep = top / TICK_ROWS;
-  const ticks = Array.from({length: TICK_ROWS + 1}, (_, index) => tickStep * index);
+  const ticks: Array<number> = [];
+  for (let tick = bottom; tick <= top + 1e-6; tick += tickStep)
+    ticks.push(Math.round(tick * 100) / 100);
   const stride = labelStride(points.length, plotWidth);
   const shown = hovered === null ? undefined : points[hovered];
   /**
@@ -167,8 +199,7 @@ export const SiteTrendChart = ({
    *
    * The colour says it already, and it says it to a reader who has read the legend
    * — this is the same claim for one whose attention is on the crosshair. Lowered
-   * to sentence case because it lands mid-phrase: `07:30 · 62 % · charging from
-   * solar`.
+   * to sentence case because it lands mid-phrase: `07:30 · 62 % · solar-charging`.
    */
   const hoveredTint =
     shown?.tint === undefined
@@ -213,7 +244,7 @@ export const SiteTrendChart = ({
               y1={y(tick)}
               x2={width}
               y2={y(tick)}
-              className="stroke-current text-subtle"
+              className={cn('stroke-current', tick === 0 && bottom < 0 ? 'text-default' : 'text-subtle')}
               strokeWidth={1}
             />
             <text
@@ -227,22 +258,116 @@ export const SiteTrendChart = ({
           </g>
         ))}
 
+        {/* Bars, split where the bands say so: the series' own colour runs up to
+            the first slice's boundary, and each slice stacks above in its own
+            token — the same quantities the table under the chart divides. A bar
+            with no slices at its index stays one rectangle. */}
         {bars
-          ? points.map((point, index) =>
-              point.value === null ? null : (
-                <rect
-                  key={point.label}
-                  x={x(index) - Math.max(2, slot * 0.32)}
-                  y={y(point.value)}
-                  width={Math.max(4, slot * 0.64)}
-                  height={Math.max(0, y(0) - y(point.value))}
-                  rx={2}
-                  className="fill-current"
-                  opacity={hovered === null || hovered === index ? 0.85 : 0.4}
-                />
-              ),
-            )
+          ? points.map((point, index) => {
+              if (point.value === null) return null;
+              // A paired series mirrors: the bucket's own bar above the zero rule,
+              // its counterpart below it in one column — in over out, the way a
+              // signed bank chart has always read.
+              const barWidth = Math.max(4, slot * 0.64);
+              const left = x(index) - barWidth / 2;
+              // The same 55% every fill in the band uses; hover dims the rest.
+              const dim = hovered === null || hovered === index ? 0.55 : 0.3;
+              const base = trend.bands?.[0]?.from[index] ?? point.value;
+              const paired = trend.paired?.values[index];
+
+              return (
+                <g key={point.label}>
+                  {base > 0 && (
+                    <rect
+                      x={left}
+                      y={y(base)}
+                      width={barWidth}
+                      height={Math.max(0, y(0) - y(base))}
+                      rx={2}
+                      className="fill-current"
+                      opacity={dim}
+                    />
+                  )}
+                  {(trend.bands ?? []).map((band) => {
+                    const from = band.from[index];
+                    const to = band.to[index];
+                    return from === null || from === undefined || to === null || to === undefined || to <= from ? null : (
+                      <rect
+                        key={band.label}
+                        x={left}
+                        y={y(to)}
+                        width={barWidth}
+                        height={Math.max(0, y(from) - y(to))}
+                        rx={2}
+                        className={cn('fill-current', band.token)}
+                        opacity={dim}
+                      />
+                    );
+                  })}
+                  {paired !== null && paired !== undefined && paired > 0 && (
+                    <rect
+                      x={left}
+                      y={y(0)}
+                      width={barWidth}
+                      height={Math.max(0, y(-paired) - y(0))}
+                      rx={2}
+                      className={cn('fill-current', trend.paired?.token)}
+                      opacity={dim}
+                    />
+                  )}
+                </g>
+              );
+            })
           : null}
+
+        {/* The slices over the curve: each the area between its own boundaries,
+            in its own token at the band strength every fill here shares. Under
+            the reference and the strokes, so neither is dimmed. */}
+        {!bars &&
+          (trend.bands ?? []).map((band) => (
+            <polygon
+              key={band.label}
+              points={[
+                ...band.to.flatMap((value, index) =>
+                  value === null ? [] : [`${x(index)},${y(value)}`],
+                ),
+                ...band.from
+                  .flatMap((value, index) => (value === null ? [] : [{index, value}]))
+                  .reverse()
+                  .map(({index, value}) => `${x(index)},${y(value)}`),
+              ].join(' ')}
+              className={cn('fill-current', band.token)}
+              opacity={0.55}
+            />
+          ))}
+
+        {/* The expected reference over the actuals: on bars, a staircase — one
+            step per bucket, spanning its slot at what the physics promised it —
+            and on the day curve, the promised bell through the same samples. Not
+            labelled on the plot; its figure lives in the strip below, which
+            follows the hover. Muted ink rather than the series' own colour: a
+            dashed solar-orange line over solar-orange bars would vanish exactly
+            where it crosses them. */}
+        {trend.reference !== undefined && (
+          <polyline
+            points={trend.reference.values
+              .flatMap((value, index) =>
+                value === null
+                  ? []
+                  : bars
+                    ? [
+                        `${AXIS_WIDTH + slot * index},${y(value)}`,
+                        `${AXIS_WIDTH + slot * (index + 1)},${y(value)}`,
+                      ]
+                    : [`${x(index)},${y(value)}`],
+              )
+              .join(' ')}
+            fill="none"
+            className="stroke-current text-secondary"
+            strokeWidth={1.5}
+            strokeDasharray="2 3"
+          />
+        )}
 
         {pieces.map((piece, index) => {
           const {area, line} = shapeOf(piece);
@@ -252,7 +377,9 @@ export const SiteTrendChart = ({
             // Keyed on where it starts: the pieces partition one run of samples, so
             // no two of them can begin at the same index.
             <g key={`${piece.points[0]}-${index}`} className={tint?.token}>
-              <polygon points={area} className="fill-current" opacity={0.16} />
+              {/* One fill strength across every chart in the band — the 55% the
+                  distribution chart's bands set. */}
+              <polygon points={area} className="fill-current" opacity={0.55} />
               <polyline
                 points={line}
                 fill="none"
@@ -313,15 +440,14 @@ export const SiteTrendChart = ({
       {/* The design's legend, plus the hovered reading in the same strip. Two rows
           would put the readout below the fold of a 472px card. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs">
-        <span className="flex items-center gap-1.5 text-secondary">
-          <span className="h-0.5 w-3 rounded-full bg-current" aria-hidden="true" />
-          {trend.caption}
-        </span>
+        {/* The caption is a sentence about the window, not a series — it gets no
+            swatch. The chips belong to things actually drawn. */}
+        <span className="text-secondary">{trend.caption}</span>
 
-        {/* Only the tints the day actually used. A legend entry for `Charging from
-            solar` on a bank that spent the whole night on diesel would have a
-            reader hunting the plot for a colour that is not on it — and on a
-            diesel hybrid with no array it would name plant the site has not
+        {/* Only the tints the day actually used. A legend entry for
+            `Solar-charging` on a bank that spent the whole night on diesel would
+            have a reader hunting the plot for a colour that is not on it — and on
+            a diesel hybrid with no array it would name plant the site has not
             got. */}
         {legend.map(([id, tint]) => (
           <span key={id} className={cn('flex items-center gap-1.5', tint.token)}>
@@ -329,6 +455,50 @@ export const SiteTrendChart = ({
             <span className="text-secondary">{tint.label}</span>
           </span>
         ))}
+
+        {(trend.bands ?? []).map((band) => (
+          <span key={band.label} className={cn('flex items-center gap-1.5', band.token)}>
+            <span className="h-2 w-2 rounded-[2px] bg-current opacity-60" aria-hidden="true" />
+            <span className="text-tertiary">
+              {band.label} · <span className="text-primary tabular-nums">{band.value}</span>
+            </span>
+          </span>
+        ))}
+
+        {trend.paired !== undefined && (
+          <span className={cn('flex items-center gap-1.5', trend.paired.token)}>
+            <span className="h-2 w-2 rounded-[2px] bg-current opacity-60" aria-hidden="true" />
+            <span className="text-tertiary">
+              {trend.paired.label} ·{' '}
+              <span className="text-primary tabular-nums">
+                {hovered !== null &&
+                trend.paired.values[hovered] !== null &&
+                trend.paired.values[hovered] !== undefined
+                  ? `${trend.paired.values[hovered]} ${unit}`
+                  : trend.paired.value}
+              </span>
+            </span>
+          </span>
+        )}
+
+        {/* The reference's figure, following the hover: pointing at a bar
+            restates the promise for that bar's own bucket, and pointing at
+            nothing shows the window's mean. The bucket in progress has no step,
+            so it falls back to the mean rather than to a blank. */}
+        {trend.reference !== undefined && (
+          <span className="flex items-center gap-1.5 text-secondary">
+            <span className="w-3 border-t border-dotted border-current" aria-hidden="true" />
+            <span className="text-tertiary">
+              {trend.reference.label} ·{' '}
+              <span className="text-primary tabular-nums">
+                {hovered !== null && trend.reference.values[hovered] !== null
+                  ? trend.reference.values[hovered]
+                  : trend.reference.value}{' '}
+                {unit}
+              </span>
+            </span>
+          </span>
+        )}
 
         <span
           className={cn(
@@ -344,7 +514,53 @@ export const SiteTrendChart = ({
                 shown.value === null ? 'not yet' : `${shown.value} ${unit}`
               }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}`}
         </span>
+
+        {trend.extra !== undefined && (
+          <span className="text-tertiary tabular-nums">
+            {trend.extra.label} · <span className="text-primary">{trend.extra.value}</span>
+          </span>
+        )}
       </div>
+
+      {/* The split as arithmetic — where the window's generation went, in the
+          same rows the chart shades: the tower's share, the bank's, and the
+          total they divide. Same table the distribution chart draws. */}
+      {trend.mix !== undefined && (
+        <table className="mt-3 w-full max-w-md text-xs">
+          <thead>
+            <tr className="border-b border-subtle text-secondary">
+              <th className="py-1.5 pr-3 text-left font-medium">
+                {trend.mixHeading ?? 'Breakdown'}
+              </th>
+              <th className="px-3 py-1.5 text-right font-medium">Energy</th>
+              <th className="py-1.5 pl-3 text-right font-medium">Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trend.mix.map((row, index) => (
+              <tr
+                key={row.label}
+                className={cn(index === trend.mix!.length - 1 && 'border-t border-subtle')}
+              >
+                <td className="py-1.5 pr-3">
+                  <span className={cn('flex items-center gap-1.5', row.token)}>
+                    <span className="h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true" />
+                    <span
+                      className={
+                        index === trend.mix!.length - 1 ? 'text-primary' : 'text-secondary'
+                      }
+                    >
+                      {row.label}
+                    </span>
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 text-right text-secondary tabular-nums">{row.energy}</td>
+                <td className="py-1.5 pl-3 text-right text-primary tabular-nums">{row.share}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };

@@ -1,5 +1,10 @@
+import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
 import {spread} from '@/modules/genset/data/spread';
+import {isStanding} from '@/modules/genset/types/alarmState.type';
+import type {AlarmHandling} from '@/modules/genset/types/alarmState.type';
+import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {enclosureTempC} from '@/modules/site/data/enclosure';
+import type {SitePowerRole} from '@/modules/site/types/site.type';
 import type {BatteryBank} from '../types/bank.type';
 import type {BatteryModule} from '../types/module.type';
 
@@ -181,6 +186,58 @@ export const bankModules = (bank: BatteryBank): Array<BatteryModule> => {
       storedKwh: bank.moduleKwh * soh * soc,
     };
   });
+};
+
+/**
+ * Which modules the unit is asserting a fault against, and the row that says so.
+ *
+ * The bank's half of `faultedSsuSlots`, and deliberately the same shape of thing: one
+ * positional row per module, read off the **actual alarm list** rather than derived,
+ * so a card marked faulted here has a row on the Alarms tab and vice versa.
+ * `lithiumSpecs` generates `Lithium Battery 4 Abnormal` from the unit's own module
+ * count, which is why the join lands on a module that exists.
+ *
+ * Parsed out of the row's **label** rather than its address, for the reason the
+ * cabinet's version gives: the label is what the gateway publishes and what every
+ * other screen keys on, and an address stride here would be a second copy of
+ * arithmetic that already lives in `plantAlarms.ts`.
+ *
+ * ## Why this returns the row and not a boolean
+ *
+ * Because the rack has no detail panel. The shelf can mark a bay and let the panel
+ * beside it name the register, link to the tab and colour the severity; a card in a
+ * wrapping grid has to carry all of that itself or not at all. So the row comes back
+ * whole and the card prints its published name as the link.
+ *
+ * ## Why standing rather than asserted
+ *
+ * `assertedPlantAlarms` includes rows somebody has cleared — that is what the Alarms
+ * tab's second table is — and a module marked faulted after its row has been dealt
+ * with is the two screens disagreeing about the same alarm. Clearing
+ * `Lithium Battery 4 Abnormal` on the tab unmarks `M04` on the way back, which is the
+ * behaviour a reader will check first.
+ *
+ * ## What it returns where nothing is watching
+ *
+ * An empty map, at the twenty-four sites with no monitoring unit — and the rack must
+ * not draw that as a clean bill of health. `BankAlarms` makes the argument at length;
+ * `ModuleRack`'s caption is the other half of it.
+ */
+export const faultedModules = (
+  bank: BatteryBank,
+  role: SitePowerRole,
+  handling: Record<string, AlarmHandling>,
+): ReadonlyMap<number, AlarmView> => {
+  const faults = new Map<number, AlarmView>();
+
+  for (const row of assertedPlantAlarms(bank.id, role, 'BATTERY', handling)) {
+    if (!isStanding(row)) continue;
+
+    const match = /^Lithium Battery (\d+) Abnormal$/.exec(row.name);
+    if (match?.[1] !== undefined) faults.set(Number(match[1]), row);
+  }
+
+  return faults;
 };
 
 /** The lowest and highest of a numeric reading across a rack — the caption's ranges. */

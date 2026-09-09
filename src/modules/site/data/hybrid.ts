@@ -331,21 +331,26 @@ export type HybridState = {
 const FIRST_LIGHT = 7;
 const LAST_LIGHT = 19;
 
+/** The load's slow wave completes one cycle in this many days — the Year window. */
+const LOAD_WAVE_DAYS = 365;
+
 /**
- * The shape of a site's own draw across a day, as a multiplier on its metered kW.
+ * The shape of a site's own draw over time, as a multiplier on its metered kW.
  *
- * Deliberately shallow. A telecom site's load is air-conditioning and radios: it
- * does not switch off at night and it does not double at noon, so this runs between
- * about 0.88 and 1.12 with the peak in the afternoon when the cabinet is hottest.
- * A domestic double-peak profile would be the wrong shape borrowed from the wrong
- * kind of customer, and it would make the array look like it was missing an evening
- * demand that these sites do not have.
+ * One ±10% sine across **a year**, not across a day. A telecom site's load is
+ * radios and rectifiers around the clock: within any one day it is constant to
+ * the eye, and what actually moves it is seasonal — traffic and ambient heat over
+ * months. So the Year tab shows the one full cycle; the Month tab shows a slice
+ * of it, a slow rise or fall across its thirty days; and the Day tab is flat to
+ * the pixel, sitting wherever that day lands on the wave.
  *
- * `seed.loadKw` stays the day's mean by construction — the multiplier averages to
- * 1 over 24 hours — so this reshapes the metered figure without inventing energy.
+ * Takes an absolute timestamp (ms) and is anchored to the epoch, so a given date
+ * always lands on the same point of the wave no matter which chart asks.
+ * `seed.loadKw` stays the mean over any full cycle; a single day's or month's
+ * energy honestly runs up to ±10% off it, which is the point.
  */
-export const loadShape = (hour: number): number =>
-  1 + 0.12 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
+export const loadShape = (at: number): number =>
+  1 + 0.1 * Math.sin((at / (LOAD_WAVE_DAYS * 86_400_000)) * 2 * Math.PI);
 
 /**
  * The shape of a solar day, unnormalised: `0` before first light, `1` at noon.
@@ -467,14 +472,17 @@ const chargeWindows = (
   /**
    * And the middle of the day, where the array makes more than the tower draws.
    *
-   * Scanned rather than solved. The crossing depends on the day's energy, the
-   * cubed-sine shape and the load's own shallow curve, and a quarter-hour scan
-   * finds it in 96 steps without any of the three having to be inverted.
+   * Scanned rather than solved. The crossing depends on the day's energy and the
+   * cubed-sine shape, and a quarter-hour scan finds it in 96 steps without either
+   * having to be inverted. The load's slow wave is not in the comparison: it moves
+   * ±10% over a month, so within one day it is a constant this function has no
+   * timestamp to place — and a crossing moved by minutes is not worth plumbing
+   * one through for.
    */
   let from: number | undefined;
   let to: number | undefined;
   for (let hour = 0; hour < HOURS_PER_DAY; hour += 0.25) {
-    if (intradayKw(dayKwh, hour) > seed.loadKw * loadShape(hour)) {
+    if (intradayKw(dayKwh, hour) > seed.loadKw) {
       from ??= hour;
       to = hour + 0.25;
     }
@@ -887,6 +895,33 @@ const MONTH_FACTOR = [0.98, 1.06, 1.07, 1.03, 1.01, 1.02, 1.03, 1.02, 0.99, 0.97
 
 const DAYS_IN_MONTH = (year: number, month: number): number =>
   new Date(year, month + 1, 0).getDate();
+
+/**
+ * What the physics says the array should raise over `[from, to)` — nameplate ×
+ * sun hours × performance ratio, summed day by day through `MONTH_FACTOR` so a
+ * February and a monsoon December each get the expectation they deserve.
+ *
+ * This is the same `baseKwh` the mock actuals are generated from, published as a
+ * *reference* rather than folded back into `SolarBucket` — that type deliberately
+ * carries one series (see its note), and the expectation travels beside the
+ * measurement, not inside it. Zero where no array is fitted.
+ */
+export const expectedSolarKwh = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  from: number,
+  to: number,
+): number => {
+  const plant = hybridPlant(seed, role);
+  if (plant.solarKwp === 0) return 0;
+
+  const perDay = plant.solarKwp * customer(seed.customer).peakSunHours * PERFORMANCE_RATIO;
+  let kwh = 0;
+  for (let at = from; at < to; at += 86_400_000) {
+    kwh += perDay * MONTH_FACTOR[new Date(at).getMonth()]!;
+  }
+  return Math.round(kwh);
+};
 
 /**
  * One bar on a generation chart, at whatever grain the chart is drawn at.
