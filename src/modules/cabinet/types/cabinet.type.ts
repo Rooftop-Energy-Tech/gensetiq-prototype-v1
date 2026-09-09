@@ -215,7 +215,7 @@ export const cabinetFlowLabel = (cabinet: SubrackCabinet): string => {
   const clauses: Array<string> = [];
 
   if (cabinet.carrying === 'RECTIFIERS') clauses.push('rectifiers carrying');
-  if (cabinet.solarKw > 0) clauses.push('solar units converting');
+  if (cabinet.solarKw > 0) clauses.push('Solar Supply Units converting');
 
   if (cabinet.batteryKw < 0) clauses.push('bank charging');
   else if (cabinet.batteryKw > 0) clauses.push('bank carrying');
@@ -224,8 +224,12 @@ export const cabinetFlowLabel = (cabinet: SubrackCabinet): string => {
 
   // Every clause is written lower case and the sentence is capitalised once, at the
   // front, whichever clause got there first. Capitalising them individually read as
-  // `Bank carrying` at night and `Solar units converting, bank carrying` by day —
+  // `Bank carrying` at night and `Rectifiers carrying, bank carrying` under a genset —
   // the same clause with two different capitals depending on what else was true.
+  //
+  // `Solar Supply Units` is the exception and not a break in the rule: it is the
+  // vendor's name for the part, so its capitals belong to it wherever it lands in the
+  // sentence. The leading upper-case below is a no-op when that clause comes first.
   const sentence = clauses.join(', ');
   return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 };

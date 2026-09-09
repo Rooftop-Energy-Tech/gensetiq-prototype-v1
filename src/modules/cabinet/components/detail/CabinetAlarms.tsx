@@ -84,11 +84,11 @@ export const CabinetAlarms = ({cabinetId}: {cabinetId: string}) => {
       {watched > 0 ? (
         <p className="max-w-prose text-xs text-tertiary">
           The monitoring unit on this cabinet's wall polls {watched} registers against
-          it: the shelf as a group and each solar unit by slot, the DC bus it delivers
-          on, the load fuse and both surge arresters, and the door, water and smoke
-          sensors on the enclosure. Five of those describe the rectifiers, and none of
-          them names a module — their addresses are hand-set, so the shelf can only
-          report itself as a whole. The same rows appear on the site's Alarms tab,
+          it: the shelf as a group and each Solar Supply Unit by slot, the DC bus it
+          delivers on, the load fuse and both surge arresters, and the door, water and
+          smoke sensors on the enclosure. Five of those describe the rectifiers, and
+          none of them names a module — their addresses are hand-set, so the shelf can
+          only report itself as a whole. The same rows appear on the site's Alarms tab,
           pooled with the bank's, the array's and the gensets'.
         </p>
       ) : (

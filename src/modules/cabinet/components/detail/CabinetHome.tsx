@@ -122,7 +122,7 @@ export const CabinetHome = ({cabinet}: {cabinet: SubrackCabinet}) => {
             label: 'Rectifiers',
             value: `${cabinet.rectifiers} × ${amount(cabinet.rectifierKw, 'kW')}`,
           },
-          {label: 'Solar conversion units', value: `${cabinet.ssus}`},
+          {label: 'Solar Supply Units', value: `${cabinet.ssus}`},
           {label: 'Rectifier capacity', value: amount(cabinet.capacityKw, 'kW')},
           // What the three figures above are worth. `Counted` is the unit's own
           // hardware; `Sized` says a model put them there, and the row exists so the

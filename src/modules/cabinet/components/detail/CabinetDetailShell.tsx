@@ -75,7 +75,7 @@ export const CabinetDetailShell = ({cabinet}: {cabinet: SubrackCabinet}) => (
                 <span>
                   Rectifiers · {cabinet.rectifiers} × {amount(cabinet.rectifierKw, 'kW')}
                 </span>
-                <span>Solar units · {cabinet.ssus}</span>
+                <span>Solar Supply Units · {cabinet.ssus}</span>
                 <span>Capacity · {amount(cabinet.capacityKw, 'kW')} AC→DC</span>
                 {/* Who is reporting, or — where nobody is — what the figures above
                     are instead. The tooltip is the rail's whole account of the

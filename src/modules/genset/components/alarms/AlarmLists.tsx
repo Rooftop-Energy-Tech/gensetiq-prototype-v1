@@ -126,7 +126,7 @@ const AlarmIdentity = ({alarm}: {alarm: AlarmView}) => (
  *
  * Both words match the filter chips above the table exactly, so turning `Genset` on
  * and reading `Genset` down the column is visibly the same claim — and so is turning
- * `Solar units` on and reading it down the sub-lines.
+ * `Solar Supply Units` on and reading it down the sub-lines.
  */
 const SubjectCell = ({alarm}: {alarm: AlarmView}) => {
   const part = alarm.part === undefined ? undefined : PART_META[alarm.part];

@@ -54,7 +54,7 @@ const KIND_META: Record<SubrackSlotKind, {label: string; icon: LucideIcon; tone:
   // rectifier is; there is no mains token and a class that resolves to nothing
   // fails silently.
   RECTIFIER: {label: 'Rectifier', icon: UtilityPoleIcon, tone: 'text-teal'},
-  SSU: {label: 'Solar unit', icon: SunMediumIcon, tone: 'text-solar'},
+  SSU: {label: 'Solar Supply Unit', icon: SunMediumIcon, tone: 'text-solar'},
 };
 
 /** What the card says under its label, and how loudly. */
@@ -77,7 +77,7 @@ export const SubrackRack = ({cabinet}: {cabinet: SubrackCabinet}) => {
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-medium text-primary">The shelf</h2>
         <p className="text-xs text-tertiary">
-          {`${cabinet.rectifiers} rectifiers of ${cabinet.rectifierKw} kW · ${cabinet.ssus} solar units · ${reported} of ${modules.length} slots reported individually`}
+          {`${cabinet.rectifiers} rectifiers of ${cabinet.rectifierKw} kW · ${cabinet.ssus} Solar Supply Units · ${reported} of ${modules.length} slots reported individually`}
         </p>
       </div>
 

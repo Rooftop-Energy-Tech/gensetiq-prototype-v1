@@ -138,14 +138,21 @@ export type CabinetPart = (typeof CABINET_PARTS)[number];
  * second rectifier. The figure on the cabinet page has exactly that chip-versus-bay
  * collision available to it, so the two must not use one word.
  *
- * `Solar units` rather than `SSUs`. The chips sit under `Cabinet` beside `Solar`,
- * and an acronym is the wrong thing to make a reader decode while they are choosing a
- * filter — the device's own word is on the rows themselves, which is where it has to
- * be exact.
+ * `Solar Supply Units` rather than `SSUs`. The chips sit under `Cabinet` beside
+ * `Solar`, and an acronym is the wrong thing to make a reader decode while they are
+ * choosing a filter — the device's own word is on the rows themselves, which is where
+ * it has to be exact.
+ *
+ * It reads the vendor's name in full rather than the `Solar units` it used to, because
+ * the cabinet page now does: the bays in the elevation are labelled
+ * `Solar Supply Unit 1` to `4`, the panel beside them is headed with it, and the strip
+ * and caption count them by it. A chip filtering rows about a part is the wrong place
+ * for a fifth name for that part — and this is the widest of the five chips by some
+ * way, which is the cost and the only one.
  */
 export const CABINET_PART_LABEL: Record<CabinetPart, string> = {
   RECTIFIERS: 'Rectifiers',
-  SSUS: 'Solar units',
+  SSUS: 'Solar Supply Units',
   DISTRIBUTION: 'Distribution',
   AC_INPUT: 'AC input',
   ENCLOSURE: 'Enclosure',

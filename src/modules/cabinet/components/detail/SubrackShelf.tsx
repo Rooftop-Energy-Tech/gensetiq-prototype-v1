@@ -113,7 +113,7 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
             because nothing is looking at them. */}
         <p className="text-xs text-tertiary">
           <span className="text-secondary">{cabinetFlowLabel(cabinet)}</span>
-          {` · ${cabinet.rectifiers} rectifiers of ${cabinet.rectifierKw} kW · ${cabinet.ssus} solar units · ${reported} of ${parts} parts reported individually`}
+          {` · ${cabinet.rectifiers} rectifiers of ${cabinet.rectifierKw} kW · ${cabinet.ssus} Solar Supply Units · ${reported} of ${parts} parts reported individually`}
         </p>
       </div>
 
@@ -159,8 +159,9 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
  * 1. **A faulted bay.** If the unit is asserting `SSU 2 Fault` then that module is
  *    why anybody opened this page, and making them find it in the drawing first is
  *    the panel arriving one click late.
- * 2. **The first bay of whichever group is carrying.** In daylight that is `SSU 1`
- *    and under a genset it is `Rectifier 1` — either way, the bay doing the work.
+ * 2. **The first bay of whichever group is carrying.** In daylight that is
+ *    `Solar Supply Unit 1` and under a genset it is `Rectifier 1` — either way, the
+ *    bay doing the work.
  * 3. **`Rectifier 1`.** When the bank is carrying or the tower is unserved nothing in
  *    the shelf is converting, and the top-left bay is where a person's eye lands.
  */
