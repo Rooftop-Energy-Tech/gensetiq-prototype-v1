@@ -3,6 +3,7 @@ import {useRef, useState} from 'react';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {SiteTrend} from '../data/siteTrend';
+import {ShareBar} from './ShareBar';
 
 /**
  * The diagnostics band's chart: one series, drawn the way that series deserves.
@@ -525,42 +526,7 @@ export const SiteTrendChart = ({
       {/* The split as arithmetic — where the window's generation went, in the
           same rows the chart shades: the tower's share, the bank's, and the
           total they divide. Same table the distribution chart draws. */}
-      {trend.mix !== undefined && (
-        <table className="mt-3 w-full max-w-md text-xs">
-          <thead>
-            <tr className="border-b border-subtle text-secondary">
-              <th className="py-1.5 pr-3 text-left font-medium">
-                {trend.mixHeading ?? 'Breakdown'}
-              </th>
-              <th className="px-3 py-1.5 text-right font-medium">Energy</th>
-              <th className="py-1.5 pl-3 text-right font-medium">Share</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trend.mix.map((row, index) => (
-              <tr
-                key={row.label}
-                className={cn(index === trend.mix!.length - 1 && 'border-t border-subtle')}
-              >
-                <td className="py-1.5 pr-3">
-                  <span className={cn('flex items-center gap-1.5', row.token)}>
-                    <span className="h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true" />
-                    <span
-                      className={
-                        index === trend.mix!.length - 1 ? 'text-primary' : 'text-secondary'
-                      }
-                    >
-                      {row.label}
-                    </span>
-                  </span>
-                </td>
-                <td className="px-3 py-1.5 text-right text-secondary tabular-nums">{row.energy}</td>
-                <td className="py-1.5 pl-3 text-right text-primary tabular-nums">{row.share}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      {trend.mix !== undefined && <ShareBar rows={trend.mix} />}
     </div>
   );
 };
