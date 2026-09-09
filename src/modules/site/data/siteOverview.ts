@@ -93,23 +93,27 @@ const DAY_STEP_HOURS = 0.5;
 const MONTH_STEP_HOURS = 1;
 
 /**
- * A year is sampled hourly like a month and then **averaged into one point per
+ * Every window past a day is sampled hourly and then **averaged into one point per
  * day**, which is the one place this chart stops being a literal power record.
  *
  * A frank compromise, and it was tried the other way first. NetEco keeps the raw
  * curve at every window and hands the reader a range brush to zoom back into it;
- * drawn without that brush, three hundred and sixty-five day/night cycles at any
- * sub-daily grain is a solid block of colour — every series saturates its own band
- * and nothing is legible, which is not a chart, it is a texture.
+ * drawn without that brush, day/night cycles at any sub-daily grain saturate into
+ * a solid block of colour at a year — and at a month they read as a different
+ * *kind* of picture from the year beside them, which had readers hunting for a
+ * distinction that was only sampling. So the month view takes the year's
+ * treatment rather than the other way round: one grain of story — the day — at
+ * every window past a day.
  *
- * A daily mean loses the intraday shape and keeps the only thing a year can
- * honestly show: the **season**. The monsoon weeks where the array falls away and
- * the genset picks up are exactly the pattern a year view is opened for, and they
- * are visible in the means. The caption says the grain so nobody reads a mean as a
- * peak.
+ * A daily mean loses the intraday shape and keeps what these windows can honestly
+ * show: the **season**. The monsoon weeks where the array falls away and the
+ * genset picks up are exactly the pattern they are opened for, and they are
+ * visible in the means. The caption says the grain so nobody reads a mean as a
+ * peak. The intraday story — solar at noon, genset at night — lives on the Day
+ * tab, which is the only width it fits.
  *
- * Whether the year should instead carry NetEco's brush over the raw curve is on the
- * open-questions list; it is the better answer and a much larger one.
+ * Whether these windows should instead carry NetEco's brush over the raw curve is
+ * on the open-questions list; it is the better answer and a much larger one.
  */
 const YEAR_SAMPLE_HOURS = 1;
 
@@ -225,18 +229,13 @@ const clockLabel = (hour: number): string =>
   `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 === 0 ? '00' : '30'}`;
 
 /**
- * How finely to sample, and how far back to start, for each window.
+ * How finely to sample each window before any daily averaging.
  *
- * The grain coarsens with the window rather than the *quantity* changing with it,
- * which is the one place this follows NetEco against this codebase's own instinct.
- * `siteTrend` switches from a power curve to energy bars the moment the window
- * exceeds a day, on the argument that a month has no shape between buckets to draw
- * a line through. That argument is right about a bar chart of daily totals and it
- * does not apply here: this is not one reading per day, it is a **continuous power
- * record sampled hourly**, so the line between two samples is an hour of real plant
- * behaviour and not an interpolation.
- *
- * What is lost is legibility at a year, and that is on the open-questions list.
+ * The grain coarsens with the window rather than the *quantity* changing with it:
+ * this stays a power record in kW at every window, unlike `siteTrend`, which
+ * switches to energy bars past a day. The sample step is what the daily mean is
+ * computed *from* — hourly is fine for a mean — and only the day view publishes
+ * the samples themselves.
  */
 const sampleHours = (period: SiteTrendPeriod): number => {
   switch (period) {
@@ -250,8 +249,7 @@ const sampleHours = (period: SiteTrendPeriod): number => {
 };
 
 /** Does this window publish one point per day rather than one per sample. */
-const isDailyMean = (period: SiteTrendPeriod): boolean =>
-  period === 'year' || period === 'lifetime';
+const isDailyMean = (period: SiteTrendPeriod): boolean => period !== 'day';
 
 /** How many days the window spans back from, and including, its last day. */
 const windowDays = (period: SiteTrendPeriod): number => {
@@ -483,9 +481,7 @@ const windowWords = (period: SiteTrendPeriod): {span: string; grain: string} => 
   grain:
     period === 'day'
       ? 'half-hourly'
-      : period === 'month'
-        ? 'hourly'
-        : 'as a daily mean — the intraday peaks are higher',
+      : 'as a daily mean — the intraday peaks are higher',
   span:
     period === 'day'
       ? 'through the day'
