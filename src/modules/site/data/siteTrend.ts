@@ -959,7 +959,7 @@ const periodTrend = (
           storedDrawn.length === 0
             ? undefined
             : {
-                label: daily ? 'Stored at day start' : 'Stored at month start',
+                label: 'Initial battery level',
                 values: stored,
                 value: Math.round(
                   storedDrawn.reduce((total, value) => total + value, 0) / storedDrawn.length,
