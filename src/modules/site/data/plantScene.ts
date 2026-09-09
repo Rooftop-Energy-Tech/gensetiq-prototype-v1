@@ -33,8 +33,8 @@ import {hasBattery, hasMains, hasSolar} from '../types/site.type';
  *
  *  - **Real dimensions compose.** Because each file's viewBox is in millimetres, laying
  *    the objects out on one ground plane at one scale puts them at their true relative
- *    size. A 1.1 m cabinet really is a quarter of the 4.6 m line-up it stands in and a
- *    tenth of the array frame beside it, with no hand-tuned offsets.
+ *    size. A 650 mm cabinet really is a quarter of the 2.6 m line-up it stands in and a
+ *    twentieth of the array frame beside it, with no hand-tuned offsets.
  *  - **A larger `x + y` is nearer**, so that sum is the paint order. Nothing here needs
  *    a z-index by hand.
  *
@@ -139,7 +139,7 @@ export const EQUIPMENT: Record<EquipmentId, Equipment> = {
   },
   powerCabinet: {
     url: powerCabinet,
-    box: {minX: -780.03, minY: -2118.45, w: 1949.77, h: 3162.52},
+    box: {minX: -727.18, minY: -1661.83, w: 1454.36, h: 2440.4},
     alt: 'Outdoor DC power cabinet',
   },
   shrub: {
@@ -258,8 +258,14 @@ export type PlantScene = {
   compound: Ground;
 };
 
-/** Cabinets stand bolted side by side at their own 1.1 m width, plus the seam. */
-const CABINET_PITCH = 1150;
+/**
+ * Cabinets stand bolted side by side at their own width, plus a seam.
+ *
+ * 650 mm is the ICC330-HA1-C10's real width, off the datasheet in the dyna Engineering
+ * drive - the generator was drawing 1100 until that cross-check, and a line-up pitched at
+ * the old figure would leave 500 mm of daylight between every cabinet.
+ */
+const CABINET_PITCH = 690;
 
 /** How many battery cabinets stand beside the subrack one. */
 const BATTERY_CABINETS = 3;
