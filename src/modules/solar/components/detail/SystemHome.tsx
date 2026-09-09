@@ -10,11 +10,13 @@ import {UNHANDLED, isStanding} from '@/modules/genset/types/alarmState.type';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {TrendPanel} from '@/modules/site/components/TrendPanel';
+import {junctionBoxes} from '../../data/junctionBoxes';
 import {solarAlarmQueue} from '../../data/solarAlarmQueue';
 import {systemAlerts} from '../../data/systemHealth';
 import {systemCondition} from '../../types/health.type';
 import type {SystemDetail} from '../../data/systemDetail';
 import type {SolarSystem} from '../../types/system.type';
+import {JunctionBoxRack} from './JunctionBoxRack';
 import {SystemHealth} from './SystemHealth';
 
 /**
@@ -22,8 +24,8 @@ import {SystemHealth} from './SystemHealth';
  * bands, in the same order, as a site's and a genset's.
  *
  * 1. **The strip** — solar capacity, what it has made today, and the alarm counts.
- * 2. **The gauge** — one dial, what it is putting out right now, with a `Dark`
- *    badge under it when the sun is down.
+ * 2. **The junction boxes** — what the array is putting out right now, broken out a
+ *    box at a time, with a `Dark` badge beside the total when the sun is down.
  * 3. **The details** — what the system *is*: three nameplate facts, nothing live.
  * 4. **The chart** — generation, with a day stepper and a period control.
  * 5. **What is wrong** — the rules, and the numbers behind them.
@@ -96,6 +98,35 @@ export const SystemHome = ({
   const seed = siteSeed(system.siteId);
 
   /**
+   * The array's boxes, or none where nobody has surveyed the roof. Decides which of
+   * band 2's two layouts is drawn — see the band.
+   */
+  const boxes = junctionBoxes(system);
+
+  /**
+   * Why the sun is not up, said out loud — and built here rather than in the band so
+   * that both of band 2's layouts place the same badge.
+   *
+   * Without it this is the most misread thing on the page. At nine in the evening every
+   * figure in the band reads 0 kW and the state rolls up to `Idle`, which is
+   * pixel-for-pixel what a plant that has tripped in the middle of the afternoon looks
+   * like — and the health band below raises nothing, because nothing is wrong. A reader
+   * who has learned to check this page in a hurry would be checking it at exactly the
+   * hour it cannot answer.
+   *
+   * The bank page puts its flow direction beside its glyph for the same reason: the fact
+   * that makes a reading legible belongs beside the reading and not two bands away.
+   */
+  const darkBadge = daylight ? null : (
+    <Badge variant="secondary">
+      <MoonIcon className="text-tertiary" aria-hidden="true" />
+      Dark
+      <span className="text-secondary"> | </span>
+      first light {String(FIRST_LIGHT).padStart(2, '0')}:00
+    </Badge>
+  );
+
+  /**
    * Every alarm this array is carrying — the derived rules **and** the monitoring
    * unit's registers — and it is the same call the Alarms tab makes.
    *
@@ -157,53 +188,57 @@ export const SystemHome = ({
         counts={countBySeverity(standing)}
       />
 
-      {/* Band 2 — one dial, centred, at hero size. The design gives the whole band
-          to a single reading, which is right for the one number on this page that
-          is true only at this instant: everything in the strip above is cumulative
-          and everything below is history.
+      {/* Band 2 — the array's generation, a junction box at a time.
 
-          Full scale is the array's **nameplate kWp**, which is the only ceiling
-          there is now. It used to be the inverters' combined AC rating, on the
-          argument that a dial which could never fill reads as a plant permanently
-          underperforming — these systems were deliberately oversized to their
-          boxes, so kWp was unreachable by design. With no boxes there is no AC
-          rating to scale to, and the honest full scale is the glass. The
-          consequence is real and worth knowing: a clear noon lands near half way
-          up, because that is what an array does. */}
-      <section aria-label="Generation now" className="flex flex-col items-center gap-3 py-6">
-        <TickGauge
-          size="hero"
-          colorClassName="text-solar"
-          reading={{
-            key: 'output',
-            label: 'Generation',
-            value: reporting ? system.outputKw : 0,
-            unit: 'kW',
-            precision: 1,
-            min: 0,
-            max: Math.max(1, system.kwp),
-          }}
-        />
+          It was one hero dial reading the whole array. Jeff asked for the strings per
+          box and the generation per box (2026-09-09), and `JunctionBoxRack` carries the
+          argument for what those cards may and may not claim — the short version being
+          that the strings are surveyed and the kilowatts are one measured figure shared
+          out, which the caption says on the page.
 
-        {/* Why the sun is not up, said out loud.
+          The dial survives as the fallback, and it is a real fallback rather than dead
+          code: `wiring` is `null` at any site nobody has surveyed, and a box breakdown
+          there would be inventing the combiners as well as their readings. Every site
+          with an array has a monitoring unit today, so this branch is reached only by a
+          reader flipping a site to solar hybrid on its settings tab — which is exactly
+          the case a fallback is for.
 
-            Without it this is the most misread thing on the page. At nine in the
-            evening the dial reads 0 kW and the state rolls up to `Idle`, which is
-            pixel-for-pixel what a plant that has tripped in the middle of the
-            afternoon looks like — and the health band below raises nothing,
-            because nothing is wrong. A reader who has learned to check this page
-            in a hurry would be checking it at exactly the hour it cannot answer.
-
-            The bank page puts its flow direction here for the same reason: the
-            fact that makes the dial legible belongs beside the dial and not two
-            bands away. */}
-        {!daylight && (
-          <Badge variant="secondary">
-            <MoonIcon className="text-tertiary" aria-hidden="true" />
-            Dark
-            <span className="text-secondary"> | </span>
-            first light {String(FIRST_LIGHT).padStart(2, '0')}:00
-          </Badge>
+          The dial's full scale is the array's **nameplate kWp**. It used to be the
+          inverters' combined AC rating, on the argument that a
+          dial which could never fill reads as a plant permanently underperforming —
+          these systems were deliberately oversized to their boxes, so kWp was
+          unreachable by design. With no boxes there is no AC rating to scale to, and the
+          honest full scale is the glass. The consequence is real and worth knowing: a
+          clear noon lands near half way up. */}
+      <section aria-label="Generation now" className="flex flex-col gap-3 py-6">
+        {boxes.length === 0 ? (
+          <div className="flex flex-col items-center gap-3">
+            <TickGauge
+              size="hero"
+              colorClassName="text-solar"
+              reading={{
+                key: 'output',
+                label: 'Generation',
+                value: reporting ? system.outputKw : 0,
+                unit: 'kW',
+                precision: 1,
+                min: 0,
+                max: Math.max(1, system.kwp),
+              }}
+            />
+            {darkBadge}
+          </div>
+        ) : (
+          <JunctionBoxRack
+            system={system}
+            boxes={boxes}
+            reporting={reporting}
+            /* The page's one read of the alarm store, handed down — so a box marked
+               here and the count in band 1 are two readings of one list. Clearing
+               `PV 1 Array Fault` on the Alarms tab unmarks SJB 1 on the way back. */
+            standing={standing}
+            dark={darkBadge}
+          />
         )}
       </section>
 
