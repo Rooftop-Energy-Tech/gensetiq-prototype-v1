@@ -1,11 +1,73 @@
 import {Link} from '@tanstack/react-router';
 import type {LinkProps} from '@tanstack/react-router';
-import {BellIcon} from 'lucide-react';
+import {BellIcon, TriangleAlertIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
+
+/*
+ * **A faulted part's mark, both halves of it.** `FaultBadge` is the rank in the card's
+ * top-right corner and `FaultChip` is the register on the line below — two exports in a
+ * file named after one of them, which is `AlarmCounts.tsx`'s shape and kept for the same
+ * reason: they are only ever drawn together, they read one `SEVERITY_META` between them,
+ * and splitting them would put the argument for the pair in neither file.
+ *
+ * Both are used by `JunctionBoxRack` (solar junction boxes) and `ModuleRack` (battery
+ * modules). `SubrackShelf` is deliberately not a caller — a cabinet bay is marked in the
+ * drawing and named by the panel beside it, so it has no card to put these on.
+ */
+
+/**
+ * The other half of a part's fault mark: **the rank, in the app's own words.**
+ *
+ * The two are a pair and sit on one card — this in the top-right corner opposite the
+ * part's name, `FaultChip` on the line under it — because they answer different
+ * questions. This says *how bad*; the chip says *which register*. Neither substitutes
+ * for the other, and a card carrying only the chip leaves the severity to be inferred
+ * from a hue.
+ *
+ * That is not hypothetical: the junction box card shipped without this for a few hours
+ * on 2026-09-09, on the argument that the chip plus a red edge said enough, and Jeff
+ * asked for it back on the shape the battery module cards already had. So it is here
+ * rather than in either rack, and both draw it.
+ *
+ * ## Why the severity words rather than `Fault`
+ *
+ * `ModuleRack` said `Fault` in flat amber at every severity, which was one word doing
+ * two jobs badly — it named the *kind* of mark while the card's surface named the rank,
+ * so a critical module and a neutral note carried identical pills and a reader had to
+ * read the border to tell them apart. `Critical`, `Warning` and `Neutral` are the app's
+ * own severity words, the same three the Alarms tab ranks the row by, read from the same
+ * `SEVERITY_META` the card's edge and tint come from — so the pill and the card it sits
+ * in cannot disagree.
+ *
+ * `NEUTRAL` gets no hue, which is `SEVERITY_META`'s deliberate choice and not a gap: a
+ * neutral alert is a note rather than a problem, and giving it one would put it on the
+ * same footing as the two that are. It is still plainly a mark — the badge's own
+ * surface, a glyph, and the card's grey edge and shade — just an achromatic one. **This
+ * is the element that keeps a neutral fault legible at all**, since hue alone says
+ * nothing there.
+ *
+ * ## Why a triangle here and a bell on the chip
+ *
+ * They are marking different things. A bell is what this app puts on a *named alarm* —
+ * the Alarms tab's filter chips, `ClassBadge`, `AlarmCounts` — and the chip carries a
+ * register's name. A triangle is a severity, which is what this is. The two glyphs on
+ * one card are the two questions, not one mark drawn twice.
+ */
+export const FaultBadge = ({severity}: {severity: AlertSeverity}) => {
+  const meta = SEVERITY_META[severity];
+
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <TriangleAlertIcon className={meta.textClassName} aria-hidden="true" />
+      <span className={meta.textClassName}>{meta.label}</span>
+    </Badge>
+  );
+};
 
 /**
  * **The register a part is asserting, as a chip that leads to the rows themselves.**

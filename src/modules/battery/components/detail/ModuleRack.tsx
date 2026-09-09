@@ -1,13 +1,12 @@
 import {TriangleAlertIcon} from 'lucide-react';
 
 import {BatteryGlyph} from '@/components/global/BatteryGlyph';
-import {FaultChip} from '@/components/global/FaultChip';
+import {FaultBadge, FaultChip} from '@/components/global/FaultChip';
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
 import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
-import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {
   IMBALANCE_POINTS,
@@ -161,32 +160,6 @@ const noteFor = (module: BatteryModule, bank: BatteryBank, lowestId: string): Mo
 };
 
 /**
- * The reported mark: the row's severity, in the row's own words and colour.
- *
- * It said `Fault` in flat amber at every severity, which was one word doing two jobs
- * badly — it named the *kind* of mark while the card's surface named the rank, so a
- * critical module and a neutral note carried identical pills and a reader had to read
- * the border to tell them apart. `Critical`, `Warning` and `Neutral` are the app's own
- * severity words, the same three the Alarms tab ranks the row by and the same
- * `SEVERITY_META` the surface is drawn from, so the pill and the card cannot disagree.
- *
- * `NEUTRAL` gets no hue, which is `SEVERITY_META`'s deliberate choice and not a gap: a
- * neutral alert is a note rather than a problem, and giving it one would put it on the
- * same footing as the two that are. It is still plainly a mark — the badge's own
- * surface, a glyph, and the card's grey edge and shade — just an achromatic one.
- */
-const FaultBadge = ({severity}: {severity: AlertSeverity}) => {
-  const meta = SEVERITY_META[severity];
-
-  return (
-    <Badge variant="secondary" className="gap-1">
-      <TriangleAlertIcon className={meta.textClassName} aria-hidden="true" />
-      <span className={meta.textClassName}>{meta.label}</span>
-    </Badge>
-  );
-};
-
-/**
  * The register a faulted module is asserting is now `FaultChip` — the shared chip the
  * junction box cards use — and it moved from the card's foot to directly under the
  * module's label (Jeff, 2026-09-09).
@@ -203,9 +176,10 @@ const FaultBadge = ({severity}: {severity: AlertSeverity}) => {
  * wraps, because a grid row is as tall as its tallest card. A 10rem card cuts that name
  * at any size, so the tooltip is how it is read in full.
  *
- * `FaultBadge` above **stays**. It is the only place a neutral module's severity is
- * stated in words, which is the case its own note is about; the junction box card dropped
- * its equivalent, so the two racks now differ by exactly that badge.
+ * The severity badge opposite the module's label went the same way on the same day: it
+ * was a local `FaultBadge` here and nowhere else, and it is now the shared one beside the
+ * chip. The junction box card draws both too, so the two racks mark a faulted part
+ * identically — which is the whole point of the pair living in `global/`.
  */
 
 export const ModuleRack = ({bank}: {bank: BatteryBank}) => {

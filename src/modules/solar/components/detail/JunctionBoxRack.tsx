@@ -1,6 +1,6 @@
 import type {ReactNode} from 'react';
 
-import {FaultChip} from '@/components/global/FaultChip';
+import {FaultBadge, FaultChip} from '@/components/global/FaultChip';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
@@ -94,9 +94,11 @@ import type {SolarSystem} from '../../types/system.type';
  * came to be a fork waiting to happen; promoted on 2026-09-09 (Jeff), the same move
  * `AlarmBadge` made a day earlier and for the same reason.
  *
- * **The two racks now differ by one thing**: `ModuleRack` kept its `Critical` / `Neutral`
- * severity badge and this card dropped its own when the chip went in. See the long note on
- * the chip below for what that word was carrying and when it would be missed.
+ * `FaultBadge` beside it — the severity in the card's top-right corner — is the other half
+ * of the same mark and comes out of the same file. It was a local component in `ModuleRack`
+ * and this card briefly had none; both now draw the shared pair, so **a faulted junction box
+ * and a faulted battery module are marked identically**, which is what the promotion was
+ * for. The two racks differ in nothing about the mark now.
  *
  * ## The boxes with nothing watching them
  *
@@ -277,14 +279,20 @@ export const JunctionBoxRack = ({
                   : cn(meta.edgeClassName, meta.tintClassName),
               )}
             >
-              {/* The box's name — **first on the card**, ahead of the fault band below it.
+              {/* The box's name, and **the severity in the corner opposite it** where a
+                  register is asserting one — the shape the battery module cards already
+                  had, which is what Jeff asked this card to match (2026-09-09).
 
-                  It carried the severity badge opposite until 2026-09-09; see the band for
-                  where the mark went and what dropping the badge gave up.
+                  The badge was briefly dropped here on the argument that the chip below
+                  plus the card's red edge said enough. What that missed is that the two
+                  answer different questions — this one *how bad*, the chip *which
+                  register* — and that hue alone says nothing for `NEUTRAL`, whose edge and
+                  tint are deliberately achromatic. `FaultBadge` carries the rest.
 
-                  `flex-wrap` is kept: nothing wraps here today with the badge gone, and it
-                  is what stops a longer label and anything ever added opposite from
-                  squeezing each other on a 169px card at the narrowest rung of the grid.
+                  It fits at the narrowest rung with room to spare: `SJB 1` is about 38px
+                  and the badge about 81px against the 145px a five-across card has on a
+                  laptop. `flex-wrap` stays as the guard for the label that is one
+                  character longer than any on this estate.
 
                   A `not reported` note sat opposite the label on the boxes past the
                   last conversion unit, in the `SubrackRack` idiom, and Jeff removed it
@@ -299,6 +307,8 @@ export const JunctionBoxRack = ({
                 <span className="text-sm font-medium whitespace-nowrap text-secondary">
                   {box.label}
                 </span>
+
+                {fault !== undefined && <FaultBadge severity={fault.severity} />}
               </div>
 
               {/* **The register behind the mark, as a chip under the box's name** — Jeff's
@@ -327,25 +337,29 @@ export const JunctionBoxRack = ({
                   actually catches, and the chip is what tells them which register once
                   they have stopped. Two jobs, two elements, neither doing the other's.
 
-                  ## Why the severity is no longer written out
+                  ## Why the badge above it stays
 
-                  A `Critical` badge sat opposite the label until this landed. The chip
-                  names the register and the card is already the severity's colour, so the
-                  badge had become a second mark twenty pixels away saying strictly less.
+                  The chip was briefly the card's only mark, on the argument that it names
+                  the register and the card is already the severity's colour, so a
+                  `Critical` badge opposite the label was a second mark twenty pixels away
+                  saying strictly less.
 
-                  **The word is the loss.** `severityMeta.ts` argues the badge exists so
-                  severity is stated in words and not only in hue, which matters most for
-                  `NEUTRAL` — its edge and tint are deliberately achromatic, so a neutral
-                  box would show a grey chip and nothing ranking it. Every `PV N Array
-                  Fault` on the estate is `MA` and comes out critical, so the hue is
-                  unambiguous today; the chip's `title` and `aria-label` carry the word for
-                  anyone hovering or listening. `ModuleRack` kept its badge, so the two
-                  racks differ by exactly that word — see the note at the top of this file.
+                  That was wrong twice over, and Jeff put the badge back the same day
+                  (2026-09-09). The two are not one mark drawn twice: the badge answers
+                  *how bad* and the chip answers *which register*, and dropping either
+                  leaves the other doing a job it is not shaped for. And the severity was
+                  left to a **hue** — which `severityMeta.ts` warns about directly, because
+                  `NEUTRAL`'s edge and tint are deliberately achromatic, so a neutral box
+                  would have shown a grey chip with nothing at all ranking it. Every
+                  `PV N Array Fault` on this estate is `MA` and comes out critical, so the
+                  gap was invisible today and would have opened the first time one was
+                  re-ranked.
 
                   ## What the position costs
 
-                  A marked card runs **34px** taller than its neighbours — the chip's 24px
-                  and the card's `gap-2.5` — so `Current generation` and the kW figures sit
+                  A marked card runs **38px** taller than its neighbours — the chip's 24px,
+                  the card's `gap-2.5`, and 4px more on the name row where the badge is
+                  taller than the label beside it — so `Current generation` and the kW figures sit
                   that much lower and no longer read straight across the row. Comparing
                   those figures box to box is why this band replaced a dial, so the loss is
                   real; it is the price of putting the fault above the figures rather than
