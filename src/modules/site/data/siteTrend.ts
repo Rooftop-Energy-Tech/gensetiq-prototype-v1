@@ -156,10 +156,12 @@ export type SiteTrend = {
    * A shaded slice of the curve — the area between `from` and `to`, index-aligned
    * with `points`, in its own token.
    *
-   * The array's day view carries it: the part of the generation above the tower's
+   * The array's views carry it: the part of the generation above the tower's
    * draw is the part charging the bank, and shading it in the bank's blue says
-   * *where the surplus went* without adding a second series. `value` is the slice
-   * integrated over the day, for the strip.
+   * *where the surplus went* without adding a second series. On the day curve it
+   * is the area between the boundary and the curve; on the bars each bar splits
+   * at `from` into the tower's segment below and the bank's above. `value` is the
+   * slice integrated over the window, for the strip.
    */
   band?: {
     label: string;
@@ -723,6 +725,41 @@ const periodTrend = (
     };
   })();
 
+  // The split the day curve shades, per bucket and in total — see `SiteTrend.band`
+  // and `.mix`. Each bar divides at the walk's fraction, scaled to the bar's own
+  // figure so the two segments close on it exactly and the table's total matches
+  // the bars'.
+  const banded = (() => {
+    if (metric !== 'SOLAR') return {band: undefined, mix: undefined};
+
+    const from: Array<number | null> = [];
+    const to: Array<number | null> = [];
+    let loadKwh = 0;
+    let bankKwh = 0;
+
+    spine.forEach((bucket, index) => {
+      const value = points[index]!.value;
+      if (value === null) {
+        from.push(null);
+        to.push(null);
+        return;
+      }
+      const split = solarSplitKwh(seed, role, bucket.from, bucket.to, now);
+      const total = split.toLoad + split.toBank;
+      const bank = total <= 0 ? 0 : (split.toBank / total) * value;
+      from.push(Math.round((value - bank) * 10) / 10);
+      to.push(value);
+      loadKwh += value - bank;
+      bankKwh += bank;
+    });
+
+    if (loadKwh + bankKwh <= 0) return {band: undefined, mix: undefined};
+    return {
+      band: {label: 'To battery', token: 'text-battery', from, to, value: KWH(bankKwh)},
+      mix: solarMix(loadKwh, bankKwh),
+    };
+  })();
+
   const grain = daily ? 'day' : 'month';
   // Only `lifetime` names its own extent — see the note on `buckets`.
   const extent = period === 'lifetime' ? ', across the whole record — twelve months' : '';
@@ -732,21 +769,8 @@ const periodTrend = (
     period,
     points,
     reference,
-    // The same split, over the whole window — the walk is the day view's band
-    // dispatch at hour grain, so the two tabs' percentages agree about one array.
-    mix:
-      metric === 'SOLAR' && spine.length > 0
-        ? (() => {
-            const {toLoad, toBank} = solarSplitKwh(
-              seed,
-              role,
-              spine[0]!.from,
-              spine[spine.length - 1]!.to,
-              now,
-            );
-            return solarMix(toLoad, toBank);
-          })()
-        : undefined,
+    band: banded.band,
+    mix: banded.mix,
     shape: 'bars',
     unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
     axisMax: metric === 'BATTERY' ? 100 : undefined,

@@ -245,21 +245,43 @@ export const SiteTrendChart = ({
           </g>
         ))}
 
+        {/* Bars, split where the band says so: the tower's share in the series'
+            own colour below, the bank's slice in its blue above — the same two
+            quantities the table under the chart divides. A bar with no band (or
+            none of it banked) stays one rectangle. */}
         {bars
-          ? points.map((point, index) =>
-              point.value === null ? null : (
-                <rect
-                  key={point.label}
-                  x={x(index) - Math.max(2, slot * 0.32)}
-                  y={y(point.value)}
-                  width={Math.max(4, slot * 0.64)}
-                  height={Math.max(0, y(0) - y(point.value))}
-                  rx={2}
-                  className="fill-current"
-                  opacity={hovered === null || hovered === index ? 0.85 : 0.4}
-                />
-              ),
-            )
+          ? points.map((point, index) => {
+              if (point.value === null) return null;
+              const left = x(index) - Math.max(2, slot * 0.32);
+              const barWidth = Math.max(4, slot * 0.64);
+              const dim = hovered === null || hovered === index ? 0.85 : 0.4;
+              const boundary = trend.band?.from[index] ?? point.value;
+
+              return (
+                <g key={point.label}>
+                  <rect
+                    x={left}
+                    y={y(boundary)}
+                    width={barWidth}
+                    height={Math.max(0, y(0) - y(boundary))}
+                    rx={2}
+                    className="fill-current"
+                    opacity={dim}
+                  />
+                  {boundary < point.value && (
+                    <rect
+                      x={left}
+                      y={y(point.value)}
+                      width={barWidth}
+                      height={Math.max(0, y(boundary) - y(point.value))}
+                      rx={2}
+                      className={cn('fill-current', trend.band?.token)}
+                      opacity={dim}
+                    />
+                  )}
+                </g>
+              );
+            })
           : null}
 
         {/* The bank's slice of the generation: the area between what the tower
