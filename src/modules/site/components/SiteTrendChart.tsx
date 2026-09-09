@@ -248,6 +248,26 @@ export const SiteTrendChart = ({
             )
           : null}
 
+        {/* The bank's slice of the generation: the area between what the tower
+            took and the curve itself, filled in the bank's own blue over the
+            series' pale ground — where the surplus went, without a second
+            series. Under the reference and the strokes, so neither is dimmed. */}
+        {!bars && trend.band !== undefined && (
+          <polygon
+            points={[
+              ...trend.band.to.flatMap((value, index) =>
+                value === null ? [] : [`${x(index)},${y(value)}`],
+              ),
+              ...trend.band.from
+                .flatMap((value, index) => (value === null ? [] : [{index, value}]))
+                .reverse()
+                .map(({index, value}) => `${x(index)},${y(value)}`),
+            ].join(' ')}
+            className={cn('fill-current', trend.band.token)}
+            opacity={0.45}
+          />
+        )}
+
         {/* The expected reference over the actuals: on bars, a staircase — one
             step per bucket, spanning its slot at what the physics promised it —
             and on the day curve, the promised bell through the same samples. Not
@@ -362,6 +382,15 @@ export const SiteTrendChart = ({
           </span>
         ))}
 
+        {trend.band !== undefined && (
+          <span className={cn('flex items-center gap-1.5', trend.band.token)}>
+            <span className="h-2 w-2 rounded-[2px] bg-current opacity-60" aria-hidden="true" />
+            <span className="text-tertiary">
+              {trend.band.label} · <span className="text-primary tabular-nums">{trend.band.value}</span>
+            </span>
+          </span>
+        )}
+
         {/* The reference's figure, following the hover: pointing at a bar
             restates the promise for that bar's own bucket, and pointing at
             nothing shows the window's mean. The bucket in progress has no step,
@@ -396,6 +425,44 @@ export const SiteTrendChart = ({
               }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}`}
         </span>
       </div>
+
+      {/* The split as arithmetic — where the window's generation went, in the
+          same rows the chart shades: the tower's share, the bank's, and the
+          total they divide. Same table the distribution chart draws. */}
+      {trend.mix !== undefined && (
+        <table className="mt-3 w-full max-w-md text-xs">
+          <thead>
+            <tr className="border-b border-subtle text-secondary">
+              <th className="py-1.5 pr-3 text-left font-medium">Destination</th>
+              <th className="px-3 py-1.5 text-right font-medium">Energy</th>
+              <th className="py-1.5 pl-3 text-right font-medium">Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trend.mix.map((row, index) => (
+              <tr
+                key={row.label}
+                className={cn(index === trend.mix!.length - 1 && 'border-t border-subtle')}
+              >
+                <td className="py-1.5 pr-3">
+                  <span className={cn('flex items-center gap-1.5', row.token)}>
+                    <span className="h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true" />
+                    <span
+                      className={
+                        index === trend.mix!.length - 1 ? 'text-primary' : 'text-secondary'
+                      }
+                    >
+                      {row.label}
+                    </span>
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 text-right text-secondary tabular-nums">{row.energy}</td>
+                <td className="py-1.5 pl-3 text-right text-primary tabular-nums">{row.share}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };

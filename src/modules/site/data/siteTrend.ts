@@ -153,6 +153,30 @@ export type SiteTrend = {
    */
   reference?: {label: string; values: Array<number | null>; value: number};
   /**
+   * A shaded slice of the curve — the area between `from` and `to`, index-aligned
+   * with `points`, in its own token.
+   *
+   * The array's day view carries it: the part of the generation above the tower's
+   * draw is the part charging the bank, and shading it in the bank's blue says
+   * *where the surplus went* without adding a second series. `value` is the slice
+   * integrated over the day, for the strip.
+   */
+  band?: {
+    label: string;
+    token: string;
+    from: Array<number | null>;
+    to: Array<number | null>;
+    value: string;
+  };
+  /**
+   * The series split into where it went, as a table under the chart — each row a
+   * destination with its energy and its share, closed by the total at 100%. The
+   * array's views carry it: generation is one figure until it is divided into
+   * what the tower took and what the bank was offered, and that division is the
+   * same dispatch the band above shades.
+   */
+  mix?: Array<{label: string; token: string; energy: string; share: string}>;
+  /**
    * The colours a point may name in `TrendPoint.tint`, and what each one means.
    *
    * Only the bank's level uses this so far: its curve is drawn in the source that
@@ -267,6 +291,50 @@ export const siteTrendMetrics = (
 };
 
 const NUMBER = new Intl.NumberFormat('en-MY', {maximumFractionDigits: 0});
+
+const KWH = (value: number): string => `${NUMBER.format(Math.round(value))} kWh`;
+
+/**
+ * The array's output split by destination over `[from, to)` — what the tower took
+ * against what the bank was offered — walked hourly through the same dispatch
+ * order every chart uses: solar to the load first, the remainder to the bank.
+ */
+const solarSplitKwh = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  from: number,
+  to: number,
+  now: number,
+): {toLoad: number; toBank: number} => {
+  let toLoad = 0;
+  let toBank = 0;
+  const end = Math.min(to, now);
+  for (let dayStart = startOfDay(from); dayStart < end; dayStart += 86_400_000) {
+    const dayKwh = todayFullKwh(seed, role, dayStart + 12 * 3_600_000);
+    if (dayKwh === 0) continue;
+    for (let hour = 0; hour < 24; hour += 1) {
+      const at = dayStart + hour * 3_600_000;
+      if (at < from || at >= end) continue;
+      const solarKw = intradayKw(dayKwh, hour);
+      const taken = Math.min(solarKw, seed.loadKw * loadShape(at));
+      toLoad += taken;
+      toBank += solarKw - taken;
+    }
+  }
+  return {toLoad, toBank};
+};
+
+/** The split as table rows — see `SiteTrend.mix`. `undefined` until anything generated. */
+const solarMix = (toLoad: number, toBank: number): SiteTrend['mix'] => {
+  const total = toLoad + toBank;
+  if (total <= 0) return undefined;
+  const percent = (part: number): string => `${((part / total) * 100).toFixed(1)}%`;
+  return [
+    {label: 'To load', token: 'text-solar', energy: KWH(toLoad), share: percent(toLoad)},
+    {label: 'To battery', token: 'text-battery', energy: KWH(toBank), share: percent(toBank)},
+    {label: 'Generation', token: 'text-primary', energy: KWH(total), share: '100%'},
+  ];
+};
 
 /**
  * An hours figure for a readout — `6.2 h` while a tenth means something, `1,284 h`
@@ -411,11 +479,43 @@ const dayTrend = (
         })()
       : undefined;
 
+  // The blue slice and its arithmetic — see `SiteTrend.band` and `.mix`, both off
+  // the same per-sample dispatch: the tower takes first, the surplus is the bank's.
+  let band: SiteTrend['band'];
+  let mix: SiteTrend['mix'];
+  if (metric === 'SOLAR') {
+    const from: Array<number | null> = [];
+    const to: Array<number | null> = [];
+    let toLoadKwh = 0;
+    let toBankKwh = 0;
+
+    points.forEach((point, index) => {
+      if (point.value === null) {
+        from.push(null);
+        to.push(null);
+        return;
+      }
+      const at = start + index * DAY_STEP_HOURS * 3_600_000;
+      const taken = Math.min(point.value, seed.loadKw * loadShape(at));
+      from.push(Math.round(taken * 10) / 10);
+      to.push(point.value);
+      toLoadKwh += taken * DAY_STEP_HOURS;
+      toBankKwh += (point.value - taken) * DAY_STEP_HOURS;
+    });
+
+    if (toLoadKwh + toBankKwh > 0) {
+      band = {label: 'To battery', token: 'text-battery', from, to, value: KWH(toBankKwh)};
+      mix = solarMix(toLoadKwh, toBankKwh);
+    }
+  }
+
   return {
     metric,
     period: 'day',
     points,
     reference,
+    band,
+    mix,
     shape: 'curve',
     unit: metric === 'BATTERY' ? '%' : 'kW',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
@@ -632,6 +732,21 @@ const periodTrend = (
     period,
     points,
     reference,
+    // The same split, over the whole window — the walk is the day view's band
+    // dispatch at hour grain, so the two tabs' percentages agree about one array.
+    mix:
+      metric === 'SOLAR' && spine.length > 0
+        ? (() => {
+            const {toLoad, toBank} = solarSplitKwh(
+              seed,
+              role,
+              spine[0]!.from,
+              spine[spine.length - 1]!.to,
+              now,
+            );
+            return solarMix(toLoad, toBank);
+          })()
+        : undefined,
     shape: 'bars',
     unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
