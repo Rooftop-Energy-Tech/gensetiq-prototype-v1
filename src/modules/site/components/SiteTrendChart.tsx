@@ -160,7 +160,7 @@ export const SiteTrendChart = ({
    */
   const shapeOf = (piece: {points: Array<number>}): {area: string; line: string} => {
     const line = piece.points.map((index) => `${x(index)},${y(points[index]!.value!)}`).join(' ');
-    const lower = trend.band?.from;
+    const lower = trend.bands?.[0]?.from;
     const areaTop =
       lower === undefined
         ? line
@@ -245,10 +245,10 @@ export const SiteTrendChart = ({
           </g>
         ))}
 
-        {/* Bars, split where the band says so: the tower's share in the series'
-            own colour below, the bank's slice in its blue above — the same two
-            quantities the table under the chart divides. A bar with no band (or
-            none of it banked) stays one rectangle. */}
+        {/* Bars, split where the bands say so: the series' own colour runs up to
+            the first slice's boundary, and each slice stacks above in its own
+            token — the same quantities the table under the chart divides. A bar
+            with no slices at its index stays one rectangle. */}
         {bars
           ? points.map((point, index) => {
               if (point.value === null) return null;
@@ -256,56 +256,62 @@ export const SiteTrendChart = ({
               const barWidth = Math.max(4, slot * 0.64);
               // The same 55% every fill in the band uses; hover dims the rest.
               const dim = hovered === null || hovered === index ? 0.55 : 0.3;
-              const boundary = trend.band?.from[index] ?? point.value;
+              const base = trend.bands?.[0]?.from[index] ?? point.value;
 
               return (
                 <g key={point.label}>
-                  <rect
-                    x={left}
-                    y={y(boundary)}
-                    width={barWidth}
-                    height={Math.max(0, y(0) - y(boundary))}
-                    rx={2}
-                    className="fill-current"
-                    opacity={dim}
-                  />
-                  {boundary < point.value && (
+                  {base > 0 && (
                     <rect
                       x={left}
-                      y={y(point.value)}
+                      y={y(base)}
                       width={barWidth}
-                      height={Math.max(0, y(boundary) - y(point.value))}
+                      height={Math.max(0, y(0) - y(base))}
                       rx={2}
-                      className={cn('fill-current', trend.band?.token)}
+                      className="fill-current"
                       opacity={dim}
                     />
                   )}
+                  {(trend.bands ?? []).map((band) => {
+                    const from = band.from[index];
+                    const to = band.to[index];
+                    return from === null || from === undefined || to === null || to === undefined || to <= from ? null : (
+                      <rect
+                        key={band.label}
+                        x={left}
+                        y={y(to)}
+                        width={barWidth}
+                        height={Math.max(0, y(from) - y(to))}
+                        rx={2}
+                        className={cn('fill-current', band.token)}
+                        opacity={dim}
+                      />
+                    );
+                  })}
                 </g>
               );
             })
           : null}
 
-        {/* The bank's slice of the generation: the area between what the tower
-            took and the curve itself, filled in the bank's own blue over the
-            series' pale ground — where the surplus went, without a second
-            series. Under the reference and the strokes, so neither is dimmed. */}
-        {!bars && trend.band !== undefined && (
-          <polygon
-            points={[
-              ...trend.band.to.flatMap((value, index) =>
-                value === null ? [] : [`${x(index)},${y(value)}`],
-              ),
-              ...trend.band.from
-                .flatMap((value, index) => (value === null ? [] : [{index, value}]))
-                .reverse()
-                .map(({index, value}) => `${x(index)},${y(value)}`),
-            ].join(' ')}
-            className={cn('fill-current', trend.band.token)}
-            // The distribution chart's band strength, so "the bank's blue" is one
-            // material on both charts.
-            opacity={0.55}
-          />
-        )}
+        {/* The slices over the curve: each the area between its own boundaries,
+            in its own token at the band strength every fill here shares. Under
+            the reference and the strokes, so neither is dimmed. */}
+        {!bars &&
+          (trend.bands ?? []).map((band) => (
+            <polygon
+              key={band.label}
+              points={[
+                ...band.to.flatMap((value, index) =>
+                  value === null ? [] : [`${x(index)},${y(value)}`],
+                ),
+                ...band.from
+                  .flatMap((value, index) => (value === null ? [] : [{index, value}]))
+                  .reverse()
+                  .map(({index, value}) => `${x(index)},${y(value)}`),
+              ].join(' ')}
+              className={cn('fill-current', band.token)}
+              opacity={0.55}
+            />
+          ))}
 
         {/* The expected reference over the actuals: on bars, a staircase — one
             step per bucket, spanning its slot at what the physics promised it —
@@ -423,14 +429,14 @@ export const SiteTrendChart = ({
           </span>
         ))}
 
-        {trend.band !== undefined && (
-          <span className={cn('flex items-center gap-1.5', trend.band.token)}>
+        {(trend.bands ?? []).map((band) => (
+          <span key={band.label} className={cn('flex items-center gap-1.5', band.token)}>
             <span className="h-2 w-2 rounded-[2px] bg-current opacity-60" aria-hidden="true" />
             <span className="text-tertiary">
-              {trend.band.label} · <span className="text-primary tabular-nums">{trend.band.value}</span>
+              {band.label} · <span className="text-primary tabular-nums">{band.value}</span>
             </span>
           </span>
-        )}
+        ))}
 
         {/* The reference's figure, following the hover: pointing at a bar
             restates the promise for that bar's own bucket, and pointing at
@@ -474,7 +480,9 @@ export const SiteTrendChart = ({
         <table className="mt-3 w-full max-w-md text-xs">
           <thead>
             <tr className="border-b border-subtle text-secondary">
-              <th className="py-1.5 pr-3 text-left font-medium">Destination</th>
+              <th className="py-1.5 pr-3 text-left font-medium">
+                {trend.mixHeading ?? 'Breakdown'}
+              </th>
               <th className="px-3 py-1.5 text-right font-medium">Energy</th>
               <th className="py-1.5 pl-3 text-right font-medium">Share</th>
             </tr>
