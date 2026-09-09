@@ -196,7 +196,7 @@ export const SiteOverviewChart = ({overview}: {overview: SiteOverview}) => {
         viewBox={`0 0 ${width} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label={`Energy overview, in ${unit}`}
+        aria-label={`Power supply distribution, in ${unit}`}
         onPointerLeave={() => setHovered(null)}
         onPointerMove={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
@@ -346,6 +346,44 @@ export const SiteOverviewChart = ({overview}: {overview: SiteOverview}) => {
           </>
         )}
       </div>
+
+      {/* The stack as arithmetic: each source's energy to the load over the shown
+          window, and its share of it. The rows recompute with the period control
+          and the day stepper because they come off the same window the bands do.
+          The load closes the table at 100% — it is what the shares are of, set off
+          by the rule above it the way its dashed line caps the stack. */}
+      {overview.mix !== undefined && (
+        <table className="mt-3 w-full max-w-md text-xs">
+          <thead>
+            <tr className="border-b border-subtle text-secondary">
+              <th className="py-1.5 pr-3 text-left font-medium">Power supply</th>
+              <th className="px-3 py-1.5 text-right font-medium">Energy to load</th>
+              <th className="py-1.5 pl-3 text-right font-medium">Share of load</th>
+            </tr>
+          </thead>
+          <tbody>
+            {overview.mix.map((row) => (
+              <tr
+                key={row.id}
+                className={cn(row.id === 'LOAD' && 'border-t border-subtle')}
+              >
+                <td className="py-1.5 pr-3">
+                  <span className={cn('flex items-center gap-1.5', row.token)}>
+                    <span className="h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true" />
+                    <span className={row.id === 'LOAD' ? 'text-primary' : 'text-secondary'}>
+                      {row.label}
+                    </span>
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 text-right text-secondary tabular-nums">
+                  {row.energy}
+                </td>
+                <td className="py-1.5 pl-3 text-right text-primary tabular-nums">{row.share}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };

@@ -44,7 +44,7 @@ export type TrendView = SiteTrendMetric | typeof OVERVIEW_VIEW | typeof CHARGE_V
 const COMPOSITIONS: ReadonlyArray<TrendView> = [OVERVIEW_VIEW, CHARGE_VIEW];
 
 const VIEW_LABEL: Record<typeof OVERVIEW_VIEW | typeof CHARGE_VIEW, string> = {
-  [OVERVIEW_VIEW]: 'Energy overview',
+  [OVERVIEW_VIEW]: 'Power Supply Distribution',
   [CHARGE_VIEW]: 'Charge mix',
 };
 

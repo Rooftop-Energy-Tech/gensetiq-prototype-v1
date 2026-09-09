@@ -187,6 +187,13 @@ export type SiteOverview = {
   caption: string;
   /** The figures beside the legend when nothing is hovered. */
   totals: Array<{label: string; value: string}>;
+  /**
+   * The stack as a table: each source's energy to the load over this window, and
+   * its share of the load. The `LOAD` row closes the table at 100% — it is the
+   * denominator, kept in the list so the reader sees what the shares are of.
+   * Absent on the charge view, whose stack has no total to be a share of.
+   */
+  mix?: Array<{id: OverviewSeriesId; label: string; token: string; energy: string; share: string}>;
 };
 
 /**
@@ -550,6 +557,43 @@ export const siteOverview = (
   totals.push({label: 'Battery', value: KWH(energy.batteryToLoad)});
   totals.push({label: 'Load', value: KWH(energy.load)});
 
+  // The same figures as shares. `—` rather than 0% before the record has anything
+  // in it: a chart with no samples yet has no composition, not one that is all zeros.
+  const percent = (part: number): string =>
+    energy.load <= 0 ? '—' : `${((part / energy.load) * 100).toFixed(1)}%`;
+
+  const mix: SiteOverview['mix'] = [];
+  if (hasSolar(role))
+    mix.push({
+      id: 'SOLAR',
+      label: 'Solar',
+      token: OVERVIEW_SERIES_TOKEN.SOLAR,
+      energy: KWH(energy.solarToLoad),
+      share: percent(energy.solarToLoad),
+    });
+  if (ratedKw > 0)
+    mix.push({
+      id: 'GENSET',
+      label: 'Genset',
+      token: OVERVIEW_SERIES_TOKEN.GENSET,
+      energy: KWH(energy.gensetToLoad),
+      share: percent(energy.gensetToLoad),
+    });
+  mix.push({
+    id: 'BATTERY',
+    label: 'Battery',
+    token: OVERVIEW_SERIES_TOKEN.BATTERY,
+    energy: KWH(energy.batteryToLoad),
+    share: percent(energy.batteryToLoad),
+  });
+  mix.push({
+    id: 'LOAD',
+    label: 'Site load',
+    token: OVERVIEW_SERIES_TOKEN.LOAD,
+    energy: KWH(energy.load),
+    share: energy.load <= 0 ? '—' : '100%',
+  });
+
   return {
     period,
     labels,
@@ -558,6 +602,7 @@ export const siteOverview = (
     unit: 'kW',
     caption: `Power ${span}, ${grain} · sources stacked to the load`,
     totals,
+    mix,
   };
 };
 
