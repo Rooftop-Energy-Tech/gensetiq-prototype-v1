@@ -104,6 +104,22 @@ const LABEL_PITCH = 76;
 /** Breathing room above and below the plant. */
 const PAD_Y = 20;
 
+/**
+ * The ground width the frame is scaled to, in millimetres. **One figure for every site.**
+ *
+ * The scene used to fit itself to whatever plant the site happened to have, which meant
+ * the scale changed with the configuration: a diesel hybrid's cluster is about 7.5 m wide
+ * and a solar hybrid's is about 20 m, so the same cabinet came out nearly three times the
+ * size on one page as on the other. Two sites in the same estate drawn at two scales is a
+ * worse fault than an empty margin - a reader flicking between them reads the difference
+ * as a difference in the plant.
+ *
+ * So millimetres per pixel is fixed by the frame width alone, and a smaller yard is drawn
+ * smaller, which is what it is. 21 m is the widest case: a solar hybrid's frame, the
+ * cabinet run under it and the set alongside.
+ */
+const SCENE_WIDTH_MM = 21000;
+
 type SceneNode = {
   /** The diagram's key for this node - what a placement's `node` matches. */
   key: string;
@@ -411,16 +427,22 @@ export const SitePlantScene = ({
   const minY = Math.min(...ys);
   const plantMm = {w: Math.max(...xs) - minX, h: Math.max(...ys) - minY};
 
-  // The gutters take their width off the top, so the plant is fitted to what is left.
+  // The gutters take their width off the top, and what is left is `SCENE_WIDTH_MM` of
+  // ground - the same millimetres per pixel at every site, whatever stands in it.
   // `useElementSize` reports 0 until the ref attaches, one layout effect away, which the
   // floor covers along with a genuinely narrow column.
   const frame = Math.max(MIN_WIDTH, width);
-  const s = (frame - GUTTER * 2) / plantMm.w;
+  const inner = frame - GUTTER * 2;
+  const s = inner / SCENE_WIDTH_MM;
   const height = plantMm.h * s + PAD_Y * 2;
+
+  // A yard narrower than the frame is centred in it rather than stretched to fill it,
+  // which is the whole point of the fixed scale: the margin is the site being smaller.
+  const originX = GUTTER + Math.max(0, (inner - plantMm.w * s) / 2);
 
   /** A projected millimetre point, in the block's own pixels. */
   const at = (mmX: number, mmY: number) => ({
-    left: GUTTER + (mmX - minX) * s,
+    left: originX + (mmX - minX) * s,
     top: PAD_Y + (mmY - minY) * s,
   });
 
@@ -457,7 +479,10 @@ export const SitePlantScene = ({
   const anchored = nodes.map((node) => {
     const box = placementBox(node.chip);
     const point = at(box.minX + box.w / 2, box.minY + box.h * 0.62);
-    const middle = GUTTER + (plantMm.w * s) / 2;
+    // The **drawn plant's** own centre, not the frame's: on a narrow site the plant sits
+    // centred with margins either side, and splitting on the frame's midpoint would send
+    // every label on a left-leaning cluster into the same gutter.
+    const middle = originX + (plantMm.w * s) / 2;
 
     return {node, point, side: point.left < middle ? ('left' as const) : ('right' as const)};
   });

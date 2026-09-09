@@ -424,30 +424,40 @@ export const plantScene = (
   // would be under the tallest, deepest part of the structure and hidden by its panels.
   const line = solar ? {x: 14400, y: 4400} : {x: 6400, y: 4000};
 
-  if (hasCabinet) {
-    placements.push({
-      id: 'cabinet-0',
-      node: 'cabinet',
-      chip: true,
-      anchor: 'below',
-      equipment: 'powerCabinet',
-      x: line.x,
-      y: line.y,
-    });
+  // **The DC plant is always drawn**, because every telco site has one. What varies is
+  // whether this app knows anything about it: `siteHasCabinet` is about a cabinet with a
+  // page behind it - a monitoring unit read, or a shelf sized off the bank's recharge duty
+  // - and at a site with neither there is still a cabinet standing on the slab. So the
+  // drawing is unconditional and only the *node* is conditional: no node means no label
+  // and no click, the same contract the telco equipment cabinets have below.
+  placements.push({
+    id: 'cabinet-0',
+    ...(hasCabinet
+      ? ({node: 'cabinet', chip: true, anchor: 'below'} as const)
+      : ({scenery: true} as const)),
+    equipment: 'powerCabinet',
+    x: line.x,
+    y: line.y,
+  });
 
-    if (hasBattery(role)) {
-      for (let index = 0; index < BATTERY_CABINETS; index++) {
-        placements.push({
-          id: `cabinet-battery-${index}`,
-          node: 'battery',
-          // The middle cabinet of the run, so the label sits over the bank rather than
-          // off one end of it.
-          ...(index === 1 ? ({chip: true, anchor: 'right'} as const) : {}),
-          equipment: 'powerCabinet',
-          x: line.x,
-          y: line.y + (index + 1) * CABINET_PITCH,
-        });
-      }
+  // The battery cabinets, on **the bank** rather than on the cabinet page.
+  //
+  // These were nested inside `hasCabinet` and that was wrong: a site with a bank has
+  // cabinets holding it whether or not the plant is instrumented, so a diesel hybrid with
+  // no cabinet page lost its bank from the drawing entirely - the one asset its own rail
+  // was offering.
+  if (hasBattery(role)) {
+    for (let index = 0; index < BATTERY_CABINETS; index++) {
+      placements.push({
+        id: `cabinet-battery-${index}`,
+        node: 'battery',
+        // The middle cabinet of the run, so the label sits over the bank rather than off
+        // one end of it.
+        ...(index === 1 ? ({chip: true, anchor: 'right'} as const) : {}),
+        equipment: 'powerCabinet',
+        x: line.x,
+        y: line.y + (index + 1) * CABINET_PITCH,
+      });
     }
   }
 
