@@ -174,6 +174,13 @@ export type SiteTrend = {
   /** The first column's heading on the `mix` table — `Destination`, `Source`. */
   mixHeading?: string;
   /**
+   * A second bar beside each bucket's own, drawn lighter — the other half of a
+   * balance. The bank's bars carry it: charge in beside discharge out to the
+   * load, so a bucket reads as flow through the bank rather than a fill from
+   * empty. Same unit as the axis; `value` is the window's total, for the strip.
+   */
+  paired?: {label: string; token: string; values: Array<number | null>; value: string};
+  /**
    * The series split into where it went, as a table under the chart — each row a
    * destination with its energy and its share, closed by the total at 100%. The
    * array's views carry it: generation is one figure until it is divided into
@@ -341,9 +348,10 @@ const bankChargeSplitKwh = (
   from: number,
   to: number,
   now: number,
-): {solarIn: number; gensetIn: number} => {
+): {solarIn: number; gensetIn: number; discharge: number} => {
   let solarIn = 0;
   let gensetIn = 0;
+  let discharge = 0;
   const end = Math.min(to, now);
   for (let dayStart = startOfDay(from); dayStart < end; dayStart += 86_400_000) {
     const dayKwh = hasSolar(role) ? fullDayKwh(seed, role, dayStart) : 0;
@@ -358,9 +366,12 @@ const bankChargeSplitKwh = (
       const gensetToLoad = Math.min(gensetKw, Math.max(0, loadKw - solarToLoad));
       solarIn += solarKw - solarToLoad;
       gensetIn += gensetKw - gensetToLoad;
+      // What the bank paid back: the load neither source covered — the same
+      // residual the distribution chart draws as its battery band.
+      discharge += Math.max(0, loadKw - solarToLoad - gensetToLoad);
     }
   }
-  return {solarIn, gensetIn};
+  return {solarIn, gensetIn, discharge};
 };
 
 /**
@@ -835,7 +846,7 @@ const periodTrend = (
   // `SiteTrend.bands` and `.mix`. Each bar divides at the walk's fractions,
   // scaled to the bar's own figure so the segments close on it exactly and the
   // table's totals match the bars'.
-  const banded = ((): Pick<SiteTrend, 'bands' | 'mix' | 'mixHeading'> => {
+  const banded = ((): Pick<SiteTrend, 'bands' | 'mix' | 'mixHeading' | 'paired'> => {
     if (metric === 'SOLAR') {
       const from: Array<number | null> = [];
       const to: Array<number | null> = [];
@@ -896,6 +907,15 @@ const periodTrend = (
       });
 
       if (solarKwh + gensetKwh <= 0) return {};
+
+      const discharge = chargeSplits.map((split) =>
+        split === null ? null : Math.round(split.discharge),
+      );
+      const dischargeKwh = chargeSplits.reduce(
+        (total, split) => total + (split?.discharge ?? 0),
+        0,
+      );
+
       const bands: SiteTrend['bands'] = [];
       if (hasSolar(role))
         bands.push({
@@ -917,6 +937,12 @@ const periodTrend = (
         bands,
         mix: chargeMix(solarKwh, gensetKwh, hasSolar(role), ratedKw > 0),
         mixHeading: 'Source',
+        paired: {
+          label: 'Discharged to load',
+          token: 'text-battery',
+          values: discharge,
+          value: KWH(dischargeKwh),
+        },
       };
     }
 
@@ -935,6 +961,7 @@ const periodTrend = (
     bands: banded.bands,
     mix: banded.mix,
     mixHeading: banded.mixHeading,
+    paired: banded.paired,
     shape: 'bars',
     unit: metric === 'GENSET' ? 'h' : 'kWh',
     caption:

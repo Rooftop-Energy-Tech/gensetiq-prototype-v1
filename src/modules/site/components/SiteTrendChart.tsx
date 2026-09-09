@@ -98,7 +98,7 @@ export const SiteTrendChart = ({
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   // The reference is in the ceiling too: an expectation the bars all missed must
   // sit inside the frame, not on its edge — the shortfall is the picture.
-  const referenced = (trend.reference?.values ?? []).filter(
+  const referenced = [...(trend.reference?.values ?? []), ...(trend.paired?.values ?? [])].filter(
     (value): value is number => value !== null,
   );
   const top = trend.axisMax ?? niceMax(Math.max(...readings, ...referenced, 1));
@@ -252,11 +252,18 @@ export const SiteTrendChart = ({
         {bars
           ? points.map((point, index) => {
               if (point.value === null) return null;
-              const left = x(index) - Math.max(2, slot * 0.32);
-              const barWidth = Math.max(4, slot * 0.64);
+              // A paired series splits the slot into a grouped pair: the bucket's
+              // own bar on the left, its counterpart on the right, drawn lighter —
+              // charge in beside discharge out.
+              const grouped = trend.paired !== undefined;
+              const barWidth = grouped ? Math.max(3, slot * 0.3) : Math.max(4, slot * 0.64);
+              const left = grouped ? x(index) - barWidth - 1 : x(index) - barWidth / 2;
+              const pairedLeft = x(index) + 1;
               // The same 55% every fill in the band uses; hover dims the rest.
               const dim = hovered === null || hovered === index ? 0.55 : 0.3;
+              const lighter = hovered === null || hovered === index ? 0.25 : 0.12;
               const base = trend.bands?.[0]?.from[index] ?? point.value;
+              const paired = trend.paired?.values[index];
 
               return (
                 <g key={point.label}>
@@ -287,6 +294,17 @@ export const SiteTrendChart = ({
                       />
                     );
                   })}
+                  {grouped && paired !== null && paired !== undefined && paired > 0 && (
+                    <rect
+                      x={pairedLeft}
+                      y={y(paired)}
+                      width={barWidth}
+                      height={Math.max(0, y(0) - y(paired))}
+                      rx={2}
+                      className={cn('fill-current', trend.paired?.token)}
+                      opacity={lighter}
+                    />
+                  )}
                 </g>
               );
             })
@@ -437,6 +455,22 @@ export const SiteTrendChart = ({
             </span>
           </span>
         ))}
+
+        {trend.paired !== undefined && (
+          <span className={cn('flex items-center gap-1.5', trend.paired.token)}>
+            <span className="h-2 w-2 rounded-[2px] bg-current opacity-25" aria-hidden="true" />
+            <span className="text-tertiary">
+              {trend.paired.label} ·{' '}
+              <span className="text-primary tabular-nums">
+                {hovered !== null &&
+                trend.paired.values[hovered] !== null &&
+                trend.paired.values[hovered] !== undefined
+                  ? `${trend.paired.values[hovered]} ${unit}`
+                  : trend.paired.value}
+              </span>
+            </span>
+          </span>
+        )}
 
         {/* The reference's figure, following the hover: pointing at a bar
             restates the promise for that bar's own bucket, and pointing at
