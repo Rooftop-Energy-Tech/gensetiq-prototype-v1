@@ -342,7 +342,16 @@ export const SiteTrendChart = ({
             // Keyed on where it starts: the pieces partition one run of samples, so
             // no two of them can begin at the same index.
             <g key={`${piece.points[0]}-${index}`} className={tint?.token}>
-              <polygon points={area} className="fill-current" opacity={0.16} />
+              {/* Where the curve carries a band, its own fill takes the same 55%
+                  the distribution chart's bands use — the two slices of one
+                  composition should be one material. Elsewhere the pale wash
+                  stays: the SoC and consumption curves are readings, not
+                  compositions. */}
+              <polygon
+                points={area}
+                className="fill-current"
+                opacity={trend.band === undefined ? 0.16 : 0.55}
+              />
               <polyline
                 points={line}
                 fill="none"
