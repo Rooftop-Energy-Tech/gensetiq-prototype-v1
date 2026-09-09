@@ -248,25 +248,23 @@ export const SiteTrendChart = ({
             orange bars would vanish exactly where it crosses them. */}
         {trend.average !== undefined && (
           <g className="text-primary">
+            {/* The rule stops short of its own figure: the label sits *in* the
+                line, on its right end, centred on the level it names — a gap
+                rather than a backdrop, so nothing has to know the card's ground
+                colour. The width the gap needs is estimated off the glyph count,
+                which at a 10px monospace-figured face is close enough. */}
             <line
               x1={AXIS_WIDTH}
               y1={y(trend.average.value)}
-              x2={width}
+              x2={width - (`${trend.average.value} ${unit}`.length * 6 + 8)}
               y2={y(trend.average.value)}
               className="stroke-current"
               strokeWidth={1.5}
               strokeDasharray="4 3"
             />
-            {/* The figure on the rule itself, at its right end — above it where
-                there is headroom, tucked under it when the average runs close to
-                the frame's top. */}
             <text
               x={width - 2}
-              y={
-                y(trend.average.value) < PAD_TOP + 14
-                  ? y(trend.average.value) + 12
-                  : y(trend.average.value) - 5
-              }
+              y={y(trend.average.value) + 3.5}
               textAnchor="end"
               className="fill-current text-[10px] font-medium tabular-nums"
             >
