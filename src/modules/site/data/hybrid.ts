@@ -331,25 +331,23 @@ export type HybridState = {
 const FIRST_LIGHT = 7;
 const LAST_LIGHT = 19;
 
-/** The load's slow wave completes one cycle in this many days — the Month window. */
-const LOAD_WAVE_DAYS = 30;
+/** The load's slow wave completes one cycle in this many days — the Year window. */
+const LOAD_WAVE_DAYS = 365;
 
 /**
  * The shape of a site's own draw over time, as a multiplier on its metered kW.
  *
- * One ±10% sine across **thirty days**, not across a day. A telecom site's load is
- * radios and rectifiers around the clock: within any one day it is constant to the
- * eye, and what actually moves it is slower — traffic and weather over weeks. The
- * earlier daily wave got that backwards: it put a visible hump inside every day
- * and none between them, so the Day tab wiggled while the month's energy bars sat
- * identical. This way round, the Day tab shows a near-flat slice of wherever that
- * day sits on the wave, and the Month views — the distribution's crown and the
- * consumption bars alike — show the one cycle genuinely rising and falling.
+ * One ±10% sine across **a year**, not across a day. A telecom site's load is
+ * radios and rectifiers around the clock: within any one day it is constant to
+ * the eye, and what actually moves it is seasonal — traffic and ambient heat over
+ * months. So the Year tab shows the one full cycle; the Month tab shows a slice
+ * of it, a slow rise or fall across its thirty days; and the Day tab is flat to
+ * the pixel, sitting wherever that day lands on the wave.
  *
  * Takes an absolute timestamp (ms) and is anchored to the epoch, so a given date
  * always lands on the same point of the wave no matter which chart asks.
- * `seed.loadKw` stays the mean over any full cycle; a single *day's* energy now
- * honestly runs up to ±10% off it, which is the point.
+ * `seed.loadKw` stays the mean over any full cycle; a single day's or month's
+ * energy honestly runs up to ±10% off it, which is the point.
  */
 export const loadShape = (at: number): number =>
   1 + 0.1 * Math.sin((at / (LOAD_WAVE_DAYS * 86_400_000)) * 2 * Math.PI);
