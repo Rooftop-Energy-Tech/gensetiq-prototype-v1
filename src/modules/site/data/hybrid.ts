@@ -339,14 +339,14 @@ const LAST_LIGHT = 19;
  * does not double at noon, just breathes a little with the cabinet's afternoon
  * heat. At ±12% that breath read as a *slope* on the distribution chart's crown
  * while looking flat on Consumption's own axis, so the two charts appeared to
- * disagree about one quantity. ±5% is the compromise: alive, and visibly the same
- * near-constant line on both.
+ * disagree about one quantity. ±10% is the compromise: alive, and reading as the
+ * same near-constant line on both.
  *
  * `seed.loadKw` stays the day's mean by construction — the multiplier averages to
  * 1 over 24 hours — so this reshapes the metered figure without inventing energy.
  */
 export const loadShape = (hour: number): number =>
-  1 + 0.05 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
+  1 + 0.1 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
 
 /**
  * The shape of a solar day, unnormalised: `0` before first light, `1` at noon.
