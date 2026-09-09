@@ -440,10 +440,9 @@ export const SiteTrendChart = ({
       {/* The design's legend, plus the hovered reading in the same strip. Two rows
           would put the readout below the fold of a 472px card. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs">
-        <span className="flex items-center gap-1.5 text-secondary">
-          <span className="h-0.5 w-3 rounded-full bg-current" aria-hidden="true" />
-          {trend.caption}
-        </span>
+        {/* The caption is a sentence about the window, not a series — it gets no
+            swatch. The chips belong to things actually drawn. */}
+        <span className="text-secondary">{trend.caption}</span>
 
         {/* Only the tints the day actually used. A legend entry for
             `Solar-charging` on a bank that spent the whole night on diesel would
