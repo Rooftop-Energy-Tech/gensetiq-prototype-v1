@@ -16,20 +16,26 @@
  * and smoke sensors on the enclosure itself, the four rectifier rows and the five
  * SSU rows. There was already a complete alarm list for an asset with no page.
  *
- * ## Why only the instrumented site has one
+ * ## Which sites have one
  *
  * Every telecom site has a DC power plant — this is the most universal asset on the
- * estate, more so than a bank or an array. But the two facts that make a page worth
- * opening, **how many modules are in the shelf and what they are rated at**, are
- * real hardware at SBH-1336 and would be a guess anywhere else. `hybrid.ts` would
- * happily size a shelf from the load, and `monitoringUnit.ts` argues at length about
- * why that is the wrong kind of number: it would contradict the alarm rows beside
- * it, which are addresses on a device and not negotiable.
+ * estate, more so than a bank or an array. For a while only the instrumented one had
+ * a page, on the argument that **how many modules are in the shelf** would be a guess
+ * anywhere else and would contradict the alarm rows beside it, which are addresses on
+ * a device and not negotiable.
  *
- * So `subrackCabinet` answers `undefined` at the twenty-four sites with no unit, the
- * site rail drops the `Cabinet` row there, and nothing offers a door onto a page
- * that could only say "not instrumented". The day a second gateway goes in, one
- * entry in `UNITS` lights the whole section up.
+ * `shelf.ts` narrowed that argument to where it holds. A contradiction needs something
+ * to contradict, and at a site with no unit there is nothing indexing a slot — so a
+ * shelf sized from the bank's recharge duty is in exactly the position the bank and
+ * the array are already in, both of which `hybridPlant` sizes. `siteHasCabinet` gives
+ * a page to every solar hybrid, `shelf` carries `READ` or `SIZED`, and every screen
+ * that prints a module count says which it is looking at.
+ *
+ * So `subrackCabinet` answers `undefined` only where there is neither a unit nor an
+ * array, and the site rail drops the `Cabinet` row there. **The traced elevation is a
+ * separate question** — it is drawn only where the shelf was counted, because a
+ * drawing of the front of a box is not something a model can size. See
+ * `shelfLayoutFits`.
  */
 export type SubrackCabinet = {
   /** The cabinet's id, which is its site's — one DC plant per site. */
