@@ -27,10 +27,10 @@ export const ShareBar = ({
   if (segments.length === 0) return null;
 
   return (
-    <div className="mt-3 flex max-w-md flex-col gap-2">
-      <div className="flex w-full items-center gap-2">
+    <div className="mt-3 flex max-w-2xl flex-col gap-2.5">
+      <div className="flex w-full items-center gap-3">
         <div
-          className="flex h-5 min-w-0 flex-1 gap-[2px] overflow-hidden rounded-full"
+          className="flex h-7 min-w-0 flex-1 gap-[2px] overflow-hidden rounded-full"
           role="img"
           aria-label={segments.map((s) => `${s.label} ${s.share}`).join(', ')}
         >
@@ -47,7 +47,7 @@ export const ShareBar = ({
                   doughnut's callout, inlined. Slivers stay mute and keep the
                   legend below as their voice. */}
               {segment.pct >= 15 && (
-                <span className="truncate px-1.5 text-[10px] font-medium whitespace-nowrap text-white tabular-nums">
+                <span className="truncate px-2 text-xs font-medium whitespace-nowrap text-white tabular-nums">
                   {segment.label} · {segment.share}
                 </span>
               )}
@@ -56,13 +56,15 @@ export const ShareBar = ({
         </div>
         {/* What the segments add up to — the closed ring of the doughnut this
             bar uncurls. */}
-        <span className="text-xs text-tertiary tabular-nums">100%</span>
+        <span className="text-sm text-tertiary tabular-nums">100%</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+      {/* One line, always: the legend is four short facts, and wrapping them
+          made the reader assemble a sentence from two rows. */}
+      <div className="flex items-center gap-x-5 whitespace-nowrap text-sm">
         {segments.map((segment) => (
           <span key={segment.label} className={cn('flex items-center gap-1.5', segment.token)}>
-            <span className="h-2 w-2 rounded-[2px] bg-current" aria-hidden="true" />
+            <span className="h-2.5 w-2.5 rounded-[3px] bg-current" aria-hidden="true" />
             <span className="text-tertiary">
               {segment.label} ·{' '}
               <span className="text-primary tabular-nums">{segment.share}</span>{' '}
