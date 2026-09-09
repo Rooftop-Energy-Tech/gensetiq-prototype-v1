@@ -463,19 +463,49 @@ const Node = ({
     <>
       <div
         className={cn(
+          // `bg-element` is unconditional, and that is the fix rather than a tidy-up:
+          // this surface is what hides the conductors that run *underneath* a box. See
+          // the hover/selection layer below.
           'relative flex h-[74px] w-[88px] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border bg-element pt-2.5 pb-2',
           // The border says whether the thing is *live*, so selection cannot use it
           // — a picked dead genset and a live one have to stay tellable apart. A ring
           // sits outside the border and is the one affordance orthogonal to it.
           live === true ? 'border-teal/40' : 'border-default',
-          onSelect !== undefined && 'transition-colors group-hover:bg-highlight',
-          selected && 'bg-highlight ring-2 ring-strong',
+          selected && 'ring-2 ring-strong',
           className,
         )}
       >
+        {/* Hover and selection as a **layer over** the surface, never as the surface.
+
+            `highlight` is an overlay token — 7% black, 8% white — and `colors.ts` says
+            so in as many words: "Overlay — layer, don't replace." Set as this box's
+            `bg-*` it did replace `bg-element`, because that is what tailwind-merge is
+            for, and a picked box stopped being opaque.
+
+            Every other node has nothing behind it and so never showed this. A source's
+            run starts at its box's right edge, the tie between two of them runs through
+            the gap where their captions are, and the tap stops dead on the load's left
+            edge. The cabinet is the exception: it is **centred on the junction**, so
+            every source's run comes down its own centreline and ends inside it.
+            `CABINET_X` chose that geometry precisely so the meeting happens where a
+            reader cannot see it — which holds only while the box is a solid. Picking it
+            drew all three runs straight through the icon.
+
+            One span serves both states because they are one appearance at one value;
+            it sits first so the tile, the label and the state dot paint over it. */}
+        {onSelect !== undefined && (
+          <span
+            className={cn(
+              'absolute inset-0 transition-colors',
+              selected ? 'bg-highlight' : 'group-hover:bg-highlight',
+            )}
+            aria-hidden="true"
+          />
+        )}
+
         <span
           className={cn(
-            'flex size-8 items-center justify-center rounded-md',
+            'relative flex size-8 items-center justify-center rounded-md',
             live === true ? 'bg-teal/16' : 'bg-highlight',
           )}
         >
@@ -484,7 +514,9 @@ const Node = ({
             aria-hidden="true"
           />
         </span>
-        <p className="text-xs font-semibold whitespace-nowrap text-primary">{label}</p>
+        <p className="relative text-xs font-semibold whitespace-nowrap text-primary">
+          {label}
+        </p>
         {live !== undefined && (
           <span
             className={cn(
