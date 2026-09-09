@@ -12,40 +12,44 @@ import {amount} from '@/lib/format';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
-import {TickGauge} from '@/modules/genset/components/detail/TickGauge';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {cabinetDuty} from '../../types/cabinet.type';
 import type {SubrackCabinet} from '../../types/cabinet.type';
-import {SubrackRack} from './SubrackRack';
+import {SubrackShelf} from './SubrackShelf';
 
 /**
  * The cabinet's home page, in the bands the other three asset pages use.
  *
  * 1. **The strip** — what the shelf can pass, what the bus is delivering, how warm
  *    the box is, and the alarm counts.
- * 2. **The load** — the tower's draw against the shelf's ceiling, as a dial, with
- *    what is actually converting under it.
- * 3. **The shelf** — one card per module, rectifiers then SSUs.
+ * 2. **The state** — which group is converting, the enclosure temperature, and how
+ *    much headroom is left, as three badges.
+ * 3. **The shelf** — the cabinet drawn front-on, bay by bay, with the selected bay
+ *    beside it.
  * 4. **The details** — what the cabinet *is*, in the band all four pages share.
  *
- * ## Why the dial reads a fifth of full scale, and why that is right
+ * ## Why the second band has no dial
  *
- * Six rectifiers at 4 kW against a 5 kW tower. A telecom plant is specified N+1 and
- * this one is nearer N+4: four of the six can be gone before the fifth is in
- * trouble. So the needle sits low and the honest picture of this cabinet is a lot of
- * headroom — which is the reading `Low Rectifier Capacity` keys off, and the reason
- * the source document expects that alarm essentially never to fire here.
+ * It had one — a hero `TickGauge` reading `Tower load against shelf capacity`, 5 kW
+ * of 24 — and it was removed. Two reasons, and the second is the one that matters.
  *
- * ⚠️ **The dial is a headroom question, not a throughput one.** It draws the tower's
- * load against the shelf's ceiling whether or not the shelf is the thing carrying —
- * which at this site it usually is not, because the array carries by day and the
- * bank by night. `cabinetDuty` carries that argument; the badge under the dial and
- * every module card are what say whether the shelf is converting right now.
+ * **Every figure in it was already on the page.** The load is the strip's `Bus
+ * output` column, the ceiling is its `Rectifier capacity` column, and the ratio is
+ * the `79% headroom` badge. A dial earns its band when it puts a needle somewhere on
+ * a scale a reader cannot infer; this one put a needle a fifth of the way round two
+ * numbers printed an inch above it.
  *
- * A dial rather than the bank's tank, and the choice is the opposite of the one that
- * page made. A tank is a container and every reader knows a full one is better; a
- * shelf's load is a rate, it has no level, and *full* is the bad end. A tick ring is
- * neutral about which end is good, which is exactly what this reading needs.
+ * **And it was the weakest reading here.** A dial has to point at something, and what
+ * this cabinet is passing is nothing for most of the day — the array carries by day
+ * and the bank by night — so it was drawn against a hypothetical instead: what the
+ * shelf *could* take if the sun went in. That is a genuinely useful question and a
+ * badge answers it better than an arc, because an arc looks like a measurement of
+ * now. `cabinetDuty` carries the rest of that argument.
+ *
+ * The headroom itself is worth keeping in words. Six rectifiers at 4 kW against a
+ * 5 kW tower is nearer N+4 than the N+1 a telecom plant is specified at: four of the
+ * six can be gone before the fifth is in trouble. `79% headroom` says that; a needle
+ * sitting low did not.
  *
  * ## What is not here
  *
@@ -112,79 +116,61 @@ export const CabinetHome = ({cabinet}: {cabinet: SubrackCabinet}) => {
         counts={counts}
       />
 
-      <section aria-label="Load now" className="flex justify-center py-6">
-        <div className="flex flex-col items-center gap-3 px-6">
-          <TickGauge
-            size="hero"
-            reading={{
-              key: 'cabinet-load',
-              // Not "load on the shelf" — the shelf is usually passing none of it.
-              // The dial asks whether it *could*; see `cabinetDuty`.
-              label: 'Tower load against shelf capacity',
-              value: cabinet.loadKw ?? 0,
-              unit: 'kW',
-              precision: 1,
-              min: 0,
-              max: cabinet.capacityKw,
-            }}
-          />
+      {/* What is holding the tower up, how warm the box is, and how much room the
+          shelf has left. Three badges, where there used to be a dial above them —
+          see `Why the second band has no dial` above.
 
-          {/* What is actually holding the tower up, under the reading — the same
-              arrangement the bank puts its charge direction in, and the same reason:
-              it is a fact about the instant the dial is drawn, and separating them
-              into two bands would make a reader hold one while they hunted the
-              other.
-
-              It is also what stops the dial being misread. The dial is a headroom
-              question and stays lit while the shelf idles; this badge is the one
-              element that says whether the shelf is converting right now, and the
-              module cards below agree with it to the kilowatt. */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {converting ? (
-              <Badge variant="secondary" className="whitespace-pre">
-                <CarryingIcon
-                  className={cabinet.carrying === 'SSUS' ? 'text-solar' : 'text-teal'}
-                  aria-hidden="true"
-                />
-                {cabinet.carrying === 'SSUS' ? 'Solar units carrying' : 'Rectifiers carrying'}
-                <span className="text-secondary"> | </span>
-                {amount(cabinet.loadKw ?? 0, 'kW')}
-              </Badge>
-            ) : (
-              // Two states, two sentences. A bank carrying is a solar hybrid doing
-              // exactly what it was bought for and happens every night here; an
-              // unserved tower is an outage. Both leave this cabinet converting
-              // nothing, and saying so in one neutral phrase would flatten the
-              // difference a reader most needs.
-              <Badge variant="secondary" className="whitespace-pre">
-                <BatteryChargingIcon
-                  className={cabinet.carrying === 'BATTERY' ? 'text-battery' : 'text-tertiary'}
-                  aria-hidden="true"
-                />
-                {cabinet.carrying === 'BATTERY'
-                  ? 'Bank carrying | shelf on standby'
-                  : 'Nothing served | shelf idle'}
-              </Badge>
-            )}
-
+          They stay because none of the three is redundant with the strip.
+          `Bank carrying | shelf on standby` is the only element on the page that says
+          which group is converting, and the bays in the figure below agree with it to
+          the kilowatt. */}
+      <section aria-label="What the shelf is carrying" className="flex justify-center pt-1 pb-5">
+        <div className="flex flex-wrap items-center justify-center gap-2 px-6">
+          {converting ? (
             <Badge variant="secondary" className="whitespace-pre">
-              <ThermometerIcon className="text-tertiary" aria-hidden="true" />
-              {cabinet.tempC.toFixed(1)} °C
+              <CarryingIcon
+                className={cabinet.carrying === 'SSUS' ? 'text-solar' : 'text-teal'}
+                aria-hidden="true"
+              />
+              {cabinet.carrying === 'SSUS' ? 'Solar units carrying' : 'Rectifiers carrying'}
+              <span className="text-secondary"> | </span>
+              {amount(cabinet.loadKw ?? 0, 'kW')}
             </Badge>
+          ) : (
+            // Two states, two sentences. A bank carrying is a solar hybrid doing
+            // exactly what it was bought for and happens every night here; an
+            // unserved tower is an outage. Both leave this cabinet converting
+            // nothing, and saying so in one neutral phrase would flatten the
+            // difference a reader most needs.
+            <Badge variant="secondary" className="whitespace-pre">
+              <BatteryChargingIcon
+                className={cabinet.carrying === 'BATTERY' ? 'text-battery' : 'text-tertiary'}
+                aria-hidden="true"
+              />
+              {cabinet.carrying === 'BATTERY'
+                ? 'Bank carrying | shelf on standby'
+                : 'Nothing served | shelf idle'}
+            </Badge>
+          )}
 
-            {/* The headroom stated in words, because a dial sitting a sixth of the
-                way round does not say how many modules that is — and how many can be
-                lost is the question a plant engineer is actually asking. */}
-            <Badge variant="secondary">
-              {Math.round((1 - duty) * 100)}% headroom
-            </Badge>
-          </div>
+          <Badge variant="secondary" className="whitespace-pre">
+            <ThermometerIcon className="text-tertiary" aria-hidden="true" />
+            {cabinet.tempC.toFixed(1)} °C
+          </Badge>
+
+          {/* The headroom in words, which is the whole of what the dial above this
+              used to be for and says it better. `79% headroom` against a shelf of
+              six 4 kW modules is four of the six gone before the fifth is in
+              trouble — a telecom plant is specified N+1 and this one is nearer
+              N+4. An arc could not have said that, and how many can be lost is the
+              question a plant engineer is actually asking. */}
+          <Badge variant="secondary">{Math.round((1 - duty) * 100)}% headroom</Badge>
         </div>
       </section>
 
       <div className="border-t border-subtle" />
 
-      <SubrackRack cabinet={cabinet} />
+      <SubrackShelf cabinet={cabinet} />
 
       <div className="border-t border-subtle" />
 

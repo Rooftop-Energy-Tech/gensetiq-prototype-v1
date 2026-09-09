@@ -127,25 +127,36 @@ export const cabinetName = (cabinet: SubrackCabinet): string =>
 /**
  * How much of the shelf's capacity the tower's load would take, `0`–`1`.
  *
- * The hero reading, and it is a **headroom** question rather than a throughput one:
- * *could this shelf carry this tower.* That distinction is the whole of why the dial
- * is drawn against the load rather than against what the rectifiers are actually
- * passing — which, at this site, is nothing for most of the day.
+ * A **headroom** question rather than a throughput one: *could this shelf carry this
+ * tower.* That distinction is the whole of why it is computed against the load rather
+ * than against what the rectifiers are actually passing — which, at this site, is
+ * nothing for most of the day.
  *
  * A shelf idling behind a generating array or a discharging bank is the plant working
- * as designed, and a dial reading zero through all of it would have nothing to say on
+ * as designed, and a reading of zero through all of it would have nothing to say on
  * the one question a plant engineer opens this page with. Read as headroom it is true
  * in every state: 5 kW against 24 says the shelf could take the tower the moment the
  * sun goes in, which is exactly the event it exists for.
  *
- * The badges under it are what say whether the shelf is currently doing it, and the
- * module cards read `0.0 kW` and `standby` when it is not. A telecom plant is
- * specified N+1 and this one is nearer N+4 — six modules at 4 kW against a 5 kW
- * tower, so four of the six can be gone before the fifth is in trouble.
+ * ## It is a badge now, not a dial
  *
- * `0` in an outage rather than `null`, because the dial has to draw something and an
- * unserved tower is genuinely drawing nothing. The figures beside it say `Not served`
- * in words, which is where that fact belongs.
+ * This was the page's hero `TickGauge` and it is `79% headroom` in a badge instead.
+ * The argument above survives the change intact and is the reason for it: a dial
+ * looks like a measurement of *now*, and this was never that — it was an answer to a
+ * hypothetical, sitting a fifth of the way round a scale whose two ends were both
+ * printed in the strip directly above it.
+ *
+ * As a percentage it also says the thing a reader wants, which the arc could not. A
+ * telecom plant is specified N+1 and this one is nearer N+4 — six modules at 4 kW
+ * against a 5 kW tower — so `79% headroom` is four of the six gone before the fifth
+ * is in trouble. A needle sitting low was merely low.
+ *
+ * The badges beside it are what say whether the shelf is currently converting at all,
+ * and the bays in the figure below read `0.0 kW` and `standby` when it is not.
+ *
+ * `0` in an outage rather than `null`: an unserved tower is genuinely drawing nothing,
+ * so the headroom is genuinely total. The strip says `Not served` in words, which is
+ * where that fact belongs.
  */
 export const cabinetDuty = (cabinet: SubrackCabinet): number =>
   cabinet.capacityKw > 0 && cabinet.loadKw !== null
