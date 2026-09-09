@@ -89,12 +89,17 @@ const GUTTER = 128;
 /**
  * Vertical room a stacked label needs before the next one starts.
  *
- * It has to clear the **box**, not the text: three lines at 11px and 13px, plus 12px of
- * padding, 4px of internal gaps and the border, come to about 56px. At 52 the stacker was
+ * It has to clear the **box**, not the text: three lines at 11px and 13px, plus 16px of
+ * padding, 4px of internal gaps and the border, come to about 60px. At 52 the stacker was
  * pitching them tighter than they are tall, so a run of labels in one gutter arrived as a
- * single block with hairlines through it. 66 leaves a clear gap between every pair.
+ * single block with hairlines through it.
+ *
+ * 76 is above that floor on purpose rather than just clear of it. The pitch is also what
+ * sets the **angle between two leaders** leaving objects that stand a few centimetres
+ * apart: the cabinet run's anchors are within a couple of pixels of each other, so how far
+ * apart their labels sit is the only thing separating the two lines pointing at them.
  */
-const LABEL_PITCH = 66;
+const LABEL_PITCH = 76;
 
 /** Breathing room above and below the plant. */
 const PAD_Y = 20;
@@ -598,14 +603,27 @@ export const SitePlantScene = ({
           aria-hidden="true"
         >
           {anchored.map(({node, point, side}) => {
-            const y = stacked[side].get(node.key) ?? point.top;
+            const y = (stacked[side].get(node.key) ?? point.top) + 14;
             const edge = side === 'left' ? GUTTER - 6 : frame - GUTTER + 6;
+            // A shoulder at the label end, and a straight run from the object to it.
+            //
+            // This used to elbow — horizontally out of the object, then vertically down the
+            // gutter edge. On objects that stand apart it read fine; on the cabinet line-up
+            // it failed completely, because four cabinets 650mm apart put their anchors
+            // within a couple of pixels of each other, so four horizontal segments ran
+            // along almost the same line and the verticals shared the same x.
+            //
+            // A single straight run to the label's own height diverges from the first pixel
+            // instead: the labels are pitched apart, so the lines fan. The shoulder is what
+            // keeps the arrival square, which is what makes it read as a callout rather
+            // than as a wire in the drawing.
+            const shoulder = side === 'left' ? edge - 16 : edge + 16;
             const active = activeNode(node.key);
 
             return (
               <polyline
                 key={`leader-${node.key}`}
-                points={`${point.left},${point.top} ${edge},${point.top} ${edge},${y + 8}`}
+                points={`${point.left},${point.top} ${shoulder},${y} ${edge},${y}`}
                 fill="none"
                 strokeWidth={1}
                 className={cn('stroke-current', active ? 'text-teal' : 'text-tertiary')}

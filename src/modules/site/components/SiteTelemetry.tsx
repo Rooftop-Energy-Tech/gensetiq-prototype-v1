@@ -197,14 +197,17 @@ const SocGauge = ({soc, flow}: {soc: number; flow: 'charging' | 'discharging' | 
 };
 
 const Figure = ({label, value}: {label: string; value: string}) => (
-  <div className="flex flex-col gap-0.5">
+  <div className="flex flex-col gap-1">
     <span className="text-[11px] leading-none text-secondary">{label}</span>
     <span className="text-sm leading-none font-semibold text-primary">{value}</span>
   </div>
 );
 
 const Frame = ({title, children}: {title: string; children: React.ReactNode}) => (
-  <section aria-label={title} className="flex flex-col gap-2 rounded-lg border border-default bg-element p-3">
+  <section
+    aria-label={title}
+    className="flex flex-col gap-3.5 rounded-lg border border-default bg-element p-4"
+  >
     <h3 className="text-[11px] leading-none font-semibold tracking-wide text-secondary uppercase">
       {title}
     </h3>
@@ -287,11 +290,15 @@ export const SiteTelemetry = ({
     return (
       <Frame title="State of charge">
         <SocGauge soc={state.soc} flow={flow} />
-        <div className="flex items-baseline justify-between">
-          <span className="text-[11px] text-secondary">Charge through today</span>
-          <span className="text-[11px] text-secondary">{plant.batteryKwh} kWh usable</span>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-[11px] leading-none text-secondary">Charge through today</span>
+            <span className="text-[11px] leading-none text-secondary">
+              {plant.batteryKwh} kWh usable
+            </span>
+          </div>
+          {trend !== undefined && <Spark trend={trend} />}
         </div>
-        {trend !== undefined && <Spark trend={trend} />}
       </Frame>
     );
   }
@@ -299,7 +306,7 @@ export const SiteTelemetry = ({
   if (device === 'solar' && hasSolar(role)) {
     return (
       <Frame title="Generation today">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-6">
           <Figure label="Generating now" value={amount(state.solarKw, 'kW', 1)} />
           <Figure
             label="Load carried by solar"
@@ -337,7 +344,7 @@ export const SiteTelemetry = ({
 
   return (
     <Frame title="Site at a glance">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">
         <Figure label="Carrying the site" value={carrying} />
         <Figure
           label="Site draw"
@@ -351,10 +358,10 @@ export const SiteTelemetry = ({
         )}
       </div>
       {trend !== undefined && (
-        <>
-          <span className="text-[11px] text-secondary">Draw through today</span>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] leading-none text-secondary">Draw through today</span>
           <Spark trend={trend} />
-        </>
+        </div>
       )}
     </Frame>
   );
