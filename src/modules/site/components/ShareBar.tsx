@@ -59,24 +59,26 @@ export const ShareBar = ({
         <span className="text-sm text-tertiary tabular-nums">100%</span>
       </div>
 
-      {/* One line, always: the legend is four short facts, and wrapping them
-          made the reader assemble a sentence from two rows. */}
-      <div className="flex items-center gap-x-5 whitespace-nowrap text-sm">
-        {segments.map((segment) => (
-          <span key={segment.label} className={cn('flex items-center gap-1.5', segment.token)}>
-            <span className="h-2.5 w-2.5 rounded-[3px] bg-current" aria-hidden="true" />
-            <span className="text-tertiary">
-              {segment.label} ·{' '}
-              <span className="text-primary tabular-nums">{segment.share}</span>{' '}
-              <span className="tabular-nums">({segment.energy})</span>
+      {/* One line, always: the legend is short facts, and wrapping them made
+          the reader assemble a sentence from two rows. The percentages are not
+          restated — the segments carry them — so each entry is the energy its
+          share corresponds to, and the window's total sits at the right end,
+          directly under the 100% it is the figure for. */}
+      <div className="flex w-full items-center gap-3 whitespace-nowrap text-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-x-5">
+          {segments.map((segment) => (
+            <span key={segment.label} className={cn('flex items-center gap-1.5', segment.token)}>
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-current" aria-hidden="true" />
+              <span className="text-tertiary">
+                {segment.label} ·{' '}
+                <span className="text-primary tabular-nums">{segment.energy}</span>
+              </span>
             </span>
-          </span>
-        ))}
+          ))}
+        </div>
 
         {total !== undefined && (
-          <span className="text-tertiary tabular-nums">
-            {total.label} · <span className="text-primary">{total.energy}</span>
-          </span>
+          <span className="shrink-0 text-primary tabular-nums">{total.energy}</span>
         )}
       </div>
     </div>
