@@ -787,9 +787,28 @@ const periodTrend = (
         })
       : clockSpine(daily, now);
 
+  // The bank's bucketed view is **charge**, not level. A mean state of charge per
+  // day is a level with the story averaged out of it, and slicing it by source
+  // painted an energy fraction onto a percentage. Energy into the bank is the
+  // quantity a month can honestly stack — the same kilowatt-hours the Source
+  // table divides — so past a day the bank charts what filled it.
+  const chargeSplits =
+    metric === 'BATTERY'
+      ? spine.map((bucket) =>
+          bucket.from > now
+            ? null
+            : bankChargeSplitKwh(seed, role, ratedKw, bucket.from, bucket.to, now),
+        )
+      : undefined;
+
   const points: Array<TrendPoint> = spine.map((bucket, index) => ({
     label: bucket.label,
-    value: bucketValue(seed, role, gensetIds, metric, bucket, buckets[index], now),
+    value:
+      chargeSplits !== undefined
+        ? chargeSplits[index] === null
+          ? null
+          : Math.round(chargeSplits[index]!.solarIn + chargeSplits[index]!.gensetIn)
+        : bucketValue(seed, role, gensetIds, metric, bucket, buckets[index], now),
   }));
 
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
@@ -847,20 +866,58 @@ const periodTrend = (
       };
     }
 
-    if (metric === 'BATTERY') {
-      // The table only, no slices on the bars: a SoC bar is a *level*, and
-      // painting an energy fraction onto a level mixes two quantities. The
-      // charge split lives in kilowatt-hours here — and the chart that draws it
-      // honestly is the parked charge-mix view, should it ever come back.
-      const {solarIn, gensetIn} = bankChargeSplitKwh(
-        seed,
-        role,
-        ratedKw,
-        spine[0]?.from ?? now,
-        spine[spine.length - 1]?.to ?? now,
-        now,
-      );
-      return {mix: chargeMix(solarIn, gensetIn, hasSolar(role), ratedKw > 0), mixHeading: 'Source'};
+    if (metric === 'BATTERY' && chargeSplits !== undefined) {
+      // Real kilowatt-hours stacking to real kilowatt-hours — the bars are the
+      // charge itself now, so each segment is measured-convention energy and the
+      // two close on the bucket's total exactly.
+      const solarFrom: Array<number | null> = [];
+      const solarTo: Array<number | null> = [];
+      const gensetFrom: Array<number | null> = [];
+      const gensetTo: Array<number | null> = [];
+      let solarKwh = 0;
+      let gensetKwh = 0;
+
+      chargeSplits.forEach((split) => {
+        if (split === null) {
+          solarFrom.push(null);
+          solarTo.push(null);
+          gensetFrom.push(null);
+          gensetTo.push(null);
+          return;
+        }
+        const boundary = Math.round(split.solarIn);
+        const total = Math.round(split.solarIn + split.gensetIn);
+        solarFrom.push(0);
+        solarTo.push(boundary);
+        gensetFrom.push(boundary);
+        gensetTo.push(total);
+        solarKwh += split.solarIn;
+        gensetKwh += split.gensetIn;
+      });
+
+      if (solarKwh + gensetKwh <= 0) return {};
+      const bands: SiteTrend['bands'] = [];
+      if (hasSolar(role))
+        bands.push({
+          label: 'Solar-charging',
+          token: SITE_TREND_METRIC_TOKEN.SOLAR,
+          from: solarFrom,
+          to: solarTo,
+          value: KWH(solarKwh),
+        });
+      if (ratedKw > 0)
+        bands.push({
+          label: 'Genset-charging',
+          token: SITE_TREND_METRIC_TOKEN.GENSET,
+          from: gensetFrom,
+          to: gensetTo,
+          value: KWH(gensetKwh),
+        });
+      return {
+        bands,
+        mix: chargeMix(solarKwh, gensetKwh, hasSolar(role), ratedKw > 0),
+        mixHeading: 'Source',
+      };
     }
 
     return {};
@@ -879,23 +936,17 @@ const periodTrend = (
     mix: banded.mix,
     mixHeading: banded.mixHeading,
     shape: 'bars',
-    unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
-    axisMax: metric === 'BATTERY' ? 100 : undefined,
+    unit: metric === 'GENSET' ? 'h' : 'kWh',
     caption:
       metric === 'BATTERY'
-        ? `Average state of charge, per ${grain}`
+        ? `Energy into the bank per ${grain}, by source${extent}`
         : metric === 'GENSET'
           ? `Hours run per ${grain}${extent}`
           : `Energy per ${grain}${extent}`,
     total:
-      metric === 'BATTERY'
-        ? {
-            label: 'Mean',
-            value: `${readings.length === 0 ? 0 : Math.round(sum / readings.length)}%`,
-          }
-        : metric === 'GENSET'
-          ? {label: 'Total', value: hoursLabel(sum)}
-          : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
+      metric === 'GENSET'
+        ? {label: 'Total', value: hoursLabel(sum)}
+        : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
   };
 };
 
