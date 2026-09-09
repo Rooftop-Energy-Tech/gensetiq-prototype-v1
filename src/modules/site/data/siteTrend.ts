@@ -69,8 +69,8 @@ export const SITE_TREND_PERIOD_LABEL: Record<SiteTrendPeriod, string> = {
 
 export const SITE_TREND_METRIC_LABEL: Record<SiteTrendMetric, string> = {
   SOLAR: 'Solar Generation',
-  BATTERY: 'Battery SoC',
-  GENSET: 'Genset runtime',
+  BATTERY: 'Battery SoC Profile',
+  GENSET: 'Genset Fuel Consumption',
   LOAD: 'Consumption',
 };
 
@@ -749,11 +749,11 @@ const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): S
     unit: 'L',
     caption:
       gensetIds.length > 1
-        ? 'Fuel burned in each hour, across the sets here'
-        : 'Fuel burned in each hour of the day',
+        ? 'Fuel consumption in each hour, across the sets here'
+        : 'Fuel consumption in each hour of the day',
     total: {label: 'Total', value: `${NUMBER.format(Math.round(litres))} L`},
     extra: {
-      label: 'Hours run',
+      label: 'Total genset runtime',
       value: hoursLabel(gensetHoursIn(gensetIds, start, start + 86_400_000, now)),
     },
   };
@@ -998,7 +998,7 @@ const periodTrend = (
       metric === 'BATTERY'
         ? `Battery charge / discharge per ${grain}${extent}`
         : metric === 'GENSET'
-          ? `Fuel burned per ${grain}${extent}`
+          ? `Fuel consumption per ${grain}${extent}`
           : `Energy per ${grain}${extent}`,
     total:
       metric === 'GENSET'
@@ -1007,7 +1007,7 @@ const periodTrend = (
     extra:
       metric === 'GENSET' && spine.length > 0
         ? {
-            label: 'Hours run',
+            label: 'Total genset runtime',
             value: hoursLabel(
               gensetHoursIn(gensetIds, spine[0]!.from, spine[spine.length - 1]!.to, now),
             ),
