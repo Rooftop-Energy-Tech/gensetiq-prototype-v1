@@ -514,6 +514,12 @@ export const SiteTrendChart = ({
                 shown.value === null ? 'not yet' : `${shown.value} ${unit}`
               }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}`}
         </span>
+
+        {trend.extra !== undefined && (
+          <span className="text-tertiary tabular-nums">
+            {trend.extra.label} · <span className="text-primary">{trend.extra.value}</span>
+          </span>
+        )}
       </div>
 
       {/* The split as arithmetic — where the window's generation went, in the

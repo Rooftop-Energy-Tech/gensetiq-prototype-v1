@@ -140,6 +140,12 @@ export type SiteTrend = {
   /** The one figure the series adds up to, for the readout beside the picker. */
   total: {label: string; value: string} | undefined;
   /**
+   * A second window figure beside the total — a companion fact in another unit.
+   * The genset views carry it: the fuel bars say what the running cost, and this
+   * says how long it ran.
+   */
+  extra?: {label: string; value: string};
+  /**
    * What each bucket *should* have made, aligned index-for-index with `points` —
    * drawn as a stepped dashed line over the bars, so a bar is judged against the
    * piece of the line directly above it. Per bucket rather than one flat rule
@@ -419,6 +425,14 @@ const solarMix = (toLoad: number, toBank: number): SiteTrend['mix'] => {
   ];
 };
 
+
+/**
+ * An hours figure for a readout — `6.2 h` while a tenth means something, `1,284 h`
+ * once it does not. A hundred hours is roughly where a reader stops thinking in
+ * starts and shifts and starts thinking in service intervals.
+ */
+const hoursLabel = (hours: number): string =>
+  hours < 100 ? `${Math.round(hours * 10) / 10} h` : `${NUMBER.format(Math.round(hours))} h`;
 
 /** The series, for one metric over one window. */
 export const siteTrend = (
@@ -738,6 +752,10 @@ const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): S
         ? 'Fuel burned in each hour, across the sets here'
         : 'Fuel burned in each hour of the day',
     total: {label: 'Total', value: `${NUMBER.format(Math.round(litres))} L`},
+    extra: {
+      label: 'Hours run',
+      value: hoursLabel(gensetHoursIn(gensetIds, start, start + 86_400_000, now)),
+    },
   };
 };
 
@@ -986,6 +1004,15 @@ const periodTrend = (
       metric === 'GENSET'
         ? {label: 'Total', value: `${NUMBER.format(Math.round(sum))} L`}
         : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
+    extra:
+      metric === 'GENSET' && spine.length > 0
+        ? {
+            label: 'Hours run',
+            value: hoursLabel(
+              gensetHoursIn(gensetIds, spine[0]!.from, spine[spine.length - 1]!.to, now),
+            ),
+          }
+        : undefined,
   };
 };
 
