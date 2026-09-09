@@ -140,18 +140,6 @@ export type SiteTrend = {
   /** The one figure the series adds up to, for the readout beside the picker. */
   total: {label: string; value: string} | undefined;
   /**
-   * The series' own average, restated per bucket — a staircase like `reference`.
-   *
-   * The level is one number, the mean **daily** actual over the complete buckets;
-   * each step is that rate times its bucket's own day count, so on the year view a
-   * short February is held against a short-February average rather than a flat
-   * one. On the month view every bucket is a day and the staircase is a rule.
-   * Complete buckets only; the bucket in progress would drag the rate down for no
-   * reason but the clock. `value` is the mean of the drawn steps, for the strip
-   * when nothing is hovered.
-   */
-  average?: {label: string; values: Array<number | null>; value: number};
-  /**
    * What each bucket *should* have made, aligned index-for-index with `points` —
    * drawn as a stepped dashed line over the bars, so a bar is judged against the
    * piece of the line directly above it. Per bucket rather than one flat rule
@@ -402,25 +390,10 @@ const dayTrend = (
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   const peak = readings.length === 0 ? 0 : Math.max(...readings);
 
-  // The same two rules the bucketed views carry, at day grain. The average of a
-  // power curve is its mean level over the measured half-hours; the expectation
-  // is not a level at all but the day's promised **bell** — `intradayKw` over the
-  // expected energy — drawn for the whole day, so the hours still to come show
-  // what they are supposed to bring.
-  const average =
-    metric === 'SOLAR' && readings.length > 0
-      ? (() => {
-          const mean =
-            Math.round((readings.reduce((total, value) => total + value, 0) / readings.length) * 10) /
-            10;
-          return {
-            label: 'Average',
-            values: points.map((point) => (point.value === null ? null : mean)),
-            value: mean,
-          };
-        })()
-      : undefined;
-
+  // The reference the bucketed views carry, at day grain. The expectation is not
+  // a level but the day's promised **bell** — `intradayKw` over the expected
+  // energy — drawn for the whole day, so the hours still to come show what they
+  // are supposed to bring.
   const reference =
     metric === 'SOLAR'
       ? (() => {
@@ -442,7 +415,6 @@ const dayTrend = (
     metric,
     period: 'day',
     points,
-    average,
     reference,
     shape: 'curve',
     unit: metric === 'BATTERY' ? '%' : 'kW',
@@ -634,41 +606,6 @@ const periodTrend = (
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   const sum = readings.reduce((total, value) => total + value, 0);
 
-  // The average staircase, for the array's yield bars — see `SiteTrend.average`.
-  // One rate, the mean daily actual over complete buckets, restated per bucket
-  // through its own day count.
-  const average = (() => {
-    if (metric !== 'SOLAR') return undefined;
-
-    const bucketDays = (bucket: {from: number; to: number}): number =>
-      Math.round((bucket.to - bucket.from) / 86_400_000);
-
-    let actualKwh = 0;
-    let days = 0;
-    spine.forEach((bucket, index) => {
-      const value = points[index]!.value;
-      if (bucket.to <= now && value !== null) {
-        actualKwh += value;
-        days += bucketDays(bucket);
-      }
-    });
-    if (days === 0) return undefined;
-    const dailyRate = actualKwh / days;
-
-    const values = spine.map((bucket, index) =>
-      bucket.to <= now && points[index]!.value !== null
-        ? Math.round(dailyRate * bucketDays(bucket) * 10) / 10
-        : null,
-    );
-    const drawn = values.filter((value): value is number => value !== null);
-
-    return {
-      label: daily ? 'Daily average' : 'Monthly average',
-      values,
-      value: Math.round((drawn.reduce((total, value) => total + value, 0) / drawn.length) * 10) / 10,
-    };
-  })();
-
   // The promise beside the measurement — see `SiteTrend.reference`. Only the
   // array carries one: the load has no physics to be held against and the sets'
   // hours are scheduled, not promised.
@@ -694,7 +631,6 @@ const periodTrend = (
     metric,
     period,
     points,
-    average,
     reference,
     shape: 'bars',
     unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
