@@ -334,17 +334,19 @@ const LAST_LIGHT = 19;
 /**
  * The shape of a site's own draw across a day, as a multiplier on its metered kW.
  *
- * Flat. A telecom site's load is radios and rectifiers running around the clock:
- * it does not switch off at night and it does not double at noon — it is constant,
- * and the charts should say so. An earlier version ran a ±12% sine through the day
- * (peak in the afternoon, for the cabinet's air-conditioning); if that thermal
- * wobble ever earns its way back, this function is still the one place it goes,
- * and everything — Consumption, the distribution's crown, the dispatch walk —
- * follows it together.
+ * Deliberately shallow — shallower than it used to be. A telecom site's load is
+ * radios and rectifiers around the clock: it does not switch off at night and it
+ * does not double at noon, just breathes a little with the cabinet's afternoon
+ * heat. At ±12% that breath read as a *slope* on the distribution chart's crown
+ * while looking flat on Consumption's own axis, so the two charts appeared to
+ * disagree about one quantity. ±5% is the compromise: alive, and visibly the same
+ * near-constant line on both.
  *
- * `seed.loadKw` stays the day's mean by construction: the multiplier is 1.
+ * `seed.loadKw` stays the day's mean by construction — the multiplier averages to
+ * 1 over 24 hours — so this reshapes the metered figure without inventing energy.
  */
-export const loadShape = (_hour: number): number => 1;
+export const loadShape = (hour: number): number =>
+  1 + 0.05 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
 
 /**
  * The shape of a solar day, unnormalised: `0` before first light, `1` at noon.
