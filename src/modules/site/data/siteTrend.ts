@@ -4,6 +4,7 @@ import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 import {chargeSourceAt} from './dispatch';
 import {
+  expectedSolarKwh,
   hybridPlant,
   hybridState,
   intradayKw,
@@ -147,6 +148,16 @@ export type SiteTrend = {
    * still in progress would drag the rule down for no reason but the clock.
    */
   average?: {value: number; label: string};
+  /**
+   * What each bucket *should* have made, aligned index-for-index with `points` —
+   * drawn as a stepped dashed line over the bars, so a bar is judged against the
+   * piece of the line directly above it. Per bucket rather than one flat rule
+   * because the expectation genuinely moves: the monsoon factor and 28-versus-31
+   * day months shift it about 15% across a year, and a flat line would report a
+   * short February as a poor one. `null` over the bucket still in progress, whose
+   * part-window bar has no full-window promise to be held against.
+   */
+  reference?: {label: string; values: Array<number | null>};
   /**
    * The colours a point may name in `TrendPoint.tint`, and what each one means.
    *
@@ -596,6 +607,19 @@ const periodTrend = (
         }
       : undefined;
 
+  // The promise beside the measurement — see `SiteTrend.reference`. Only the
+  // array carries one: the load has no physics to be held against and the sets'
+  // hours are scheduled, not promised.
+  const reference =
+    metric === 'SOLAR'
+      ? {
+          label: 'Expected',
+          values: spine.map((bucket) =>
+            bucket.to <= now ? expectedSolarKwh(seed, role, bucket.from, bucket.to) : null,
+          ),
+        }
+      : undefined;
+
   const grain = daily ? 'day' : 'month';
   // Only `lifetime` names its own extent — see the note on `buckets`.
   const extent = period === 'lifetime' ? ', across the whole record — twelve months' : '';
@@ -605,6 +629,7 @@ const periodTrend = (
     period,
     points,
     average,
+    reference,
     shape: 'bars',
     unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
     axisMax: metric === 'BATTERY' ? 100 : undefined,

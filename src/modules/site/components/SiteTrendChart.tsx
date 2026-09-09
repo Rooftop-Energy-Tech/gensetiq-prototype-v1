@@ -96,7 +96,12 @@ export const SiteTrendChart = ({
   const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
-  const top = trend.axisMax ?? niceMax(Math.max(...readings, 1));
+  // The reference is in the ceiling too: an expectation the bars all missed must
+  // sit inside the frame, not on its edge — the shortfall is the picture.
+  const referenced = (trend.reference?.values ?? []).filter(
+    (value): value is number => value !== null,
+  );
+  const top = trend.axisMax ?? niceMax(Math.max(...readings, ...referenced, 1));
 
   // Bars are centred in their own slot; a curve's points sit on the edges, so the
   // first and last land on the axis rather than half a slot inside it.
@@ -243,6 +248,30 @@ export const SiteTrendChart = ({
             )
           : null}
 
+        {/* The expected reference: one dashed step per bucket, spanning that
+            bucket's slot at what the physics promised it, joined at the slot
+            edges into a staircase. Muted ink with short dashes, so it reads
+            apart from the average's long-dashed primary rule. Drawn under the
+            average so the firmer claim wins where they cross. */}
+        {bars && trend.reference !== undefined && (
+          <polyline
+            points={trend.reference.values
+              .flatMap((value, index) =>
+                value === null
+                  ? []
+                  : [
+                      `${AXIS_WIDTH + slot * index},${y(value)}`,
+                      `${AXIS_WIDTH + slot * (index + 1)},${y(value)}`,
+                    ],
+              )
+              .join(' ')}
+            fill="none"
+            className="stroke-current text-secondary"
+            strokeWidth={1.5}
+            strokeDasharray="2 3"
+          />
+        )}
+
         {/* The average, as a rule the eye can hold each bar against. Ink rather
             than the series' own colour — a dashed solar-orange line over solar-
             orange bars would vanish exactly where it crosses them. */}
@@ -371,6 +400,13 @@ export const SiteTrendChart = ({
           </span>
         )}
 
+        {trend.reference !== undefined && (
+          <span className="flex items-center gap-1.5 text-secondary">
+            <span className="w-3 border-t border-dotted border-current" aria-hidden="true" />
+            <span className="text-tertiary">{trend.reference.label}</span>
+          </span>
+        )}
+
         <span
           className={cn(
             'tabular-nums',
@@ -383,7 +419,13 @@ export const SiteTrendChart = ({
               : `${trend.total.label} · ${trend.total.value}`
             : `${shown.label} · ${
                 shown.value === null ? 'not yet' : `${shown.value} ${unit}`
-              }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}`}
+              }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}${
+                hovered === null ||
+                trend.reference?.values[hovered] === null ||
+                trend.reference?.values[hovered] === undefined
+                  ? ''
+                  : ` · expected ${trend.reference.values[hovered]} ${unit}`
+              }`}
         </span>
       </div>
     </div>

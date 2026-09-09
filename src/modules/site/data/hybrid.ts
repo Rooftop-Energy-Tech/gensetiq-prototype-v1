@@ -897,6 +897,33 @@ const DAYS_IN_MONTH = (year: number, month: number): number =>
   new Date(year, month + 1, 0).getDate();
 
 /**
+ * What the physics says the array should raise over `[from, to)` — nameplate ×
+ * sun hours × performance ratio, summed day by day through `MONTH_FACTOR` so a
+ * February and a monsoon December each get the expectation they deserve.
+ *
+ * This is the same `baseKwh` the mock actuals are generated from, published as a
+ * *reference* rather than folded back into `SolarBucket` — that type deliberately
+ * carries one series (see its note), and the expectation travels beside the
+ * measurement, not inside it. Zero where no array is fitted.
+ */
+export const expectedSolarKwh = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  from: number,
+  to: number,
+): number => {
+  const plant = hybridPlant(seed, role);
+  if (plant.solarKwp === 0) return 0;
+
+  const perDay = plant.solarKwp * customer(seed.customer).peakSunHours * PERFORMANCE_RATIO;
+  let kwh = 0;
+  for (let at = from; at < to; at += 86_400_000) {
+    kwh += perDay * MONTH_FACTOR[new Date(at).getMonth()]!;
+  }
+  return Math.round(kwh);
+};
+
+/**
  * One bar on a generation chart, at whatever grain the chart is drawn at.
  *
  * One series and one only. This type used to carry a nullable `expectedKwh`
