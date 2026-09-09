@@ -126,6 +126,9 @@ export type TrendPoint = {
   tint?: string;
 };
 
+/** One line on the share strip — a source's percentage per bucket. */
+export type ShareSeries = {label: string; token: string; values: Array<number | null>};
+
 export type SiteTrend = {
   metric: SiteTrendMetric;
   period: SiteTrendPeriod;
@@ -192,8 +195,6 @@ export type SiteTrend = {
     to: Array<number | null>;
     value: string;
   }>;
-  /** The first column's heading on the `mix` table — `Destination`, `Source`. */
-  mixHeading?: string;
   /**
    * A second bar beside each bucket's own, drawn lighter — the other half of a
    * balance. The bank's bars carry it: charge in beside discharge out to the
@@ -202,13 +203,14 @@ export type SiteTrend = {
    */
   paired?: {label: string; token: string; values: Array<number | null>; value: string};
   /**
-   * The series split into where it went, as a table under the chart — each row a
-   * destination with its energy and its share, closed by the total at 100%. The
-   * array's views carry it: generation is one figure until it is divided into
-   * what the tower took and what the bank was offered, and that division is the
-   * same dispatch the band above shades.
+   * Each source's share per bucket, in percent — the strip chart under the main
+   * one. The table this replaced stated one aggregate over the window, and the
+   * question a reader actually brings is the one an aggregate cannot answer:
+   * is the share *moving*. Same dispatch as the bands above; `null` wherever a
+   * bucket has no denominator — no generation, no charge — so the line breaks
+   * instead of inventing a share.
    */
-  mix?: Array<{label: string; token: string; energy: string; share: string}>;
+  mixTrend?: Array<ShareSeries>;
   /**
    * The colours a point may name in `TrendPoint.tint`, and what each one means.
    *
@@ -395,50 +397,34 @@ const bankChargeSplitKwh = (
   return {solarIn, gensetIn, discharge};
 };
 
-/**
- * The charge split as table rows — see `SiteTrend.mix`. A source the site has not
- * got is left off, per the app's rule about unfitted plant.
- */
-const chargeMix = (
-  solarIn: number,
-  gensetIn: number,
-  withSolar: boolean,
-  withGenset: boolean,
-): SiteTrend['mix'] => {
-  const total = solarIn + gensetIn;
-  if (total <= 0) return undefined;
-  const percent = (part: number): string => `${((part / total) * 100).toFixed(1)}%`;
+/** A share in percent to one decimal, or `null` where there is no denominator. */
+const shareOf = (part: number, total: number): number | null =>
+  total <= 0 ? null : Math.round((part / total) * 1000) / 10;
 
-  const rows: SiteTrend['mix'] = [];
-  if (withSolar)
-    rows.push({
-      label: 'Solar-charging',
-      token: SITE_TREND_METRIC_TOKEN.SOLAR,
-      energy: KWH(solarIn),
-      share: percent(solarIn),
-    });
-  if (withGenset)
-    rows.push({
-      label: 'Genset-charging',
-      token: SITE_TREND_METRIC_TOKEN.GENSET,
-      energy: KWH(gensetIn),
-      share: percent(gensetIn),
-    });
-  rows.push({label: 'Charge', token: 'text-primary', energy: KWH(total), share: '100%'});
-  return rows;
-};
-
-/** The split as table rows — see `SiteTrend.mix`. `undefined` until anything generated. */
-const solarMix = (toLoad: number, toBank: number): SiteTrend['mix'] => {
-  const total = toLoad + toBank;
-  if (total <= 0) return undefined;
-  const percent = (part: number): string => `${((part / total) * 100).toFixed(1)}%`;
-  return [
-    {label: 'To load', token: 'text-solar', energy: KWH(toLoad), share: percent(toLoad)},
-    {label: 'To battery', token: 'text-battery', energy: KWH(toBank), share: percent(toBank)},
-    {label: 'Generation', token: 'text-primary', energy: KWH(total), share: '100%'},
-  ];
-};
+/** The array's split as share lines — see `SiteTrend.mixTrend`. */
+const solarMixTrend = (
+  from: Array<number | null>,
+  to: Array<number | null>,
+): SiteTrend['mixTrend'] => [
+  {
+    label: 'To load',
+    token: 'text-solar',
+    values: from.map((taken, index) => {
+      const total = to[index];
+      return taken === null || total === null || total === undefined ? null : shareOf(taken, total);
+    }),
+  },
+  {
+    label: 'To battery',
+    token: 'text-battery',
+    values: from.map((taken, index) => {
+      const total = to[index];
+      return taken === null || total === null || total === undefined
+        ? null
+        : shareOf(total - taken, total);
+    }),
+  },
+];
 
 
 /**
@@ -582,23 +568,53 @@ const dayTrend = (
         })()
       : undefined;
 
-  // The blue slice and its arithmetic — see `SiteTrend.bands` and `.mix`, both off
-  // the same per-sample dispatch: the tower takes first, the surplus is the bank's.
+  // The blue slice and its arithmetic — see `SiteTrend.bands` and `.mixTrend`,
+  // both off the same per-sample dispatch: the tower takes first, the surplus is
+  // the bank's.
   let bands: SiteTrend['bands'];
-  let mix: SiteTrend['mix'];
-  let mixHeading: string | undefined;
+  let mixTrend: SiteTrend['mixTrend'];
   if (metric === 'BATTERY') {
-    // The day's charge, by source — the same split the bars carry, for the table.
-    const {solarIn, gensetIn} = bankChargeSplitKwh(
-      seed,
-      role,
-      ratedKw,
-      start,
-      start + 86_400_000,
-      now,
-    );
-    mix = chargeMix(solarIn, gensetIn, hasSolar(role), ratedKw > 0);
-    mixHeading = 'Source';
+    // The charge's source split per half-hour — shares wherever the bank is
+    // being offered anything, null where it is not, so the lines break across
+    // the hours nothing charged.
+    const chargeDayKwh = hasSolar(role) ? fullDayKwh(seed, role, start) : 0;
+    const block = gensetDay(seed, role, ratedKw, start);
+    const solarShare: Array<number | null> = [];
+    const gensetShare: Array<number | null> = [];
+
+    points.forEach((point, index) => {
+      if (point.value === null) {
+        solarShare.push(null);
+        gensetShare.push(null);
+        return;
+      }
+      const sampleHour = index * DAY_STEP_HOURS;
+      const at = start + sampleHour * 3_600_000;
+      const solarKw = chargeDayKwh === 0 ? 0 : intradayKw(chargeDayKwh, sampleHour);
+      const gensetKw = gensetKwAt(role, block, sampleHour);
+      const loadKw = seed.loadKw * loadShape(at);
+      const solarToLoad = Math.min(solarKw, loadKw);
+      const solarIn = solarKw - solarToLoad;
+      const gensetIn = gensetKw - Math.min(gensetKw, Math.max(0, loadKw - solarToLoad));
+      const total = solarIn + gensetIn;
+      solarShare.push(shareOf(solarIn, total));
+      gensetShare.push(shareOf(gensetIn, total));
+    });
+
+    const series: SiteTrend['mixTrend'] = [];
+    if (hasSolar(role))
+      series.push({
+        label: 'Solar-charging',
+        token: SITE_TREND_METRIC_TOKEN.SOLAR,
+        values: solarShare,
+      });
+    if (ratedKw > 0)
+      series.push({
+        label: 'Genset-charging',
+        token: SITE_TREND_METRIC_TOKEN.GENSET,
+        values: gensetShare,
+      });
+    if (series.length > 0) mixTrend = series;
   }
   if (metric === 'SOLAR') {
     const from: Array<number | null> = [];
@@ -622,8 +638,7 @@ const dayTrend = (
 
     if (toLoadKwh + toBankKwh > 0) {
       bands = [{label: 'To battery', token: 'text-battery', from, to, value: KWH(toBankKwh)}];
-      mix = solarMix(toLoadKwh, toBankKwh);
-      mixHeading = 'Destination';
+      mixTrend = solarMixTrend(from, to);
     }
   }
 
@@ -633,8 +648,7 @@ const dayTrend = (
     points,
     reference,
     bands,
-    mix,
-    mixHeading,
+    mixTrend,
     shape: 'curve',
     unit: metric === 'BATTERY' ? '%' : 'kW',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
@@ -869,7 +883,7 @@ const periodTrend = (
   // `SiteTrend.bands` and `.mix`. Each bar divides at the walk's fractions,
   // scaled to the bar's own figure so the segments close on it exactly and the
   // table's totals match the bars'.
-  const banded = ((): Pick<SiteTrend, 'bands' | 'mix' | 'mixHeading' | 'paired' | 'reference'> => {
+  const banded = ((): Pick<SiteTrend, 'bands' | 'mixTrend' | 'paired' | 'reference'> => {
     if (metric === 'SOLAR') {
       const from: Array<number | null> = [];
       const to: Array<number | null> = [];
@@ -895,8 +909,7 @@ const periodTrend = (
       if (loadKwh + bankKwh <= 0) return {};
       return {
         bands: [{label: 'To battery', token: 'text-battery', from, to, value: KWH(bankKwh)}],
-        mix: solarMix(loadKwh, bankKwh),
-        mixHeading: 'Destination',
+        mixTrend: solarMixTrend(from, to),
       };
     }
 
@@ -970,8 +983,30 @@ const periodTrend = (
 
       return {
         bands,
-        mix: chargeMix(solarKwh, gensetKwh, hasSolar(role), ratedKw > 0),
-        mixHeading: 'Source',
+        mixTrend: [
+          ...(hasSolar(role)
+            ? [
+                {
+                  label: 'Solar-charging',
+                  token: SITE_TREND_METRIC_TOKEN.SOLAR,
+                  values: chargeSplits.map((split) =>
+                    split === null ? null : shareOf(split.solarIn, split.solarIn + split.gensetIn),
+                  ),
+                },
+              ]
+            : []),
+          ...(ratedKw > 0
+            ? [
+                {
+                  label: 'Genset-charging',
+                  token: SITE_TREND_METRIC_TOKEN.GENSET,
+                  values: chargeSplits.map((split) =>
+                    split === null ? null : shareOf(split.gensetIn, split.solarIn + split.gensetIn),
+                  ),
+                },
+              ]
+            : []),
+        ],
         paired: {
           label: 'Discharged to load',
           token: 'text-battery',
@@ -1004,8 +1039,7 @@ const periodTrend = (
     points,
     reference: reference ?? banded.reference,
     bands: banded.bands,
-    mix: banded.mix,
-    mixHeading: banded.mixHeading,
+    mixTrend: banded.mixTrend,
     paired: banded.paired,
     shape: 'bars',
     unit: metric === 'GENSET' ? 'L' : 'kWh',
