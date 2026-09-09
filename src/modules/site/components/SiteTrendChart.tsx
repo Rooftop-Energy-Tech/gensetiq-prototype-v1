@@ -300,7 +300,9 @@ export const SiteTrendChart = ({
                 .map(({index, value}) => `${x(index)},${y(value)}`),
             ].join(' ')}
             className={cn('fill-current', trend.band.token)}
-            opacity={0.25}
+            // The distribution chart's band strength, so "the bank's blue" is one
+            // material on both charts.
+            opacity={0.55}
           />
         )}
 
