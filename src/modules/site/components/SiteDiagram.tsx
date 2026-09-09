@@ -616,7 +616,7 @@ const powerLabel = (runState: RunState, live: boolean, loadKw: number | null): s
  * Derived here rather than read off an assembled `SubrackCabinet` so this component
  * stays a pure function of its props — see `hasCabinet`.
  */
-const cabinetPowerLabel = (source: SiteFeed['source']): string => {
+export const cabinetPowerLabel = (source: SiteFeed['source']): string => {
   if (source === 'MAINS' || source === 'GENSET') return 'rectifiers';
   if (source === 'SOLAR') return 'SSUs';
   if (source === 'BATTERY') return 'bank carrying';
@@ -640,7 +640,7 @@ const mainsPowerLabel = (mains: MainsSupply, carrying: boolean): string => {
  * by construction, which is what guarantees a conductor cannot land in mid-air on
  * one kind of source and not the other.
  */
-type DiagramSource = {
+export type DiagramSource = {
   key: string;
   icon: LucideIcon;
   /** The word inside the box — `MAINS` or `GENSET`, as the design writes them. */
@@ -670,7 +670,7 @@ type DiagramSource = {
  * card behind it and its node must not offer a click. Every other source key is
  * either the bank or a genset's own id.
  */
-const deviceOfSource = (key: string): SiteDeviceKey | undefined =>
+export const deviceOfSource = (key: string): SiteDeviceKey | undefined =>
   key === 'mains'
     ? undefined
     : key === 'battery'
@@ -822,7 +822,7 @@ const bankFlow = (batteryKw: number, gensetCarrying: boolean): BankFlow => {
  * and `hasSolar` is `SOLAR_HYBRID` only — so the relative order of those two is a
  * decision nothing currently exercises.
  */
-const sourcesOf = (
+export const sourcesOf = (
   summary: SiteSummary,
   dutyId: string | undefined,
   role: SitePowerRole,

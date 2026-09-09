@@ -1,10 +1,14 @@
 import {useState} from 'react';
+import {BoxesIcon, NetworkIcon} from 'lucide-react';
+
+import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 
 import type {SiteSummary} from '../data/sites';
 import type {SiteDeviceKey} from '../types/device.type';
 import type {SitePowerRole} from '../types/site.type';
 import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
 import {SiteDiagram, siteDiagramWidth} from './SiteDiagram';
+import {SitePlantScene} from './SitePlantScene';
 import {SiteDevicePanel, siteDefaultDevice, siteDevices} from './SiteDevicePanel';
 
 /**
@@ -67,6 +71,16 @@ export const SiteCircuit = ({
   now: number;
 }) => {
   const [picked, setPicked] = useState<SiteDeviceKey | undefined>(undefined);
+  /**
+   * Which projection of the site the band is showing.
+   *
+   * Opens on the schematic, because that is the drawing this page has always led with
+   * and the one that answers *what is carrying the site* in a glance. The plant view is
+   * the same nodes standing on the ground — see `SitePlantScene` — and it is a click
+   * away rather than a second band, since two drawings of one site stacked would say
+   * everything twice.
+   */
+  const [view, setView] = useState<'schematic' | 'plant'>('schematic');
 
   const devices = siteDevices(summary, role);
   // The drawing is a box wider where the site has a cabinet to place, and this track
@@ -105,10 +119,47 @@ export const SiteCircuit = ({
 
           The content stays top-aligned inside the card: it is the *box* that grows,
           not the type, so nothing is centred against the drawing by accident. */}
+      {/* The switcher sits above the band rather than inside either drawing, because it
+          belongs to the band: it changes which projection the left track carries, and
+          the card on the right is unaffected — same device, same figures, whichever
+          drawing chose it. */}
+      <div className="flex justify-center pb-1 xl:justify-start">
+        <Tabs value={view} onValueChange={(next) => setView(next as 'schematic' | 'plant')}>
+          <TabsList className="w-[70px]">
+            {/* `tabIndex` by hand for the reason `PlantToolbar` gives: Radix's
+                roving-focus group leaves every trigger at -1 until one is clicked,
+                which makes a fresh switcher unreachable by keyboard. */}
+            <TabsTrigger
+              value="schematic"
+              className="flex-1"
+              aria-label="Single-line diagram"
+              tabIndex={view === 'schematic' ? 0 : -1}
+            >
+              <NetworkIcon aria-hidden="true" />
+            </TabsTrigger>
+            <TabsTrigger
+              value="plant"
+              className="flex-1"
+              aria-label="Plant on site"
+              tabIndex={view === 'plant' ? 0 : -1}
+            >
+              <BoxesIcon aria-hidden="true" />
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       <div
         className="flex flex-col gap-4 xl:grid xl:items-stretch"
         style={{
-          gridTemplateColumns: `${siteDiagramWidth(role, hasCabinet)}px minmax(20rem, 1fr)`,
+          // The schematic is a fixed canvas and asks for its measured width. The plant
+          // scene measures whatever it is given and scales the whole compound to fit,
+          // so it takes a share of the row instead — with a floor, below which the
+          // labels start overlapping the objects they name.
+          gridTemplateColumns:
+            view === 'schematic'
+              ? `${siteDiagramWidth(role, hasCabinet)}px minmax(20rem, 1fr)`
+              : 'minmax(26rem, 1.5fr) minmax(20rem, 1fr)',
         }}
       >
         {/* Centred while the band is a column, as the frame centres it, and left in
@@ -116,12 +167,21 @@ export const SiteCircuit = ({
             to the drawing: the diagram measures what it is given and scales itself,
             so a wrapper that hugged it would make that circular. */}
         <div className="flex min-w-0 justify-center py-2 xl:justify-start">
-          <SiteDiagram
-            summary={summary}
-            dutyId={summary.defaultDutyId}
-            role={role}
-            selection={{devices, selected, onSelect: setPicked}}
-          />
+          {view === 'schematic' ? (
+            <SiteDiagram
+              summary={summary}
+              dutyId={summary.defaultDutyId}
+              role={role}
+              selection={{devices, selected, onSelect: setPicked}}
+            />
+          ) : (
+            <SitePlantScene
+              summary={summary}
+              dutyId={summary.defaultDutyId}
+              role={role}
+              selection={{devices, selected, onSelect: setPicked}}
+            />
+          )}
         </div>
 
         {/* `h-full` on the track and on the card inside it: a stretched grid item is
