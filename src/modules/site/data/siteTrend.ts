@@ -139,6 +139,15 @@ export type SiteTrend = {
   /** The one figure the series adds up to, for the readout beside the picker. */
   total: {label: string; value: string} | undefined;
   /**
+   * A dashed rule across the plot at this value, with its figure in the readout.
+   *
+   * The solar bars carry it: thirty daily yields read as scatter until the eye has
+   * a level to hold each bar against — which days beat the average is the question
+   * the window is opened with. Computed over **complete** buckets only; the bucket
+   * still in progress would drag the rule down for no reason but the clock.
+   */
+  average?: {value: number; label: string};
+  /**
    * The colours a point may name in `TrendPoint.tint`, and what each one means.
    *
    * Only the bank's level uses this so far: its curve is drawn in the source that
@@ -570,6 +579,23 @@ const periodTrend = (
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   const sum = readings.reduce((total, value) => total + value, 0);
 
+  // The average rule, for the array's yield bars — see `SiteTrend.average`. Over
+  // complete buckets only: the day (or month) in progress is a real bar on the
+  // chart but a false vote on the level.
+  const complete = spine.flatMap((bucket, index) => {
+    const value = points[index]!.value;
+    return bucket.to <= now && value !== null ? [value] : [];
+  });
+  const average =
+    metric === 'SOLAR' && complete.length > 0
+      ? {
+          value:
+            Math.round((complete.reduce((total, value) => total + value, 0) / complete.length) * 10) /
+            10,
+          label: daily ? 'Daily average' : 'Monthly average',
+        }
+      : undefined;
+
   const grain = daily ? 'day' : 'month';
   // Only `lifetime` names its own extent — see the note on `buckets`.
   const extent = period === 'lifetime' ? ', across the whole record — twelve months' : '';
@@ -578,6 +604,7 @@ const periodTrend = (
     metric,
     period,
     points,
+    average,
     shape: 'bars',
     unit: metric === 'BATTERY' ? '%' : metric === 'GENSET' ? 'h' : 'kWh',
     axisMax: metric === 'BATTERY' ? 100 : undefined,

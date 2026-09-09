@@ -243,6 +243,21 @@ export const SiteTrendChart = ({
             )
           : null}
 
+        {/* The average, as a rule the eye can hold each bar against. Ink rather
+            than the series' own colour — a dashed solar-orange line over solar-
+            orange bars would vanish exactly where it crosses them. */}
+        {trend.average !== undefined && (
+          <line
+            x1={AXIS_WIDTH}
+            y1={y(trend.average.value)}
+            x2={width}
+            y2={y(trend.average.value)}
+            className="stroke-current text-primary"
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+          />
+        )}
+
         {pieces.map((piece, index) => {
           const {area, line} = shapeOf(piece);
           const tint = piece.tint === undefined ? undefined : trend.tints?.[piece.tint];
@@ -328,6 +343,18 @@ export const SiteTrendChart = ({
             <span className="text-secondary">{tint.label}</span>
           </span>
         ))}
+
+        {trend.average !== undefined && (
+          <span className="flex items-center gap-1.5 text-primary">
+            <span className="w-3 border-t border-dashed border-current" aria-hidden="true" />
+            <span className="text-tertiary">
+              {trend.average.label} ·{' '}
+              <span className="text-primary tabular-nums">
+                {trend.average.value} {unit}
+              </span>
+            </span>
+          </span>
+        )}
 
         <span
           className={cn(
