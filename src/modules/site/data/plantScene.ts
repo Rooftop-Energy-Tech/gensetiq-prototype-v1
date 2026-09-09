@@ -1,5 +1,6 @@
-import arrayShelter from '@/assets/equipment/ground-mount-telco-iso-light.svg';
+import arrayShelter from '@/assets/equipment/ground-mount-telco-shelter-iso-light.svg';
 import fenceRun from '@/assets/equipment/chainlink-fence-iso-light.svg';
+import telcoCabinet from '@/assets/equipment/bts-radio-cabinet-telco-iso-light.svg';
 import gensetCanopy from '@/assets/equipment/genset-canopy-small-iso-light.svg';
 import linePole from '@/assets/equipment/overhead-line-pole-iso-light.svg';
 import powerCabinet from '@/assets/equipment/telco-power-cabinet-iso-light.svg';
@@ -113,13 +114,14 @@ export type EquipmentId =
   | 'linePole'
   | 'powerCabinet'
   | 'shrub'
+  | 'telcoCabinet'
   | 'tower'
   | 'tree';
 
 export const EQUIPMENT: Record<EquipmentId, Equipment> = {
   arrayShelter: {
     url: arrayShelter,
-    box: {minX: -11966.42, minY: -4933.2, w: 13350.71, h: 10810.49},
+    box: {minX: -13257.59, minY: -6006.42, w: 14775.31, h: 11980.44},
     alt: 'Ground-mount solar array on a walk-under frame',
   },
   fenceRun: {
@@ -155,6 +157,11 @@ export const EQUIPMENT: Record<EquipmentId, Equipment> = {
   tree: {
     url: tree,
     box: {minX: -2024.72, minY: -2711.73, w: 4049.45, h: 3936.69},
+    alt: '',
+  },
+  telcoCabinet: {
+    url: telcoCabinet,
+    box: {minX: -366.35, minY: -938.08, w: 992.5, h: 1469.91},
     alt: '',
   },
 };
@@ -306,21 +313,26 @@ export const plantScene = (
   hasCabinet: boolean,
 ): PlantScene => {
   const placements: Array<ScenePlacement> = [];
+  const solar = hasSolar(role);
 
-  // The fence run is 6 bays at 3 m centres, which sets the compound at 18 m square. That
-  // is a real size for a site carrying an array frame, four cabinets and a set, and it is
-  // the asset's own length rather than a scaled one, so the bays stay 3 m.
-  const compound: Ground = {x0: 0, y0: 0, x1: 18000, y1: 18000};
-  // The pad is the working area, not the whole compound: the fence stands off it, and the
-  // strip between the two is where the access and the planting run.
-  const platform: Ground = {x0: 2600, y0: 2600, x1: 15400, y1: 15400};
+  // A yard is as big as what stands in it. With an array frame over the equipment the
+  // compound is 18 m; without one there is nothing to leave room for, and a genset-and-
+  // grid site is a materially smaller plot. The fence asset is a fixed 18 m run either
+  // way, so on the smaller compound it simply carries on past the far corners, which is
+  // what a fence does.
+  const size = solar ? 18000 : 11000;
+  const compound: Ground = {x0: 0, y0: 0, x1: size, y1: size};
+  const platform: Ground = solar
+    ? {x0: 3000, y0: 3000, x1: 16200, y1: 14000}
+    : {x0: 2200, y0: 2200, x1: 9600, y1: 9600};
 
   // Behind the fence: the treeline. Outside the compound on the two far sides, which are
-  // the two the viewer can see past. Painted first, since their `x + y` is the smallest.
+  // the two the viewer can see past. A backdrop layer rather than an item in the depth
+  // sort - see `backdrop`.
   const random = lcg(seedOf(siteId));
   for (let index = 0; index < 16; index++) {
     const alongX = index % 2 === 0;
-    const along = -1500 + random() * 16000;
+    const along = -1500 + random() * (size - 2000);
     const back = 900 + random() * 3200;
 
     placements.push({
@@ -351,15 +363,15 @@ export const plantScene = (
     scenery: true,
   });
 
-  // The tower, at the back of the pad.
+  // The tower, at the back of the pad and clear of the frame.
   placements.push({
     id: 'tower',
     node: 'load',
     chip: true,
     anchor: 'left',
     equipment: 'tower',
-    x: 5000,
-    y: 4600,
+    x: solar ? 5200 : 3400,
+    y: solar ? 4600 : 3200,
     scale: 0.3,
   });
 
@@ -371,44 +383,56 @@ export const plantScene = (
       chip: true,
       anchor: 'right',
       equipment: 'linePole',
-      x: 19000,
-      y: 2000,
+      x: size + 1200,
+      y: 1600,
       scale: 0.45,
     });
   }
 
-  if (hasSolar(role)) {
-    // The frame's origin is the near-right corner of the array: its viewBox runs almost
-    // entirely negative in x, so the drawing extends left and back from the point named
-    // here. Kept off the cabinet row for the reason in the file header - D5 brings its own
-    // cabinets with it.
+  // The array frame, with the cabinets standing in its shade.
+  //
+  // `ground-mount-telco-shelter` is D5 at three rows and **no cabinets of its own**, which
+  // is the build added for this scene: the asset used to draw a generic line-up under the
+  // frame and the scene had to keep the real cabinets clear of it. The third row is the
+  // extra depth that lets the equipment sit properly underneath.
+  //
+  // The frame's origin is its front-right corner, and its body runs back and to the left
+  // from there - x from `x - 3930` to `x + 160`, y from `y + 300` to `y + 9490`, off the
+  // generator's own dimensions. The cabinets are placed inside that footprint, and at a
+  // greater `x + y` than the frame's origin, so they paint over it: from above the panels
+  // would hide them, and what a reader needs to see is the plant, through the 2.6 m
+  // walk-under gap the frame's own height creates.
+  const arrayAt = {x: 15200, y: 2000};
+  if (solar) {
     placements.push({
       id: 'array',
       node: 'solar',
       chip: true,
       anchor: 'right',
       equipment: 'arrayShelter',
-      x: 15000,
-      y: 5200,
+      x: arrayAt.x,
+      y: arrayAt.y,
     });
   }
 
-  // The cabinet line-up: the subrack cabinet, then the battery cabinets beside it. Three
-  // or four in a row at their own width, which is how the group builds them. The first
-  // carries the subrack and some battery modules; the rest are all battery modules, and
-  // together they are the `battery` node.
-  if (hasCabinet) {
-    const lineY = 11400;
-    const lineX = 6800;
+  // Where the cabinets stand: under the frame at a solar hybrid, on the open pad without
+  // one. **Every** telco site has cabinets, whatever supplies it.
+  // Under the **front** edge of the frame at a solar hybrid, which is where the reference
+  // photographs of the group's own built sites put them: the canopy's low side stands over
+  // the cabinet fronts and the run is plainly visible from the yard. The frame's own front
+  // posts are at its origin's x and it rakes back from there, so a run placed at the rear
+  // would be under the tallest, deepest part of the structure and hidden by its panels.
+  const line = solar ? {x: 14400, y: 4400} : {x: 6400, y: 4000};
 
+  if (hasCabinet) {
     placements.push({
       id: 'cabinet-0',
       node: 'cabinet',
       chip: true,
       anchor: 'below',
       equipment: 'powerCabinet',
-      x: lineX,
-      y: lineY,
+      x: line.x,
+      y: line.y,
     });
 
     if (hasBattery(role)) {
@@ -420,16 +444,44 @@ export const plantScene = (
           // off one end of it.
           ...(index === 1 ? ({chip: true, anchor: 'right'} as const) : {}),
           equipment: 'powerCabinet',
-          x: lineX + (index + 1) * CABINET_PITCH,
-          y: lineY,
+          x: line.x,
+          y: line.y + (index + 1) * CABINET_PITCH,
         });
       }
     }
   }
 
-  // The sets, alongside the cabinets and close in, because the runs between the set, the
-  // cabinets and the tower are copper and short. A second set stands further forward so it
-  // never hides behind the first.
+  // The telco equipment cabinets, at the end of the same run and in the same shade.
+  //
+  // **Unlabelled, and deliberately.** A telco site carries two kinds of cabinet: the power
+  // cabinets, which are this product's subject, and the operator's own transmission and
+  // radio equipment, which is not. Every site has both, so leaving the second kind out
+  // draws a compound that is missing half of what is on the pad - but this app has no
+  // readings for them, because they belong to the telco side. So they stand in the scene
+  // as plant and carry no node, no label and no click: a reader sees what is there, and
+  // the scene does not imply data it does not have.
+  //
+  // They are the **darker grey** build of A9 rather than the default, because the default
+  // and the power cabinet are both bodied in `shell` and at this scale that made them one
+  // kind of thing - size and detail are gone by the time the compound fits in a card, and
+  // colour is what is left. The skill carries the variant, so this is a differently
+  // finished enclosure rather than a tint applied here.
+  const telcoAt = line.y + (BATTERY_CABINETS + 1.6) * CABINET_PITCH;
+  for (let index = 0; index < 2; index++) {
+    placements.push({
+      id: `telco-cabinet-${index}`,
+      equipment: 'telcoCabinet',
+      x: line.x - 60,
+      y: telcoAt + index * 900,
+      scenery: true,
+    });
+  }
+
+  // The sets, forward of the plant and on their own access.
+  //
+  // **Never under the array.** A set needs its exhaust, its radiator air and a crane over
+  // it, so it is not built in the frame's shade, and drawing it there would be a claim
+  // about how these sites go together that is simply wrong.
   gensetIds.forEach((id, index) => {
     placements.push({
       id: `genset-${id}`,
@@ -440,8 +492,8 @@ export const plantScene = (
       // machines.
       anchor: index % 2 === 0 ? 'left' : 'right',
       equipment: 'gensetCanopy',
-      x: 4800,
-      y: 12600 + index * 2800,
+      x: solar ? 5000 : 3200,
+      y: (solar ? 12600 : 7600) + index * 2800,
     });
   });
 

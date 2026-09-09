@@ -6,10 +6,10 @@ import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import type {SiteSummary} from '../data/sites';
 import type {SiteDeviceKey} from '../types/device.type';
 import type {SitePowerRole} from '../types/site.type';
-import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
-import {SiteDiagram, siteDiagramWidth} from './SiteDiagram';
+import {SiteDiagram} from './SiteDiagram';
 import {SitePlantScene} from './SitePlantScene';
-import {SiteDevicePanel, siteDefaultDevice, siteDevices} from './SiteDevicePanel';
+import {SiteTelemetry} from './SiteTelemetry';
+import {SiteDevicePanel, siteDevices} from './SiteDevicePanel';
 
 /**
  * The page's second band: the single-line diagram, and beside it the detail of
@@ -74,22 +74,32 @@ export const SiteCircuit = ({
   /**
    * Which projection of the site the band is showing.
    *
-   * Opens on the schematic, because that is the drawing this page has always led with
-   * and the one that answers *what is carrying the site* in a glance. The plant view is
-   * the same nodes standing on the ground — see `SitePlantScene` — and it is a click
-   * away rather than a second band, since two drawings of one site stacked would say
+   * **Opens on the plant.** A reader arriving at a site page is asking what is there and
+   * what state it is in, and the compound answers that in one look: the cabinets, the set,
+   * the frame over them, the tower. The schematic answers the narrower question of what is
+   * connected to what, which is what somebody already troubleshooting wants, and it is a
+   * click away rather than a second band — two drawings of one site stacked would say
    * everything twice.
    */
-  const [view, setView] = useState<'schematic' | 'plant'>('schematic');
+  const [view, setView] = useState<'schematic' | 'plant'>('plant');
 
   const devices = siteDevices(summary, role);
-  // The drawing is a box wider where the site has a cabinet to place, and this track
-  // has to know before the diagram renders — see `siteDiagramWidth`.
-  const hasCabinet = siteHasCabinet(summary.site.id, role);
-  const selected =
-    picked !== undefined && devices.includes(picked)
-      ? picked
-      : siteDefaultDevice(summary, role, devices);
+  /**
+   * What the panel is reporting on, or `undefined` for the site's own overview.
+   *
+   * **Nothing is the default, and it is a state rather than an absence.** The page used to
+   * open on whatever was carrying the site, which meant a reader arriving was immediately
+   * looking at one asset's card without having asked for it — and there was no way back to
+   * the site as a whole, because every click was a selection. Now the drawing's background
+   * clears, and cleared means the site's own figures: what is carrying it, what it draws,
+   * what the bank holds. That is the question a reader actually arrives with.
+   *
+   * `picked` is still not trusted directly. The Settings tab can change the supply out from
+   * under a selection, and the route can change site under a mounted component, so a key
+   * that is no longer among this site's devices falls back to `undefined` — the overview —
+   * rather than to another asset the reader never chose.
+   */
+  const selected = picked !== undefined && devices.includes(picked) ? picked : undefined;
 
   // A **grid-backed** site with no set still has a circuit worth drawing: mains
   // straight to the load says "on the grid, no plant fitted", which is a real and
@@ -159,10 +169,13 @@ export const SiteCircuit = ({
           // legible in a 88px box need the equipment under them to be big enough to
           // recognise. The card beside it holds at 18rem, which is where its badges stop
           // wrapping one to a line.
-          gridTemplateColumns:
-            view === 'schematic'
-              ? `${siteDiagramWidth(role, hasCabinet)}px minmax(20rem, 1fr)`
-              : 'minmax(34rem, 2.4fr) minmax(18rem, 1fr)',
+          // **One template for both views, and it is the plant view's.** The card on the
+          // right used to be sized off whichever drawing was showing, so switching view
+          // resized the card and re-flowed its badges — the reader's eye lost the thing
+          // they were reading because they changed how they were looking at the site. The
+          // schematic is a fixed canvas and simply sits at the left of the wider track,
+          // which costs it nothing: it was never going to use the space.
+          gridTemplateColumns: 'minmax(34rem, 2.4fr) minmax(18rem, 1fr)',
         }}
       >
         {/* Centred while the band is a column, as the frame centres it, and left in
@@ -183,6 +196,7 @@ export const SiteCircuit = ({
               dutyId={summary.defaultDutyId}
               role={role}
               selection={{devices, selected, onSelect: setPicked}}
+              onClear={() => setPicked(undefined)}
             />
           )}
         </div>
@@ -191,8 +205,14 @@ export const SiteCircuit = ({
             only as tall as its row, and the card is its child rather than the item
             itself. Inert in the phone column, where the parent has no height to be a
             fraction of. */}
-        <div className="h-full min-w-0">
-          <SiteDevicePanel summary={summary} role={role} device={selected} now={now} />
+        <div className="flex h-full min-w-0 flex-col gap-3">
+          {selected !== undefined && (
+            <SiteDevicePanel summary={summary} role={role} device={selected} now={now} />
+          )}
+          {/* The trend under the card, or the site's own figures where nothing is picked —
+              see `SiteTelemetry`. It is the same slot either way, so clearing a selection
+              replaces one reading with another rather than leaving a hole. */}
+          <SiteTelemetry summary={summary} role={role} device={selected} now={now} />
         </div>
       </div>
     </section>

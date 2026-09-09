@@ -337,7 +337,11 @@ const Label = ({
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={(event) => {
+        // The block behind this clears the selection; a click on a label is a selection.
+        event.stopPropagation();
+        onSelect();
+      }}
       onMouseEnter={() => onHover(node.key)}
       onMouseLeave={() => onHover(undefined)}
       onFocus={() => onHover(node.key)}
@@ -354,11 +358,20 @@ export const SitePlantScene = ({
   dutyId,
   role,
   selection,
+  onClear,
 }: {
   summary: SiteSummary;
   dutyId: string | undefined;
   role: SitePowerRole;
   selection?: SiteDiagramSelection;
+  /**
+   * Clicking the yard rather than a thing standing in it.
+   *
+   * The page's answer to that is the site's own overview, so the scene has to be able to
+   * say "nothing" as well as which object - a drawing that can only ever select is a
+   * drawing a reader cannot back out of.
+   */
+  onClear?: () => void;
 }) => {
   const track = useRef<HTMLDivElement>(null);
   const {width} = useElementSize(track);
@@ -402,15 +415,27 @@ export const SitePlantScene = ({
   /** A ground position, straight to pixels - the pad's corners come this way. */
   const ground = (x: number, y: number) => at(isoX(x, y), isoY(x, y));
 
+  /** The device a node key names, in the selection's own vocabulary. */
+  const deviceOf = (key: string): SiteDeviceKey | undefined =>
+    key === 'cabinet' ? 'cabinet' : key === 'load' || key === 'mains' ? undefined : deviceOfSource(key);
+
+  const selectHandler = (key: string): (() => void) | undefined => {
+    const device = deviceOf(key);
+    if (selection === undefined || device === undefined || !selection.devices.includes(device)) {
+      return undefined;
+    }
+    return () => selection.onSelect(device);
+  };
+
   const activeNode = (key: string | undefined): boolean => {
     if (key === undefined) return false;
     if (hovered === key) return true;
 
     // The selection is in **device** keys and a placement carries a **source** key, and
     // for gensets those differ - `genset:JHB5503` against `JHB5503`. So the comparison
-    // goes through `deviceOfSource`, the same translation the diagram's own nodes make,
-    // rather than comparing two vocabularies directly and quietly never matching a set.
-    const device = key === 'cabinet' || key === 'load' ? key : deviceOfSource(key);
+    // goes through `deviceOf`, the same translation the diagram's own nodes make, rather
+    // than comparing two vocabularies directly and quietly never matching a set.
+    const device = deviceOf(key);
     return device !== undefined && device === selection?.selected;
   };
 
@@ -450,8 +475,12 @@ export const SitePlantScene = ({
 
   return (
     <div ref={track} className="w-full">
+      {/* Clicking the yard clears the selection, which is how a reader gets back to the
+          site's own overview. The drawings are `pointer-events: none`, so a click that is
+          not on a hit area or a label lands here. */}
       <div
         className="relative overflow-hidden"
+        onClick={onClear}
         style={{width: frame, height: Math.max(height, lowestLabel + PAD_Y)}}
       >
         {/* The treeline, always behind - see `backdrop` in the data module. */}
@@ -506,6 +535,48 @@ export const SitePlantScene = ({
                 height={box.h * s}
                 active={active}
                 dimmed={hovered !== undefined && !active}
+              />
+            );
+          })}
+
+        {/* Clicking the object itself, not only its label.
+            
+            One transparent hit area per node, over that node's own drawing, and they are
+            **stacked largest first** so the small things win: the array frame's box covers
+            the whole yard, and in DOM order a later, smaller rect sits over it. That is
+            what makes a cabinet standing in the frame's shade clickable at all - it is a
+            650 mm box inside a 14 m one.
+            
+            The labels remain controls too, and for two reasons that have not gone away: a
+            hit area is a rectangle around a diamond, so it always claims a little ground
+            that is not the object, and the label is the only version of this a keyboard
+            reaches in a sensible order. So these carry `tabIndex={-1}` and no accessible
+            name - they are a pointer convenience over a control that already exists,
+            rather than a second copy of it in the tab order. */}
+        {[...placements]
+          .filter((placement) => placement.node !== undefined)
+          .map((placement) => ({placement, box: placementBox(placement)}))
+          .sort((a, b) => b.box.w * b.box.h - a.box.w * a.box.h)
+          .map(({placement, box}) => {
+            const key = placement.node ?? '';
+            const onSelect = selectHandler(key);
+            if (onSelect === undefined) return null;
+            const corner = at(box.minX, box.minY);
+
+            return (
+              <button
+                key={`hit-${placement.id}`}
+                type="button"
+                tabIndex={-1}
+                aria-hidden="true"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect();
+                }}
+                onMouseEnter={() => setHovered(key)}
+                onMouseLeave={() => setHovered(undefined)}
+                className="absolute cursor-pointer"
+                style={{left: corner.left, top: corner.top, width: box.w * s, height: box.h * s}}
               />
             );
           })}
