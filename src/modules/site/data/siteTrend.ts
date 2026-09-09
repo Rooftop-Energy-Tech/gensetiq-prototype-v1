@@ -848,75 +848,19 @@ const periodTrend = (
     }
 
     if (metric === 'BATTERY') {
-      // The bar is a *level*, not an energy, so the split cannot stack kilowatt-
-      // hours: each bar divides at the bucket's charge-source fraction — the
-      // share of what entered the bank that came off the roof against off the
-      // set — which is the question the split answers, drawn on the level it
-      // reached.
-      const solarFrom: Array<number | null> = [];
-      const solarTo: Array<number | null> = [];
-      const gensetFrom: Array<number | null> = [];
-      const gensetTo: Array<number | null> = [];
-      let solarKwh = 0;
-      let gensetKwh = 0;
-
-      spine.forEach((bucket, index) => {
-        const value = points[index]!.value;
-        if (value === null) {
-          solarFrom.push(null);
-          solarTo.push(null);
-          gensetFrom.push(null);
-          gensetTo.push(null);
-          return;
-        }
-        const {solarIn, gensetIn} = bankChargeSplitKwh(
-          seed,
-          role,
-          ratedKw,
-          bucket.from,
-          bucket.to,
-          now,
-        );
-        const total = solarIn + gensetIn;
-        solarKwh += solarIn;
-        gensetKwh += gensetIn;
-        if (total <= 0) {
-          solarFrom.push(null);
-          solarTo.push(null);
-          gensetFrom.push(null);
-          gensetTo.push(null);
-          return;
-        }
-        const boundary = Math.round((solarIn / total) * value * 10) / 10;
-        solarFrom.push(0);
-        solarTo.push(boundary);
-        gensetFrom.push(boundary);
-        gensetTo.push(value);
-      });
-
-      if (solarKwh + gensetKwh <= 0) return {};
-      const bands: SiteTrend['bands'] = [];
-      if (hasSolar(role))
-        bands.push({
-          label: 'Solar-charging',
-          token: SITE_TREND_METRIC_TOKEN.SOLAR,
-          from: solarFrom,
-          to: solarTo,
-          value: KWH(solarKwh),
-        });
-      if (ratedKw > 0)
-        bands.push({
-          label: 'Genset-charging',
-          token: SITE_TREND_METRIC_TOKEN.GENSET,
-          from: gensetFrom,
-          to: gensetTo,
-          value: KWH(gensetKwh),
-        });
-      return {
-        bands,
-        mix: chargeMix(solarKwh, gensetKwh, hasSolar(role), ratedKw > 0),
-        mixHeading: 'Source',
-      };
+      // The table only, no slices on the bars: a SoC bar is a *level*, and
+      // painting an energy fraction onto a level mixes two quantities. The
+      // charge split lives in kilowatt-hours here — and the chart that draws it
+      // honestly is the parked charge-mix view, should it ever come back.
+      const {solarIn, gensetIn} = bankChargeSplitKwh(
+        seed,
+        role,
+        ratedKw,
+        spine[0]?.from ?? now,
+        spine[spine.length - 1]?.to ?? now,
+        now,
+      );
+      return {mix: chargeMix(solarIn, gensetIn, hasSolar(role), ratedKw > 0), mixHeading: 'Source'};
     }
 
     return {};
