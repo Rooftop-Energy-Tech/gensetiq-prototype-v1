@@ -1,5 +1,7 @@
 import {useState} from 'react';
 
+import type {LinkProps} from '@tanstack/react-router';
+
 import type {Genset} from '../../types/genset.type';
 import type {ControlMode} from '../../types/telemetry.type';
 import type {AlertFocus} from '../../types/detailView.type';
@@ -16,6 +18,7 @@ import {cn} from '@/lib/utils';
 import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
+import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {countBySeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
@@ -197,6 +200,16 @@ export const GensetHome = ({
           {label: 'Service', value: serviceHeadline(service)},
         ]}
         counts={countBySeverity([...alerts, ...plantStanding])}
+        /* The pill opens this asset's own Alarms tab — the tab the count is read
+           from, so the figure and the queue behind it cannot be two lists.
+           `keepFrom` carries `from` across, which is what keeps a set
+           opened from a site crumbing back to that site rather than springing to
+           its register. See `fromSearch.type.ts`. */
+        alarmLink={{
+          to: '/gensets/$gensetId/alarms',
+          params: {gensetId: genset.id},
+          search: keepFrom as unknown as LinkProps['search'],
+        }}
       />
 
       {/* Band 2 — the live dials, and the controls that act on the circuit

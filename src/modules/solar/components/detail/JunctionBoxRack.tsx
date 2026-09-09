@@ -1,8 +1,6 @@
-import {Link} from '@tanstack/react-router';
-import {TriangleAlertIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
-import {Badge} from '@/components/ui/badge';
+import {FaultChip} from '@/components/global/FaultChip';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
@@ -61,18 +59,44 @@ import type {SolarSystem} from '../../types/system.type';
  * below what its capacity would suggest — which is the comparison the row pair exists
  * to make possible.
  *
- * ## Why a box short of strings is not marked
+ * ## Which short boxes are marked, and which are not
  *
- * A card whose box has a dark string reads `3 of 4` and a lower generation figure, in
- * the ordinary secondary grey — no amber edge, no tint, no badge. That is deliberate
- * and it follows from how the dark strings are placed: they are spread one per box,
- * because the count
- * is derived from a step in the *array's* output and a step in one series cannot say
- * where the loss was. Marking those cards would draw a specific claim — *this* box has
- * a fault — out of a measurement that contains no such claim.
+ * `Delivering 3 of 4` and a marked card are **two different facts**, and after
+ * 2026-09-09 they line up where they can and stay apart where they cannot.
  *
- * The array-level loss is not going unsaid. `SystemHealth`, two bands down, raises it
- * against the reading and the step behind it, which is the band built to hold a verdict.
+ * A box whose register is asserting `PV N Array Fault` is marked *and* short. That is the
+ * case Jeff found: `SJB 1` used to carry the fault and read `4 of 4` with the same
+ * generation figure as its six healthy neighbours, because the strings came off a step in
+ * the array's curve and the fault came off the monitoring unit with no wire between them.
+ * `darkStrings` in `systems.ts` now floors the count at one string per faulted box and
+ * `placeDark` puts those strings *in* those boxes, so a marked card is also the low card —
+ * at SBH-1336 the two faulted boxes read `3 of 4` and 1.8 kW against 2.5 kW.
+ *
+ * A box that is merely short is **not** marked — no edge, no tint, no chip, just `3 of 4`
+ * in the ordinary grey. Those strings come from the depth of a step in the *array's*
+ * output, and a step in one series cannot say where the loss was, so they are spread a box
+ * at a time. Marking them would draw a specific claim — *this* box has a fault — out of a
+ * measurement that contains no such claim.
+ *
+ * The rule underneath both: **claims are placed and marked, measurements are spread and
+ * left grey.** `placeDark` is where it is implemented.
+ *
+ * The array-level loss is not going unsaid either. `SystemHealth`, two bands down, raises
+ * it against the reading and the step behind it — and only where there *is* a step, so a
+ * loss known only from a register does not get a message claiming the output dropped.
+ *
+ * ## The fault mark is shared with the battery rack
+ *
+ * The register name is a **chip directly under the box's own name** — `FaultChip`, which
+ * carries the whole argument for its shape and is the same element `ModuleRack` draws on a
+ * faulted battery module. It began as two byte-identical copies of a bare `<Link>`, one
+ * here and one there, which is how a faulted junction box and a faulted battery module
+ * came to be a fork waiting to happen; promoted on 2026-09-09 (Jeff), the same move
+ * `AlarmBadge` made a day earlier and for the same reason.
+ *
+ * **The two racks now differ by one thing**: `ModuleRack` kept its `Critical` / `Neutral`
+ * severity badge and this card dropped its own when the chip went in. See the long note on
+ * the chip below for what that word was carrying and when it would be missed.
  *
  * ## The boxes with nothing watching them
  *
@@ -185,10 +209,17 @@ export const JunctionBoxRack = ({
 
             `strings are` / `string is` rather than the `plural` helper, because the
             verb has to move with the noun — and one dark string is a real state, which
-            `SWK-0559` reaches the day two of its three come back. */}
+            `SWK-0559` reaches the day two of its three come back.
+
+            It used to end `spread a box at a time`, and that clause came off when the
+            registers began placing dark strings (2026-09-09): the ones a `PV N Array
+            Fault` names sit *in* those boxes and are not spread at all, so the sentence
+            was describing only half of them. Nothing replaced it, because the cards
+            below now answer `where` themselves — the short boxes are the ones reading
+            `3 of 4`, and the marked ones are the ones with a chip. */}
         {darkStrings > 0 && (
           <p className="max-w-prose text-xs text-tertiary">
-            {`${darkStrings} ${darkStrings === 1 ? 'string is' : 'strings are'} not delivering, spread a box at a time.`}
+            {`${darkStrings} of ${system.strings} ${darkStrings === 1 ? 'string is' : 'strings are'} not delivering.`}
           </p>
         )}
       </div>
@@ -246,10 +277,14 @@ export const JunctionBoxRack = ({
                   : cn(meta.edgeClassName, meta.tintClassName),
               )}
             >
-              {/* The name, and the severity badge where a register is asserting one.
+              {/* The box's name — **first on the card**, ahead of the fault band below it.
 
-                  `flex-wrap` so a badge and a five-character label cannot squeeze each
-                  other on a 169px card at the narrowest rung of the grid.
+                  It carried the severity badge opposite until 2026-09-09; see the band for
+                  where the mark went and what dropping the badge gave up.
+
+                  `flex-wrap` is kept: nothing wraps here today with the badge gone, and it
+                  is what stops a longer label and anything ever added opposite from
+                  squeezing each other on a 169px card at the narrowest rung of the grid.
 
                   A `not reported` note sat opposite the label on the boxes past the
                   last conversion unit, in the `SubrackRack` idiom, and Jeff removed it
@@ -264,14 +299,61 @@ export const JunctionBoxRack = ({
                 <span className="text-sm font-medium whitespace-nowrap text-secondary">
                   {box.label}
                 </span>
-
-                {meta !== undefined && (
-                  <Badge variant="secondary" className="gap-1">
-                    <TriangleAlertIcon className={meta.textClassName} aria-hidden="true" />
-                    <span className={meta.textClassName}>{meta.label}</span>
-                  </Badge>
-                )}
               </div>
+
+              {/* **The register behind the mark, as a chip under the box's name** — Jeff's
+                  (2026-09-09), shaped after the Alarms tab's own severity filters.
+
+                  Where the mark has been, in order: the raw register name at the card's
+                  *foot* in `text-xs text-secondary`, which was camouflaged — the same grey
+                  as the four metric labels above it, one step smaller, last in reading
+                  order, so the one exceptional thing on the card read as a fifth metric row
+                  whose value had gone missing. Then a full-bleed tinted band, first across
+                  the card's top edge and then a row lower so `SJB 1` stayed first. Now a
+                  chip in the same place the band was.
+
+                  `FaultChip` carries the whole argument for the shape — why the bell rather
+                  than a warning triangle, why the name stays grey while the glyph takes the
+                  severity, and why it is `text-xs` where the filters it copies are
+                  `text-sm`. It is shared with `ModuleRack`, which is what stopped this from
+                  being one idiom drawn two ways.
+
+                  ## What still marks the card, and why the chip can be quiet
+
+                  The card keeps `edgeClassName` and `tintClassName` — Jeff's call when the
+                  chip went in, and the right one. The chip is a neutral surface with one
+                  coloured glyph, so on its own it would be a *quieter* mark than the band
+                  it replaced; the edge and the tint are what a reader scanning seven cards
+                  actually catches, and the chip is what tells them which register once
+                  they have stopped. Two jobs, two elements, neither doing the other's.
+
+                  ## Why the severity is no longer written out
+
+                  A `Critical` badge sat opposite the label until this landed. The chip
+                  names the register and the card is already the severity's colour, so the
+                  badge had become a second mark twenty pixels away saying strictly less.
+
+                  **The word is the loss.** `severityMeta.ts` argues the badge exists so
+                  severity is stated in words and not only in hue, which matters most for
+                  `NEUTRAL` — its edge and tint are deliberately achromatic, so a neutral
+                  box would show a grey chip and nothing ranking it. Every `PV N Array
+                  Fault` on the estate is `MA` and comes out critical, so the hue is
+                  unambiguous today; the chip's `title` and `aria-label` carry the word for
+                  anyone hovering or listening. `ModuleRack` kept its badge, so the two
+                  racks differ by exactly that word — see the note at the top of this file.
+
+                  ## What the position costs
+
+                  A marked card runs **34px** taller than its neighbours — the chip's 24px
+                  and the card's `gap-2.5` — so `Current generation` and the kW figures sit
+                  that much lower and no longer read straight across the row. Comparing
+                  those figures box to box is why this band replaced a dial, so the loss is
+                  real; it is the price of putting the fault above the figures rather than
+                  below them, and it was taken knowingly. Moving the chip back under the
+                  metric rows is a two-line move of this block. */}
+              {fault !== undefined && (
+                <FaultChip fault={fault} to="/solar/$systemId/alarms" params={{systemId: system.id}} />
+              )}
 
               {/* `Current generation` **over** its figure rather than beside it, and the
                   stacking is forced by the five-card cap on the grid.
@@ -354,30 +436,6 @@ export const JunctionBoxRack = ({
                 <MetricRow label="Capacity" value={amount(box.capacityKwp, 'kWp', 1)} />
               </div>
 
-              {/* The register behind the mark, linked to the tab that can act on it.
-
-                  The label the gateway publishes, exactly — `PV 1 Array Fault` — because
-                  that raw string is what the Alarms tab lists and what a reader is
-                  matching this card against. A card that tidied it to `SJB 1 fault`
-                  would name one alarm two ways across two tabs of one asset.
-
-                  Truncated rather than wrapped, with the whole string in the tooltip.
-                  A marked card is one line taller than its neighbours either way —
-                  that is the mark doing its job — but two lines of register name would
-                  make the row it sits in noticeably deeper than the row below it,
-                  since a grid row is as tall as its tallest card. `ModuleRack` argues
-                  both points at length; this is the same element on the other half of
-                  the hybrid. */}
-              {fault !== undefined && (
-                <Link
-                  to="/solar/$systemId/alarms"
-                  params={{systemId: system.id}}
-                  title={fault.name}
-                  className="block min-w-0 truncate text-xs text-secondary underline-offset-2 outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-                >
-                  {fault.name}
-                </Link>
-              )}
             </li>
           );
         })}

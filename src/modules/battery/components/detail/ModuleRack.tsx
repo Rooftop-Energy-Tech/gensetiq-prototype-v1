@@ -1,14 +1,13 @@
-import {Link} from '@tanstack/react-router';
 import {TriangleAlertIcon} from 'lucide-react';
 
 import {BatteryGlyph} from '@/components/global/BatteryGlyph';
+import {FaultChip} from '@/components/global/FaultChip';
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
 import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
-import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {
   IMBALANCE_POINTS,
@@ -187,31 +186,26 @@ const FaultBadge = ({severity}: {severity: AlertSeverity}) => {
 };
 
 /**
- * The register behind the mark, linked to the tab that can act on it.
+ * The register a faulted module is asserting is now `FaultChip` — the shared chip the
+ * junction box cards use — and it moved from the card's foot to directly under the
+ * module's label (Jeff, 2026-09-09).
  *
- * The label the gateway publishes, exactly — `Lithium Battery 4 Abnormal` — because
- * that raw string is what the Alarms tab lists, what history is keyed on, and what a
- * reader is matching this card against. A card that tidied it to `Module 4 fault`
- * would name one alarm two ways across two tabs of one asset.
+ * What was here was a bare `<Link>` with the raw register name in `text-xs
+ * text-secondary`, and `JunctionBoxRack` had a byte-identical copy of it. Both were
+ * camouflaged for the same reason: that grey is the grey of the `Health` / `Temp` /
+ * `Stored` labels stacked above it, one step smaller and last in reading order, so the
+ * one exceptional thing on the card read as a metric row with its value missing.
  *
- * It exists here because the rack has no detail panel. The shelf can afford to mark a
- * bay and let the card beside it name the row; a 10rem card in a wrapping grid is the
- * only surface this mark has, so the name and the navigation come with it. Truncated
- * rather than wrapped, with the whole string in the tooltip: two lines of register
- * name would make the faulted card taller than its neighbours and break the grid's
- * one useful property, which is that every module looks like every other until
- * something is wrong with it.
+ * The old note's two arguments still hold and now live in `FaultChip`: the label is the
+ * string the gateway publishes, exactly — `Lithium Battery 4 Abnormal`, because that is
+ * what the Alarms tab lists and what history is keyed on — and it truncates rather than
+ * wraps, because a grid row is as tall as its tallest card. A 10rem card cuts that name
+ * at any size, so the tooltip is how it is read in full.
+ *
+ * `FaultBadge` above **stays**. It is the only place a neutral module's severity is
+ * stated in words, which is the case its own note is about; the junction box card dropped
+ * its equivalent, so the two racks now differ by exactly that badge.
  */
-const FaultRow = ({bankId, fault}: {bankId: string; fault: AlarmView}) => (
-  <Link
-    to="/battery/$bankId/alarms"
-    params={{bankId}}
-    title={fault.name}
-    className="block min-w-0 truncate text-xs text-secondary underline-offset-2 outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-  >
-    {fault.name}
-  </Link>
-);
 
 export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
   const modules = bankModules(bank);
@@ -359,6 +353,17 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
                 </span>
               </div>
 
+              {/* Directly under the module's label, ahead of its figures — the position
+                  `JunctionBoxRack` puts the same chip in, so the two racks read the same
+                  way. It was under the figures before, on the argument that the register
+                  is the answer to *why* and the figures the answer to *how bad*, so a
+                  reader who had already decided to act was the one who wanted it. What
+                  overrode that is that nobody was finding it at all: last in reading order
+                  and dressed as a metric label, it was a fifth row with no value. */}
+              {fault !== undefined && (
+                <FaultChip fault={fault} to="/battery/$bankId/alarms" params={{bankId: bank.id}} />
+              )}
+
               <div className="flex items-center gap-2.5">
                 <BatteryGlyph
                   fraction={module.soc}
@@ -384,11 +389,6 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
                 <MetricRow label="Stored" value={`${module.storedKwh.toFixed(2)} kWh`} />
               </div>
 
-              {/* Under the figures rather than beside the badge, because it is the
-                  answer to *why* and the figures are the answer to *how bad* — and a
-                  reader who has already decided to act on this card is the one who
-                  wants the register. */}
-              {fault !== undefined && <FaultRow bankId={bank.id} fault={fault} />}
             </li>
           );
         })}

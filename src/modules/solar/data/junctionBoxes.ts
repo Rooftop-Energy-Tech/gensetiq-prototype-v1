@@ -90,7 +90,7 @@ export type JunctionBox = {
   strings: number;
   /**
    * How many of those strings are delivering. Below `strings` where the array has
-   * dark strings — see `spreadDark`.
+   * dark strings — see `placeDark`.
    */
   liveStrings: number;
   /**
@@ -133,34 +133,66 @@ const stringSplit = (strings: number, stringsPerBox: number): Array<number> => {
 };
 
 /**
- * Which boxes lost the dark strings — **one each, round the boxes in order**, rather
- * than filling one box first.
+ * Which boxes lost the dark strings — **the boxes a register names first, then one each
+ * round the rest in order.**
  *
- * Jeff's call (2026-09-09), against the alternative of clustering them, and the two
- * say different things about the same three dark strings. Spread, three of twenty-six
- * dark is *the array* down a tenth: the first three boxes read a string short and a
- * few hundred watts light, and no box stands out. Clustered, it is *a box* — one
- * combiner reading one of four with the other six normal, which is what a blown fuse
- * or a chewed run actually looks like on a roof.
+ * Two sources, and they know different things, so they are placed differently.
  *
- * So this shape deliberately gives up the locatable failure, and the reason it is the
- * right give-up is `darkStrings` itself, which is where the count comes from: it is
- * computed from the **depth of a step in the whole array's output**, and a step in one
- * series cannot say whether the loss was in one place or everywhere. Clustering into
- * box 1 would have drawn a specific claim — *this* box — out of a measurement that
- * contains no such claim, and it would have looked more informative for being less
- * true. Spreading is the shape that matches what is known.
+ * ## The registers, which can locate a loss
  *
- * Capped per box, and it walks on when one fills, so a short last box cannot be dealt
- * more dark strings than it holds. `darkStrings` already keeps at least one string live
- * across the array, so the exhaustion guard is belt and braces rather than a path
- * anything reaches.
+ * A standing `PV N Array Fault` names **box N**. It is the one thing on this page that
+ * points at a place, so those boxes take a string each before anything is spread — and
+ * `darkStrings` in `systems.ts` floors the count at the number of them, so the budget is
+ * always there to spend. That is what stops the case Jeff found on 2026-09-09: `SJB 1`
+ * carrying `PV 1 Array Fault` and reading `4 of 4 delivering` in the same card, with the
+ * same generation figure as its six healthy neighbours. A card cannot say a box has a
+ * critical fault and that nothing is wrong with it.
+ *
+ * One string, not the box. The register says this combiner has a fault; it does not say
+ * how much of it is gone, and `plantAlarms.ts` lists a dead string, a blown string fuse
+ * and the junction box itself as the same row. One is the least the row can mean and the
+ * most it can be held to.
+ *
+ * ## The step, which cannot
+ *
+ * Whatever is left over is the array's own output step, and that is spread **one each
+ * round the boxes in order** rather than clustered — Jeff's call, 2026-09-09, and the
+ * two shapes say different things about the same three dark strings. Spread, three of
+ * twenty-six dark is *the array* down a tenth: the first three boxes read a string short
+ * and a few hundred watts light, and no box stands out. Clustered, it is *a box* — one
+ * combiner reading one of four with the other six normal, which is what a blown fuse or
+ * a chewed run actually looks like on a roof.
+ *
+ * The give-up is deliberate, and the reason it is the right one is where the count comes
+ * from: the **depth of a step in the whole array's output**, and a step in one series
+ * cannot say whether the loss was in one place or everywhere. Clustering into box 1
+ * would have drawn a specific claim out of a measurement that contains no such claim,
+ * and it would have looked more informative for being less true.
+ *
+ * So the rule reads: **claims are placed, measurements are spread.**
+ *
+ * Capped per box in both passes, and the spread walks on when a box fills, so a short
+ * last box cannot be dealt more dark strings than it holds. `darkStrings` already keeps
+ * at least one string live across the array, so the exhaustion guard is belt and braces
+ * rather than a path anything reaches.
  */
-const spreadDark = (sizes: ReadonlyArray<number>, dark: number): Array<number> => {
+const placeDark = (
+  sizes: ReadonlyArray<number>,
+  dark: number,
+  faulted: ReadonlySet<number>,
+): Array<number> => {
   const out = sizes.map(() => 0);
   let left = Math.max(0, dark);
-  let box = 0;
 
+  // The boxes a register names, in order, one string each.
+  for (let box = 0; box < sizes.length && left > 0; box += 1) {
+    if (!faulted.has(box + 1) || out[box]! >= sizes[box]!) continue;
+    out[box] += 1;
+    left -= 1;
+  }
+
+  // The rest of the step, spread.
+  let box = 0;
   while (left > 0 && out.some((taken, index) => taken < sizes[index]!)) {
     if (out[box]! < sizes[box]!) {
       out[box] += 1;
@@ -225,11 +257,20 @@ const shareTenths = (totalKw: number, weights: ReadonlyArray<number>): Array<num
  * its settings tab — every site that has an array has a unit — and the band it feeds
  * keeps the hero dial for exactly that case rather than drawing an empty grid.
  */
-export const junctionBoxes = (system: SolarSystem): Array<JunctionBox> => {
+export const junctionBoxes = (
+  system: SolarSystem,
+  /**
+   * The array's standing rows, so the boxes a `PV N Array Fault` names are the boxes
+   * that read a string short. Defaults to none, which is the honest answer for a caller
+   * that has not read the alarm store — the count in `system.downStrings` is then spread
+   * rather than placed. Every caller that draws these cards passes them.
+   */
+  standing: ReadonlyArray<AlarmView> = [],
+): Array<JunctionBox> => {
   if (system.wiring === null) return [];
 
   const sizes = stringSplit(system.strings, system.wiring.stringsPerBox);
-  const dark = spreadDark(sizes, system.downStrings);
+  const dark = placeDark(sizes, system.downStrings, new Set(faultedBoxes(standing).keys()));
   const live = sizes.map((size, index) => size - dark[index]!);
 
   const reporting = system.state !== 'OFFLINE';

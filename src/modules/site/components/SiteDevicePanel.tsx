@@ -1,7 +1,6 @@
 import type {ReactNode} from 'react';
 
 import {Link} from '@tanstack/react-router';
-import type {LinkProps} from '@tanstack/react-router';
 import {
   ActivityIcon,
   BatteryChargingIcon,
@@ -11,19 +10,17 @@ import {
   SunMediumIcon,
 } from 'lucide-react';
 
-import {AlarmCounts, alarmPillClassName} from '@/components/global/AlarmCounts';
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {Badge} from '@/components/ui/badge';
 import {amount, fuelHeadline} from '@/lib/format';
-import {cn} from '@/lib/utils';
 import {BANK_RESERVE_LABEL} from '@/modules/battery/types/bank.type';
-import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
-import type {AlertSeverity} from '@/modules/genset/types/alert.type';
+import {countBySeverity} from '@/modules/genset/types/alert.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {BatteryGlyph} from '@/components/global/BatteryGlyph';
 import {CurrentRunCard} from '@/modules/genset/components/detail/CurrentRunCard';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
-import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
+import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import {useFuelIntegrity} from '@/modules/genset/data/fuelIntegrity';
 import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
@@ -406,78 +403,6 @@ export const siteDefaultDevice = (
           : undefined;
 
   return carrying !== undefined && devices.includes(carrying) ? carrying : devices[0];
-};
-
-/**
- * What this device is carrying, and the way through to the rows themselves.
- *
- * ## One element, three cards
- *
- * The genset card had this badge and the array's and the bank's did not, which made
- * the panel say different things depending on which box a reader had clicked: a set
- * with two criticals showed them, an array with two showed nothing and read as an
- * array with nothing wrong. There is no reason the count belongs to engines — every
- * asset here raises alarms, and the site's own strip at the top of the page counts
- * all of them together. So the badge is a component now and all three use it.
- *
- * ## Three numbers, coloured rather than labelled
- *
- * `Critical · Warning · Neutral`, in that order and in their own colours. It is the
- * treatment the design specifies and `MetricStrip` already uses at the top of this
- * same page — where the tooltip spells the order out, so a reader meeting the
- * pattern here has been taught it a few hundred pixels above.
- *
- * A severity with anything standing fills its cell rather than only changing its
- * digit — see `AlarmCounts`, which is where the pill itself now lives, so the two
- * renderings of it cannot drift apart again.
- *
- * ## Why it is a link and no longer has a tooltip
- *
- * A count is a question — *which two?* — and the panel cannot answer it: there is no
- * room for a queue beside a drawing. Every one of these badges now goes to the tab
- * that can, so the reading is one click rather than a title, a nav and a tab.
- *
- * That costs the hover legend, because a target that is both clickable and hovered
- * is fussy — the pointer lands on it and two things happen. The legend is not lost:
- * it is the `title`, which is also the accessible name, so the numbers announce as
- * `Critical 2 · Warning 0 · Neutral 0` rather than as `2 0 0`.
- *
- * `to` and `params` are the caller's because the three assets have three routes.
- */
-const AlarmBadge = ({
-  counts,
-  to,
-  params,
-  search,
-}: {
-  counts: Record<AlertSeverity, number>;
-  to: LinkProps['to'];
-  params?: LinkProps['params'];
-  /** Carries `from` through, so a badge clicked at a site crumbs back to it. */
-  search?: LinkProps['search'];
-}) => {
-  const legend = ALERT_SEVERITIES.map(
-    (severity) => `${SEVERITY_META[severity].label} ${counts[severity]}`,
-  ).join(' · ');
-
-  return (
-    <Badge
-      asChild
-      variant="secondary"
-      className={cn(alarmPillClassName, 'transition-colors hover:bg-highlight')}
-    >
-      <Link
-        to={to}
-        params={params}
-        search={search}
-        aria-label={legend}
-        title={legend}
-        className="outline-none focus-visible:ring-2 focus-visible:ring-outline"
-      >
-        <AlarmCounts counts={counts} />
-      </Link>
-    </Badge>
-  );
 };
 
 /*

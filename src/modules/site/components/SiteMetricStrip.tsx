@@ -206,6 +206,10 @@ export const SiteMetricStrip = ({
     <MetricStrip
       metrics={metrics}
       counts={counts}
+      /* No `search` here, unlike the four asset strips: `from` exists to let an asset
+         crumb back to the site that opened it, and this *is* that site — its own pages
+         are the end of that trail rather than a step along it. */
+      alarmLink={{to: '/sites/$siteId/alarms', params: {siteId: summary.site.id}}}
       trailing={supplyColumn(summary, role)}
       ariaLabel="Site summary"
     />

@@ -1,5 +1,9 @@
+import {Link} from '@tanstack/react-router';
+import type {LinkProps} from '@tanstack/react-router';
 import {BellIcon} from 'lucide-react';
 
+import {Badge} from '@/components/ui/badge';
+import {cn} from '@/lib/utils';
 import {ALERT_SEVERITIES} from '@/modules/genset/types/alert.type';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
@@ -80,8 +84,91 @@ export const AlarmCounts = ({counts}: {counts: Record<AlertSeverity, number>}) =
  * bottom and leaves a pale hairline around the colour. The border is invisible on
  * this variant anyway, and `h-6` holds the height that would otherwise change.
  *
- * Exported as a class string rather than wrapped in a component because its two
- * callers need different badge *elements* — a plain span under a tooltip, and a
- * `Link` — and a component that took both shapes would be a worse seam than this.
+ * It **was** exported, on the grounds that "its two callers need different badge
+ * *elements* — a plain span under a tooltip, and a `Link` — and a component that took
+ * both shapes would be a worse seam than this". That stopped being true when the strip
+ * became a link too (2026-09-09): both callers want the same element now, so the
+ * element is `AlarmBadge` below and this is private to it.
  */
-export const alarmPillClassName = 'h-6 gap-0 border-0 px-0 py-0';
+const alarmPillClassName = 'h-6 gap-0 border-0 px-0 py-0';
+
+/**
+ * The alarm pill as **the way through to the rows themselves** — the one linked
+ * alarm count in the app.
+ *
+ * ## One element, everywhere a count is drawn
+ *
+ * It began on the genset card of the site's device panel, and the array's card and the
+ * bank's did not have it — so the panel said different things depending on which box a
+ * reader had clicked: a set with two criticals showed them, an array with two showed
+ * nothing and read as an array with nothing wrong. It became a component for that
+ * reason, and it is in `global/` for the same reason one step out: the **page strips**
+ * had the count as a dead figure under a tooltip while the panel a few hundred pixels
+ * below had it as a link (Jeff, 2026-09-09). Two renderings of one pill, one of which
+ * answered the question and one of which did not.
+ *
+ * Every count in the app is now this element: the five `MetricStrip` headers — site,
+ * solar, battery, cabinet, genset — and the three device cards on the site panel.
+ *
+ * ## Three numbers, coloured rather than labelled
+ *
+ * `Critical · Warning · Neutral`, in that order and in their own colours, with any
+ * severity that has something standing filling its cell rather than only changing its
+ * digit. `AlarmCounts` above is that pill's contents and the argument for the fill.
+ *
+ * ## Why it is a link and has no tooltip
+ *
+ * A count is a question — *which two?* — and neither a strip nor a panel can answer it:
+ * there is no room for a queue in a header column or beside a drawing. So the pill goes
+ * to the tab that can, and the reading is one click rather than a nav and a tab.
+ *
+ * That costs the Radix tooltip the strip used to carry, because a target that is both
+ * clickable and hovered is fussy — the pointer lands on it and two things happen. **The
+ * legend is not lost**, which matters more here than it did on the panel: the strip's
+ * tooltip was the one place in the app that spelled the severity order out, and the
+ * panel's own note leaned on it — "a reader meeting the pattern here has been taught it
+ * a few hundred pixels above". It is now the `title`, which browsers show on hover and
+ * which is also the accessible name, so the numbers announce as
+ * `Critical 2 · Warning 0 · Neutral 0` rather than as `2 0 0`.
+ *
+ * `to`, `params` and `search` are the caller's, because five assets have five routes.
+ */
+export const AlarmBadge = ({
+  counts,
+  to,
+  params,
+  search,
+}: {
+  counts: Record<AlertSeverity, number>;
+  to: LinkProps['to'];
+  params?: LinkProps['params'];
+  /**
+   * Carries `from` through, so a pill clicked on an asset opened from a site crumbs
+   * back to that site rather than springing to the asset's register. The strips pass
+   * `keepFrom`; the site panel passes `fromSite`. See `fromSearch.type.ts`.
+   */
+  search?: LinkProps['search'];
+}) => {
+  const legend = ALERT_SEVERITIES.map(
+    (severity) => `${SEVERITY_META[severity].label} ${counts[severity]}`,
+  ).join(' · ');
+
+  return (
+    <Badge
+      asChild
+      variant="secondary"
+      className={cn(alarmPillClassName, 'transition-colors hover:bg-highlight')}
+    >
+      <Link
+        to={to}
+        params={params}
+        search={search}
+        aria-label={legend}
+        title={legend}
+        className="outline-none focus-visible:ring-2 focus-visible:ring-outline"
+      >
+        <AlarmCounts counts={counts} />
+      </Link>
+    </Badge>
+  );
+};

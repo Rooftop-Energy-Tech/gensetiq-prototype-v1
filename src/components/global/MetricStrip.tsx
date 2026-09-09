@@ -1,12 +1,8 @@
+import type {LinkProps} from '@tanstack/react-router';
 import type {ReactNode} from 'react';
 
-import {AlarmCounts, alarmPillClassName} from '@/components/global/AlarmCounts';
-import {Badge} from '@/components/ui/badge';
-import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
-import {cn} from '@/lib/utils';
-import {ALERT_SEVERITIES} from '@/modules/genset/types/alert.type';
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
-import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 
 /**
  * The strip across the top of a site, a system or a bank: the two or three figures
@@ -23,6 +19,15 @@ import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
  * across the page and the eye can drop to any of the three without hunting.
  * Content-width columns would bunch every page's figures at the left and leave the
  * rest of a 1,530px band empty.
+ *
+ * ## The alarm column is a door, not a figure
+ *
+ * Clicking the pill opens that asset's Alarms tab, and `alarmLink` is **required**
+ * rather than optional so that stays true of every strip drawn. Jeff asked for it on
+ * the solar page (2026-09-09) and for it "throughout all sites and assets"; an optional
+ * prop would have made the next strip added silently dead again, which is exactly how
+ * this strip and the site panel's device cards came to disagree in the first place. See
+ * `AlarmBadge`, which is the element and carries the argument for dropping the tooltip.
  *
  * ## Why the third column is always the alarms
  *
@@ -44,6 +49,7 @@ import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 export const MetricStrip = ({
   metrics,
   counts,
+  alarmLink,
   trailing,
   ariaLabel,
 }: {
@@ -55,6 +61,20 @@ export const MetricStrip = ({
    */
   metrics: ReadonlyArray<{label: string; value: ReactNode}>;
   counts: Record<AlertSeverity, number>;
+  /**
+   * Where the alarm pill goes — this asset's own Alarms tab.
+   *
+   * Required, and the five callers are the five routes: a site, a system, a bank, a
+   * cabinet and a set. `params` and `search` are typed as the router's own loose
+   * shapes for the reason `DetailNavItem` gives: `to` here is the union of every route
+   * in the app, so the router has nothing to narrow them against, and a typo is caught
+   * one file away where the caller builds them from its own route's params.
+   */
+  alarmLink: {
+    to: LinkProps['to'];
+    params?: LinkProps['params'];
+    search?: LinkProps['search'];
+  };
   /**
    * An extra column past the alarms, label and all — the site page's supply badge
    * and nothing else so far. The caller supplies the content because what goes in
@@ -93,22 +113,19 @@ export const MetricStrip = ({
         {/* Three counts in one pill, coloured rather than labelled — the design's
             treatment, and the only way three numbers fit the column. Any severity
             with something standing fills its cell, so the strip says *something is
-            wrong here* before a reader has read a figure. The tooltip spells the
-            order out, exactly as each device row's does. */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="secondary" className={cn(alarmPillClassName, 'cursor-help')}>
-              <AlarmCounts counts={counts} />
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="flex flex-col gap-1">
-            {ALERT_SEVERITIES.map((severity) => (
-              <span key={severity}>
-                {SEVERITY_META[severity].label} · {counts[severity]}
-              </span>
-            ))}
-          </TooltipContent>
-        </Tooltip>
+            wrong here* before a reader has read a figure.
+
+            It was a `Badge` under a Radix tooltip and is now a link to the tab that
+            can answer it. The tooltip that "spells the order out" went with the
+            change and its legend is the `title` instead — `AlarmBadge` argues both,
+            including why that loss is worth naming here: this was the one place in
+            the app that taught the reader the order. */}
+        <AlarmBadge
+          counts={counts}
+          to={alarmLink.to}
+          params={alarmLink.params}
+          search={alarmLink.search}
+        />
       </div>
 
       {trailing !== undefined && (

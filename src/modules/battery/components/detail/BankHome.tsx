@@ -1,3 +1,4 @@
+import type {LinkProps} from '@tanstack/react-router';
 import {BatteryChargingIcon} from 'lucide-react';
 
 import {DetailBand} from '@/components/global/DetailBand';
@@ -12,6 +13,7 @@ import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {siteSummary} from '@/modules/site/data/sites';
+import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {BANK_FLOW_LABEL, BANK_RESERVE_LABEL, bankFlow} from '../../types/bank.type';
 import type {BatteryBank} from '../../types/bank.type';
 import {ModuleRack} from './ModuleRack';
@@ -138,6 +140,16 @@ export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
         // Standing only, and from the Alarms tab's own reading of it. Still three
         // zeros at every bank with nothing watching it — see the note above.
         counts={counts}
+        /* The pill opens this asset's own Alarms tab — the tab the count is read
+           from, so the figure and the queue behind it cannot be two lists.
+           `keepFrom` carries `from` across, which is what keeps a bank
+           opened from a site crumbing back to that site rather than springing to
+           its register. See `fromSearch.type.ts`. */
+        alarmLink={{
+          to: '/battery/$bankId/alarms',
+          params: {bankId: bank.id},
+          search: keepFrom as unknown as LinkProps['search'],
+        }}
       />
 
       {/* The pack, centred, and nothing else in the band.

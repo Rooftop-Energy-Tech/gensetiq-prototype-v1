@@ -1,9 +1,12 @@
+import type {LinkProps} from '@tanstack/react-router';
+
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount} from '@/lib/format';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
+import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import type {SubrackCabinet} from '../../types/cabinet.type';
 import {SubrackShelf} from './SubrackShelf';
 
@@ -136,6 +139,16 @@ export const CabinetHome = ({cabinet}: {cabinet: SubrackCabinet}) => {
           {label: 'Enclosure', value: `${cabinet.tempC.toFixed(1)} °C`},
         ]}
         counts={counts}
+        /* The pill opens this asset's own Alarms tab — the tab the count is read
+           from, so the figure and the queue behind it cannot be two lists.
+           `keepFrom` carries `from` across, which is what keeps a cabinet
+           opened from a site crumbing back to that site rather than springing to
+           its register. See `fromSearch.type.ts`. */
+        alarmLink={{
+          to: '/cabinet/$cabinetId/alarms',
+          params: {cabinetId: cabinet.id},
+          search: keepFrom as unknown as LinkProps['search'],
+        }}
       />
 
       <SubrackShelf cabinet={cabinet} />

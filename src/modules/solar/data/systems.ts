@@ -1,13 +1,18 @@
 import {useMemo} from 'react';
 
+import {useAlarmHandling} from '@/modules/genset/data/alarms';
+import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
 import {spread, spreadBetween} from '@/modules/genset/data/spread';
+import {isStanding} from '@/modules/genset/types/alarmState.type';
 import {hybridPlant, hybridState, solarStep} from '@/modules/site/data/hybrid';
 import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
 import {FALLBACK_POWER_ROLE, useSitePowerRoles} from '@/modules/site/data/siteConfig';
 import {siteSeed, siteSeeds} from '@/modules/site/data/siteSeed';
 import {hasSolar} from '@/modules/site/types/site.type';
+import type {AlarmHandling} from '@/modules/genset/types/alarmState.type';
 import type {SiteSeed} from '@/modules/site/data/siteSeed';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
+import {faultedBoxes} from './junctionBoxes';
 import type {ArrayWiring, SolarSystem, SystemState} from '../types/system.type';
 
 /**
@@ -244,8 +249,10 @@ const heardFrom = (systemId: string, silent: boolean, now: number): string =>
   ).toISOString();
 
 /**
- * How many strings are dark — **read off the step rather than dealt beside it.**
- * This is the part worth checking.
+ * How many strings are dark — **the deeper of what the output step implies and what the
+ * registers assert.** This is the part worth checking.
+ *
+ * ## The step
  *
  * `hybrid.ts` gives a tired system a **step**: output drops in one month and
  * stays down, because that is what a fault looks like and what makes the chart
@@ -253,29 +260,82 @@ const heardFrom = (systemId: string, silent: boolean, now: number): string =>
  * PV plant — strings have gone — and the arithmetic agrees: the model's steps are
  * 6–24%, and a string is a fifth to a seventeenth of the array.
  *
- * So the count is **computed from the depth of the step**, which is what keeps the
- * date the health band prints, the count of dark strings and the drop a reader can
- * see in the chart three readings of one event rather than three claims that
- * happen to agree.
+ * So part of the count is **computed from the depth of the step**, which is what keeps
+ * the date the health band prints, the count of dark strings and the drop a reader can
+ * see in the chart three readings of one event rather than three claims that happen to
+ * agree.
+ *
+ * ## The registers, and why they had to be let in
+ *
+ * The step was the *whole* count until 2026-09-09, and it left the array page saying two
+ * things that could not both be true: `SJB 1` carrying a standing `PV 1 Array Fault`, and
+ * the same card reading `4 of 4` delivering with the same generation figure as its six
+ * healthy neighbours (Jeff). The two facts came from sources with no wire between them —
+ * this function read a curve, and `PV N Array Fault` is a register on the monitoring unit.
+ *
+ * There was a real defence for leaving it: one string of twenty-six is **3.8%** of the
+ * array, the model's steps start at 6%, and `plantAlarms.ts` says this register is "the
+ * only register in the poll set that separates cloud from a string being gone" — catching
+ * what the curve cannot is its whole job. But a card that says a box has a critical fault
+ * and that everything is delivering is not a subtle claim about instrumentation; it reads
+ * as a bug, and the breakdown fails at exactly the box a reader came to look at.
+ *
+ * So a standing `PV N Array Fault` now **floors** the count at one string per faulted box.
+ *
+ * ## Why the deeper of the two rather than the sum
+ *
+ * Because they are two readings of one roof, not two losses. The step gives a magnitude
+ * and the registers give places; whatever those boxes have lost is already inside the
+ * step's depth. Adding them would inflate a loss the array's own output does not support,
+ * and this file's rule is that it never claims more than the measurement carries.
+ *
+ * `junctionBoxes.placeDark` is the other half: it puts the floored strings **in the boxes
+ * the registers name** and spreads only the remainder, so the count and its placement come
+ * from the same argument.
  *
  * Never the whole array. Every string dark is a dead plant, which is a different
  * fault with a different fix, and the model has no way to tell the two apart — so
  * the page does not claim to.
  */
+/**
+ * How a caller says what has been cleared. It defaults to `{}` on both factories, and
+ * the default is load-bearing rather than convenience: the section route's `loader`
+ * builds a system to read its name for the breadcrumb, and a loader is not a component,
+ * so it cannot subscribe to the alarm store. `{}` means "nothing cleared", which is the
+ * right reading for a caller that has not asked — and the loader never looks at
+ * `downStrings`. Every caller that draws a figure off it goes through the hooks below.
+ */
+type HandlingArg = Record<string, AlarmHandling>;
+
 const darkStrings = (
   seed: SiteSeed,
   role: SitePowerRole,
   strings: number,
   now: number,
+  handling: Record<string, AlarmHandling>,
 ): number => {
   const step = solarStep(seed, role, now);
-  if (step === undefined) return 0;
+  const stepped = step === undefined ? 0 : Math.max(1, Math.round(step.depth * strings));
+
+  /* Standing only, and live: clearing `PV 1 Array Fault` on the Alarms tab puts the
+     string back on the way out of the tab, which is the behaviour every other mark in
+     this app has. That is the whole reason `handling` is threaded down here rather than
+     the seeded set being read straight off `dealt` — a cleared row that still darkened a
+     string would leave a card reading `3 of 4` with nothing on it saying why. */
+  const flagged = faultedBoxes(
+    assertedPlantAlarms(seed.id, role, 'SOLAR', handling).filter(isStanding),
+  ).size;
 
   // At least one string stays live, so this is the most that can be dark.
-  return Math.min(strings - 1, Math.max(1, Math.round(step.depth * strings)));
+  return Math.min(strings - 1, Math.max(stepped, flagged));
 };
 
-const systemFrom = (seed: SiteSeed, role: SitePowerRole, now: number): SolarSystem => {
+const systemFrom = (
+  seed: SiteSeed,
+  role: SitePowerRole,
+  now: number,
+  handling: Record<string, AlarmHandling>,
+): SolarSystem => {
   const kwp = hybridPlant(seed, role).solarKwp;
   const {moduleWatts, modules, strings, wiring} = arrayBuild(seed.id, kwp);
 
@@ -298,7 +358,7 @@ const systemFrom = (seed: SiteSeed, role: SitePowerRole, now: number): SolarSyst
     modules,
     moduleWatts,
     wiring,
-    downStrings: darkStrings(seed, role, strings, now),
+    downStrings: darkStrings(seed, role, strings, now, handling),
     commissionedAt: commissionedAt(seed.id, now),
     lastUpdated: heardFrom(seed.id, silent, now),
     state,
@@ -313,9 +373,10 @@ const systemFrom = (seed: SiteSeed, role: SitePowerRole, now: number): SolarSyst
 export const solarSystems = (
   roles: Record<string, SitePowerRole>,
   now: number = Date.now(),
+  handling: HandlingArg = {},
 ): Array<SolarSystem> =>
   siteSeeds().filter((seed) => hasSolar(roles[seed.id] ?? FALLBACK_POWER_ROLE))
-    .map((seed) => systemFrom(seed, roles[seed.id] ?? FALLBACK_POWER_ROLE, now))
+    .map((seed) => systemFrom(seed, roles[seed.id] ?? FALLBACK_POWER_ROLE, now, handling))
     .sort((left, right) => left.siteName.localeCompare(right.siteName));
 
 /**
@@ -329,12 +390,13 @@ export const solarSystem = (
   systemId: string,
   roles: Record<string, SitePowerRole>,
   now: number = Date.now(),
+  handling: HandlingArg = {},
 ): SolarSystem | undefined => {
   const seed = siteSeed(systemId);
   if (seed === undefined) return undefined;
 
   const role = roles[systemId] ?? FALLBACK_POWER_ROLE;
-  return hasSolar(role) ? systemFrom(seed, role, now) : undefined;
+  return hasSolar(role) ? systemFrom(seed, role, now, handling) : undefined;
 };
 
 /**
@@ -348,10 +410,20 @@ export const solarSystem = (
  */
 export const useSolarSystems = (now: number): Array<SolarSystem> => {
   const roles = useSitePowerRoles();
-  return useMemo(() => solarSystems(roles, now), [roles, now]);
+  /* `downStrings` is floored by the standing `PV N Array Fault` rows, so it moves when a
+     row is cleared — which makes the alarm store an input to the system model. Both hooks
+     subscribe for that reason and for no other. `useAlarmHandling` is a
+     `useSyncExternalStore` over one stable snapshot, so this is a reference in the memo's
+     deps rather than a new object each render. */
+  const handling = useAlarmHandling();
+  return useMemo(() => solarSystems(roles, now, handling), [roles, now, handling]);
 };
 
 export const useSolarSystem = (systemId: string, now: number): SolarSystem | undefined => {
   const roles = useSitePowerRoles();
-  return useMemo(() => solarSystem(systemId, roles, now), [systemId, roles, now]);
+  const handling = useAlarmHandling();
+  return useMemo(
+    () => solarSystem(systemId, roles, now, handling),
+    [systemId, roles, now, handling],
+  );
 };

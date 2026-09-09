@@ -1,3 +1,4 @@
+import type {LinkProps} from '@tanstack/react-router';
 import {MoonIcon} from 'lucide-react';
 
 import {DetailBand} from '@/components/global/DetailBand';
@@ -9,6 +10,7 @@ import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {UNHANDLED, isStanding} from '@/modules/genset/types/alarmState.type';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {siteSeed} from '@/modules/site/data/siteSeed';
+import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {junctionBoxes} from '../../data/junctionBoxes';
 import {solarAlarmQueue} from '../../data/solarAlarmQueue';
@@ -98,12 +100,6 @@ export const SystemHome = ({
   const seed = siteSeed(system.siteId);
 
   /**
-   * The array's boxes, or none where nobody has surveyed the roof. Decides which of
-   * band 2's two layouts is drawn — see the band.
-   */
-  const boxes = junctionBoxes(system);
-
-  /**
    * Why the sun is not up, said out loud — and built here rather than in the band so
    * that both of band 2's layouts place the same badge.
    *
@@ -142,6 +138,19 @@ export const SystemHome = ({
    */
   const handling = useAlarmHandling();
   const {standing} = solarAlarmQueue(system, detail, now, handling);
+
+  /**
+   * The array's boxes, or none where nobody has surveyed the roof. Decides which of
+   * band 2's two layouts is drawn — see the band.
+   *
+   * **Built after `standing` and from it**, which is why it is here rather than at the
+   * top of the component. The rows place the dark strings: a standing `PV N Array Fault`
+   * puts the short string in *box N* rather than letting the count spread round the boxes
+   * from the front, so the card that says a box has a fault is the card that reads a
+   * string short. `junctionBoxes.placeDark` carries the argument; `systems.ts` floors
+   * `system.downStrings` at the number of faulted boxes so the budget is there to place.
+   */
+  const boxes = junctionBoxes(system, standing);
 
   /**
    * Band 5 keeps only the derived rules, because it is the band that draws them.
@@ -186,6 +195,16 @@ export const SystemHome = ({
           {label: 'Generation today', value: generatedToday},
         ]}
         counts={countBySeverity(standing)}
+        /* The pill opens this asset's own Alarms tab — the tab the count is read
+           from, so the figure and the queue behind it cannot be two lists.
+           `keepFrom` carries `from` across, which is what keeps a system
+           opened from a site crumbing back to that site rather than springing to
+           its register. See `fromSearch.type.ts`. */
+        alarmLink={{
+          to: '/solar/$systemId/alarms',
+          params: {systemId: system.id},
+          search: keepFrom as unknown as LinkProps['search'],
+        }}
       />
 
       {/* Band 2 — the array's generation, a junction box at a time.
