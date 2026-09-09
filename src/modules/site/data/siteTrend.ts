@@ -164,8 +164,10 @@ export type SiteTrend = {
    * The bank's day as one line of movement: the initial state of charge as a
    * marker, what discharged laid to its left, what charged (by source) to its
    * right, ending at the state the bank holds now. Every length is in points of
-   * capacity, so the ends and the segments are one arithmetic:
-   * `end = initial − out + in`.
+   * capacity. `endPct` is the SoC curve's own last reading rather than
+   * `initial − out + in`: the in-segments are what the sources offered at the
+   * bus, and the round-trip loss keeps part of that from ever becoming stored
+   * charge — the bar shows the movement, the bank says where it landed.
    *
    * Day only, by physics rather than by choice: a month moves several times the
    * bank's capacity through it, and lengths like that laid against a 0–100
@@ -642,10 +644,17 @@ const dayTrend = (
       ];
       const inPct = inSegments.reduce((total, segment) => total + segment.pct, 0);
 
-      if (outPct + inPct > 0) {
+      // The end is the curve's own last reading, not `initial − out + in`: the
+      // charge segments measure what the sources *offered* at the bus, and the
+      // round-trip loss keeps roughly a tenth of that from ever becoming stored
+      // charge — summed, the arithmetic overshoots the bank's real level. The
+      // bar shows the movement; the bank says where it landed.
+      const lastSoc = [...points].reverse().find((point) => point.value !== null)?.value;
+
+      if (outPct + inPct > 0 && lastSoc !== null && lastSoc !== undefined) {
         flow = {
           initialPct,
-          endPct: Math.round((initialPct - outPct + inPct) * 10) / 10,
+          endPct: lastSoc,
           out: {
             label: 'Discharged',
             token: 'text-battery',
