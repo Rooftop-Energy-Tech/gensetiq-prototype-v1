@@ -988,7 +988,7 @@ const periodTrend = (
     unit: metric === 'GENSET' ? 'h' : 'kWh',
     caption:
       metric === 'BATTERY'
-        ? `Energy into the bank per ${grain}, by source${extent}`
+        ? `Battery charge / discharge per ${grain}${extent}`
         : metric === 'GENSET'
           ? `Hours run per ${grain}${extent}`
           : `Energy per ${grain}${extent}`,
