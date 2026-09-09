@@ -289,10 +289,20 @@ export const SubrackPanel = ({
               <ThermometerIcon className="text-tertiary" aria-hidden="true" />
               {module.tempC.toFixed(1)} °C
             </Badge>
+            {/* The row's rank in its own words, matching the bay's colour in the
+                drawing and the battery rack's badge. It said `Fault` in flat amber,
+                which named the kind of mark and left the rank to be read off the
+                border — and the row it refers to is listed by `BayAlarms` a few lines
+                below in this same severity's colour, so the two now agree. */}
             {module.fault === 'ASSERTED' && (
               <Badge variant="secondary" className="whitespace-pre">
-                <TriangleAlertIcon className="text-severity-warning" aria-hidden="true" />
-                <span className="text-severity-warning">Fault</span>
+                <TriangleAlertIcon
+                  className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}
+                  aria-hidden="true"
+                />
+                <span className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}>
+                  {SEVERITY_META[module.faultSeverity ?? 'WARNING'].label}
+                </span>
               </Badge>
             )}
             {module.fault === 'NOT_REPORTED' && (

@@ -5,7 +5,9 @@ import {TankGlyph} from '@/components/global/TankGlyph';
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
+import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {
@@ -91,16 +93,22 @@ import type {BatteryModule} from '../../types/module.type';
  *
  * - **`Lithium Battery 4 Abnormal` is standing.** The module's own BMS reports a
  *   problem with itself, on a register the site's monitoring unit polls. A *reported*
- *   fact. The card takes the warning **fill** and edge and a `Fault` badge — the same
- *   language, and the same badge wording, a faulted bay gets in the cabinet's shelf.
+ *   fact. The card takes an edge, a fill **and its badge** from the row's own severity
+ *   — red and `Critical` for what every module row on this estate is, amber and
+ *   `Warning` a rank down, and the achromatic grey `Neutral` for a note. All three
+ *   come out of one `SEVERITY_META` entry, so nothing on the card can disagree with
+ *   anything else on it about how bad the row is.
  * - **The module is `IMBALANCE_POINTS` or more under the pack.** This app's own
- *   arithmetic over figures it derived. The card takes the warning **edge** and keeps
- *   the plain `element` surface it always had.
+ *   arithmetic over figures it derived. It has no alarm and therefore no severity, so
+ *   it stays amber, takes the **edge** only, and keeps the plain `element` surface it
+ *   always had.
  *
- * So a filled card is something a device said and an outlined one is something this
- * app worked out, which is a distinction no other page of the prototype has had to
- * draw and this one does — because the same amber was already spent on the derived
- * mark before there was a reported one to put beside it.
+ * Two rules say the same thing twice on purpose. **Hue**: red means a device reported
+ * it, amber means this app worked it out. **Fill**: a filled card is reported, an
+ * outlined one derived. Either alone would do it today — but hue alone fails the day
+ * a module row arrives at `WARNING` severity, when both marks would be amber and only
+ * the fill still separates them, and fill alone is what was here before and drew a
+ * critical fault in the warning colour.
  *
  * The estate proves the two are worth separating rather than merging. At SWK-0559 the
  * faulted module is `M12` at 70.1% against a 66.5% pack — the **fullest module in the
@@ -145,23 +153,30 @@ const noteFor = (module: BatteryModule, bank: BatteryBank, lowestId: string): Mo
 };
 
 /**
- * The reported mark: the same badge, wording and colour a faulted bay carries.
+ * The reported mark: the row's severity, in the row's own words and colour.
  *
- * `Fault` rather than the row's own class, and flat `severity-warning` rather than
- * `SEVERITY_META[row.severity]` — which for every module row on this estate is
- * `CRITICAL`, and would put a red glyph in an amber card. That is the cabinet's rule
- * followed rather than a shortcut: the shelf marks a faulted bay in flat amber and
- * lets the panel beside it colour the named row by its own severity, because the mark
- * answers *go and look at this one* and the class answers *how bad*. This card is the
- * mark; the class is one tap away on the Alarms tab, where the row is ranked against
- * everything else standing.
+ * It said `Fault` in flat amber at every severity, which was one word doing two jobs
+ * badly — it named the *kind* of mark while the card's surface named the rank, so a
+ * critical module and a neutral note carried identical pills and a reader had to read
+ * the border to tell them apart. `Critical`, `Warning` and `Neutral` are the app's own
+ * severity words, the same three the Alarms tab ranks the row by and the same
+ * `SEVERITY_META` the surface is drawn from, so the pill and the card cannot disagree.
+ *
+ * `NEUTRAL` gets no hue, which is `SEVERITY_META`'s deliberate choice and not a gap: a
+ * neutral alert is a note rather than a problem, and giving it one would put it on the
+ * same footing as the two that are. It is still plainly a mark — the badge's own
+ * surface, a glyph, and the card's grey edge and shade — just an achromatic one.
  */
-const FaultBadge = () => (
-  <Badge variant="secondary" className="gap-1">
-    <TriangleAlertIcon className="text-severity-warning" aria-hidden="true" />
-    <span className="text-severity-warning">Fault</span>
-  </Badge>
-);
+const FaultBadge = ({severity}: {severity: AlertSeverity}) => {
+  const meta = SEVERITY_META[severity];
+
+  return (
+    <Badge variant="secondary" className="gap-1">
+      <TriangleAlertIcon className={meta.textClassName} aria-hidden="true" />
+      <span className={meta.textClassName}>{meta.label}</span>
+    </Badge>
+  );
+};
 
 /**
  * The register behind the mark, linked to the tab that can act on it.
@@ -282,12 +297,16 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
               key={module.id}
               className={cn(
                 'flex flex-col gap-2.5 rounded-md border p-3',
-                // Fill for reported, edge for derived, plain for neither — the doc at
-                // the top of this file argues why those are three states and not two.
-                // Fault wins the surface where both apply; the imbalance still says
-                // itself in the badge row below.
+                // Three states, not two — the doc at the top of this file argues why.
+                // A reported fault takes its **row's** edge and a tint; the derived
+                // imbalance takes an amber edge and no tint, because it has no row and
+                // therefore no severity to read. Fault wins the surface where both
+                // apply, and the imbalance still says itself in the badge row below.
                 fault !== undefined
-                  ? 'border-severity-warning/60 bg-severity-warning/10'
+                  ? cn(
+                      SEVERITY_META[fault.severity].edgeClassName,
+                      SEVERITY_META[fault.severity].tintClassName,
+                    )
                   : note?.flagged === true
                     ? 'border-severity-warning/40 bg-element'
                     : 'border-subtle bg-element',
@@ -303,7 +322,7 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
                 <span className="text-sm font-medium text-secondary">{module.label}</span>
 
                 <span className="flex min-w-0 flex-wrap items-center justify-end gap-1">
-                  {fault !== undefined && <FaultBadge />}
+                  {fault !== undefined && <FaultBadge severity={fault.severity} />}
 
                   {note !== undefined &&
                     (note.flagged ? (
