@@ -36,15 +36,30 @@ import type {Shelf, ShelfPosition} from '../types/shelfPosition.type';
  * off detection pins, so `SSU 3` in this drawing genuinely is the module `SSU 3 Fault`
  * is about.
  *
- * ## Why the layout is a constant and the counts are still checked
+ * ## Why the layout is a constant and every cabinet is still checked against it
  *
- * `shelfLayoutFits` compares the drawing's six-and-four against the monitoring unit's
- * own figures. They agree at the only site that has a cabinet page, so the check never
- * fires today — it fires the day a second unit is added to `UNITS` with a different
- * shelf, and on that day this elevation is a picture of somebody else's hardware.
- * Drawing it anyway would put confident bay numbers on bays that are not there, which
- * is worse than the card rack it replaced. So the page keeps the rack as the fallback
- * rather than deleting it.
+ * `shelfLayoutFits` asks two questions, and the second is the important one.
+ *
+ * **Were these modules counted, or sized?** `shelf.ts` gives a cabinet to every solar
+ * hybrid, sizing the shelf from the bank's recharge duty where no unit is fitted, and
+ * that model is trusted precisely because it reproduces SBH-1336's own six-and-four.
+ * A sized shelf is a good enough answer to *how many rectifiers* and no answer at all
+ * to *what does the front of this box look like* — nobody has opened it. This drawing
+ * is traced off a photograph of one cabinet, and it carries an SMU bay, a GIM and an
+ * M48500 that no model put there. So it is drawn only where `shelf === 'READ'`.
+ *
+ * That is not a hypothetical guard. `swk-0559` currently sizes to six rectifiers and
+ * five SSUs — one SSU away from matching — so a count check alone would start drawing
+ * a monitoring unit into a cabinet at a site that has none the moment `hybridPlant`'s
+ * figures shifted.
+ *
+ * **And does it have the bays this drawing has?** Six and four. That agrees at the one
+ * site with a unit, so this half never fires today — it fires the day a second unit is
+ * added to `UNITS` with a different shelf, and on that day this elevation is a picture
+ * of somebody else's hardware.
+ *
+ * Either way the page falls back to the card rack, which is a worse answer to *which
+ * one do I pull* and a perfectly good one to *what is in this shelf*.
  */
 
 /** How many of each kind this drawing has bays for. */
@@ -53,7 +68,9 @@ export const DRAWN_SSUS = 4;
 
 /** Is this elevation a drawing of *this* cabinet — see the note above. */
 export const shelfLayoutFits = (cabinet: SubrackCabinet): boolean =>
-  cabinet.rectifiers === DRAWN_RECTIFIERS && cabinet.ssus === DRAWN_SSUS;
+  cabinet.shelf === 'READ' &&
+  cabinet.rectifiers === DRAWN_RECTIFIERS &&
+  cabinet.ssus === DRAWN_SSUS;
 
 /**
  * `psu-3`, `ssu-1` — a module bay's key, from the one place that builds it.

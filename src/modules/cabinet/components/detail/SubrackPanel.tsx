@@ -295,14 +295,36 @@ export const SubrackPanel = ({
     case 'SMU': {
       const unit = monitoringUnit(cabinet.siteId);
 
+      /* `deviceName` and `slaveId` are nullable now that `shelf.ts` gives a cabinet
+         to every solar hybrid, and three of the four have no unit. This bay cannot be
+         reached at one of them — `shelfLayoutFits` requires `shelf === 'READ'`, so the
+         elevation is only drawn where the modules were counted off a device — but the
+         type does not know that, and an implication is not a guarantee.
+         So it is handled rather than asserted, and handled the way the details band
+         handles the same pair: not with an em-dash where a name goes, which reads as a
+         unit nobody recorded, but by saying what is true. A drawing showing an SMU bay
+         with no SMU in it is exactly the "nothing fitted read as nothing wrong"
+         mistake, and this is the one panel that would commit it. */
+      if (cabinet.deviceName === null) {
+        return (
+          <InertBay label="Monitoring unit" identity="No unit fitted">
+            This bay is empty. The shelf's make-up at this site is sized from the
+            plant rather than counted off a device, so nothing here reports on the
+            cabinet — and nothing in the app has looked inside this box.
+          </InertBay>
+        );
+      }
+
       return (
         <SiteDeviceCard
           label="Monitoring unit"
           identity={cabinet.deviceName}
           badges={
-            <Badge variant="secondary" className="whitespace-pre">
-              Slave {cabinet.slaveId}
-            </Badge>
+            cabinet.slaveId === null ? undefined : (
+              <Badge variant="secondary" className="whitespace-pre">
+                Slave {cabinet.slaveId}
+              </Badge>
+            )
           }
         >
           <p className="max-w-prose text-sm text-secondary">
