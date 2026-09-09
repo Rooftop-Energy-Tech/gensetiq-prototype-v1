@@ -8,7 +8,7 @@ import {amount} from '@/lib/format';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
-import {CHARGE_VIEW, TrendPanel} from '@/modules/site/components/TrendPanel';
+import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {siteSummary} from '@/modules/site/data/sites';
@@ -208,15 +208,12 @@ export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
 
       <div className="border-t border-subtle" />
 
-      {/* The bank over time, in the two views a bank has.
+      {/* The bank over time: `Battery SoC`, the state of charge this page has
+          always drawn — the answer to "will it last the night".
 
-          `Charge mix` leads, and it is the newer of the two: **where the charge
-          came from**, stacked by source. A bank that spent the night on diesel and
-          a bank that filled off the roof hold the same percentage, and which of
-          those two a site is doing is the entire argument for a solar hybrid — so
-          it is what this page should open on. `Battery level` behind it is the
-          state of charge this page has always drawn, and it is still the answer to
-          "will it last the night".
+          `Charge mix` — where the charge came from, stacked by source — is parked
+          rather than deleted: `CHARGE_VIEW` and `siteChargeMix` still answer for
+          it, so returning it is re-adding it to `metrics` here.
 
           A bank whose site has been flipped away from storage cannot reach this
           page at all, so `seed` is only ever missing for an id the router already
@@ -226,7 +223,7 @@ export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
           seed={seed}
           role={bank.role}
           gensetIds={[]}
-          metrics={[CHARGE_VIEW, 'BATTERY']}
+          metrics={['BATTERY']}
           ratedKw={ratedKw}
           now={now}
           ariaLabel="Bank history"

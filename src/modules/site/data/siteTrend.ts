@@ -68,7 +68,7 @@ export const SITE_TREND_PERIOD_LABEL: Record<SiteTrendPeriod, string> = {
 
 export const SITE_TREND_METRIC_LABEL: Record<SiteTrendMetric, string> = {
   SOLAR: 'Solar generation',
-  BATTERY: 'Battery level',
+  BATTERY: 'Battery SoC',
   GENSET: 'Genset runtime',
   LOAD: 'Consumption',
 };
