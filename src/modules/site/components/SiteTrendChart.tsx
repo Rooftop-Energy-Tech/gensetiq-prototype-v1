@@ -329,7 +329,7 @@ export const SiteTrendChart = ({
                       textAnchor="middle"
                       className="fill-current text-[10px] text-secondary tabular-nums"
                     >
-                      {BAR_FIGURE.format(point.value)}
+                      {BAR_FIGURE.format(point.value)} {unit}
                     </text>
                   )}
                   {points.length <= 13 && paired !== null && paired !== undefined && paired > 0 && (
@@ -339,7 +339,7 @@ export const SiteTrendChart = ({
                       textAnchor="middle"
                       className="fill-current text-[10px] text-secondary tabular-nums"
                     >
-                      {BAR_FIGURE.format(paired)}
+                      {BAR_FIGURE.format(paired)} {unit}
                     </text>
                   )}
                 </g>
