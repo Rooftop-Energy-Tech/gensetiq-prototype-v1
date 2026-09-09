@@ -96,12 +96,12 @@ export const SiteTrendChart = ({
   const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
-  // The reference is in the ceiling too: an expectation the bars all missed must
-  // sit inside the frame, not on its edge — the shortfall is the picture.
-  const referenced = (trend.reference?.values ?? []).filter(
+  // The rules are in the ceiling too: an expectation the bars all missed must sit
+  // inside the frame, not on its edge — the shortfall is the picture.
+  const ruled = [...(trend.reference?.values ?? []), ...(trend.average?.values ?? [])].filter(
     (value): value is number => value !== null,
   );
-  const top = trend.axisMax ?? niceMax(Math.max(...readings, ...referenced, 1));
+  const top = trend.axisMax ?? niceMax(Math.max(...readings, ...ruled, 1));
 
   // Bars are centred in their own slot; a curve's points sit on the edges, so the
   // first and last land on the axis rather than half a slot inside it.
@@ -248,59 +248,39 @@ export const SiteTrendChart = ({
             )
           : null}
 
-        {/* The expected reference: one dashed step per bucket, spanning that
-            bucket's slot at what the physics promised it, joined at the slot
-            edges into a staircase. Muted ink with short dashes, so it reads
-            apart from the average's long-dashed primary rule. Drawn under the
-            average so the firmer claim wins where they cross. */}
-        {bars && trend.reference !== undefined && (
-          <polyline
-            points={trend.reference.values
-              .flatMap((value, index) =>
-                value === null
-                  ? []
-                  : [
-                      `${AXIS_WIDTH + slot * index},${y(value)}`,
-                      `${AXIS_WIDTH + slot * (index + 1)},${y(value)}`,
-                    ],
-              )
-              .join(' ')}
-            fill="none"
-            className="stroke-current text-secondary"
-            strokeWidth={1.5}
-            strokeDasharray="2 3"
-          />
-        )}
-
-        {/* The average, as a rule the eye can hold each bar against. Ink rather
-            than the series' own colour — a dashed solar-orange line over solar-
-            orange bars would vanish exactly where it crosses them. */}
-        {trend.average !== undefined && (
-          <g className="text-primary">
-            {/* The rule stops short of its own figure: the label sits *in* the
-                line, on its right end, centred on the level it names — a gap
-                rather than a backdrop, so nothing has to know the card's ground
-                colour. The width the gap needs is estimated off the glyph count,
-                which at a 10px monospace-figured face is close enough. */}
-            <line
-              x1={AXIS_WIDTH}
-              y1={y(trend.average.value)}
-              x2={width - (`${trend.average.value} ${unit}`.length * 6 + 8)}
-              y2={y(trend.average.value)}
-              className="stroke-current"
-              strokeWidth={1.5}
-              strokeDasharray="4 3"
-            />
-            <text
-              x={width - 2}
-              y={y(trend.average.value) + 3.5}
-              textAnchor="end"
-              className="fill-current text-[10px] font-medium tabular-nums"
-            >
-              {trend.average.value} {unit}
-            </text>
-          </g>
-        )}
+        {/* The two rules over the bars, each a staircase: one step per bucket,
+            spanning that bucket's slot at its own level, joined at the slot
+            edges. Expected in muted ink with short dashes; the average in
+            primary ink with long ones, drawn second so the firmer claim wins
+            where they cross. Neither is labelled on the plot — their figures
+            live in the strip below, which follows the hover. Ink rather than
+            the series' own colour: a dashed solar-orange line over solar-orange
+            bars would vanish exactly where it crosses them. */}
+        {bars &&
+          [
+            {rule: trend.reference, token: 'text-secondary', dash: '2 3'},
+            {rule: trend.average, token: 'text-primary', dash: '4 3'},
+          ].map(({rule, token, dash}) =>
+            rule === undefined ? null : (
+              <polyline
+                key={rule.label}
+                points={rule.values
+                  .flatMap((value, index) =>
+                    value === null
+                      ? []
+                      : [
+                          `${AXIS_WIDTH + slot * index},${y(value)}`,
+                          `${AXIS_WIDTH + slot * (index + 1)},${y(value)}`,
+                        ],
+                  )
+                  .join(' ')}
+                fill="none"
+                className={cn('stroke-current', token)}
+                strokeWidth={1.5}
+                strokeDasharray={dash}
+              />
+            ),
+          )}
 
         {pieces.map((piece, index) => {
           const {area, line} = shapeOf(piece);
@@ -388,28 +368,29 @@ export const SiteTrendChart = ({
           </span>
         ))}
 
-        {trend.average !== undefined && (
-          <span className="flex items-center gap-1.5 text-primary">
-            <span className="w-3 border-t border-dashed border-current" aria-hidden="true" />
-            <span className="text-tertiary">
-              {trend.average.label} ·{' '}
-              <span className="text-primary tabular-nums">
-                {trend.average.value} {unit}
+        {/* The rules' figures, following the hover: pointing at a bar restates
+            both rules at that bar's own bucket — March's average is a 31-day
+            figure, February's a 28-day one — and pointing at nothing shows the
+            window's mean. The bucket in progress has no step, so it falls back
+            to the mean rather than to a blank. */}
+        {[
+          {rule: trend.average, chip: 'border-dashed', token: 'text-primary'},
+          {rule: trend.reference, chip: 'border-dotted', token: 'text-secondary'},
+        ].map(({rule, chip, token}) =>
+          rule === undefined ? null : (
+            <span key={rule.label} className={cn('flex items-center gap-1.5', token)}>
+              <span className={cn('w-3 border-t border-current', chip)} aria-hidden="true" />
+              <span className="text-tertiary">
+                {rule.label} ·{' '}
+                <span className="text-primary tabular-nums">
+                  {hovered !== null && rule.values[hovered] !== null
+                    ? rule.values[hovered]
+                    : rule.value}{' '}
+                  {unit}
+                </span>
               </span>
             </span>
-          </span>
-        )}
-
-        {trend.reference !== undefined && (
-          <span className="flex items-center gap-1.5 text-secondary">
-            <span className="w-3 border-t border-dotted border-current" aria-hidden="true" />
-            <span className="text-tertiary">
-              {trend.reference.label} ·{' '}
-              <span className="text-primary tabular-nums">
-                {trend.reference.value} {unit}
-              </span>
-            </span>
-          </span>
+          ),
         )}
 
         <span
@@ -424,13 +405,7 @@ export const SiteTrendChart = ({
               : `${trend.total.label} · ${trend.total.value}`
             : `${shown.label} · ${
                 shown.value === null ? 'not yet' : `${shown.value} ${unit}`
-              }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}${
-                hovered === null ||
-                trend.reference?.values[hovered] === null ||
-                trend.reference?.values[hovered] === undefined
-                  ? ''
-                  : ` · expected ${trend.reference.values[hovered]} ${unit}`
-              }`}
+              }${hoveredTint === undefined ? '' : ` · ${hoveredTint}`}`}
         </span>
       </div>
     </div>
