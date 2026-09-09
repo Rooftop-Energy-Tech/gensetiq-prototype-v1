@@ -86,8 +86,15 @@ const MIN_WIDTH = 460;
 /** A label column either side of the compound, in pixels. */
 const GUTTER = 128;
 
-/** Vertical room a stacked label needs before the next one starts. */
-const LABEL_PITCH = 52;
+/**
+ * Vertical room a stacked label needs before the next one starts.
+ *
+ * It has to clear the **box**, not the text: three lines at 11px and 13px, plus 12px of
+ * padding, 4px of internal gaps and the border, come to about 56px. At 52 the stacker was
+ * pitching them tighter than they are tall, so a run of labels in one gutter arrived as a
+ * single block with hairlines through it. 66 leaves a clear gap between every pair.
+ */
+const LABEL_PITCH = 66;
 
 /** Breathing room above and below the plant. */
 const PAD_Y = 20;

@@ -66,11 +66,22 @@ export const SITE_TREND_PERIOD_LABEL: Record<SiteTrendPeriod, string> = {
   lifetime: 'Lifetime',
 };
 
+/**
+ * What the picker calls each series.
+ *
+ * `LOAD` is **Site load**, which is also what `OVERVIEW_SERIES_LABEL` calls it on the
+ * energy-overview chart the same band draws. It read `Consumption` here, and the two
+ * labels were the same quantity under two names on one page — a reader stepping from the
+ * overview's legend to the picker beside it had no way to know that. `Site load` is the
+ * one that survives, because it names the thing rather than the act: the site's own draw
+ * is what the other three series are measured against, and it is a load whether or not
+ * anybody is consuming anything at that moment.
+ */
 export const SITE_TREND_METRIC_LABEL: Record<SiteTrendMetric, string> = {
   SOLAR: 'Solar generation',
   BATTERY: 'Battery level',
   GENSET: 'Genset runtime',
-  LOAD: 'Consumption',
+  LOAD: 'Site load',
 };
 
 /**
@@ -78,8 +89,8 @@ export const SITE_TREND_METRIC_LABEL: Record<SiteTrendMetric, string> = {
  *
  * The plant colours the app already uses — `--solar`, `--battery`, `--fuel` — so a
  * reader who has learnt that orange is the array on the diagram does not have to
- * learn it again here. Consumption takes `text-primary` rather than a fifth hue: it
- * is the quantity the other three are measured *against*, not another source.
+ * learn it again here. The site load takes `text-primary` rather than a fifth hue: it is
+ * the quantity the other three are measured *against*, not another source.
  */
 export const SITE_TREND_METRIC_TOKEN: Record<SiteTrendMetric, string> = {
   SOLAR: 'text-solar',
