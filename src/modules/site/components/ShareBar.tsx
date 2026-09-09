@@ -28,18 +28,35 @@ export const ShareBar = ({
 
   return (
     <div className="mt-3 flex max-w-md flex-col gap-2">
-      <div
-        className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full"
-        role="img"
-        aria-label={segments.map((s) => `${s.label} ${s.share}`).join(', ')}
-      >
-        {segments.map((segment) => (
-          <div
-            key={segment.label}
-            className={cn('h-full bg-current', segment.token)}
-            style={{width: `${segment.pct}%`}}
-          />
-        ))}
+      <div className="flex w-full items-center gap-2">
+        <div
+          className="flex h-5 min-w-0 flex-1 gap-[2px] overflow-hidden rounded-full"
+          role="img"
+          aria-label={segments.map((s) => `${s.label} ${s.share}`).join(', ')}
+        >
+          {segments.map((segment) => (
+            <div
+              key={segment.label}
+              className={cn(
+                'flex h-full items-center justify-center overflow-hidden bg-current',
+                segment.token,
+              )}
+              style={{width: `${segment.pct}%`}}
+            >
+              {/* The segment says its own name where it has the room — a
+                  doughnut's callout, inlined. Slivers stay mute and keep the
+                  legend below as their voice. */}
+              {segment.pct >= 15 && (
+                <span className="truncate px-1.5 text-[10px] font-medium whitespace-nowrap text-white tabular-nums">
+                  {segment.label} · {segment.share}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        {/* What the segments add up to — the closed ring of the doughnut this
+            bar uncurls. */}
+        <span className="text-xs text-tertiary tabular-nums">100%</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
