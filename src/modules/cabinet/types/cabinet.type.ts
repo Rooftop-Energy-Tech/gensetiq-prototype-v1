@@ -32,10 +32,13 @@
  * that prints a module count says which it is looking at.
  *
  * So `subrackCabinet` answers `undefined` only where there is neither a unit nor an
- * array, and the site rail drops the `Cabinet` row there. **The traced elevation is a
- * separate question** — it is drawn only where the shelf was counted, because a
- * drawing of the front of a box is not something a model can size. See
- * `shelfLayoutFits`.
+ * array, and the site rail drops the `Cabinet` row there. **The traced elevation is
+ * drawn at every one of them**, which it was not: it used to require a shelf that had
+ * been counted, on the argument that the front of a box is not something a model can
+ * size. The bays are a fact about the cabinet model and the modules in them are the
+ * site's, so the geometry is shared and `fitted` carries the difference — a
+ * five-rectifier shelf is this drawing with one bay drawn empty. See `shelfLayoutFits`,
+ * which now asks only whether the counts fit the bays.
  */
 export type SubrackCabinet = {
   /** The cabinet's id, which is its site's — one DC plant per site. */

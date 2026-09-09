@@ -663,6 +663,46 @@ export const SubrackPanel = ({
       );
     }
 
+    /* A module bay with nothing in it, which now happens at three of the four
+       cabinets: `SBH-1495` and `SWK-1163` fit five rectifiers into six bays.
+       It reaches here rather than the branch above because that branch needs a
+       `SubrackModule`, and there is no module to have readings for. Without this case
+       the bay fell through to `default` and drew an empty panel — a bay the drawing
+       invites you to click and then says nothing about. */
+    case 'RECTIFIER':
+    case 'SSU': {
+      const rectifierBay = position.kind === 'RECTIFIER';
+      const fittedCount = rectifierBay ? cabinet.rectifiers : cabinet.ssus;
+
+      return (
+        <InertBay
+          label={rectifierBay ? 'Rectifier bay' : 'Solar Supply Unit bay'}
+          identity={`${position.label} · empty`}
+          part={partNumberOf(position)}
+          line="Nothing is fitted in this bay, so the shelf is carrying less than its metal takes."
+          rows={[
+            {label: 'Takes', value: position.part ?? 'Unknown part'},
+            {
+              label: 'Fitted in this shelf',
+              value: rectifierBay
+                ? `${fittedCount} of ${RECTIFIER_POSITIONS} positions`
+                : `${fittedCount}`,
+            },
+            /* The reason an empty bay is worth a panel at all: it is headroom, and
+               headroom is the fact a person deciding what to take to site wants. */
+            {
+              label: 'Adding one gives',
+              value: rectifierBay
+                ? amount(cabinet.rectifierKw, 'kW')
+                : cabinet.ssuKw === null
+                  ? '—'
+                  : amount(cabinet.ssuKw, 'kW', 2),
+            },
+          ]}
+        />
+      );
+    }
+
     /* A blank is never selected, so there is nothing to show for one.
        It is drawn and left inert on purpose. Two of the three sit where the
        photograph shows cable entries and a breaker cluster, and the honest thing to

@@ -1,9 +1,9 @@
 import {SunMediumIcon, TriangleAlertIcon, UtilityPoleIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
-import {CABINET_SHELVES, isCompactPosition} from '../../data/shelfLayout';
+import {isCompactPosition} from '../../data/shelfLayout';
 import {SHELF_COLUMNS, isModulePosition} from '../../types/shelfPosition.type';
-import type {ShelfPosition} from '../../types/shelfPosition.type';
+import type {Shelf, ShelfPosition} from '../../types/shelfPosition.type';
 import type {SubrackModule} from '../../types/subrackModule.type';
 
 /**
@@ -143,7 +143,10 @@ const bayClassName = (
  */
 const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): string => {
   if (position.fitted === false) {
-    return `${position.label}: empty, no inverter fitted`;
+    // Kind-neutral. It said "no inverter fitted", which was true while the inverter
+    // slots were the only bays that could be empty — a five-rectifier shelf has an
+    // empty rectifier bay, and it is not an inverter.
+    return `${position.label}: empty, nothing fitted`;
   }
 
   if (module === undefined) {
@@ -205,10 +208,20 @@ const BayIcon = ({module}: {module: SubrackModule}) => {
 };
 
 export const SubrackFigure = ({
+  shelves,
   modules,
   selected,
   onSelect,
 }: {
+  /**
+   * The two shelves, already built for this cabinet's counts.
+   *
+   * Handed in rather than derived here. The band beside this figure needs the same
+   * geometry — to resolve a click into a position and to count the parts in its
+   * caption — and two components building it from the same counts is two chances for
+   * the drawing and the lookup to disagree about where a bay is. See `cabinetShelves`.
+   */
+  shelves: ReadonlyArray<Shelf>;
   modules: ReadonlyArray<SubrackModule>;
   selected: string;
   onSelect: (key: string) => void;
@@ -231,7 +244,7 @@ export const SubrackFigure = ({
 
   return (
     <div className="flex w-full max-w-[44rem] flex-col gap-5">
-      {CABINET_SHELVES.map((shelf) => (
+      {shelves.map((shelf) => (
         <figure key={shelf.key} className="m-0 flex flex-col gap-1.5">
           {/* The shelf's own frame, in the inset surface, so the bays read as being
               inside a box rather than as loose tiles on the page. */}

@@ -4,7 +4,7 @@ import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {plantAlarmsIn} from '@/modules/site/data/plantAlarms';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
-import {CABINET_SHELVES, bayKey, shelfLayoutFits, shelfPositions} from '../../data/shelfLayout';
+import {bayKey, cabinetShelves, shelfLayoutFits} from '../../data/shelfLayout';
 import {reportedSlots, subrackModules} from '../../data/subrackModules';
 import {cabinetFlowLabel} from '../../types/cabinet.type';
 import type {SubrackCabinet} from '../../types/cabinet.type';
@@ -62,7 +62,12 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
 
   const [picked, setPicked] = useState<string | undefined>(undefined);
   const selected = picked ?? shelfDefaultBay(cabinet, modules);
-  const position = shelfPositions().find((bay) => bay.key === selected);
+  /* Built once here and handed to both the figure and the lookup below, so the drawing
+     and the click that resolves against it cannot disagree about where a bay is. */
+  const shelves = cabinetShelves(cabinet);
+  const position = shelves
+    .flatMap((shelf) => shelf.positions)
+    .find((bay) => bay.key === selected);
 
   /* Not this cabinet's shelf — the elevation would label bays that are not there.
      The grid of cards is the honest answer instead, and it brings its own heading, so
@@ -76,13 +81,17 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
    *
    * Two kinds of position are excluded and for the same reason: they are not parts.
    * **Blanking plates**, which are metal nobody has identified, and **empty slots** —
-   * two of the ETP23006's three inverter bays. Twenty-three positions are drawn, two
-   * are blanks and two are empty slots, so nineteen are parts. Counting the other four
-   * would put absences in a denominator that exists to say how much of the real
-   * hardware anybody is watching, and it would understate the gap rather than state
-   * it.
+   * two of the ETP23006's three inverter bays, plus any module bay this site has not
+   * filled. Counting absences would put them in a denominator that exists to say how
+   * much of the real hardware anybody is watching, understating the gap rather than
+   * stating it.
+   *
+   * Which is why this is computed from the shelves rather than written down: the count
+   * differs per cabinet now. Twenty-three positions are drawn at all four; SBH-1336 has
+   * nineteen parts, SWK-0559 twenty because its fifth solar unit takes a bay that is a
+   * blanking plate elsewhere, and the two five-rectifier sites eighteen.
    */
-  const parts = CABINET_SHELVES.reduce(
+  const parts = shelves.reduce(
     (total, shelf) =>
       total +
       shelf.positions.filter((bay) => bay.kind !== 'BLANK' && bay.fitted !== false)
@@ -132,7 +141,12 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
         className="flex flex-col gap-4 xl:grid xl:items-start xl:gap-6"
         style={{gridTemplateColumns: 'minmax(0, 44rem) minmax(20rem, 1fr)'}}
       >
-        <SubrackFigure modules={modules} selected={selected} onSelect={setPicked} />
+        <SubrackFigure
+          shelves={shelves}
+          modules={modules}
+          selected={selected}
+          onSelect={setPicked}
+        />
 
         <div className="min-w-0">
           <SubrackPanel
