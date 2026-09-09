@@ -59,21 +59,27 @@ export const ShareBar = ({
         <span className="text-sm text-tertiary tabular-nums">100%</span>
       </div>
 
-      {/* One line, always: the legend is short facts, and wrapping them made
-          the reader assemble a sentence from two rows. The percentages are not
-          restated — the segments carry them — so each entry is the energy its
-          share corresponds to, and the window's total sits at the right end,
-          directly under the 100% it is the figure for. */}
+      {/* The legend mirrors the track's own geometry — same widths, same gaps —
+          so each entry sits directly under the segment it prices, the way a
+          doughnut's callouts sit on their own arcs. The percentages are not
+          restated (the segments carry them): each entry is the energy its share
+          corresponds to, and the window's total right-aligns beneath the 100%
+          it is the figure for. */}
       <div className="flex w-full items-center gap-3 whitespace-nowrap text-sm">
-        <div className="flex min-w-0 flex-1 items-center gap-x-5">
+        <div className="flex min-w-0 flex-1 gap-[2px]">
           {segments.map((segment) => (
-            <span key={segment.label} className={cn('flex items-center gap-1.5', segment.token)}>
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-current" aria-hidden="true" />
-              <span className="text-tertiary">
-                {segment.label} ·{' '}
-                <span className="text-primary tabular-nums">{segment.energy}</span>
+            <div key={segment.label} style={{width: `${segment.pct}%`}}>
+              <span className={cn('flex items-center gap-1.5', segment.token)}>
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-current"
+                  aria-hidden="true"
+                />
+                <span className="text-tertiary">
+                  {segment.label} ·{' '}
+                  <span className="text-primary tabular-nums">{segment.energy}</span>
+                </span>
               </span>
-            </span>
+            </div>
           ))}
         </div>
 
