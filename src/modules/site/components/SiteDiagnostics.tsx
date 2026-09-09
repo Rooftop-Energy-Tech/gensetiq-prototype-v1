@@ -51,7 +51,13 @@ export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: numb
     // The composition leads: what carried the load. Its other half — `CHARGE_VIEW`,
     // what charged the bank — is parked rather than deleted: `siteChargeMix` and
     // the chart still answer for it, so returning it is re-adding it to this list.
-    return hasOverview(seed, role) ? [OVERVIEW_VIEW, ...single] : single;
+    // `LOAD` goes with it wherever the composition exists: the load is the
+    // distribution's own dashed crown, and a second tab restating it was one tab
+    // of noise. A site with no bank has no composition, so Consumption stays its
+    // only load view there.
+    return hasOverview(seed, role)
+      ? [OVERVIEW_VIEW, ...single.filter((metric) => metric !== 'LOAD')]
+      : single;
   }, [seed, role, gensets.length]);
 
   // Stable across renders, or `TrendPanel`'s series would be rebuilt on every one:
