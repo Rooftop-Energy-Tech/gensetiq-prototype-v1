@@ -1,5 +1,6 @@
 import {spread} from '@/modules/genset/data/spread';
 import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
+import {isStanding} from '@/modules/genset/types/alarmState.type';
 import type {AlarmHandling} from '@/modules/genset/types/alarmState.type';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import type {SubrackCabinet} from '../types/cabinet.type';
@@ -62,6 +63,16 @@ const SLOT_SCATTER_C = 0.8;
  * module in the slot — the pair is the device's best diagnostic precisely because the
  * two are separable, and marking a module faulted because the array behind it has a
  * dead string would throw that away. Those rows are on the array's own tab.
+ *
+ * ## Standing, not merely asserted
+ *
+ * `assertedPlantAlarms` returns the rows somebody has **cleared** as well as the ones
+ * still up — that is what the Alarms tab's second table is — so the `isStanding`
+ * filter is what this join actually needs. Without it, clearing `SSU 4 Fault` left
+ * bay 4 amber on the drawing and a `Fault` badge on its panel while the panel's own
+ * cross-reference two lines below (which reads `standing`) had already emptied: one
+ * card disagreeing with itself about one alarm. `SubrackShelf` has documented the
+ * corrected behaviour since the day the drawing was built.
  */
 const faultedSsuSlots = (
   siteId: string,
@@ -71,6 +82,8 @@ const faultedSsuSlots = (
   const slots = new Set<number>();
 
   for (const row of assertedPlantAlarms(siteId, role, 'SITE', handling)) {
+    if (!isStanding(row)) continue;
+
     const match = /^SSU (\d+) Fault$/.exec(row.name);
     if (match?.[1] !== undefined) slots.add(Number(match[1]));
   }
