@@ -247,15 +247,32 @@ export const SiteTrendChart = ({
             than the series' own colour — a dashed solar-orange line over solar-
             orange bars would vanish exactly where it crosses them. */}
         {trend.average !== undefined && (
-          <line
-            x1={AXIS_WIDTH}
-            y1={y(trend.average.value)}
-            x2={width}
-            y2={y(trend.average.value)}
-            className="stroke-current text-primary"
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
-          />
+          <g className="text-primary">
+            <line
+              x1={AXIS_WIDTH}
+              y1={y(trend.average.value)}
+              x2={width}
+              y2={y(trend.average.value)}
+              className="stroke-current"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+            />
+            {/* The figure on the rule itself, at its right end — above it where
+                there is headroom, tucked under it when the average runs close to
+                the frame's top. */}
+            <text
+              x={width - 2}
+              y={
+                y(trend.average.value) < PAD_TOP + 14
+                  ? y(trend.average.value) + 12
+                  : y(trend.average.value) - 5
+              }
+              textAnchor="end"
+              className="fill-current text-[10px] font-medium tabular-nums"
+            >
+              {trend.average.value} {unit}
+            </text>
+          </g>
         )}
 
         {pieces.map((piece, index) => {
