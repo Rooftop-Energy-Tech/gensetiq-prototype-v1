@@ -6,15 +6,8 @@ import {useElementSize} from '@/lib/useElementSize';
 import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
 import {siteFeed, siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
-import {
-  EQUIPMENT,
-  byDepth,
-  isoX,
-  isoY,
-  placementBox,
-  plantLayout,
-} from '../data/plantScene';
-import type {PlantPlacement} from '../data/plantScene';
+import {EQUIPMENT, byDepth, isoX, isoY, placementBox, plantScene} from '../data/plantScene';
+import type {Ground, ScenePlacement} from '../data/plantScene';
 import type {SiteDeviceKey} from '../types/device.type';
 import type {SitePowerRole} from '../types/site.type';
 import {
@@ -35,67 +28,82 @@ import {
  * bank is not charging wants the first, so the page carries both and neither is a
  * decoration of the other.
  *
- * Everything a node says here — its word, its caption, its reading, whether it is
- * carrying — comes from `sourcesOf`, which is the diagram's own source list. That is
- * the whole reason this is a second **view** and not a second model: the two drawings
- * cannot disagree about the site, because there is one answer and both read it.
+ * Everything a node says here - its word, its caption, its reading, whether it is
+ * carrying - comes from `sourcesOf`, which is the diagram's own source list. That is the
+ * whole reason this is a second **view** and not a second model: the two drawings cannot
+ * disagree about the site, because there is one answer and both read it.
  *
  * ## The geometry is `plantScene.ts`'s
  *
- * Assets, millimetre boxes, the projection and the layout all live in the data module,
- * with the argument for each. This file scales that scene into the space it is given
- * and puts the words on it.
+ * Objects, millimetre boxes, the projection and the layout all live in the data module,
+ * with the argument for each. This file scales that scene into the space it is given,
+ * draws the ground under it, and puts the words beside it.
+ *
+ * ## The labels live in the margins, on leaders
+ *
+ * They used to hang at each object's feet, and on a compound this tight they covered the
+ * plant they were naming - which is the one thing a label must not do.
+ *
+ * So the labels are in **two gutters, one either side of the compound**, each joined to
+ * its object by a thin leader line, which is how a technical illustration has always
+ * solved this. Three things fall out of it and all three are improvements: a label can
+ * never cover a drawing, because it is not over the drawing; labels cannot cover each
+ * other, because within a gutter they are stacked and pushed apart to a minimum spacing;
+ * and the plant gets the whole middle of the frame, so it is drawn bigger than it was when
+ * the labels were competing with it for the same pixels.
+ *
+ * ## One node, several drawings
+ *
+ * The bank is three cabinets. So a node is not one image here: hovering or selecting
+ * `battery` lifts every cabinet carrying that node, and the leader points at the one the
+ * label is anchored to. That is what `node` and `chip` are for on a placement, and it is
+ * why the highlight is keyed on the node rather than on the image.
  *
  * ## Why the label is the control, and not the drawing
  *
- * In an isometric scene the drawings' bounding boxes overlap heavily — the array's box
- * covers the cabinet standing under it, and a transparent hit area over either one
- * would swallow clicks meant for the other. Sorting the buttons by depth would fix the
- * top-most case and still leave the array eating every click aimed at the frame's own
- * legs.
+ * In an isometric scene the drawings' bounding boxes overlap heavily - the array's box
+ * covers most of the yard, and a transparent hit area over it would swallow clicks meant
+ * for the cabinets in front. Sorting the buttons by depth fixes the top-most case and
+ * still leaves the array eating every click aimed between the frame's legs.
  *
- * So the **label chip beside each object is the button**, which is unambiguous at every
- * depth, reachable by keyboard in a sensible order, and already the thing carrying the
- * reading a person is looking at. Hovering or selecting it lifts the object it names, so
- * the drawing still answers the pointer without having to be the target.
+ * So the **label is the button**: unambiguous at every depth, reachable by keyboard in a
+ * sensible order, and already the thing carrying the reading a person is looking at.
+ * Hovering or selecting it lifts the objects it names, so the drawing still answers the
+ * pointer without having to be the target.
  *
  * ## Fixed canvas, uniform scale
  *
- * Same argument the diagram makes, for a stronger reason: these objects sit on one
- * ground plane at true relative size, and reflowing them would put a cabinet through
- * the frame sheltering it. So the scene is measured in millimetres, then scaled
- * uniformly to whatever width the band gives it. Nothing moves relative to anything
- * else; the whole compound just gets smaller.
+ * Same argument the diagram makes, for a stronger reason: these objects sit on one ground
+ * plane at true relative size, and reflowing them would put a cabinet through the fence.
+ * So the scene is measured in millimetres, then scaled uniformly to whatever width the
+ * band gives it. Nothing moves relative to anything else; the whole compound just gets
+ * smaller.
  */
 
-/** Millimetres of plant per pixel is set by the fit; this is the readable floor. */
-const MIN_WIDTH = 320;
+/** The readable floor for the whole block, gutters included. */
+const MIN_WIDTH = 460;
 
-/** Room for the labels, which sit outside the drawings' own extent. */
-const PAD = {x: 96, y: 26};
+/** A label column either side of the compound, in pixels. */
+const GUTTER = 128;
 
-/**
- * Where a chip sits relative to the point its object stands on.
- *
- * `below` is centred under the feet; `left` and `right` sit beside them and slightly
- * above, which is where a label can go on an isometric object without covering the
- * object next to it.
- */
-const CHIP_OFFSET: Record<PlantPlacement['anchor'], {dx: number; dy: number}> = {
-  below: {dx: 0, dy: 8},
-  left: {dx: -8, dy: -22},
-  right: {dx: 8, dy: -22},
-};
+/** Vertical room a stacked label needs before the next one starts. */
+const LABEL_PITCH = 52;
+
+/** Breathing room above and below the plant. */
+const PAD_Y = 20;
 
 type SceneNode = {
-  placement: PlantPlacement;
-  /** The word inside the chip — `SOLAR`, `CABINET`, as the diagram writes them. */
+  /** The diagram's key for this node - what a placement's `node` matches. */
+  key: string;
+  /** The placement the leader points at. */
+  chip: ScenePlacement;
+  /** The word in the label - `SOLAR`, `CABINET`, as the diagram writes them. */
   label: string;
   /** What this is: `PV array`, `DC plant`, a genset's tag. */
   caption: string;
   /** What it is doing, in the same words the diagram's second caption line uses. */
   power: string;
-  /** Carrying, in the diagram's sense — drives the teal. */
+  /** Carrying, in the diagram's sense - drives the teal. */
   live: boolean;
   /** The device behind it, or `undefined` where the node is not one. */
   device: SiteDeviceKey | undefined;
@@ -105,21 +113,22 @@ const nodesOf = (
   summary: SiteSummary,
   dutyId: string | undefined,
   role: SitePowerRole,
+  placements: ReadonlyArray<ScenePlacement>,
 ): Array<SceneNode> => {
   const sources = sourcesOf(summary, dutyId, role);
   const feed = siteFeed(summary, dutyId, role);
   const loadKw = siteLoadKw(summary, dutyId, role);
-  const hasCabinet = siteHasCabinet(summary.site.id, role);
   const anyLive = sources.some((source) => source.switchState.live);
 
-  const gensetIds = summary.gensets.map(({genset}) => genset.id);
-  const placements = plantLayout(role, gensetIds, hasCabinet);
-
   return placements.flatMap((placement): Array<SceneNode> => {
-    if (placement.key === 'load') {
+    if (placement.chip !== true || placement.node === undefined) return [];
+    const key = placement.node;
+
+    if (key === 'load') {
       return [
         {
-          placement,
+          key,
+          chip: placement,
           label: 'LOAD',
           caption: 'Site draw',
           // `not served` rather than `0 kW`, for the reason the diagram's load node
@@ -131,10 +140,11 @@ const nodesOf = (
       ];
     }
 
-    if (placement.key === 'cabinet') {
+    if (key === 'cabinet') {
       return [
         {
-          placement,
+          key,
+          chip: placement,
           label: 'CABINET',
           caption: 'DC plant',
           power: cabinetPowerLabel(feed.source),
@@ -144,16 +154,16 @@ const nodesOf = (
       ];
     }
 
-    const source = sources.find((candidate) => candidate.key === placement.key);
+    const source = sources.find((candidate) => candidate.key === key);
     // A placement with no source behind it is a site whose configuration changed under
-    // the layout — an array on a site that is no longer a solar hybrid. Dropped rather
-    // than drawn empty, which is the same call `SiteCircuit` makes about a stale
-    // selection.
+    // the layout - an array on a site that is no longer a solar hybrid. Dropped rather
+    // than drawn empty, which is the same call `SiteCircuit` makes about a stale selection.
     if (source === undefined) return [];
 
     return [
       {
-        placement,
+        key,
+        chip: placement,
         label: source.label,
         caption: source.caption,
         power: source.power,
@@ -164,29 +174,140 @@ const nodesOf = (
   });
 };
 
-const Chip = ({
+/**
+ * Stack a gutter's labels so none of them overlaps the next.
+ *
+ * Each label wants to sit level with the object it names. Where two objects are within a
+ * label's height of each other - the cabinet line-up and the set beside it - the second
+ * is pushed down to the minimum pitch. Sorted first, so pushing only ever moves a label
+ * away from its neighbour and never past it.
+ */
+const stack = (wanted: Array<{key: string; y: number}>): Map<string, number> => {
+  const placed = new Map<string, number>();
+  let lowest = -Infinity;
+
+  for (const {key, y} of [...wanted].sort((a, b) => a.y - b.y)) {
+    const at = Math.max(y, lowest + LABEL_PITCH);
+    placed.set(key, at);
+    lowest = at;
+  }
+
+  return placed;
+};
+
+/**
+ * The concrete pad, as a flat quad on the ground plane with a slab edge under it.
+ *
+ * Drawn rather than placed - see `Ground` in the data module. The top face is the pad
+ * itself; the two visible edges are the slab's thickness, in the darker of the two tones,
+ * so the pad reads as standing a little proud of the earth rather than painted on it.
+ */
+const Pad = ({
+  ground,
+  project,
+  thickness,
+}: {
+  ground: Ground;
+  project: (x: number, y: number) => {left: number; top: number};
+  /** Slab depth, already in pixels. */
+  thickness: number;
+}) => {
+  const corner = (x: number, y: number) => {
+    const {left, top} = project(x, y);
+    return `${left},${top}`;
+  };
+
+  const top = [
+    corner(ground.x0, ground.y0),
+    corner(ground.x1, ground.y0),
+    corner(ground.x1, ground.y1),
+    corner(ground.x0, ground.y1),
+  ].join(' ');
+
+  const near = project(ground.x1, ground.y1);
+  const right = project(ground.x1, ground.y0);
+  const left = project(ground.x0, ground.y1);
+  const edge = (from: {left: number; top: number}) =>
+    `${from.left},${from.top} ${near.left},${near.top} ${near.left},${near.top + thickness} ${
+      from.left
+    },${from.top + thickness}`;
+
+  return (
+    <g>
+      <polygon points={top} className="fill-highlight" />
+      <polygon points={edge(right)} className="fill-tertiary/25" />
+      <polygon points={edge(left)} className="fill-tertiary/40" />
+    </g>
+  );
+};
+
+/** One placed drawing. */
+const SceneObject = ({
+  placement,
+  left,
+  top,
+  width,
+  height,
+  active,
+  dimmed,
+}: {
+  placement: ScenePlacement;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  active: boolean;
+  dimmed: boolean;
+}) => {
+  const {url, alt} = EQUIPMENT[placement.equipment];
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      aria-hidden={alt === '' ? true : undefined}
+      draggable={false}
+      className={cn(
+        'pointer-events-none absolute transition-[filter,opacity] duration-150',
+        // Everything is drawn at full strength until something is picked out, and then it
+        // is the *others* that recede. Dimming is the only way to single an object out in
+        // a scene this dense that does not mean redrawing it: a ring around an isometric
+        // object is a rectangle around a diamond, and a tint changes what the drawing is
+        // saying, since colour in these assets is material rather than state.
+        dimmed && 'opacity-40',
+        active && 'drop-shadow-[0_0_10px_var(--color-teal)]',
+      )}
+      style={{
+        left,
+        top,
+        width,
+        height,
+        transform: placement.flipX === true ? 'scaleX(-1)' : undefined,
+      }}
+    />
+  );
+};
+
+const Label = ({
   node,
+  side,
   selected,
   onSelect,
   onHover,
 }: {
   node: SceneNode;
+  side: 'left' | 'right';
   selected: boolean;
   onSelect: (() => void) | undefined;
   onHover: (key: string | undefined) => void;
 }) => {
   const body = (
     <>
-      <span className="flex items-center gap-1.5">
+      <span className={cn('flex items-center gap-1.5', side === 'left' && 'flex-row-reverse')}>
         <span
-          className={cn(
-            'size-1.5 shrink-0 rounded-full',
-            node.live ? 'bg-teal' : 'bg-tertiary',
-          )}
+          className={cn('size-1.5 shrink-0 rounded-full', node.live ? 'bg-teal' : 'bg-tertiary')}
         />
-        <span className="text-[11px] leading-none font-semibold text-primary">
-          {node.label}
-        </span>
+        <span className="text-[11px] leading-none font-semibold text-primary">{node.label}</span>
       </span>
       <span className="text-[10px] leading-[13px] whitespace-nowrap text-secondary">
         {node.caption}
@@ -203,7 +324,8 @@ const Chip = ({
   );
 
   const shell = cn(
-    'flex flex-col items-start gap-0.5 rounded-md border bg-element/95 px-2 py-1.5 text-left backdrop-blur-sm',
+    'flex w-full flex-col gap-0.5 rounded-md border bg-element px-2 py-1.5',
+    side === 'left' ? 'items-end text-right' : 'items-start text-left',
     node.live ? 'border-teal/40' : 'border-default',
     selected && 'ring-2 ring-teal ring-offset-1 ring-offset-canvas',
   );
@@ -216,9 +338,9 @@ const Chip = ({
     <button
       type="button"
       onClick={onSelect}
-      onMouseEnter={() => onHover(node.placement.key)}
+      onMouseEnter={() => onHover(node.key)}
       onMouseLeave={() => onHover(undefined)}
-      onFocus={() => onHover(node.placement.key)}
+      onFocus={() => onHover(node.key)}
       onBlur={() => onHover(undefined)}
       className={cn(shell, 'cursor-pointer transition-colors hover:bg-highlight')}
     >
@@ -242,106 +364,199 @@ export const SitePlantScene = ({
   const {width} = useElementSize(track);
   const [hovered, setHovered] = useState<string | undefined>(undefined);
 
-  const nodes = nodesOf(summary, dutyId, role);
+  const {placements, platform} = plantScene(
+    summary.site.id,
+    role,
+    summary.gensets.map(({genset}) => genset.id),
+    siteHasCabinet(summary.site.id, role),
+  );
+  const nodes = nodesOf(summary, dutyId, role, placements);
 
-  // The scene's own extent, in millimetres: the union of every placed drawing's
-  // projected box. Derived rather than declared, so adding an object to the layout
-  // cannot leave it clipped.
-  const boxes = nodes.map((node) => placementBox(node.placement));
-  const minX = Math.min(...boxes.map((box) => box.minX));
-  const minY = Math.min(...boxes.map((box) => box.minY));
-  const maxX = Math.max(...boxes.map((box) => box.minX + box.w));
-  const maxY = Math.max(...boxes.map((box) => box.minY + box.h));
+  // What the view is fitted to: the **plant**, in millimetres. Derived rather than
+  // declared, so adding an object to the layout cannot leave it clipped.
+  //
+  // Scenery is left out on purpose. The fence run is 18 m and the treeline sits outside
+  // it, so fitting those in would shrink the equipment to a fraction of the frame to get a
+  // boundary into the same box. Framed on the plant instead, the fence and the trees run
+  // off the edges the way they do in a site photograph, and the block crops them.
+  const plant = placements.filter((placement) => placement.scenery !== true).map(placementBox);
+  const xs = plant.flatMap((box) => [box.minX, box.minX + box.w]);
+  const ys = plant.flatMap((box) => [box.minY, box.minY + box.h]);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const plantMm = {w: Math.max(...xs) - minX, h: Math.max(...ys) - minY};
 
-  const sceneMm = {w: maxX - minX, h: maxY - minY};
+  // The gutters take their width off the top, so the plant is fitted to what is left.
+  // `useElementSize` reports 0 until the ref attaches, one layout effect away, which the
+  // floor covers along with a genuinely narrow column.
+  const frame = Math.max(MIN_WIDTH, width);
+  const s = (frame - GUTTER * 2) / plantMm.w;
+  const height = plantMm.h * s + PAD_Y * 2;
 
-  // Millimetres per pixel, from whatever width the band gave us. The padding is taken
-  // out first, because the labels sit outside the drawings and would otherwise be the
-  // part that gets clipped.
-  // `useElementSize` reports 0 until the ref attaches, which is one layout effect
-  // away; the floor covers that first pass as well as a genuinely narrow column.
-  const available = Math.max(MIN_WIDTH, width) - PAD.x * 2;
-  const s = available / sceneMm.w;
-
-  const px = (mmX: number, mmY: number) => ({
-    left: PAD.x + (mmX - minX) * s,
-    top: PAD.y + (mmY - minY) * s,
+  /** A projected millimetre point, in the block's own pixels. */
+  const at = (mmX: number, mmY: number) => ({
+    left: GUTTER + (mmX - minX) * s,
+    top: PAD_Y + (mmY - minY) * s,
   });
+
+  /** A ground position, straight to pixels - the pad's corners come this way. */
+  const ground = (x: number, y: number) => at(isoX(x, y), isoY(x, y));
+
+  const activeNode = (key: string | undefined): boolean => {
+    if (key === undefined) return false;
+    if (hovered === key) return true;
+
+    // The selection is in **device** keys and a placement carries a **source** key, and
+    // for gensets those differ - `genset:JHB5503` against `JHB5503`. So the comparison
+    // goes through `deviceOfSource`, the same translation the diagram's own nodes make,
+    // rather than comparing two vocabularies directly and quietly never matching a set.
+    const device = key === 'cabinet' || key === 'load' ? key : deviceOfSource(key);
+    return device !== undefined && device === selection?.selected;
+  };
+
+  // Which gutter each label goes in, and what its leader points at. The anchor is a point
+  // on the object itself rather than its feet, so a leader arriving from the side lands on
+  // the thing and not on the ground in front of it.
+  const anchored = nodes.map((node) => {
+    const box = placementBox(node.chip);
+    const point = at(box.minX + box.w / 2, box.minY + box.h * 0.62);
+    const middle = GUTTER + (plantMm.w * s) / 2;
+
+    return {node, point, side: point.left < middle ? ('left' as const) : ('right' as const)};
+  });
+
+  const stacked = {
+    left: stack(
+      anchored.filter((entry) => entry.side === 'left').map(({node, point}) => ({
+        key: node.key,
+        y: point.top,
+      })),
+    ),
+    right: stack(
+      anchored.filter((entry) => entry.side === 'right').map(({node, point}) => ({
+        key: node.key,
+        y: point.top,
+      })),
+    ),
+  };
+
+  // A stacked label can be pushed below the plant's own bottom edge, so the block grows to
+  // whichever is taller. Measured rather than guessed, so a site with four sets does not
+  // clip its last label.
+  const lowestLabel = Math.max(
+    0,
+    ...[...stacked.left.values(), ...stacked.right.values()].map((y) => y + LABEL_PITCH),
+  );
 
   return (
     <div ref={track} className="w-full">
       <div
-        className="relative"
-        style={{
-          width: sceneMm.w * s + PAD.x * 2,
-          height: sceneMm.h * s + PAD.y * 2,
-        }}
+        className="relative overflow-hidden"
+        style={{width: frame, height: Math.max(height, lowestLabel + PAD_Y)}}
       >
-        {[...nodes].sort((a, b) => byDepth(a.placement, b.placement)).map((node) => {
-          const box = placementBox(node.placement);
-          const at = px(box.minX, box.minY);
-          const active =
-            hovered === node.placement.key ||
-            (node.device !== undefined && node.device === selection?.selected);
+        {/* The treeline, always behind - see `backdrop` in the data module. */}
+        {[...placements]
+          .filter((placement) => placement.backdrop === true)
+          .sort(byDepth)
+          .map((placement) => {
+            const box = placementBox(placement);
+            const corner = at(box.minX, box.minY);
 
-          return (
-            <img
-              key={`asset-${node.placement.key}`}
-              src={EQUIPMENT[node.placement.equipment].url}
-              alt={EQUIPMENT[node.placement.equipment].alt}
-              draggable={false}
-              className={cn(
-                'pointer-events-none absolute transition-[filter,opacity] duration-150',
-                // Everything is drawn at full strength until something is picked out,
-                // and then it is the *others* that recede. Dimming is the only way to
-                // single an object out in a scene this dense that does not mean
-                // redrawing it: a ring around an isometric object is a rectangle
-                // around a diamond, and a tint changes what the drawing is saying,
-                // since colour in these assets is material rather than state.
-                hovered !== undefined && !active && 'opacity-40',
-                active && 'drop-shadow-[0_0_10px_var(--color-teal)]',
-              )}
-              style={{
-                left: at.left,
-                top: at.top,
-                width: box.w * s,
-                height: box.h * s,
-              }}
-            />
-          );
-        })}
+            return (
+              <SceneObject
+                key={`backdrop-${placement.id}`}
+                placement={placement}
+                left={corner.left}
+                top={corner.top}
+                width={box.w * s}
+                height={box.h * s}
+                active={false}
+                dimmed={hovered !== undefined}
+              />
+            );
+          })}
 
-        {nodes.map((node) => {
-          // The chip hangs off the object's own ground origin, which is the point the
-          // thing actually stands on — not its box's corner, which drifts with however
-          // much sky the drawing happens to include above it.
-          const at = px(
-            isoX(node.placement.x, node.placement.y),
-            isoY(node.placement.x, node.placement.y),
-          );
+        {/* The ground, over the treeline and under the plant. Its own layer rather than an
+            item in the depth sort: nothing in the compound is ever behind the pad it
+            stands on. */}
+        <svg
+          className="pointer-events-none absolute inset-0"
+          width="100%"
+          height="100%"
+          aria-hidden="true"
+        >
+          <Pad ground={platform} project={ground} thickness={Math.max(2, 140 * s)} />
+        </svg>
+
+        {[...placements]
+          .filter((placement) => placement.backdrop !== true)
+          .sort(byDepth)
+          .map((placement) => {
+            const box = placementBox(placement);
+            const corner = at(box.minX, box.minY);
+            const active = activeNode(placement.node);
+
+            return (
+              <SceneObject
+                key={`object-${placement.id}`}
+                placement={placement}
+                left={corner.left}
+                top={corner.top}
+                width={box.w * s}
+                height={box.h * s}
+                active={active}
+                dimmed={hovered !== undefined && !active}
+              />
+            );
+          })}
+
+        {/* The leaders, over the plant and under the labels. Two segments: out of the
+            object horizontally, then a short run to the label's own edge, which keeps every
+            leader reading as a pointer rather than as a wire in the drawing. */}
+        <svg
+          className="pointer-events-none absolute inset-0"
+          width="100%"
+          height="100%"
+          aria-hidden="true"
+        >
+          {anchored.map(({node, point, side}) => {
+            const y = stacked[side].get(node.key) ?? point.top;
+            const edge = side === 'left' ? GUTTER - 6 : frame - GUTTER + 6;
+            const active = activeNode(node.key);
+
+            return (
+              <polyline
+                key={`leader-${node.key}`}
+                points={`${point.left},${point.top} ${edge},${point.top} ${edge},${y + 8}`}
+                fill="none"
+                strokeWidth={1}
+                className={cn('stroke-current', active ? 'text-teal' : 'text-tertiary')}
+              />
+            );
+          })}
+        </svg>
+
+        {anchored.map(({node, point, side}) => {
+          const y = stacked[side].get(node.key) ?? point.top;
           const device = node.device;
           const onSelect =
-            selection === undefined ||
-            device === undefined ||
-            !selection.devices.includes(device)
+            selection === undefined || device === undefined || !selection.devices.includes(device)
               ? undefined
               : () => selection.onSelect(device);
 
           return (
             <div
-              key={`chip-${node.placement.key}`}
-              className={cn(
-                'absolute',
-                node.placement.anchor === 'below' && '-translate-x-1/2',
-                node.placement.anchor === 'left' && '-translate-x-full',
-              )}
+              key={`label-${node.key}`}
+              className="absolute"
               style={{
-                left: at.left + CHIP_OFFSET[node.placement.anchor].dx,
-                top: at.top + CHIP_OFFSET[node.placement.anchor].dy,
+                left: side === 'left' ? 0 : frame - GUTTER + 6,
+                top: y,
+                width: GUTTER - 6,
               }}
             >
-              <Chip
+              <Label
                 node={node}
+                side={side}
                 selected={device !== undefined && device === selection?.selected}
                 onSelect={onSelect}
                 onHover={setHovered}

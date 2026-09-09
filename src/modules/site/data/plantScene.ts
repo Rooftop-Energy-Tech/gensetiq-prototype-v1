@@ -1,9 +1,11 @@
 import arrayShelter from '@/assets/equipment/ground-mount-telco-iso-light.svg';
-import batteryRack from '@/assets/equipment/telco-battery-rack-iso-light.svg';
+import fenceRun from '@/assets/equipment/chainlink-fence-iso-light.svg';
 import gensetCanopy from '@/assets/equipment/genset-canopy-small-iso-light.svg';
 import linePole from '@/assets/equipment/overhead-line-pole-iso-light.svg';
 import powerCabinet from '@/assets/equipment/telco-power-cabinet-iso-light.svg';
+import shrub from '@/assets/equipment/landscape-shrub-iso-light.svg';
 import tower from '@/assets/equipment/lattice-tower-iso-light.svg';
+import tree from '@/assets/equipment/landscape-tree-iso-light.svg';
 
 import type {SitePowerRole} from '../types/site.type';
 import {hasBattery, hasMains, hasSolar} from '../types/site.type';
@@ -12,46 +14,78 @@ import {hasBattery, hasMains, hasSolar} from '../types/site.type';
  * The site as **plant standing on the ground**, rather than as a circuit.
  *
  * The single-line diagram in `SiteDiagram` says what is connected to what. This says
- * what a technician would see walking through the gate: the array on its frame, the
- * cabinet, the bank, the set, and the tower the whole compound exists to keep up.
- * Same nodes, same click, same captions — a second projection of one site, not a
- * second model of it.
+ * what a technician would see walking through the gate: the pad, the cabinet line-up,
+ * the set beside it, the array over the yard, the tower the whole compound exists to
+ * keep up, and the jungle on the other side of the fence. Same nodes, same click, same
+ * captions - a second projection of one site, not a second model of it.
  *
  * ## Where the drawings come from
  *
- * Every asset is an SVG out of the vault's `render-equipment` skill, copied into
- * `src/assets/equipment/`. They are **label-free by that skill's rule 3** — no `<text>`
- * is ever emitted into one — so every word on this scene is the app's own, in HTML,
+ * Every object is an SVG out of the vault's `render-equipment` skill, copied into
+ * `src/assets/equipment/`. They are **label-free by that skill's rule 3** - no `<text>`
+ * is ever emitted into one - so every word on this scene is the app's own, in HTML,
  * where it stays reviewable. That is also what makes them usable here at all: a caption
- * baked into the drawing could not carry a live reading.
+ * baked into a drawing could not carry a live reading.
  *
  * They are authored in **millimetres** and projected on the skill's own isometric,
  * `iso(x, y, z) = [(x - y) * cos30, (x + y) / 2 - z]`, with the viewer at (+1, +1, +1).
  * Two consequences this file leans on:
  *
  *  - **Real dimensions compose.** Because each file's viewBox is in millimetres, laying
- *    the assets out on one ground plane at one scale puts them at their true relative
- *    size. The 13.4 m array shelter really is seven times the 1.9 m cabinet, and the
- *    scene reads as a site rather than as an icon row, without a single hand-tuned
- *    offset.
+ *    the objects out on one ground plane at one scale puts them at their true relative
+ *    size. A 1.1 m cabinet really is a quarter of the 4.6 m line-up it stands in and a
+ *    tenth of the array frame beside it, with no hand-tuned offsets.
  *  - **A larger `x + y` is nearer**, so that sum is the paint order. Nothing here needs
  *    a z-index by hand.
  *
+ * ## The arrangement is a real site, corrected
+ *
+ * The first version of this scene had the bank as a separate open 19-inch rack standing
+ * in the yard, the objects spread out across the compound to keep their labels apart,
+ * and no ground under any of it. All three were wrong, per Lucas:
+ *
+ *  - **The battery is in the power cabinet.** A telco site does not stand an open rack
+ *    outdoors. There are usually **three or four cabinets in a line**: one carries the
+ *    subrack and some battery modules, the rest are all battery modules. So `cabinet`
+ *    and `battery` are not two objects here, they are two *readings on one line-up* -
+ *    the subrack cabinet, and the battery cabinets beside it. A5's open rack is out of
+ *    the scene; it belongs indoors.
+ *  - **The plant is close together.** The set, the cabinets, the array and the load sit
+ *    within metres of each other, because the runs between them are copper and short.
+ *    Spreading them to make room for labels drew a compound nobody builds.
+ *  - **A site has ground, a fence, and jungle behind it.** Objects floating on white read
+ *    as a catalogue page. The pad is what they stand on, the fence is the site boundary,
+ *    and the planting behind it is what is actually there.
+ *
+ * ## Known overlap, and the fix that belongs upstream
+ *
+ * `ground-mount-telco` (D5) draws **its own generic cabinet line-up** under the frame -
+ * `CAB = {w: 700, d: 500, h: 1700}` in that generator - because the asset was written to
+ * stand alone in a deck, where an array sheltering nothing looks unfinished. Here that
+ * line-up is a second set of cabinets next to the real one, which no site has.
+ *
+ * The scene keeps the array clear of the cabinet row so the two do not sit on top of each
+ * other, which makes the frame's own cabinets read as part of that drawing rather than as
+ * duplicate plant. **The proper fix is a `cabinets` count on D5, defaulting to what it
+ * draws today**, so a composition can ask for the frame alone - exactly the shape of
+ * change that skill already made for `gensets` on F1 and `tilt` on D5 itself. Left undone
+ * deliberately: that folder is a shared submodule and another session is drawing in it.
+ *
  * ## Why the boxes are written down rather than read
  *
- * Placement needs each drawing's viewBox: the object's own origin `(0, 0, 0)` projects
- * to `(0, 0)` in the file's coordinates, which sits at `(-minX, -minY)` from the image's
- * top-left corner. An `<img>` does not expose its viewBox, and inlining the SVGs
- * instead would walk into the collision the skill's embedding contract warns about —
- * an SVG `<style>` block is not scoped to its own SVG, so two inlined drawings fight
- * over `.o`/`.p`/`.d`.
+ * Placement needs each drawing's viewBox: the object's own origin `(0, 0, 0)` projects to
+ * `(0, 0)` in the file's coordinates, which sits at `(-minX, -minY)` from the image's
+ * top-left corner. An `<img>` does not expose a viewBox, and inlining the SVGs instead
+ * would walk into the collision the skill's embedding contract warns about - an SVG
+ * `<style>` block is not scoped to its own SVG, so two inlined drawings fight over
+ * `.o`/`.p`/`.d`.
  *
  * So the boxes are measured from the files and recorded here, and
- * `scripts/check-equipment-boxes.mjs` re-measures them against the shipped SVGs and
- * fails if any has drifted. That check is the point: the skill's generators are
- * dimension-driven, so an upstream correction to a real dimension — a cabinet that
- * turns out to be 600 mm deeper than it was drawn — legitimately changes the viewBox,
- * and this scene would otherwise place it silently wrong.
+ * `scripts/check-equipment-boxes.mjs` re-measures them against the shipped SVGs and fails
+ * if any has drifted. That check is the point: the skill's generators are dimension-driven,
+ * so an upstream correction to a real dimension - a cabinet that turns out to be 600 mm
+ * deeper than it was drawn - legitimately changes the viewBox, and this scene would
+ * otherwise place it silently wrong.
  */
 
 /** A drawing's viewBox, in millimetres, as the file declares it. */
@@ -63,21 +97,24 @@ type Equipment = {
   /**
    * What the drawing is, for the `alt` text.
    *
-   * The node's own label — `SOLAR`, `CABINET` — is the site's vocabulary and comes
-   * from the diagram's sources. This is the equipment: a reader on a screen reader
-   * hears "ground-mount solar array on a walk-under frame", which is the thing in the
-   * picture, and the label and reading beside it are separate text they also get.
+   * The node's own label - `SOLAR`, `CABINET` - is the site's vocabulary and comes from
+   * the diagram's sources. This is the equipment: a reader on a screen reader hears
+   * "ground-mount solar array on a walk-under frame", which is the thing in the picture,
+   * and the label and reading beside it are separate text they also get. Scenery carries
+   * an empty string and drops out of the tree, because a fence post is not information.
    */
   alt: string;
 };
 
 export type EquipmentId =
   | 'arrayShelter'
-  | 'batteryRack'
+  | 'fenceRun'
   | 'gensetCanopy'
   | 'linePole'
   | 'powerCabinet'
-  | 'tower';
+  | 'shrub'
+  | 'tower'
+  | 'tree';
 
 export const EQUIPMENT: Record<EquipmentId, Equipment> = {
   arrayShelter: {
@@ -85,10 +122,10 @@ export const EQUIPMENT: Record<EquipmentId, Equipment> = {
     box: {minX: -11966.42, minY: -4933.2, w: 13350.71, h: 10810.49},
     alt: 'Ground-mount solar array on a walk-under frame',
   },
-  batteryRack: {
-    url: batteryRack,
-    box: {minX: -517.44, minY: -642.63, w: 1037.14, h: 1199.25},
-    alt: 'Open 19-inch battery rack loaded with rack-mount modules',
+  fenceRun: {
+    url: fenceRun,
+    box: {minX: -1817.88, minY: -2463.83, w: 19224.22, h: 12779.16},
+    alt: '',
   },
   gensetCanopy: {
     url: gensetCanopy,
@@ -105,143 +142,320 @@ export const EQUIPMENT: Record<EquipmentId, Equipment> = {
     box: {minX: -780.03, minY: -2118.45, w: 1949.77, h: 3162.52},
     alt: 'Outdoor DC power cabinet',
   },
+  shrub: {
+    url: shrub,
+    box: {minX: -1108.27, minY: -670.5, w: 2216.54, h: 1341.01},
+    alt: '',
+  },
   tower: {
     url: tower,
     box: {minX: -7501.34, minY: -31660.46, w: 15002.69, h: 36495.92},
-    alt: 'Lattice tower carrying the site’s radio equipment',
+    alt: 'Lattice tower carrying the site radio equipment',
+  },
+  tree: {
+    url: tree,
+    box: {minX: -2024.72, minY: -2711.73, w: 4049.45, h: 3936.69},
+    alt: '',
   },
 };
 
 const COS30 = Math.cos(Math.PI / 6);
 
-/** The skill's own projection, ground plane only — every asset stands at `z = 0`. */
+/** The skill's own projection, ground plane only - every object stands at `z = 0`. */
 export const isoX = (x: number, y: number): number => (x - y) * COS30;
 export const isoY = (x: number, y: number): number => (x + y) / 2;
 
-export type PlantPlacement = {
+export type ScenePlacement = {
+  /** Unique within a scene, for React's key. Several placements can share a node. */
+  id: string;
   /**
-   * The node this drawing stands for, in the **diagram's** own key vocabulary —
-   * `solar`, `battery`, `cabinet`, `mains`, `load`, or a genset's id.
+   * The node this drawing stands for, in the **diagram's** own key vocabulary -
+   * `solar`, `battery`, `cabinet`, `mains`, `load`, or a genset's id. Absent on scenery.
    *
-   * Deliberately the same strings `sourcesOf` returns, so the scene and the
-   * single-line diagram cannot disagree about which box a reader clicked. `load` is
-   * the one key that is not a source: it is the tower, and like the diagram's load
-   * node it is not a device and offers no click.
+   * Deliberately the same strings `sourcesOf` returns, so the scene and the single-line
+   * diagram cannot disagree about which box a reader clicked. `load` is the one key that
+   * is not a source: it is the tower, and like the diagram's load node it is not a device
+   * and offers no click.
+   *
+   * **Several placements may carry the same node.** The battery cabinets are three
+   * drawings and one reading, and hovering or selecting the node lifts all three, because
+   * the bank *is* those three cabinets.
    */
-  key: string;
+  node?: string;
+  /**
+   * The one placement of a node that carries its label. Exactly one per node.
+   *
+   * On the battery line-up it is the middle cabinet, so the chip sits over the run rather
+   * than off one end of it.
+   */
+  chip?: true;
+  /** Which side of the object the label hangs on - only read where `chip` is set. */
+  anchor?: 'left' | 'right' | 'below';
   equipment: EquipmentId;
   /** Ground position of the drawing's own origin, in millimetres. */
   x: number;
   y: number;
   /**
-   * Which side of the object its label hangs on.
+   * A deliberate departure from true scale.
    *
-   * The chips would otherwise all sit under their objects' feet and collide, since the
-   * objects themselves are inches apart on a compound this size. This is the one part
-   * of the scene that is composed by eye rather than derived, and it is a label
-   * position rather than a geometry, so it cannot put a drawing in the wrong place.
-   */
-  anchor: 'left' | 'right' | 'below';
-  /**
-   * A deliberate departure from true scale, where one is unavoidable.
+   * Two things carry one, and both say so out loud rather than hiding it in a layout
+   * offset:
    *
-   * Only the tower carries one. A real lattice tower is 30 m and up — the asset is
-   * 36.5 m tall — and at true scale beside a 1.9 m cabinet it is the whole picture and
-   * everything a reader came to click is a smudge along the bottom edge. The
-   * `render-equipment` skill's own site-scene compositions make exactly this
-   * concession, drawing their backdrop tower as a scaled-down lattice shaft, and this
-   * follows them.
-   *
-   * It is one number on one asset and it is written down here rather than baked into a
-   * layout offset, so the scene says out loud which single object is not to scale.
+   *  - **The tower.** A real lattice tower is 30 m and up, and the asset is 36.5 m. At
+   *    true scale beside a 1.85 m cabinet it is the entire picture and everything a reader
+   *    came to click is a smudge along the bottom edge. The `render-equipment` skill's own
+   *    site-scene compositions make exactly this concession, drawing their backdrop tower
+   *    as a scaled-down lattice shaft.
+   *  - **The planting.** A20's tree is a 3.5 m sapling, which behind a 1.8 m fence reads
+   *    as scrub rather than as the jungle these sites actually sit in. Scaled up, with
+   *    per-tree variation, so a treeline reads as a treeline.
    */
   scale?: number;
+  /**
+   * Mirror the drawing horizontally, which turns a run along `x` into a run along `y`.
+   *
+   * Exact rather than approximate, and it is the projection that makes it so: `iso(x, 0)`
+   * is `(x*cos30, x/2)` and `iso(0, y)` is `(-y*cos30, y/2)`, so the two axes' projections
+   * are mirror images of each other. A fence run drawn along `x` therefore becomes a
+   * correct run along `y` under `scaleX(-1)`, which is how the compound gets two sides out
+   * of one asset. Anything whose own detail is handed - a door, a badge - must not use it.
+   */
+  flipX?: true;
+  /**
+   * Ground and boundary rather than plant: the fence and the planting.
+   *
+   * Two things follow from it. Scenery is **not what the view is fitted to** — the scale
+   * is chosen to frame the plant, and the fence and the treeline run off the edges the
+   * way they do in a site photograph, rather than shrinking the equipment to fit a
+   * compound boundary into the same box. And scenery is never a control: it has no node,
+   * no chip and no place in the accessibility tree.
+   */
+  scenery?: true;
+  /**
+   * Always behind the plant, whatever the depth sort would say.
+   *
+   * The treeline wraps the compound, and in a true depth sort the trees off the near
+   * corners land in *front* of the equipment and hide it. A backdrop is what a treeline
+   * is being used as here, so it is drawn as one: its own layer, before the ground.
+   */
+  backdrop?: true;
 };
 
 /**
- * Where each thing stands, in millimetres on the compound's ground plane.
+ * A rectangle on the ground, in millimetres: the concrete pad, and the fence line.
  *
- * Ground coordinates rather than screen offsets, so the layout survives a change of
- * scale, a change of viewport, and a corrected dimension upstream. Reading the compound
- * from the back: the tower, the array on its frame, then the DC plant and the bank, with
- * the sets forward of everything on their own access. The one place this gives up a
- * piece of site truth for legibility is noted against the cabinet.
+ * The pad is drawn by the scene rather than placed as an asset, because it is the one
+ * element whose extent has to follow the layout - a fixed-size pad drawing would either
+ * float inside the fence or run out under it, and the `render-equipment` catalogue is for
+ * objects with real dimensions of their own rather than for ground that is however big the
+ * site is. It is also two flat quads and an edge, which is not an asset's worth of geometry.
  */
-export const plantLayout = (
-  role: SitePowerRole,
-  gensetIds: ReadonlyArray<string>,
-  hasCabinet: boolean,
-): Array<PlantPlacement> => {
-  const placements: Array<PlantPlacement> = [
-    // Furthest back, and the only object not at true scale — see `scale`.
-    {key: 'load', equipment: 'tower', x: 0, y: 3000, scale: 0.3, anchor: 'left'},
-  ];
+export type Ground = {x0: number; y0: number; x1: number; y1: number};
 
-  if (hasSolar(role)) {
-    // The frame's origin is the near-right corner of the array, not its centre: its
-    // viewBox runs almost entirely negative in x, so the drawing extends left and up
-    // from the point named here.
-    placements.push({key: 'solar', equipment: 'arrayShelter', x: 12000, y: 1000, anchor: 'right'});
-  }
-
-  if (hasMains(role)) {
-    placements.push({key: 'mains', equipment: 'linePole', x: 2000, y: 0, scale: 0.45, anchor: 'left'});
-  }
-
-  // The cabinet and the bank stand **forward of the array frame**, not under it.
-  // Under it is where the group actually builds them — the `render-equipment` skill
-  // records the correction, off a JENDELA site acceptance photo, that a telco
-  // ground-mount array is built tall enough to shelter the site's own cabinets like a
-  // carport. Drawn that way from this angle the panels sit over them and the two things
-  // a reader most often opens are behind a roof. So the arrangement gives up that one
-  // piece of site truth to keep both objects visible and clickable, and says so here
-  // rather than in a layout offset nobody would read.
-  if (hasCabinet) {
-    placements.push({key: 'cabinet', equipment: 'powerCabinet', x: 13000, y: 11000, anchor: 'below'});
-  }
-
-  if (hasBattery(role)) {
-    placements.push({key: 'battery', equipment: 'batteryRack', x: 15200, y: 8800, anchor: 'right'});
-  }
-
-  // Sets forward of the plant, in a row running towards the viewer so a second one
-  // never hides behind the first.
-  //
-  // How far forward depends on whether there is an array, and that is a real difference
-  // rather than a layout tweak: the array frame is 13 m of the compound, and a site
-  // without one is a physically smaller yard. Kept at the array's distance regardless,
-  // a grid-backed site's sets stand alone in the middle of a compound that is not there.
-  const front = hasSolar(role) ? {x: 8000, y: 16000} : {x: 3600, y: 8000};
-
-  gensetIds.forEach((id, index) => {
-    placements.push({
-      key: id,
-      equipment: 'gensetCanopy',
-      x: front.x,
-      y: front.y + index * 4200,
-      // Alternating, because sets are the one node a site can have several of, and
-      // their chips carry the same word — stacked on one side they read as one label
-      // over two machines.
-      anchor: index % 2 === 0 ? 'left' : 'right',
-    });
-  });
-
-  return placements;
+export type PlantScene = {
+  placements: Array<ScenePlacement>;
+  platform: Ground;
+  compound: Ground;
 };
 
-/** The projected extent of a placed drawing, in millimetres, ready to be scaled. */
-export const placementBox = (placement: PlantPlacement): Box => {
-  const {box} = EQUIPMENT[placement.equipment];
-  const s = placement.scale ?? 1;
+/** Cabinets stand bolted side by side at their own 1.1 m width, plus the seam. */
+const CABINET_PITCH = 1150;
 
-  return {
-    minX: isoX(placement.x, placement.y) + box.minX * s,
-    minY: isoY(placement.x, placement.y) + box.minY * s,
-    w: box.w * s,
-    h: box.h * s,
+/** How many battery cabinets stand beside the subrack one. */
+const BATTERY_CABINETS = 3;
+
+/**
+ * A small deterministic generator, seeded off the site id.
+ *
+ * The treeline is a scatter and a scatter needs randomness, but a scene that re-scatters
+ * on every render is a scene that flickers when a reading updates, and these components
+ * re-render on the site's own clock. Seeded, the same site always grows the same trees.
+ */
+const lcg = (seed: number) => {
+  let state = seed % 2147483647;
+  if (state <= 0) state += 2147483646;
+
+  return () => {
+    state = (state * 16807) % 2147483647;
+    return (state - 1) / 2147483646;
   };
 };
 
-/** Nearest last, so the paint order is the depth order — see the file header. */
-export const byDepth = (a: PlantPlacement, b: PlantPlacement): number =>
+const seedOf = (siteId: string): number => {
+  let hash = 7;
+  for (const character of siteId) hash = (hash * 31 + character.charCodeAt(0)) % 2147483647;
+  return hash;
+};
+
+/**
+ * Where everything stands, in millimetres on the compound's ground plane.
+ *
+ * Ground coordinates rather than screen offsets, so the layout survives a change of scale,
+ * a change of viewport, and a corrected dimension upstream.
+ */
+export const plantScene = (
+  siteId: string,
+  role: SitePowerRole,
+  gensetIds: ReadonlyArray<string>,
+  hasCabinet: boolean,
+): PlantScene => {
+  const placements: Array<ScenePlacement> = [];
+
+  // The fence run is 6 bays at 3 m centres, which sets the compound at 18 m square. That
+  // is a real size for a site carrying an array frame, four cabinets and a set, and it is
+  // the asset's own length rather than a scaled one, so the bays stay 3 m.
+  const compound: Ground = {x0: 0, y0: 0, x1: 18000, y1: 18000};
+  // The pad is the working area, not the whole compound: the fence stands off it, and the
+  // strip between the two is where the access and the planting run.
+  const platform: Ground = {x0: 2600, y0: 2600, x1: 15400, y1: 15400};
+
+  // Behind the fence: the treeline. Outside the compound on the two far sides, which are
+  // the two the viewer can see past. Painted first, since their `x + y` is the smallest.
+  const random = lcg(seedOf(siteId));
+  for (let index = 0; index < 16; index++) {
+    const alongX = index % 2 === 0;
+    const along = -1500 + random() * 16000;
+    const back = 900 + random() * 3200;
+
+    placements.push({
+      id: `planting-${index}`,
+      equipment: random() > 0.3 ? 'tree' : 'shrub',
+      x: alongX ? along : -back,
+      y: alongX ? -back : along,
+      scale: 1.6 + random() * 1.1,
+      scenery: true,
+      backdrop: true,
+    });
+  }
+
+  // The fence: one asset, two runs - see `flipX`.
+  placements.push({
+    id: 'fence-x',
+    equipment: 'fenceRun',
+    x: compound.x0,
+    y: compound.y0,
+    scenery: true,
+  });
+  placements.push({
+    id: 'fence-y',
+    equipment: 'fenceRun',
+    x: compound.x0,
+    y: compound.y0,
+    flipX: true,
+    scenery: true,
+  });
+
+  // The tower, at the back of the pad.
+  placements.push({
+    id: 'tower',
+    node: 'load',
+    chip: true,
+    anchor: 'left',
+    equipment: 'tower',
+    x: 5000,
+    y: 4600,
+    scale: 0.3,
+  });
+
+  if (hasMains(role)) {
+    // Outside the fence, where an incomer actually terminates.
+    placements.push({
+      id: 'mains',
+      node: 'mains',
+      chip: true,
+      anchor: 'right',
+      equipment: 'linePole',
+      x: 19000,
+      y: 2000,
+      scale: 0.45,
+    });
+  }
+
+  if (hasSolar(role)) {
+    // The frame's origin is the near-right corner of the array: its viewBox runs almost
+    // entirely negative in x, so the drawing extends left and back from the point named
+    // here. Kept off the cabinet row for the reason in the file header - D5 brings its own
+    // cabinets with it.
+    placements.push({
+      id: 'array',
+      node: 'solar',
+      chip: true,
+      anchor: 'right',
+      equipment: 'arrayShelter',
+      x: 15000,
+      y: 5200,
+    });
+  }
+
+  // The cabinet line-up: the subrack cabinet, then the battery cabinets beside it. Three
+  // or four in a row at their own width, which is how the group builds them. The first
+  // carries the subrack and some battery modules; the rest are all battery modules, and
+  // together they are the `battery` node.
+  if (hasCabinet) {
+    const lineY = 11400;
+    const lineX = 6800;
+
+    placements.push({
+      id: 'cabinet-0',
+      node: 'cabinet',
+      chip: true,
+      anchor: 'below',
+      equipment: 'powerCabinet',
+      x: lineX,
+      y: lineY,
+    });
+
+    if (hasBattery(role)) {
+      for (let index = 0; index < BATTERY_CABINETS; index++) {
+        placements.push({
+          id: `cabinet-battery-${index}`,
+          node: 'battery',
+          // The middle cabinet of the run, so the label sits over the bank rather than
+          // off one end of it.
+          ...(index === 1 ? ({chip: true, anchor: 'right'} as const) : {}),
+          equipment: 'powerCabinet',
+          x: lineX + (index + 1) * CABINET_PITCH,
+          y: lineY,
+        });
+      }
+    }
+  }
+
+  // The sets, alongside the cabinets and close in, because the runs between the set, the
+  // cabinets and the tower are copper and short. A second set stands further forward so it
+  // never hides behind the first.
+  gensetIds.forEach((id, index) => {
+    placements.push({
+      id: `genset-${id}`,
+      node: id,
+      chip: true,
+      // Alternating, because sets are the one node a site can have several of and their
+      // chips carry the same word - stacked on one side they read as one label over two
+      // machines.
+      anchor: index % 2 === 0 ? 'left' : 'right',
+      equipment: 'gensetCanopy',
+      x: 4800,
+      y: 12600 + index * 2800,
+    });
+  });
+
+  return {placements, platform, compound};
+};
+
+/** The projected extent of a placed drawing, in millimetres, ready to be scaled. */
+export const placementBox = (placement: ScenePlacement): Box => {
+  const {box} = EQUIPMENT[placement.equipment];
+  const s = placement.scale ?? 1;
+  const originX = isoX(placement.x, placement.y);
+  const originY = isoY(placement.x, placement.y);
+
+  // A mirrored drawing's box mirrors with it: what was `minX` to the left of the origin
+  // ends up the same distance to its right.
+  const minX = placement.flipX === true ? -(box.minX + box.w) * s : box.minX * s;
+
+  return {minX: originX + minX, minY: originY + box.minY * s, w: box.w * s, h: box.h * s};
+};
+
+/** Nearest last, so the paint order is the depth order - see the file header. */
+export const byDepth = (a: ScenePlacement, b: ScenePlacement): number =>
   a.x + a.y - (b.x + b.y);

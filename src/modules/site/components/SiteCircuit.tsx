@@ -153,13 +153,16 @@ export const SiteCircuit = ({
         className="flex flex-col gap-4 xl:grid xl:items-stretch"
         style={{
           // The schematic is a fixed canvas and asks for its measured width. The plant
-          // scene measures whatever it is given and scales the whole compound to fit,
-          // so it takes a share of the row instead — with a floor, below which the
-          // labels start overlapping the objects they name.
+          // scene measures whatever it is given and scales the compound to fit, so it
+          // takes a share of the row instead — and the larger share, because it is a
+          // drawing of objects rather than of boxes and lines: the same figures that are
+          // legible in a 88px box need the equipment under them to be big enough to
+          // recognise. The card beside it holds at 18rem, which is where its badges stop
+          // wrapping one to a line.
           gridTemplateColumns:
             view === 'schematic'
               ? `${siteDiagramWidth(role, hasCabinet)}px minmax(20rem, 1fr)`
-              : 'minmax(26rem, 1.5fr) minmax(20rem, 1fr)',
+              : 'minmax(34rem, 2.4fr) minmax(18rem, 1fr)',
         }}
       >
         {/* Centred while the band is a column, as the frame centres it, and left in
