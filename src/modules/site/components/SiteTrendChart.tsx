@@ -256,31 +256,35 @@ export const SiteTrendChart = ({
             live in the strip below, which follows the hover. Ink rather than
             the series' own colour: a dashed solar-orange line over solar-orange
             bars would vanish exactly where it crosses them. */}
-        {bars &&
-          [
-            {rule: trend.reference, token: 'text-secondary', dash: '2 3'},
-            {rule: trend.average, token: 'text-primary', dash: '4 3'},
-          ].map(({rule, token, dash}) =>
-            rule === undefined ? null : (
-              <polyline
-                key={rule.label}
-                points={rule.values
-                  .flatMap((value, index) =>
-                    value === null
-                      ? []
-                      : [
+        {[
+          {rule: trend.reference, token: 'text-secondary', dash: '2 3'},
+          {rule: trend.average, token: 'text-primary', dash: '4 3'},
+        ].map(({rule, token, dash}) =>
+          rule === undefined ? null : (
+            <polyline
+              key={rule.label}
+              points={rule.values
+                .flatMap((value, index) =>
+                  value === null
+                    ? []
+                    : bars
+                      ? // A step per bucket, spanning its slot.
+                        [
                           `${AXIS_WIDTH + slot * index},${y(value)}`,
                           `${AXIS_WIDTH + slot * (index + 1)},${y(value)}`,
-                        ],
-                  )
-                  .join(' ')}
-                fill="none"
-                className={cn('stroke-current', token)}
-                strokeWidth={1.5}
-                strokeDasharray={dash}
-              />
-            ),
-          )}
+                        ]
+                      : // A curve through the samples — the expected bell, or the
+                        // average's flat run over the measured half-hours.
+                        [`${x(index)},${y(value)}`],
+                )
+                .join(' ')}
+              fill="none"
+              className={cn('stroke-current', token)}
+              strokeWidth={1.5}
+              strokeDasharray={dash}
+            />
+          ),
+        )}
 
         {pieces.map((piece, index) => {
           const {area, line} = shapeOf(piece);

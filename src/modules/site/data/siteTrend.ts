@@ -402,10 +402,48 @@ const dayTrend = (
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
   const peak = readings.length === 0 ? 0 : Math.max(...readings);
 
+  // The same two rules the bucketed views carry, at day grain. The average of a
+  // power curve is its mean level over the measured half-hours; the expectation
+  // is not a level at all but the day's promised **bell** — `intradayKw` over the
+  // expected energy — drawn for the whole day, so the hours still to come show
+  // what they are supposed to bring.
+  const average =
+    metric === 'SOLAR' && readings.length > 0
+      ? (() => {
+          const mean =
+            Math.round((readings.reduce((total, value) => total + value, 0) / readings.length) * 10) /
+            10;
+          return {
+            label: 'Average',
+            values: points.map((point) => (point.value === null ? null : mean)),
+            value: mean,
+          };
+        })()
+      : undefined;
+
+  const reference =
+    metric === 'SOLAR'
+      ? (() => {
+          const promisedKwh = expectedSolarKwh(seed, role, start, start + 86_400_000);
+          const values = points.map(
+            (_, index) => Math.round(intradayKw(promisedKwh, index * DAY_STEP_HOURS) * 10) / 10,
+          );
+          return {
+            label: 'Expected',
+            values,
+            value:
+              Math.round((values.reduce((total, value) => total + value, 0) / values.length) * 10) /
+              10,
+          };
+        })()
+      : undefined;
+
   return {
     metric,
     period: 'day',
     points,
+    average,
+    reference,
     shape: 'curve',
     unit: metric === 'BATTERY' ? '%' : 'kW',
     axisMax: metric === 'BATTERY' ? 100 : undefined,
