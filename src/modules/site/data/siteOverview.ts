@@ -403,7 +403,7 @@ const shares = (
 
       const solarKw = hasSolar(role) ? KW(intradayKw(dayKwh, hour)) : 0;
       const gensetKw = KW(gensetKwAt(role, block, hour));
-      const loadKw = KW(seed.loadKw * loadShape(hour));
+      const loadKw = KW(seed.loadKw * loadShape(at));
 
       // The shares of that load, dispatched in order and each clipped to what was
       // left for it — see the module note. Clipped per sample rather than at the

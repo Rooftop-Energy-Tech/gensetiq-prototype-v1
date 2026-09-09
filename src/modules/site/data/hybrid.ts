@@ -331,22 +331,28 @@ export type HybridState = {
 const FIRST_LIGHT = 7;
 const LAST_LIGHT = 19;
 
+/** The load's slow wave completes one cycle in this many days — the Month window. */
+const LOAD_WAVE_DAYS = 30;
+
 /**
- * The shape of a site's own draw across a day, as a multiplier on its metered kW.
+ * The shape of a site's own draw over time, as a multiplier on its metered kW.
  *
- * Deliberately shallow — shallower than it used to be. A telecom site's load is
- * radios and rectifiers around the clock: it does not switch off at night and it
- * does not double at noon, just breathes a little with the cabinet's afternoon
- * heat. At ±12% that breath read as a *slope* on the distribution chart's crown
- * while looking flat on Consumption's own axis, so the two charts appeared to
- * disagree about one quantity. ±10% is the compromise: alive, and reading as the
- * same near-constant line on both.
+ * One ±10% sine across **thirty days**, not across a day. A telecom site's load is
+ * radios and rectifiers around the clock: within any one day it is constant to the
+ * eye, and what actually moves it is slower — traffic and weather over weeks. The
+ * earlier daily wave got that backwards: it put a visible hump inside every day
+ * and none between them, so the Day tab wiggled while the month's energy bars sat
+ * identical. This way round, the Day tab shows a near-flat slice of wherever that
+ * day sits on the wave, and the Month views — the distribution's crown and the
+ * consumption bars alike — show the one cycle genuinely rising and falling.
  *
- * `seed.loadKw` stays the day's mean by construction — the multiplier averages to
- * 1 over 24 hours — so this reshapes the metered figure without inventing energy.
+ * Takes an absolute timestamp (ms) and is anchored to the epoch, so a given date
+ * always lands on the same point of the wave no matter which chart asks.
+ * `seed.loadKw` stays the mean over any full cycle; a single *day's* energy now
+ * honestly runs up to ±10% off it, which is the point.
  */
-export const loadShape = (hour: number): number =>
-  1 + 0.1 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
+export const loadShape = (at: number): number =>
+  1 + 0.1 * Math.sin((at / (LOAD_WAVE_DAYS * 86_400_000)) * 2 * Math.PI);
 
 /**
  * The shape of a solar day, unnormalised: `0` before first light, `1` at noon.
@@ -468,14 +474,17 @@ const chargeWindows = (
   /**
    * And the middle of the day, where the array makes more than the tower draws.
    *
-   * Scanned rather than solved. The crossing depends on the day's energy, the
-   * cubed-sine shape and the load's own shallow curve, and a quarter-hour scan
-   * finds it in 96 steps without any of the three having to be inverted.
+   * Scanned rather than solved. The crossing depends on the day's energy and the
+   * cubed-sine shape, and a quarter-hour scan finds it in 96 steps without either
+   * having to be inverted. The load's slow wave is not in the comparison: it moves
+   * ±10% over a month, so within one day it is a constant this function has no
+   * timestamp to place — and a crossing moved by minutes is not worth plumbing
+   * one through for.
    */
   let from: number | undefined;
   let to: number | undefined;
   for (let hour = 0; hour < HOURS_PER_DAY; hour += 0.25) {
-    if (intradayKw(dayKwh, hour) > seed.loadKw * loadShape(hour)) {
+    if (intradayKw(dayKwh, hour) > seed.loadKw) {
       from ??= hour;
       to = hour + 0.25;
     }

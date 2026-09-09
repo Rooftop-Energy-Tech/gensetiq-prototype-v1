@@ -163,7 +163,7 @@ export const chargeSourceAt = (
 
   const solarKw = hasSolar(role) ? intradayKw(fullDayKwh(seed, role, dayStart), hour) : 0;
   const gensetKw = gensetKwAt(role, gensetDay(seed, role, ratedKw, dayStart), hour);
-  const loadKw = seed.loadKw * loadShape(hour);
+  const loadKw = seed.loadKw * loadShape(at);
 
   // Dispatched in the order `siteOverview` dispatches them, so a sample this calls
   // charging from solar is a sample that chart draws as solar into the bank.

@@ -436,7 +436,7 @@ const dayValue = (
       // module note. `at` places it on the right hour of the right day.
       return Math.round(hybridState(seed, role, at).soc * 100);
     default:
-      return Math.round(seed.loadKw * loadShape(hour) * 10) / 10;
+      return Math.round(seed.loadKw * loadShape(at) * 10) / 10;
   }
 };
 
@@ -564,7 +564,7 @@ const periodTrend = (
 
   const points: Array<TrendPoint> = spine.map((bucket, index) => ({
     label: bucket.label,
-    value: bucketValue(seed, role, gensetIds, metric, bucket, buckets[index], daily, now),
+    value: bucketValue(seed, role, gensetIds, metric, bucket, buckets[index], now),
   }));
 
   const readings = points.map((point) => point.value).filter((v): v is number => v !== null);
@@ -639,7 +639,6 @@ const bucketValue = (
   metric: SiteTrendMetric,
   window: {from: number; to: number},
   solar: {actualKwh: number} | undefined,
-  daily: boolean,
   now: number,
 ): number => {
   switch (metric) {
@@ -660,12 +659,17 @@ const bucketValue = (
       return count === 0 ? 0 : Math.round(sum / count);
     }
     default: {
-      // The metered draw over the bucket. The shape averages to 1 across a whole
-      // day, so a day is `loadKw × 24` and a month is that times its own length —
-      // no double-counting of the diurnal curve.
-      const hours = Math.min(window.to, now + 86_400_000) - window.from;
-      const days = Math.max(0, hours) / 86_400_000;
-      return Math.round(seed.loadKw * 24 * (daily ? Math.min(1, days) : days));
+      // The metered draw over the bucket, one day at a time with each day priced
+      // at the slow wave's value at its noon — which is what lets the month's
+      // bars rise and fall with the same wave the distribution's crown draws,
+      // instead of both pretending the wave is not there. `now + 1 day` keeps
+      // today counted in full, as before.
+      const end = Math.min(window.to, now + 86_400_000);
+      let kwh = 0;
+      for (let at = window.from; at < end; at += 86_400_000) {
+        kwh += seed.loadKw * 24 * loadShape(at + 43_200_000);
+      }
+      return Math.round(kwh);
     }
   }
 };
