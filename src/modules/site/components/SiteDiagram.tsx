@@ -618,6 +618,16 @@ type DiagramSource = {
   /** Second caption line: what it is putting into the bus. */
   power: string;
   switchState: SwitchState;
+  /**
+   * Whether this source is **taking** power rather than giving it — the bank on
+   * charge, and nothing else in this drawing.
+   *
+   * Here rather than recomputed where it is read, because it is the same fact the
+   * `power` line and `switchState` above are already derived from, and one row
+   * deciding its own state once is what keeps the two conductors that meet at this
+   * box from disagreeing about which way the power is going. See `bankFlow`.
+   */
+  charging?: boolean;
 };
 
 /**
@@ -714,6 +724,55 @@ const solarSource = (
 };
 
 /**
+ * Which way the bank's power is going — and it is **one** of these, always.
+ *
+ * ## The standing rule
+ *
+ * A bank charges or it discharges. It never does both, and no drawing of one may
+ * show both, because there is one set of terminals and the current through them has
+ * one sign. That is not a stylistic preference about this diagram; it is the only
+ * thing a reader can safely assume about a battery.
+ *
+ * The drawing broke it, and broke it in the ordinary case rather than an edge one.
+ * Two conductors meet at this box — the DC tie coming down from the array, which is
+ * what charges the bank, and the run out to the junction, which is what the bank
+ * discharges through — and each decided its own state from a different figure. The
+ * run read the sign of `batteryKw`; the tie read whether the array was generating.
+ * At the shoulders of the day both said yes: at 08:00 here the roof makes 0.3 kW
+ * against a 5 kW tower, so the bank is discharging *and* the array is generating, and
+ * the drawing lit the tie into the bank and the run out of it at the same time. Five
+ * hours of every day, at all four solar hybrids, drawn as a bank filling and emptying
+ * at once.
+ *
+ * So the sign is read **once**, here, into one of three states, and both conductors
+ * are derived from it. Charging lights the tie and kills the run; discharging does
+ * the reverse; standby kills both. Two conductors cannot contradict each other about
+ * a fact neither of them owns.
+ *
+ * ## Why `STANDBY` is a state and not a rounding of the other two
+ *
+ * Two cases reach it and both used to print `charging`, which was the wrong word for
+ * each:
+ *
+ *  - **A set is carrying the tower.** The bank may be discharging on the model's
+ *    figures, but it is not what is holding the tower up and must not be drawn doing
+ *    so — this is the `!gensetCarrying` clause the run has always had. What changes is
+ *    that failing that test no longer falls through to the word `charging`, which
+ *    claimed the opposite of what the model said.
+ *  - **A bank with no cycle**, where `bankCycle` answers zero. Nothing is moving, and
+ *    a plant reporting no flow is not a plant on charge.
+ */
+type BankFlow = 'CHARGING' | 'DISCHARGING' | 'STANDBY';
+
+const bankFlow = (batteryKw: number, gensetCarrying: boolean): BankFlow => {
+  // The sign, and nothing else, decides between the two live states —
+  // `HybridState.batteryKw` is positive discharging, negative charging.
+  if (batteryKw < 0) return 'CHARGING';
+  if (batteryKw > 0 && !gensetCarrying) return 'DISCHARGING';
+  return 'STANDBY';
+};
+
+/**
  * Every source feeding this site's bus, top to bottom.
  *
  * ## The order, and what it says
@@ -775,7 +834,11 @@ const sourcesOf = (
     // Charging and discharging are one node and two directions, which is why the
     // caption carries the state of charge and the power line carries the sign. A
     // bank drawn as two nodes would suggest the site has two of them.
-    const discharging = state.batteryKw > 0 && !gensetCarrying;
+    //
+    // And one node means one direction at a time. Every appearance of this row — the
+    // word under it, whether its isolator is shut, and whether the tie coming into it
+    // from above is carrying — comes off this single answer. See `bankFlow`.
+    const flow = bankFlow(state.batteryKw, gensetCarrying);
 
     /**
      * The bank's run is now the **bank's own**, which it was not before.
@@ -796,11 +859,24 @@ const sourcesOf = (
       icon: BatteryChargingIcon,
       label: 'BATTERY',
       caption: `${Math.round(state.soc * 100)}% charged`,
-      power: discharging ? amount(state.batteryKw, 'kW', 1) : 'charging',
-      // Open while charging. A bank taking charge is a load on the plant rather than a
-      // source on it, and drawing its tie closed put a shut switch on the one run in
-      // the drawing that was carrying nothing towards the tower.
-      switchState: {closed: discharging, live: discharging},
+      /* The reading when the bank is delivering, and a word when it is not. `standby`
+         is the honest third answer rather than a fall-through to `charging`: a bank
+         behind a running set, or one with nothing moving at all, is neither filling
+         nor emptying, and this line used to say it was filling in both cases. */
+      power:
+        flow === 'DISCHARGING'
+          ? amount(state.batteryKw, 'kW', 1)
+          : flow === 'CHARGING'
+            ? 'charging'
+            : 'standby',
+      // What the tie above this box reads to decide whether it is carrying, so that
+      // the conductor into the bank and the conductor out of it can never both be
+      // live. This is the standing rule, and `bankFlow` is where it is argued.
+      charging: flow === 'CHARGING',
+      // Open unless the bank is delivering. A bank taking charge is a load on the
+      // plant rather than a source on it, and drawing its tie closed put a shut
+      // switch on the one run in the drawing carrying nothing towards the tower.
+      switchState: {closed: flow === 'DISCHARGING', live: flow === 'DISCHARGING'},
     });
   }
 
@@ -912,14 +988,30 @@ export const SiteDiagram = ({
   /**
    * The tie between two neighbouring boxes, and whether it is carrying.
    *
-   * Live is read off the row **further from the bank**, which is the one thing this
-   * conductor is actually about: the array's tie carries when the array is making
-   * something, and a set's tie carries when that set is running onto the plant.
-   * Reading it off either row would light the array's tie at midnight, the moment the
-   * bank started discharging — a line drawn as though power were flowing up to a dark
-   * roof.
+   * Two conditions, and it needs both:
+   *
+   *  - **The bank is on charge.** This conductor's whole job is charging it — that is
+   *    what `TIE_X` says it is for and what distinguishes it from the bus on the other
+   *    side of the boxes — so a tie carrying while the bank discharges is a line drawn
+   *    into a battery that is emptying. It used to do exactly that for five hours a
+   *    day. See `bankFlow` for the rule and how the drawing came to break it.
+   *  - **The source at the far end is delivering**, read off the row *further from the
+   *    bank*, because a tie is about the thing on its other end: the array's tie is
+   *    the array's, a set's tie is that set's. Without this the daylight window would
+   *    light the tie up to a dark roof and the tie down to a stopped set at the same
+   *    time, both claiming to be the thing doing the charging.
+   *
+   * What the pair buys is that the array's own run to the junction stays the only
+   * place its output is drawn heading for the tower. The tie is charge and nothing
+   * else, so at 08:00 — roof making 0.3 kW, tower drawing 5, bank covering the
+   * difference — the array carries to the junction, the bank carries to the junction,
+   * and the tie between them is dead. Which is what is happening.
    */
+  const bankCharging = sources[batteryIndex]?.charging === true;
+
   const tieLive = (index: number): boolean => {
+    if (!bankCharging) return false;
+
     const away =
       Math.abs(index - batteryIndex) >= Math.abs(index + 1 - batteryIndex) ? index : index + 1;
     return sources[away]?.switchState.live ?? false;
