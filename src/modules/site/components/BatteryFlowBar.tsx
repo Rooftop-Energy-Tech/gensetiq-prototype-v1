@@ -21,10 +21,13 @@ export const BatteryFlowBar = ({flow}: {flow: NonNullable<SiteTrend['flow']>}) =
   const widthOf = (pct: number): string => `${(pct / span) * 100}%`;
 
   return (
-    <div className="mt-3 flex max-w-2xl flex-col gap-2.5">
+    // One grid, so the track row and the legend row share their right column —
+    // the `Now` figure sizes it for both, and each legend cell stays exactly
+    // under its segment.
+    <div className="mt-3 grid max-w-2xl grid-cols-[minmax(0,1fr)_auto] items-end gap-x-3 gap-y-2.5">
       {/* Room above the track for the initial-SoC marker's label. */}
-      <div className="flex w-full items-end gap-3 pt-5">
-        <div className="flex h-7 min-w-0 flex-1 items-stretch">
+      <div className="pt-5">
+        <div className="flex h-7 w-full items-stretch">
           {flow.out.pct > 0 && (
             <div
               className={cn(
@@ -45,7 +48,7 @@ export const BatteryFlowBar = ({flow}: {flow: NonNullable<SiteTrend['flow']>}) =
               itself stays unbroken movement. */}
           <div className="relative w-[3px] shrink-0 bg-current text-primary">
             <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-secondary tabular-nums">
-              Initial · {flow.initialPct}%
+              Initial · {flow.initialPct}% ({flow.initialEnergy})
             </span>
           </div>
 
@@ -67,17 +70,17 @@ export const BatteryFlowBar = ({flow}: {flow: NonNullable<SiteTrend['flow']>}) =
             </div>
           ))}
         </div>
-
-        {/* Where the bank stands now — the end the movement adds up to. */}
-        <span className="shrink-0 text-sm text-tertiary tabular-nums">
-          Now · <span className="text-primary">{flow.endPct}%</span>
-        </span>
       </div>
 
-      <div className="flex w-full items-center gap-3 whitespace-nowrap text-sm">
-        <div className="flex min-w-0 flex-1">
+      {/* Where the bank stands now — the level the movement landed on. */}
+      <span className="pb-1 text-sm whitespace-nowrap text-tertiary tabular-nums">
+        Now · <span className="text-primary">{flow.endPct}%</span> ({flow.endEnergy})
+      </span>
+
+      <div className="min-w-0 whitespace-nowrap text-sm">
+        <div className="flex w-full">
           {flow.out.pct > 0 && (
-            <div style={{width: widthOf(flow.out.pct)}}>
+            <div style={{width: widthOf(flow.out.pct), minWidth: 'fit-content'}} className="pr-3">
               <span className={cn('flex items-center gap-1.5', flow.out.token)}>
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-current opacity-50"
@@ -92,7 +95,11 @@ export const BatteryFlowBar = ({flow}: {flow: NonNullable<SiteTrend['flow']>}) =
           )}
           <div className="w-[3px] shrink-0" />
           {flow.in.map((segment) => (
-            <div key={segment.label} style={{width: widthOf(segment.pct)}}>
+            <div
+              key={segment.label}
+              style={{width: widthOf(segment.pct), minWidth: 'fit-content'}}
+              className="pr-3"
+            >
               <span className={cn('flex items-center gap-1.5', segment.token)}>
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-current"

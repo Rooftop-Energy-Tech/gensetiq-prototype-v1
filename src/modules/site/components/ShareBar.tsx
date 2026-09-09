@@ -27,13 +27,16 @@ export const ShareBar = ({
   if (segments.length === 0) return null;
 
   return (
-    <div className="mt-3 flex max-w-2xl flex-col gap-2.5">
-      <div className="flex w-full items-center gap-3">
-        <div
-          className="flex h-7 min-w-0 flex-1 gap-[2px] overflow-hidden rounded-full"
-          role="img"
-          aria-label={segments.map((s) => `${s.label} ${s.share}`).join(', ')}
-        >
+    // One grid, so the track row and the legend row share their right column —
+    // it is sized by the wider of `100%` and the total, and both rows' flexible
+    // regions stay the same width, which is what keeps each legend entry under
+    // its own segment.
+    <div className="mt-3 grid max-w-2xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5">
+      <div
+        className="flex h-7 w-full gap-[2px] overflow-hidden rounded-full"
+        role="img"
+        aria-label={segments.map((s) => `${s.label} ${s.share}`).join(', ')}
+      >
           {segments.map((segment) => (
             <div
               key={segment.label}
@@ -53,40 +56,42 @@ export const ShareBar = ({
               )}
             </div>
           ))}
-        </div>
-        {/* What the segments add up to — the closed ring of the doughnut this
-            bar uncurls. */}
-        <span className="text-sm text-tertiary tabular-nums">100%</span>
       </div>
+      {/* What the segments add up to — the closed ring of the doughnut this
+          bar uncurls. */}
+      <span className="text-sm text-tertiary tabular-nums">100%</span>
 
-      {/* The legend mirrors the track's own geometry — same widths, same gaps —
-          so each entry sits directly under the segment it prices, the way a
-          doughnut's callouts sit on their own arcs. The percentages are not
-          restated (the segments carry them): each entry is the energy its share
-          corresponds to, and the window's total right-aligns beneath the 100%
-          it is the figure for. */}
-      <div className="flex w-full items-center gap-3 whitespace-nowrap text-sm">
-        <div className="flex min-w-0 flex-1 gap-[2px]">
-          {segments.map((segment) => (
-            <div key={segment.label} style={{width: `${segment.pct}%`}}>
-              <span className={cn('flex items-center gap-1.5', segment.token)}>
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-current"
-                  aria-hidden="true"
-                />
-                <span className="text-tertiary">
-                  {segment.label} ·{' '}
-                  <span className="text-primary tabular-nums">{segment.energy}</span>
-                </span>
+      {/* The legend mirrors the track's geometry — same widths, same gaps — so
+          each entry sits under the segment it prices. `fit-content` is the
+          floor: a slot narrower than its own words nudges its neighbours right
+          rather than clipping, because a legend that cannot be read prices
+          nothing. The percentages are not restated (the segments carry them);
+          each entry is the energy its share corresponds to. */}
+      <div className="flex w-full gap-[2px] whitespace-nowrap text-sm">
+        {segments.map((segment) => (
+          <div
+            key={segment.label}
+            style={{width: `${segment.pct}%`, minWidth: 'fit-content'}}
+            className="pr-3"
+          >
+            <span className={cn('flex items-center gap-1.5', segment.token)}>
+              <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] bg-current" aria-hidden="true" />
+              <span className="text-tertiary">
+                {segment.label} ·{' '}
+                <span className="text-primary tabular-nums">{segment.energy}</span>
               </span>
-            </div>
-          ))}
-        </div>
-
-        {total !== undefined && (
-          <span className="shrink-0 text-primary tabular-nums">{total.energy}</span>
-        )}
+            </span>
+          </div>
+        ))}
       </div>
+
+      {total !== undefined ? (
+        <span className="justify-self-end text-sm whitespace-nowrap text-primary tabular-nums">
+          {total.energy}
+        </span>
+      ) : (
+        <span />
+      )}
     </div>
   );
 };

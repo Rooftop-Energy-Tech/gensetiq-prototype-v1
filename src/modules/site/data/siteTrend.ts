@@ -176,7 +176,10 @@ export type SiteTrend = {
    */
   flow?: {
     initialPct: number;
+    /** The percentage as stored energy — capacity × the level. */
+    initialEnergy: string;
     endPct: number;
+    endEnergy: string;
     out: {label: string; token: string; energy: string; pct: number};
     in: Array<{label: string; token: string; energy: string; pct: number}>;
   };
@@ -654,7 +657,9 @@ const dayTrend = (
       if (outPct + inPct > 0 && lastSoc !== null && lastSoc !== undefined) {
         flow = {
           initialPct,
+          initialEnergy: KWH((initialPct / 100) * capacityKwh),
           endPct: lastSoc,
+          endEnergy: KWH((lastSoc / 100) * capacityKwh),
           out: {
             label: 'Discharged',
             token: 'text-battery',
