@@ -403,7 +403,12 @@ export const SiteTrendChart = ({
         {trend.reference !== undefined && (
           <span className="flex items-center gap-1.5 text-secondary">
             <span className="w-3 border-t border-dotted border-current" aria-hidden="true" />
-            <span className="text-tertiary">{trend.reference.label}</span>
+            <span className="text-tertiary">
+              {trend.reference.label} ·{' '}
+              <span className="text-primary tabular-nums">
+                {trend.reference.value} {unit}
+              </span>
+            </span>
           </span>
         )}
 

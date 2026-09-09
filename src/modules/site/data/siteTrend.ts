@@ -156,8 +156,11 @@ export type SiteTrend = {
    * day months shift it about 15% across a year, and a flat line would report a
    * short February as a poor one. `null` over the bucket still in progress, whose
    * part-window bar has no full-window promise to be held against.
+   *
+   * `value` is the mean of the drawn steps — the one figure the staircase comes
+   * to, stated beside the average's so the strip reads promised-versus-delivered.
    */
-  reference?: {label: string; values: Array<number | null>};
+  reference?: {label: string; values: Array<number | null>; value: number};
   /**
    * The colours a point may name in `TrendPoint.tint`, and what each one means.
    *
@@ -610,15 +613,19 @@ const periodTrend = (
   // The promise beside the measurement — see `SiteTrend.reference`. Only the
   // array carries one: the load has no physics to be held against and the sets'
   // hours are scheduled, not promised.
-  const reference =
-    metric === 'SOLAR'
-      ? {
-          label: 'Expected',
-          values: spine.map((bucket) =>
-            bucket.to <= now ? expectedSolarKwh(seed, role, bucket.from, bucket.to) : null,
-          ),
-        }
-      : undefined;
+  const reference = (() => {
+    if (metric !== 'SOLAR') return undefined;
+    const values = spine.map((bucket) =>
+      bucket.to <= now ? expectedSolarKwh(seed, role, bucket.from, bucket.to) : null,
+    );
+    const drawn = values.filter((value): value is number => value !== null);
+    if (drawn.length === 0) return undefined;
+    return {
+      label: 'Expected',
+      values,
+      value: Math.round(drawn.reduce((total, value) => total + value, 0) / drawn.length),
+    };
+  })();
 
   const grain = daily ? 'day' : 'month';
   // Only `lifetime` names its own extent — see the note on `buckets`.
