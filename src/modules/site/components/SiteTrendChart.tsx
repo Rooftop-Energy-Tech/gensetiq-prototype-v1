@@ -150,12 +150,26 @@ export const SiteTrendChart = ({
     return out;
   })();
 
-  /** One piece as `[area, line]` — the area closed to the floor under its own run. */
+  /**
+   * One piece as `[area, line]` — the area closed to the floor under its own run.
+   *
+   * Where a band is being drawn (the array's charging slice), the series' own
+   * fill stops at the band's lower boundary instead of the curve: the slice above
+   * it belongs to the bank and is filled in the bank's colour on the bare ground,
+   * so it reads in exactly the shade the SoC chart taught, not blue over orange.
+   */
   const shapeOf = (piece: {points: Array<number>}): {area: string; line: string} => {
     const line = piece.points.map((index) => `${x(index)},${y(points[index]!.value!)}`).join(' ');
+    const lower = trend.band?.from;
+    const areaTop =
+      lower === undefined
+        ? line
+        : piece.points
+            .map((index) => `${x(index)},${y(lower[index] ?? points[index]!.value!)}`)
+            .join(' ');
     const first = piece.points[0]!;
     const last = piece.points[piece.points.length - 1]!;
-    return {area: `${x(first)},${y(0)} ${line} ${x(last)},${y(0)}`, line};
+    return {area: `${x(first)},${y(0)} ${areaTop} ${x(last)},${y(0)}`, line};
   };
 
   /** Which tints this series actually used, in the order the model declares them. */
@@ -264,7 +278,7 @@ export const SiteTrendChart = ({
                 .map(({index, value}) => `${x(index)},${y(value)}`),
             ].join(' ')}
             className={cn('fill-current', trend.band.token)}
-            opacity={0.45}
+            opacity={0.16}
           />
         )}
 
