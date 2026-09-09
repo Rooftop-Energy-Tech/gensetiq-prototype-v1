@@ -1,3 +1,5 @@
+import type {ReactNode} from 'react';
+
 import {Link} from '@tanstack/react-router';
 import type {LinkProps} from '@tanstack/react-router';
 import {
@@ -81,11 +83,14 @@ export const SiteDevicePanel = ({
   /** Which device to report on. `undefined` at a site with no plant at all. */
   device,
   now,
+  telemetry,
 }: {
   summary: SiteSummary;
   role: SitePowerRole;
   device: SiteDeviceKey | undefined;
   now: number;
+  /** A reading over time about the selected device, placed at the foot of the card. */
+  telemetry?: ReactNode;
 }) => {
   const seed = siteSeed(summary.site.id);
   const plant = seed === undefined ? undefined : hybridPlant(seed, role);
@@ -128,6 +133,7 @@ export const SiteDevicePanel = ({
         role={role}
         onLoad={member.genset.id === summary.defaultDutyId}
         now={now}
+        telemetry={telemetry}
       />
     );
   }
@@ -140,6 +146,7 @@ export const SiteDevicePanel = ({
         role={role}
         alarms={standing.filter((row) => row.asset === 'SOLAR')}
         now={now}
+        telemetry={telemetry}
       />
     );
   }
@@ -154,6 +161,7 @@ export const SiteDevicePanel = ({
         soh={plant?.soh ?? 0}
         alarms={standing.filter((row) => row.asset === 'BATTERY')}
         now={now}
+        telemetry={telemetry}
       />
     );
   }
@@ -168,6 +176,7 @@ export const SiteDevicePanel = ({
         // `plantAlarm.type.ts` on why the id and the word differ.
         alarms={standing.filter((row) => row.asset === 'SITE')}
         now={now}
+        telemetry={telemetry}
       />
     );
   }
@@ -203,11 +212,13 @@ const CabinetDeviceCard = ({
   siteId,
   alarms,
   now,
+  telemetry,
 }: {
   siteId: string;
   /** This cabinet's slice of the site's queue — see the note in `SiteDevicePanel`. */
   alarms: Array<AlarmView>;
   now: number;
+  telemetry?: ReactNode;
 }) => {
   const cabinet = useSubrackCabinet(siteId, now);
   if (cabinet === undefined) return null;
@@ -224,6 +235,7 @@ const CabinetDeviceCard = ({
 
   return (
     <SiteDeviceCard
+      telemetry={telemetry}
       label="Cabinet"
       identity={
         <Link
@@ -443,6 +455,7 @@ const GensetDeviceCard = ({
   role,
   onLoad,
   now,
+  telemetry,
 }: {
   /** The yard this set stands in — carried into its links so they crumb back here. */
   siteId: string;
@@ -450,6 +463,7 @@ const GensetDeviceCard = ({
   role: SitePowerRole;
   onLoad: boolean;
   now: number;
+  telemetry?: ReactNode;
 }) => {
   const {genset, detail} = member;
   const stateMeta = RUN_STATE_META[genset.runState];
@@ -491,6 +505,7 @@ const GensetDeviceCard = ({
 
   return (
     <SiteDeviceCard
+      telemetry={telemetry}
       label="Genset"
       identity={
         <Link
@@ -578,6 +593,7 @@ const SolarDeviceCard = ({
   role,
   alarms,
   now,
+  telemetry,
 }: {
   siteId: string;
   seed: ReturnType<typeof siteSeed> & {};
@@ -585,6 +601,7 @@ const SolarDeviceCard = ({
   /** This array's slice of the site's queue — see the note in `SiteDevicePanel`. */
   alarms: Array<AlarmView>;
   now: number;
+  telemetry?: ReactNode;
 }) => {
   const plant = hybridPlant(seed, role);
   const state = hybridState(seed, role, now);
@@ -601,6 +618,7 @@ const SolarDeviceCard = ({
 
   return (
     <SiteDeviceCard
+      telemetry={telemetry}
       label="Solar"
       identity={
         <Link
@@ -666,6 +684,7 @@ const BatteryDeviceCard = ({
   soh,
   alarms,
   now,
+  telemetry,
 }: {
   siteId: string;
   seed: ReturnType<typeof siteSeed> & {};
@@ -675,12 +694,14 @@ const BatteryDeviceCard = ({
   /** This bank's slice of the site's queue — see the note in `SiteDevicePanel`. */
   alarms: Array<AlarmView>;
   now: number;
+  telemetry?: ReactNode;
 }) => {
   const state = hybridState(seed, role, now);
   const charging = state.batteryKw < 0;
 
   return (
     <SiteDeviceCard
+      telemetry={telemetry}
       label="Battery"
       identity={
         // A link now that a bank has a page, the same move the solar row makes.

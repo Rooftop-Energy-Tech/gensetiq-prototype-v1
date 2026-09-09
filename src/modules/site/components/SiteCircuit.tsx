@@ -206,13 +206,30 @@ export const SiteCircuit = ({
             itself. Inert in the phone column, where the parent has no height to be a
             fraction of. */}
         <div className="flex h-full min-w-0 flex-col gap-3">
-          {selected !== undefined && (
-            <SiteDevicePanel summary={summary} role={role} device={selected} now={now} />
+          {/* The trend goes **inside** the card, at its foot: the card is stretched to the
+              height of the drawing beside it, and on every device but the genset that left
+              a large empty panel under three figures. Where nothing is picked there is no
+              card to sit in, so the site's own figures stand as one — see
+              `SiteTelemetry`. */}
+          {selected === undefined ? (
+            <SiteTelemetry summary={summary} role={role} device={undefined} now={now} />
+          ) : (
+            <SiteDevicePanel
+              summary={summary}
+              role={role}
+              device={selected}
+              now={now}
+              telemetry={
+                <SiteTelemetry
+                  summary={summary}
+                  role={role}
+                  device={selected}
+                  now={now}
+                  embedded
+                />
+              }
+            />
           )}
-          {/* The trend under the card, or the site's own figures where nothing is picked —
-              see `SiteTelemetry`. It is the same slot either way, so clearing a selection
-              replaces one reading with another rather than leaving a hole. */}
-          <SiteTelemetry summary={summary} role={role} device={selected} now={now} />
         </div>
       </div>
     </section>

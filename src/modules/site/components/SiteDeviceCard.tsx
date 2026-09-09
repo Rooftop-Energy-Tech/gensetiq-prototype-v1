@@ -34,6 +34,7 @@ export const SiteDeviceCard = ({
   identity,
   badges,
   aside,
+  telemetry,
   children,
 }: {
   /** `Genset`, `Solar`, `Battery` — the kind, not the unit. */
@@ -54,6 +55,16 @@ export const SiteDeviceCard = ({
    * a separate statement about the machine, not another of its figures.
    */
   aside?: ReactNode;
+  /**
+   * A reading over time about the same device, at the **foot** of the card.
+   *
+   * `mt-auto` is the whole reason it is a slot rather than more `children`. The card is
+   * stretched to the height of the drawing beside it, and on every device but the genset
+   * that left a large empty panel under three figures — a chart pushed to the bottom of
+   * that space is the space being used, where the same chart in a second card below was
+   * one more border in a column that already had one.
+   */
+  telemetry?: ReactNode;
   children?: ReactNode;
 }) => (
   <div className="flex h-full flex-col gap-3 rounded-md border border-subtle bg-element p-3">
@@ -70,6 +81,10 @@ export const SiteDeviceCard = ({
         being a second section. `flex` so the run card, which fills its parent,
         takes the panel's width. */}
     {aside !== undefined && <div className="mt-1 flex w-full">{aside}</div>}
+
+    {telemetry !== undefined && (
+      <div className="mt-auto flex w-full flex-col border-t border-subtle pt-3">{telemetry}</div>
+    )}
   </div>
 );
 

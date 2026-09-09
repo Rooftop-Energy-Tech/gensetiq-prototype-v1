@@ -203,10 +203,29 @@ const Figure = ({label, value}: {label: string; value: string}) => (
   </div>
 );
 
-const Frame = ({title, children}: {title: string; children: React.ReactNode}) => (
+/**
+ * The block the reading sits in, as a card or as the foot of one.
+ *
+ * `embedded` is how the device views are drawn: inside `SiteDeviceCard`, which already has
+ * the border and the ground, so a second card in there would be a box in a box. The site
+ * overview is the standalone case, because there is no card above it to sit in — nothing
+ * is selected, which is what it is reporting.
+ */
+const Frame = ({
+  title,
+  embedded,
+  children,
+}: {
+  title: string;
+  embedded?: boolean;
+  children: React.ReactNode;
+}) => (
   <section
     aria-label={title}
-    className="flex flex-col gap-3.5 rounded-lg border border-default bg-element p-4"
+    className={cn(
+      'flex flex-col gap-3.5',
+      embedded === true ? 'w-full' : 'rounded-lg border border-default bg-element p-4',
+    )}
   >
     <h3 className="text-[11px] leading-none font-semibold tracking-wide text-secondary uppercase">
       {title}
@@ -230,12 +249,15 @@ export const SiteTelemetry = ({
   role,
   device,
   now,
+  embedded,
 }: {
   summary: SiteSummary;
   role: SitePowerRole;
   /** The selected device, or `undefined` for the site's own overview. */
   device: SiteDeviceKey | undefined;
   now: number;
+  /** Drawn at the foot of the device card rather than as a card of its own. */
+  embedded?: boolean;
 }) => {
   const seed = siteSeed(summary.site.id);
   const gensetIds = summary.gensets.map(({genset}) => genset.id);
@@ -288,7 +310,7 @@ export const SiteTelemetry = ({
           : ('standby' as const);
 
     return (
-      <Frame title="State of charge">
+      <Frame title="State of charge" embedded={embedded}>
         <SocGauge soc={state.soc} flow={flow} />
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-4">
@@ -305,7 +327,7 @@ export const SiteTelemetry = ({
 
   if (device === 'solar' && hasSolar(role)) {
     return (
-      <Frame title="Generation today">
+      <Frame title="Generation today" embedded={embedded}>
         <div className="flex items-start justify-between gap-6">
           <Figure label="Generating now" value={amount(state.solarKw, 'kW', 1)} />
           <Figure
@@ -320,7 +342,10 @@ export const SiteTelemetry = ({
 
   if (device !== undefined && trend !== undefined) {
     return (
-      <Frame title={gensetId !== undefined ? 'Engine hours today' : 'Site draw today'}>
+      <Frame
+        title={gensetId !== undefined ? 'Engine hours today' : 'Site draw today'}
+        embedded={embedded}
+      >
         <Spark trend={trend} />
       </Frame>
     );
@@ -343,7 +368,7 @@ export const SiteTelemetry = ({
             : 'Nothing';
 
   return (
-    <Frame title="Site at a glance">
+    <Frame title="Site at a glance" embedded={embedded}>
       <div className="grid grid-cols-2 gap-x-6 gap-y-4">
         <Figure label="Carrying the site" value={carrying} />
         <Figure
