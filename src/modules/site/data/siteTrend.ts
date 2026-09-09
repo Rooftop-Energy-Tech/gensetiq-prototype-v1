@@ -161,6 +161,24 @@ export type SiteTrend = {
    */
   extra?: {label: string; value: string};
   /**
+   * The bank's day as one line of movement: the initial state of charge as a
+   * marker, what discharged laid to its left, what charged (by source) to its
+   * right, ending at the state the bank holds now. Every length is in points of
+   * capacity, so the ends and the segments are one arithmetic:
+   * `end = initial − out + in`.
+   *
+   * Day only, by physics rather than by choice: a month moves several times the
+   * bank's capacity through it, and lengths like that laid against a 0–100
+   * marker would run off their own axis. The longer windows keep the charge
+   * split as shares.
+   */
+  flow?: {
+    initialPct: number;
+    endPct: number;
+    out: {label: string; token: string; energy: string; pct: number};
+    in: Array<{label: string; token: string; energy: string; pct: number}>;
+  };
+  /**
    * What each bucket *should* have made, aligned index-for-index with `points` —
    * drawn as a stepped dashed line over the bars, so a bar is judged against the
    * piece of the line directly above it. Per bucket rather than one flat rule
@@ -587,18 +605,57 @@ const dayTrend = (
   let bands: SiteTrend['bands'];
   let mix: SiteTrend['mix'];
   let mixHeading: string | undefined;
+  let flow: SiteTrend['flow'];
   if (metric === 'BATTERY') {
-    // The day's charge, by source — the same split the bars carry, for the table.
-    const {solarIn, gensetIn} = bankChargeSplitKwh(
-      seed,
-      role,
-      ratedKw,
-      start,
-      start + 86_400_000,
-      now,
-    );
-    mix = chargeMix(solarIn, gensetIn, hasSolar(role), ratedKw > 0);
-    mixHeading = 'Source';
+    // The day as one line of movement — see `SiteTrend.flow`. Every length is in
+    // points of the bank's own capacity, so the bar's arithmetic closes on
+    // itself: end = initial − out + in.
+    const capacityKwh = hybridPlant(seed, role).batteryKwh;
+    if (capacityKwh > 0) {
+      const split = bankChargeSplitKwh(seed, role, ratedKw, start, start + 86_400_000, now);
+      const points10 = (kwh: number): number =>
+        Math.round((kwh / capacityKwh) * 1000) / 10;
+
+      const initialPct = Math.round(hybridState(seed, role, start).soc * 1000) / 10;
+      const outPct = points10(split.discharge);
+      const inSegments = [
+        ...(hasSolar(role)
+          ? [
+              {
+                label: 'Solar-charging',
+                token: SITE_TREND_METRIC_TOKEN.SOLAR,
+                energy: KWH(split.solarIn),
+                pct: points10(split.solarIn),
+              },
+            ]
+          : []),
+        ...(ratedKw > 0
+          ? [
+              {
+                label: 'Genset-charging',
+                token: SITE_TREND_METRIC_TOKEN.GENSET,
+                energy: KWH(split.gensetIn),
+                pct: points10(split.gensetIn),
+              },
+            ]
+          : []),
+      ];
+      const inPct = inSegments.reduce((total, segment) => total + segment.pct, 0);
+
+      if (outPct + inPct > 0) {
+        flow = {
+          initialPct,
+          endPct: Math.round((initialPct - outPct + inPct) * 10) / 10,
+          out: {
+            label: 'Discharged',
+            token: 'text-battery',
+            energy: KWH(split.discharge),
+            pct: outPct,
+          },
+          in: inSegments,
+        };
+      }
+    }
   }
   if (metric === 'SOLAR') {
     const from: Array<number | null> = [];
@@ -635,6 +692,7 @@ const dayTrend = (
     bands,
     mix,
     mixHeading,
+    flow,
     shape: 'curve',
     unit: metric === 'BATTERY' ? '%' : 'kW',
     axisMax: metric === 'BATTERY' ? 100 : undefined,

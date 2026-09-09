@@ -3,6 +3,7 @@ import {useRef, useState} from 'react';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {SiteTrend} from '../data/siteTrend';
+import {BatteryFlowBar} from './BatteryFlowBar';
 import {ShareBar} from './ShareBar';
 
 /**
@@ -527,6 +528,7 @@ export const SiteTrendChart = ({
           same rows the chart shades: the tower's share, the bank's, and the
           total they divide. Same table the distribution chart draws. */}
       {trend.mix !== undefined && <ShareBar rows={trend.mix} />}
+      {trend.flow !== undefined && <BatteryFlowBar flow={trend.flow} />}
     </div>
   );
 };
