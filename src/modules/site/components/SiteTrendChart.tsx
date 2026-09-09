@@ -254,7 +254,8 @@ export const SiteTrendChart = ({
               if (point.value === null) return null;
               const left = x(index) - Math.max(2, slot * 0.32);
               const barWidth = Math.max(4, slot * 0.64);
-              const dim = hovered === null || hovered === index ? 0.85 : 0.4;
+              // The same 55% every fill in the band uses; hover dims the rest.
+              const dim = hovered === null || hovered === index ? 0.55 : 0.3;
               const boundary = trend.band?.from[index] ?? point.value;
 
               return (
@@ -342,16 +343,9 @@ export const SiteTrendChart = ({
             // Keyed on where it starts: the pieces partition one run of samples, so
             // no two of them can begin at the same index.
             <g key={`${piece.points[0]}-${index}`} className={tint?.token}>
-              {/* Where the curve carries a band, its own fill takes the same 55%
-                  the distribution chart's bands use — the two slices of one
-                  composition should be one material. Elsewhere the pale wash
-                  stays: the SoC and consumption curves are readings, not
-                  compositions. */}
-              <polygon
-                points={area}
-                className="fill-current"
-                opacity={trend.band === undefined ? 0.16 : 0.55}
-              />
+              {/* One fill strength across every chart in the band — the 55% the
+                  distribution chart's bands set. */}
+              <polygon points={area} className="fill-current" opacity={0.55} />
               <polyline
                 points={line}
                 fill="none"
