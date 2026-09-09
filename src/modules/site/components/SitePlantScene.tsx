@@ -416,11 +416,16 @@ export const SitePlantScene = ({
   // What the view is fitted to: the **plant**, in millimetres. Derived rather than
   // declared, so adding an object to the layout cannot leave it clipped.
   //
-  // Scenery is left out on purpose. The fence run is 18 m and the treeline sits outside
-  // it, so fitting those in would shrink the equipment to a fraction of the frame to get a
-  // boundary into the same box. Framed on the plant instead, the fence and the trees run
-  // off the edges the way they do in a site photograph, and the block crops them.
-  const plant = placements.filter((placement) => placement.scenery !== true).map(placementBox);
+  // What is **outside the compound** is left out on purpose. The fence run is 18 m and the
+  // treeline sits beyond it, so fitting those in would shrink the equipment to a fraction
+  // of the frame to get a boundary into the same box. Framed on the plant instead, the
+  // fence and the trees run off the edges the way they do in a site photograph, and the
+  // block crops them.
+  //
+  // `offSlab` rather than `scenery`, and the difference matters: an unlabelled cabinet is
+  // scenery because the app has no readings for it, and it is still plant standing inside
+  // the fence that the frame has to hold.
+  const plant = placements.filter((placement) => placement.offSlab !== true).map(placementBox);
   const xs = plant.flatMap((box) => [box.minX, box.minX + box.w]);
   const ys = plant.flatMap((box) => [box.minY, box.minY + box.h]);
   const minX = Math.min(...xs);

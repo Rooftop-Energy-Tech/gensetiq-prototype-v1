@@ -253,15 +253,27 @@ export type ScenePlacement = {
    */
   flipX?: true;
   /**
-   * Ground and boundary rather than plant: the fence and the planting.
+   * Not a control: no node, no chip, no place in the accessibility tree.
    *
-   * Two things follow from it. Scenery is **not what the view is fitted to** — the scale
-   * is chosen to frame the plant, and the fence and the treeline run off the edges the
-   * way they do in a site photograph, rather than shrinking the equipment to fit a
-   * compound boundary into the same box. And scenery is never a control: it has no node,
-   * no chip and no place in the accessibility tree.
+   * Two quite different things carry it, which is why it does **not** also mean "not on
+   * the slab" - see `offSlab`. The fence and the planting are scenery because they are the
+   * setting. The telco equipment cabinets, and the power cabinet at a site with no cabinet
+   * page, are scenery because this app has no readings for them: they are unmistakably
+   * plant standing on the concrete, and only their data is missing.
    */
   scenery?: true;
+  /**
+   * Outside the compound: the fence line itself, and the trees beyond it.
+   *
+   * This is what the slab and the frame are derived from, and it has to be its own flag
+   * rather than a reading of `scenery`. Conflating the two put every unlabelled cabinet
+   * outside the concrete - a diesel-prime site's whole cabinet line-up stood on grass,
+   * because the pad was computed from the tower and the sets alone.
+   *
+   * The rule is physical, not editorial: if it stands inside the fence, the slab reaches
+   * it and the view frames it, whether or not the app can say anything about it.
+   */
+  offSlab?: true;
   /**
    * Always behind the plant, whatever the depth sort would say.
    *
@@ -373,6 +385,7 @@ export const plantScene = (
       scale: 1.6 + random() * 1.1,
       scenery: true,
       backdrop: true,
+      offSlab: true,
     });
   }
 
@@ -383,6 +396,7 @@ export const plantScene = (
     x: compound.x0,
     y: compound.y0,
     scenery: true,
+    offSlab: true,
   });
   placements.push({
     id: 'fence-y',
@@ -391,6 +405,7 @@ export const plantScene = (
     y: compound.y0,
     flipX: true,
     scenery: true,
+    offSlab: true,
   });
 
   // The tower, at the back of the pad and clear of the frame.
@@ -546,7 +561,7 @@ export const plantScene = (
   // equipment ended up standing on grass. Lucas caught the sets doing exactly that on a
   // grid-connected site. A slab that follows the plant cannot fall out of step with it.
   const feet = placements
-    .filter((placement) => placement.scenery !== true)
+    .filter((placement) => placement.offSlab !== true)
     .map((placement) => {
       const {foot} = EQUIPMENT[placement.equipment];
       const scale = placement.scale ?? 1;
