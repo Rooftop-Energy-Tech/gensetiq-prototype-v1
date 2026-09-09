@@ -1,7 +1,8 @@
-import {useMemo} from 'react';
+import {useMemo, useRef, useState} from 'react';
 
 import {BatteryGlyph} from '@/components/global/BatteryGlyph';
 import {amount} from '@/lib/format';
+import {useElementSize} from '@/lib/useElementSize';
 import {cn} from '@/lib/utils';
 import {hybridPlant, hybridState} from '../data/hybrid';
 import {siteOverview} from '../data/siteOverview';
@@ -52,6 +53,49 @@ import type {SitePowerRole} from '../types/site.type';
  * with, before they have picked anything out.
  */
 
+/**
+ * A series as SVG paths: the line, and the area under it down to `baseline`.
+ *
+ * Consecutive readings are emitted as separate move-and-line runs, so a `null` in the
+ * record is a gap in the line rather than a plunge to zero — per `TrendPoint.value`, an
+ * afternoon the record has not reached is absent, not a plant that has stopped.
+ */
+const curvePaths = (
+  values: Array<number | null>,
+  x: (index: number) => number,
+  y: (value: number) => number,
+  baseline: number,
+): {line: string; area: string} => {
+  const runs: Array<Array<[number, number]>> = [];
+  values.forEach((value, index) => {
+    if (value === null) {
+      if (runs.at(-1)?.length !== 0) runs.push([]);
+      return;
+    }
+    if (runs.length === 0) runs.push([]);
+    runs[runs.length - 1]?.push([x(index), y(value)]);
+  });
+
+  const drawn = runs.filter((run) => run.length > 0);
+
+  const line = drawn
+    .map((run) => run.map(([px, py], index) => `${index === 0 ? 'M' : 'L'}${px},${py}`).join(''))
+    .join(' ');
+
+  const area = drawn
+    .filter((run) => run.length > 1)
+    .map((run) => {
+      const first = run[0];
+      const last = run.at(-1);
+      if (first === undefined || last === undefined) return '';
+      const path = run.map(([px, py]) => `L${px},${py}`).join('');
+      return `M${first[0]},${baseline}${path}L${last[0]},${baseline}Z`;
+    })
+    .join(' ');
+
+  return {line, area};
+};
+
 /** The chart's box, in its own user units. Small on purpose - see the header. */
 const SPARK = {w: 240, h: 56};
 
@@ -79,32 +123,7 @@ const Spark = ({trend, className}: {trend: SiteTrend; className?: string}) => {
   const step = trend.points.length > 1 ? SPARK.w / (trend.points.length - 1) : SPARK.w;
   const y = (value: number) => SPARK.h - (value / top) * (SPARK.h - 2) - 1;
 
-  // Runs of consecutive readings, so a gap in the record is a gap in the line.
-  const runs: Array<Array<[number, number]>> = [];
-  values.forEach((value, index) => {
-    if (value === null) {
-      if (runs.at(-1)?.length !== 0) runs.push([]);
-      return;
-    }
-    if (runs.length === 0) runs.push([]);
-    runs[runs.length - 1]?.push([index * step, y(value)]);
-  });
-
-  const line = runs
-    .filter((run) => run.length > 0)
-    .map((run) => run.map(([x, at], index) => `${index === 0 ? 'M' : 'L'}${x},${at}`).join(''))
-    .join(' ');
-
-  const area = runs
-    .filter((run) => run.length > 1)
-    .map((run) => {
-      const first = run[0];
-      const last = run.at(-1);
-      if (first === undefined || last === undefined) return '';
-      const path = run.map(([x, at]) => `L${x},${at}`).join('');
-      return `M${first[0]},${SPARK.h}${path}L${last[0]},${SPARK.h}Z`;
-    })
-    .join(' ');
+  const {line, area} = curvePaths(values, (index) => index * step, y, SPARK.h);
 
   return (
     <svg
@@ -143,6 +162,201 @@ const Spark = ({trend, className}: {trend: SiteTrend; className?: string}) => {
         </>
       )}
     </svg>
+  );
+};
+
+/**
+ * The day as a small chart **with its axes** — for the views that have nothing else.
+ *
+ * ## Why this exists beside `Spark`
+ *
+ * The bank and the array put a figure beside their sparkline — a percentage, a kW
+ * reading — so the line only has to say *which way*. The genset and the cabinet had
+ * the sparkline alone: a row of purple bars under a heading, with no scale to read a
+ * height against and no hours to place a bar in. That is a picture of a shape, and
+ * the questions a reader actually brings to it — how much did that hour burn, when
+ * did it start, when did it stop — were all unanswerable from it.
+ *
+ * So this draws the same series with a labelled axis, gridlines on clean divisions,
+ * the hours along the foot, and a readout under the pointer. Still one metric, still
+ * one day, still no controls — the trend band remains the place to change any of
+ * that. It is only the sparkline with enough scaffolding to be read as a chart.
+ *
+ * Measured in pixels rather than stretched from a fixed box, because axis text must
+ * not distort: `Spark` can use `preserveAspectRatio="none"` precisely because it
+ * draws no text.
+ */
+const DAY = {h: 128, padTop: 18, padBottom: 18, axis: 34, tickRows: 3};
+
+/** A rounded step that lands on clean divisions — the rule the trend charts use. */
+const niceStep = (rough: number): number => {
+  if (rough <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const normalised = rough / magnitude;
+  return (normalised <= 1 ? 1 : normalised <= 2 ? 2 : normalised <= 5 ? 5 : 10) * magnitude;
+};
+
+/** Axis figures written to the precision the step needs, so the column scans. */
+const tickLabel = (tick: number, step: number): string =>
+  step >= 1 ? String(Math.round(tick)) : tick.toFixed(step >= 0.1 ? 1 : 2);
+
+const DayChart = ({trend}: {trend: SiteTrend}) => {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const {width: available} = useElementSize(boxRef);
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const {points, unit} = trend;
+  const bars = trend.shape === 'bars';
+
+  const width = Math.max(220, available);
+  const plotWidth = width - DAY.axis;
+  const plotHeight = DAY.h - DAY.padTop - DAY.padBottom;
+  const baseline = DAY.padTop + plotHeight;
+
+  const values = points.map((point) => point.value);
+  const readings = values.filter((value): value is number => value !== null);
+  // A fixed ceiling where the quantity has one; otherwise clean divisions of the
+  // day's peak, and a floor of one step so an idle day still draws a scale.
+  const high = trend.axisMax ?? Math.max(0, ...readings);
+  const tickStep =
+    trend.axisMax !== undefined ? trend.axisMax / DAY.tickRows : niceStep(high / DAY.tickRows);
+  const top = trend.axisMax ?? Math.max(tickStep, Math.ceil(high / tickStep) * tickStep);
+
+  // Bars sit centred in their own slot; a curve's points sit on the slot edges so the
+  // first and last land on the frame.
+  const slot = plotWidth / Math.max(1, points.length);
+  const x = (index: number) =>
+    bars
+      ? DAY.axis + slot * index + slot / 2
+      : DAY.axis + (plotWidth * index) / Math.max(1, points.length - 1);
+  const y = (value: number) => DAY.padTop + plotHeight * (1 - value / top);
+
+  const ticks: Array<number> = [];
+  for (let tick = 0; tick <= top + 1e-6; tick += tickStep) ticks.push(Math.round(tick * 100) / 100);
+
+  // About one hour label per 56px, from the left; every label would overlap.
+  const stride = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(plotWidth / 56))));
+
+  const {line, area} = curvePaths(values, x, y, baseline);
+  const shown = hovered === null ? undefined : points[hovered];
+
+  return (
+    <div ref={boxRef} className={cn('relative w-full', SITE_TREND_METRIC_TOKEN[trend.metric])}>
+      <svg
+        width={width}
+        height={DAY.h}
+        viewBox={`0 0 ${width} ${DAY.h}`}
+        className="w-full"
+        role="img"
+        aria-label={`${trend.caption}, in ${unit}`}
+        onPointerLeave={() => setHovered(null)}
+        onPointerMove={(event) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          const at = ((event.clientX - box.left) / box.width) * width - DAY.axis;
+          const index = bars
+            ? Math.floor(at / slot)
+            : Math.round((at / plotWidth) * (points.length - 1));
+          setHovered(index >= 0 && index < points.length ? index : null);
+        }}
+      >
+        {/* The unit above the axis, where the trend charts put it. */}
+        <text
+          x={DAY.axis - 6}
+          y={DAY.padTop - 7}
+          textAnchor="end"
+          className="fill-current text-[10px] text-tertiary"
+        >
+          {unit}
+        </text>
+
+        {/* The hovered reading, in the top corner where it covers nothing. */}
+        {shown !== undefined && (
+          <text
+            x={width}
+            y={DAY.padTop - 7}
+            textAnchor="end"
+            className="fill-current text-[10px] font-medium text-secondary tabular-nums"
+          >
+            {shown.label} ·{' '}
+            {shown.value === null ? 'not yet reached' : amount(shown.value, unit, 1)}
+          </text>
+        )}
+
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line
+              x1={DAY.axis}
+              y1={y(tick)}
+              x2={width}
+              y2={y(tick)}
+              className={cn('stroke-current', tick === 0 ? 'text-default' : 'text-subtle')}
+              strokeWidth={1}
+            />
+            <text
+              x={DAY.axis - 6}
+              y={y(tick) + 3.5}
+              textAnchor="end"
+              className="fill-current text-[10px] text-tertiary tabular-nums"
+            >
+              {tickLabel(tick, tickStep)}
+            </text>
+          </g>
+        ))}
+
+        {bars ? (
+          points.map((point, index) =>
+            point.value === null ? null : (
+              <rect
+                key={index}
+                x={x(index) - slot * 0.35}
+                y={y(point.value)}
+                width={Math.max(1, slot * 0.7)}
+                height={Math.max(0, baseline - y(point.value))}
+                rx={1}
+                fill="currentColor"
+                opacity={hovered === null ? 0.7 : hovered === index ? 1 : 0.35}
+              />
+            ),
+          )
+        ) : (
+          <>
+            <path d={area} fill="currentColor" opacity={0.14} />
+            <path
+              d={line}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {hovered !== null && (
+              <line
+                x1={x(hovered)}
+                x2={x(hovered)}
+                y1={DAY.padTop}
+                y2={baseline}
+                className="stroke-current text-default"
+                strokeWidth={1}
+              />
+            )}
+          </>
+        )}
+
+        {points.map((point, index) =>
+          index % stride === 0 ? (
+            <text
+              key={point.label}
+              x={x(index)}
+              y={DAY.h - 4}
+              textAnchor="middle"
+              className="fill-current text-[10px] text-tertiary tabular-nums"
+            >
+              {point.label}
+            </text>
+          ) : null,
+        )}
+      </svg>
+    </div>
   );
 };
 
@@ -332,12 +546,27 @@ export const SiteTelemetry = ({
   }
 
   if (device !== undefined && trend !== undefined) {
+    // The genset's day series is litres burned per hour (see `gensetDayTrend`), so
+    // the heading says so — it read `Engine hours today` over a chart of fuel.
     return (
       <Frame
-        title={gensetId !== undefined ? 'Engine hours today' : 'Site draw today'}
+        title={gensetId !== undefined ? 'Fuel burned today' : 'Site draw today'}
         embedded={embedded}
       >
-        <Spark trend={trend} />
+        <DayChart trend={trend} />
+        {/* The day's totals, off the same series the bars are drawn from — the
+            figures the sparkline views carry beside their chart, which this one had
+            nowhere to put until it had a chart worth reading them against. */}
+        {(trend.total !== undefined || trend.extra !== undefined) && (
+          <div className="flex items-start gap-6">
+            {trend.total !== undefined && (
+              <Figure label={trend.total.label} value={trend.total.value} />
+            )}
+            {trend.extra !== undefined && (
+              <Figure label={trend.extra.label} value={trend.extra.value} />
+            )}
+          </div>
+        )}
       </Frame>
     );
   }
