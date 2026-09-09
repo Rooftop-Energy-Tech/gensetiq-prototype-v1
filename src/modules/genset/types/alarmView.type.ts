@@ -1,4 +1,4 @@
-import type {PlantAlarmCategory} from '@/modules/site/types/plantAlarm.type';
+import type {CabinetPart, PlantAlarmCategory} from '@/modules/site/types/plantAlarm.type';
 import type {AlertSeverity} from './alert.type';
 import type {AlarmHandling} from './alarmState.type';
 
@@ -77,4 +77,14 @@ export type AlarmView = {
    * remember to set.
    */
   asset?: PlantAlarmCategory;
+  /**
+   * Which part of the cabinet this row is about — the site tab's third tier of
+   * filter reads it.
+   *
+   * Absent on every row that is not the monitoring unit's. A genset controller's own
+   * bits and this app's derived rules are not about anything in the subrack, and a
+   * part on them would be a fact nobody put there. `asset` above is absent for the
+   * same reason on a row read outside the site's pooled queue.
+   */
+  part?: CabinetPart;
 };

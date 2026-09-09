@@ -78,6 +78,79 @@ export type PlantAlarmCategory = (typeof PLANT_ALARM_CATEGORIES)[number];
  * a reader clicking `Cabinet 2` on the site's pooled tab lands on a page called
  * Subrack Cabinet; when the chip said `Site` it named the page it was already on.
  */
+/**
+ * Which part of the cabinet a `SITE` row is about — the third tier of filter.
+ *
+ * ## Why the Cabinet category needed splitting and the other three did not
+ *
+ * Because `Cabinet` is the only category that is not one thing. `Battery` is a bank,
+ * `Solar` is an array, `Genset` is an engine; `Cabinet` is a **box with a shelf of
+ * modules in it**, and after the 2026-09-08 recategorisation it is also the biggest
+ * category on the plant at a grid-backed site — twenty-six rows, spanning a smoke
+ * detector, a bus voltage, six rectifiers and four converters. "Something in the
+ * cabinet is wrong" is a true statement that does not tell a technician what to put
+ * in the van.
+ *
+ * Five parts, and each one is a different call-out:
+ *
+ * - `RECTIFIERS` — the AC→DC shelf. Four rows, and **every one of them is about the
+ *   six as a group** rather than a bay, because rectifier addresses are hand-set on
+ *   the LCD and the thirty per-rectifier registers are deliberately unpolled.
+ * - `SSUS` — the solar conversion units in the same shelf. Five rows: one per bay,
+ *   which is trustworthy because SSU identity is positional, plus `SSU Lost` for the
+ *   group.
+ * - `DISTRIBUTION` — the `DCDU-600AN1` and the −48 V bus leaving through it: the load
+ *   fuse, the DC arrester, and the bus over- and under-voltage pair.
+ * - `AC_INPUT` — what arrives before the rectifiers. One row at a site with no
+ *   incomer and ten where there is one, because `categoryFor` re-files the nine
+ *   per-phase rows out of `GENSET` the moment a grid exists.
+ * - `ENCLOSURE` — the box itself: door, water, smoke. Not a module in the shelf and
+ *   deliberately not filed as one.
+ *
+ * ## Why it is on the row and not a lookup beside it
+ *
+ * The obvious cheap version is a function mapping a row's name to a part, kept
+ * wherever the filter is drawn. It would have worked and it would have been the
+ * second list of these rows in the app — and the one that silently stops matching
+ * when a row is added, because a name that classifies to nothing simply vanishes from
+ * a filtered table rather than erroring.
+ *
+ * So the part is declared on the spec, one line under the category, and `SITE_PARTS`
+ * below asserts that every `SITE` row has one. A new row without a part fails on
+ * load rather than disappearing from a filter three months later.
+ */
+export const CABINET_PARTS = [
+  'RECTIFIERS',
+  'SSUS',
+  'DISTRIBUTION',
+  'AC_INPUT',
+  'ENCLOSURE',
+] as const;
+
+export type CabinetPart = (typeof CABINET_PARTS)[number];
+
+/**
+ * How each part is written on its chip.
+ *
+ * Plural where the part is a group of bays and singular where it is one thing, which
+ * is doing real work rather than being grammar: `Rectifiers 2` says two rows about
+ * the shelf, and a reader who saw `Rectifier 2` would reasonably read it as the
+ * second rectifier. The figure on the cabinet page has exactly that chip-versus-bay
+ * collision available to it, so the two must not use one word.
+ *
+ * `Solar units` rather than `SSUs`. The chips sit under `Cabinet` beside `Solar`,
+ * and an acronym is the wrong thing to make a reader decode while they are choosing a
+ * filter — the device's own word is on the rows themselves, which is where it has to
+ * be exact.
+ */
+export const CABINET_PART_LABEL: Record<CabinetPart, string> = {
+  RECTIFIERS: 'Rectifiers',
+  SSUS: 'Solar units',
+  DISTRIBUTION: 'Distribution',
+  AC_INPUT: 'AC input',
+  ENCLOSURE: 'Enclosure',
+};
+
 export const PLANT_ALARM_CATEGORY_LABEL: Record<PlantAlarmCategory, string> = {
   SITE: 'Cabinet',
   BATTERY: 'Battery',
@@ -205,6 +278,23 @@ export type PlantAlarm = {
    */
   label: string;
   category: PlantAlarmCategory;
+  /**
+   * Which part of the cabinet this row is about, or `null` where the question does
+   * not apply.
+   *
+   * `null` on every `BATTERY`, `SOLAR` and `GENSET` row, which is most of the table —
+   * a bank is not in the subrack and neither is a roof. It is **never** null on a
+   * `SITE` row, and `SITE_PARTS` in `plantAlarms.ts` asserts it: a Cabinet row with
+   * no part would disappear from the site tab's third tier of filter rather than
+   * failing, which is the quiet kind of wrong this whole type is written against.
+   *
+   * Note it is a property of the **row**, not of the category the row currently
+   * lands in. The nine per-phase AC rows are `GENSET` at a site with no incomer and
+   * `SITE` at one with a grid — see `categoryFor` — and they are on the AC input
+   * either way. Deriving the part from the category would have made them lose it in
+   * one of the two configurations.
+   */
+  part: CabinetPart | null;
   huawei: HuaweiSeverity;
   /**
    * This site's ranking — `SEVERITY_OF_HUAWEI[huawei]` unless `reranked` says why

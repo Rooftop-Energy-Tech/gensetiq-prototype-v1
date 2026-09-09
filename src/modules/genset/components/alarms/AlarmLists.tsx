@@ -4,6 +4,7 @@ import {BellIcon} from 'lucide-react';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {CATEGORY_META} from '@/modules/site/components/categoryMeta';
+import {PART_META} from '@/modules/site/components/partMeta';
 import {relativeTime, stampAt} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {ALERT_SEVERITIES, countBySeverity} from '../../types/alert.type';
@@ -74,7 +75,37 @@ const AlarmIdentity = ({alarm}: {alarm: AlarmView}) => (
 );
 
 /**
- * Which asset a row belongs to — the site's pooled queue only.
+ * What a row is about: which asset, and — for a cabinet row — which part of it.
+ *
+ * ## Why the part is a second line and not a second pill
+ *
+ * Because it is a signpost, not a finding. `ModuleRack` settled this argument for the
+ * battery's modules: "a pill is how this app draws a state worth acting on, and
+ * `lowest` is a signpost — giving it the same silhouette as the finding beside it
+ * would make the two read as one severity at two wordings." A row already carries two
+ * pills that *are* findings, this one and the Huawei class, and a third of the same
+ * shape would join that group rather than qualify the first of them.
+ *
+ * A quieter line under the badge is also a shape this row already uses: the first cell
+ * stacks the alarm's name over its provenance, so primary-over-secondary now appears
+ * twice per row instead of once. It is the arrangement the **filter** uses too, where
+ * the part chips sit indented under `Cabinet` — so the table reads the way the control
+ * that narrowed it does.
+ *
+ * It costs no height. Every row is already two lines tall because of that provenance
+ * line, so the sub-line lands in space the cell had spare.
+ *
+ * ## Why the part becomes the badge when there is no asset
+ *
+ * `asset` is the site's pooled queue only, so this whole column is dropped on the four
+ * single-asset tabs. The cabinet's own tab is the exception worth handling: every row
+ * there is about one box, `Cabinet` would be the same word seventeen times, and the
+ * part is the *only* thing telling them apart. So where there is no asset the part is
+ * promoted to the badge and the header reads `Part` instead of `Asset`.
+ *
+ * A part reaching this component at all already means the row is filed under the
+ * cabinet — `assertedPlantAlarms` is where that is enforced, so nothing here has to
+ * know which page it is on.
  *
  * ## Why a column rather than a chip beside the name
  *
@@ -93,15 +124,33 @@ const AlarmIdentity = ({alarm}: {alarm: AlarmView}) => (
  * make the row argue with itself about what matters. This one only has to be
  * findable, and a column makes it findable without any weight at all.
  *
- * The word matches the filter chip above the table exactly, so turning `Genset` on
- * and reading `Genset` down the column is visibly the same claim.
+ * Both words match the filter chips above the table exactly, so turning `Genset` on
+ * and reading `Genset` down the column is visibly the same claim — and so is turning
+ * `Solar units` on and reading it down the sub-lines.
  */
-const AssetCell = ({alarm}: {alarm: AlarmView}) => {
-  // See `AlarmView.asset` on why an asset's own tab has nothing to say here.
-  if (alarm.asset === undefined) return null;
+const SubjectCell = ({alarm}: {alarm: AlarmView}) => {
+  const part = alarm.part === undefined ? undefined : PART_META[alarm.part];
+
+  // See `AlarmView.asset` on why an asset's own tab has nothing to say here — except
+  // the cabinet's, where the part is the whole of what there is to say.
+  if (alarm.asset === undefined) {
+    if (part === undefined) return null;
+
+    const PartIcon = part.icon;
+
+    return (
+      <td className="px-3 py-2.5">
+        <Badge variant="element" className="border-subtle whitespace-nowrap text-secondary">
+          <PartIcon className="text-tertiary" aria-hidden="true" />
+          {part.label}
+        </Badge>
+      </td>
+    );
+  }
 
   const meta = CATEGORY_META[alarm.asset];
   const Icon = meta.icon;
+  const PartIcon = part?.icon;
 
   return (
     <td className="px-3 py-2.5">
@@ -109,6 +158,13 @@ const AssetCell = ({alarm}: {alarm: AlarmView}) => {
         <Icon className="text-tertiary" aria-hidden="true" />
         {meta.label}
       </Badge>
+
+      {part !== undefined && PartIcon !== undefined && (
+        <span className="flex items-center gap-1 pt-1 pl-0.5 text-xs whitespace-nowrap text-tertiary">
+          <PartIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          {part.label}
+        </span>
+      )}
     </td>
   );
 };
@@ -163,7 +219,7 @@ const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
       <td className="px-3 py-2.5">
         <AlarmIdentity alarm={alarm} />
       </td>
-      <AssetCell alarm={alarm} />
+      <SubjectCell alarm={alarm} />
       <td className="px-3 py-2.5">
         <ClassBadge alarm={alarm} />
       </td>
@@ -225,7 +281,7 @@ const ClearedRow = ({alarm}: {alarm: AlarmView}) => (
     <td className="px-3 py-2.5">
       <AlarmIdentity alarm={alarm} />
     </td>
-    <AssetCell alarm={alarm} />
+    <SubjectCell alarm={alarm} />
     <td className="px-3 py-2.5">
       <ClassBadge alarm={alarm} />
     </td>
@@ -299,15 +355,27 @@ export const AlarmLists = ({
   const counts = severityFilter?.counts ?? countBySeverity(standing);
 
   /**
-   * Whether the tables carry an `Asset` column.
+   * Whether the tables carry the subject column, and what its header says.
    *
    * Derived from the rows rather than taken as a prop, so a header cell and the cells
    * under it cannot disagree — the one bug an `assets={true}` prop would eventually
    * produce. Read across **both** lists: a filter that empties the standing table must
    * not take the column off the cleared one under it.
+   *
+   * The header follows the same rule now that a cabinet row can carry a part. On the
+   * site's pooled queue every row has an asset and the column is `Asset`, with the
+   * part as a sub-line; on the cabinet's own tab no row has an asset, the part is
+   * promoted to the badge, and calling that column `Asset` would label seventeen
+   * different parts of one box with the word for the box. See `SubjectCell`.
    */
-  const named = standing.some((alarm) => alarm.asset !== undefined)
-    || cleared.some((alarm) => alarm.asset !== undefined);
+  const anyAsset =
+    standing.some((alarm) => alarm.asset !== undefined) ||
+    cleared.some((alarm) => alarm.asset !== undefined);
+  const anyPart =
+    standing.some((alarm) => alarm.part !== undefined) ||
+    cleared.some((alarm) => alarm.part !== undefined);
+  const named = anyAsset || anyPart;
+  const subjectHeading = anyAsset ? 'Asset' : 'Part';
   const unacknowledged = standing.filter(
     (alarm) => alarm.handling.acknowledgedAt === null,
   ).length;
@@ -422,7 +490,7 @@ export const AlarmLists = ({
               <thead>
                 <tr className="border-b border-subtle text-xs text-secondary">
                   <Th>Alarm</Th>
-                  {named && <Th>Asset</Th>}
+                  {named && <Th>{subjectHeading}</Th>}
                   <Th>Class</Th>
                   <Th>Raised</Th>
                   <Th>Standing</Th>
@@ -452,7 +520,7 @@ export const AlarmLists = ({
               <thead>
                 <tr className="border-b border-subtle text-xs text-secondary">
                   <Th>Alarm</Th>
-                  {named && <Th>Asset</Th>}
+                  {named && <Th>{subjectHeading}</Th>}
                   <Th>Class</Th>
                   <Th>Raised</Th>
                   <Th>Cleared</Th>

@@ -1,13 +1,7 @@
 import {monitoringUnit} from './monitoringUnit';
 import type {MonitoringUnit} from './monitoringUnit';
 import {SEVERITY_OF_HUAWEI} from '../types/plantAlarm.type';
-import type {
-  AlertSeverity,
-  Checkability,
-  HuaweiSeverity,
-  PlantAlarm,
-  PlantAlarmCategory,
-} from '../types/plantAlarm.type';
+import type {AlertSeverity, CabinetPart, Checkability, HuaweiSeverity, PlantAlarm, PlantAlarmCategory} from '../types/plantAlarm.type';
 import {hasMains} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 
@@ -59,6 +53,15 @@ type AlarmSpec = {
   address: number;
   label: string;
   category: PlantAlarmCategory;
+  /**
+   * Which part of the cabinet the row is about — see `CabinetPart`.
+   *
+   * Optional on the spec and **required on every `SITE` row**, which `SITE_PARTS`
+   * below checks on load. Optional because three quarters of this table is a bank, a
+   * roof and an engine, and giving those a cabinet part would be inventing a fact to
+   * satisfy a type.
+   */
+  part?: CabinetPart;
   huawei: HuaweiSeverity;
   /**
    * This site's ranking where it differs from the device's, and the argument for
@@ -94,12 +97,20 @@ const PHASES = [1, 2, 3] as const;
  * rows come out as warnings and a dropped phase as a call-out. That is the register
  * map's own ranking and this file does not argue with it — see the note on
  * `SEVERITY_OF_HUAWEI` for why nothing here is re-ranked.
+ *
+ * All nine sit on the **AC input** and say so, which is the one thing about them that
+ * does not move. They are `GENSET` rows at a site with no incomer and `SITE` rows at
+ * one with a grid — `categoryFor` re-files them — so the site tab's third tier of
+ * filter picks them up as part of the cabinet exactly where a grid exists, and they
+ * stay filed under the set where it does not. Deriving the part from the category
+ * would have lost it in one of the two configurations; see `PlantAlarm.part`.
  */
 const AC_SPECS: ReadonlyArray<AlarmSpec> = [
   ...PHASES.map((phase): AlarmSpec => ({
     address: 0x5003 + phase - 1,
     label: `AC L${phase} Overvoltage`,
     category: 'GENSET',
+    part: 'AC_INPUT',
     huawei: 'MI',
     checkability: 'ONE_WAY',
     threshold: '> 280 V (default)',
@@ -110,6 +121,7 @@ const AC_SPECS: ReadonlyArray<AlarmSpec> = [
     address: 0x5006 + phase - 1,
     label: `AC L${phase} Undervoltage`,
     category: 'GENSET',
+    part: 'AC_INPUT',
     huawei: 'MI',
     checkability: 'ONE_WAY',
     threshold: '< 180 V (default)',
@@ -120,6 +132,7 @@ const AC_SPECS: ReadonlyArray<AlarmSpec> = [
     address: 0x5009 + phase - 1,
     label: `AC L${phase} Phase Failure`,
     category: 'GENSET',
+    part: 'AC_INPUT',
     huawei: 'MA',
     checkability: 'ONE_WAY',
     meaning:
@@ -135,6 +148,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5000,
     label: 'AC SPD Fault',
+    part: 'AC_INPUT',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'ONE_WAY',
@@ -146,6 +160,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5001,
     label: 'DC SPD Fault',
+    part: 'DISTRIBUTION',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'ONE_WAY',
@@ -156,6 +171,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x500e,
     label: 'DC Overvoltage Alarm',
+    part: 'DISTRIBUTION',
     category: 'SITE',
     huawei: 'MI',
     checkability: 'BOTH_WAYS',
@@ -167,6 +183,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x500f,
     label: 'DC Undervoltage Alarm',
+    part: 'DISTRIBUTION',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'BOTH_WAYS',
@@ -179,6 +196,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5010,
     label: 'Load Fuse Break',
+    part: 'DISTRIBUTION',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'PARTIAL',
@@ -190,6 +208,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5011,
     label: 'Door Alarm',
+    part: 'ENCLOSURE',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'ON_DEMAND',
@@ -200,6 +219,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5012,
     label: 'Water Alarm',
+    part: 'ENCLOSURE',
     category: 'SITE',
     huawei: 'CA',
     checkability: 'ONE_WAY',
@@ -210,6 +230,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5013,
     label: 'Smoke Alarm',
+    part: 'ENCLOSURE',
     category: 'SITE',
     huawei: 'CA',
     checkability: 'ONE_WAY',
@@ -220,6 +241,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5020,
     label: 'Low Rectifier Capacity',
+    part: 'RECTIFIERS',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'BOTH_WAYS',
@@ -231,6 +253,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5100,
     label: 'Rectifier Missing',
+    part: 'RECTIFIERS',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'BOTH_WAYS',
@@ -240,6 +263,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5101,
     label: 'Rectifier Abnormal',
+    part: 'RECTIFIERS',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'BOTH_WAYS',
@@ -250,6 +274,7 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
   {
     address: 0x5102,
     label: 'Rectifiers Comms Failure',
+    part: 'RECTIFIERS',
     category: 'SITE',
     huawei: 'MA',
     checkability: 'BOTH_WAYS',
@@ -530,6 +555,7 @@ const solarSpecs = (ssus: number): ReadonlyArray<AlarmSpec> => [
     label: 'SSU Lost',
     // `SITE`, not `SOLAR` — a module in the cabinet. See the note above.
     category: 'SITE',
+    part: 'SSUS',
     huawei: 'WA',
     checkability: 'BOTH_WAYS',
     meaning: 'A solar conversion unit has fallen off the bus.',
@@ -552,6 +578,7 @@ const solarSpecs = (ssus: number): ReadonlyArray<AlarmSpec> => [
         label: `SSU ${unit} Fault`,
         // `SITE`, not `SOLAR` — a module in the cabinet. See the note above.
         category: 'SITE',
+        part: 'SSUS',
         huawei: 'MA',
         checkability: 'PARTIAL',
         meaning: `Conversion unit ${unit} has failed and is not converting.`,
@@ -622,6 +649,8 @@ const build = (spec: AlarmSpec, siteId: string, role: SitePowerRole): PlantAlarm
   address: spec.address,
   label: spec.label,
   category: categoryFor(spec, role),
+  // The row's own part, whatever category it lands in — see `PlantAlarm.part`.
+  part: spec.part ?? null,
   huawei: spec.huawei,
   // **No row sets `reranked`, and that is the current rule rather than an
   // oversight.** Severity is the register map's `Sev` column put through one
@@ -642,6 +671,49 @@ const build = (spec: AlarmSpec, siteId: string, role: SitePowerRole): PlantAlarm
   corroboration: spec.corroboration,
   invalidates: spec.invalidates ?? [],
 });
+
+/**
+ * Every `SITE` row declares a cabinet part — checked on load, not hoped for.
+ *
+ * The third tier of filter on the site's Alarms tab is drawn from `PlantAlarm.part`,
+ * and a Cabinet row without one would not error: it would simply never match a part
+ * chip, so selecting any of the five would hide it. A row that vanishes from a
+ * filtered table is the hardest kind of wrong to notice, because the table still
+ * looks like a table.
+ *
+ * So this runs once at module load, over the specs rather than over one site's built
+ * rows, and throws with the offending labels. It is the same argument
+ * `assertDatasetIntegrity` makes for the brand datasets — a fact the compiler cannot
+ * check gets checked at startup instead of at the first screenshot.
+ *
+ * The `SITE` list is taken **before** `categoryFor` runs, so it does not depend on a
+ * power role. The nine AC rows are `GENSET` specs that become `SITE` at a grid-backed
+ * site and they carry a part anyway, which is why they are not in this check and do
+ * not need to be.
+ */
+const assertSiteRowsHaveParts = (): void => {
+  const orphans = [...SITE_SPECS, ...solarSpecs(MAX_SSUS), ...LVD_SPECS, ...BATTERY_SPECS]
+    .filter((spec) => spec.category === 'SITE' && spec.part === undefined)
+    .map((spec) => `${spec.label} (0x${spec.address.toString(16)})`);
+
+  if (orphans.length > 0) {
+    throw new Error(
+      `Cabinet alarm rows with no part, so the site tab's part filter would hide them: ${orphans.join(', ')}`,
+    );
+  }
+};
+
+/**
+ * Enough SSUs to generate every `SSU N Fault` any unit in `UNITS` could have, for the
+ * check above only.
+ *
+ * The generated rows all take one part, so the number only has to be at least the
+ * largest real shelf — it is not a claim about any site's hardware and nothing else
+ * reads it.
+ */
+const MAX_SSUS = 16;
+
+assertSiteRowsHaveParts();
 
 /**
  * Every alarm the unit at this site polls, in address order.

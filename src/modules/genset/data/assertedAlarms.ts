@@ -203,6 +203,25 @@ export const assertedPlantAlarms = (
     // fifty-eight rows — see `plantAlarm.type.ts`.
     className: HUAWEI_SEVERITY_LABEL[row.huawei],
     severity: row.severity,
+    /**
+     * The cabinet part, where the row has one **and is filed under the cabinet**.
+     *
+     * Two conditions, and the second is the one worth explaining. `PlantAlarm.part`
+     * is a property of the row whatever category it lands in — the nine per-phase AC
+     * rows are on the AC input whether they are filed `GENSET` at a hybrid or `SITE`
+     * at a grid-backed site, which is exactly why the part lives on the row.
+     *
+     * On the **view** it has to mean less than that, because the view is what a table
+     * tags and a filter narrows. A part on a row filed under the genset would put an
+     * `AC input` tag on the genset's own Alarms tab, where `Part` reads as part of the
+     * engine, and it would show a tag the site tab's part chips do not act on — the
+     * chips narrow the cabinet only. So `part` on an `AlarmView` carries a stronger
+     * claim: *this is a cabinet row, about this part of it.*
+     *
+     * Holding the line here rather than with a display flag on `AlarmLists` is what
+     * keeps the four pages that render alarms from each having to know the rule.
+     */
+    ...(row.part === null || row.category !== 'SITE' ? {} : {part: row.part}),
     raisedAt: raisedAt(row.id),
     handling: handling[row.id] ?? UNHANDLED,
   }));

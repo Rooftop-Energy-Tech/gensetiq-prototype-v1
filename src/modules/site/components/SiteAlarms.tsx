@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {FilterXIcon} from 'lucide-react';
+import type {LucideIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
@@ -10,9 +11,54 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {CATEGORY_META} from './categoryMeta';
 import {monitoringUnit} from '../data/monitoringUnit';
 import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
-import {PLANT_ALARM_CATEGORIES} from '../types/plantAlarm.type';
-import type {PlantAlarmCategory} from '../types/plantAlarm.type';
+import {CABINET_PARTS, PLANT_ALARM_CATEGORIES} from '../types/plantAlarm.type';
+import type {CabinetPart, PlantAlarmCategory} from '../types/plantAlarm.type';
+import {PART_META} from './partMeta';
 import {PlantAlarmCatalogue} from './PlantAlarmCatalogue';
+
+/**
+ * One filter chip, used by both rows of them.
+ *
+ * Extracted when the cabinet's parts became a second row: the category chips and the
+ * part chips are the same control at two tiers, and two copies of the same twenty
+ * lines is how the tiers end up looking subtly unalike — a different hover, a
+ * different dimming rule — and reading as two different kinds of thing.
+ *
+ * `count === 0 && !on` dims it rather than dropping it. A chip that would show
+ * nothing is still information: `Enclosure 0` says the door is shut and the box is
+ * dry, which is a different statement from the chip not being there.
+ */
+const FilterChip = ({
+  label,
+  icon: Icon,
+  count,
+  on,
+  onToggle,
+}: {
+  label: string;
+  icon: LucideIcon;
+  count: number;
+  on: boolean;
+  onToggle: () => void;
+}) => (
+  <Badge
+    asChild
+    variant="element"
+    size="md"
+    className={cn(
+      'cursor-pointer border-subtle transition-colors hover:bg-highlight',
+      on && 'border-default bg-highlight',
+      count === 0 && !on && 'opacity-50',
+    )}
+  >
+    <button type="button" aria-pressed={on} onClick={onToggle}>
+      <Icon className="text-tertiary" aria-hidden="true" />
+      <span className={on ? 'text-primary' : 'text-secondary'}>
+        {label} {count}
+      </span>
+    </button>
+  </Badge>
+);
 
 /**
  * The site's Alarms tab — everything standing anywhere on the yard, in one queue.
@@ -77,6 +123,17 @@ export const SiteAlarms = ({siteId}: {siteId: string}) => {
    */
   const [categories, setCategories] = useState<ReadonlySet<PlantAlarmCategory>>(new Set());
   const [severities, setSeverities] = useState<ReadonlySet<AlertSeverity>>(new Set());
+  /**
+   * The third tier: which part of the cabinet, drawn under the `Cabinet` chip.
+   *
+   * Only `Cabinet` gets one, because it is the only category that is not one thing.
+   * A bank is a bank and an array is an array; the cabinet is a box with a shelf of
+   * modules in it, and at a grid-backed site it is the biggest category on the plant
+   * — twenty-six rows spanning a smoke detector, a bus voltage, six rectifiers and
+   * four converters. "Something in the cabinet is wrong" does not tell a technician
+   * what to put in the van, and these five chips do. See `CabinetPart`.
+   */
+  const [parts, setParts] = useState<ReadonlySet<CabinetPart>>(new Set());
 
   const {standing, cleared} = useSiteAlarmQueue(siteId, now);
   const unit = monitoringUnit(siteId);
@@ -87,24 +144,54 @@ export const SiteAlarms = ({siteId}: {siteId: string}) => {
     severities.size === 0 || severities.has(row.severity);
 
   /**
+   * The part filter narrows the cabinet and **only** the cabinet.
+   *
+   * `row.asset !== 'SITE'` passes, and that clause is what makes the tier nest
+   * properly. A reader who has selected `Cabinet` and `Battery` and then `Rectifiers`
+   * wants the rectifier rows *and* all the battery rows — not the battery rows
+   * silently dropped because a bank has no cabinet part. A third tier that quietly
+   * filtered its siblings would be a fourth top-level axis wearing an indent.
+   */
+  const inParts = (row: {asset?: PlantAlarmCategory; part?: CabinetPart}): boolean =>
+    parts.size === 0 ||
+    row.asset !== 'SITE' ||
+    (row.part !== undefined && parts.has(row.part));
+
+  const passes = (row: {
+    asset?: PlantAlarmCategory;
+    part?: CabinetPart;
+    severity: AlertSeverity;
+  }): boolean => inCategories(row) && inSeverities(row) && inParts(row);
+
+  /**
    * Each axis counted against the other's selection. See the note above on why.
    *
    * These are the *standing* rows only. The cleared table is filtered by the same
    * selection but never counted into a chip — a log is not a workload.
+   *
+   * The part row is the one exception worth stating: it counts cabinet rows past the
+   * severity filter and ignores the category selection entirely, because it is only
+   * ever drawn while `Cabinet` is on. Folding that in would count every part chip
+   * against a condition that is already true.
    */
-  const severityCounts = countBySeverity(standing.filter(inCategories));
+  const severityCounts = countBySeverity(
+    standing.filter((row) => inCategories(row) && inParts(row)),
+  );
   const categoryCounts = standing.filter(inSeverities);
+  const partCounts = standing.filter((row) => row.asset === 'SITE' && inSeverities(row));
 
-  const visibleStanding = standing.filter((row) => inCategories(row) && inSeverities(row));
-  const visibleCleared = cleared.filter((row) => inCategories(row) && inSeverities(row));
+  const visibleStanding = standing.filter(passes);
+  const visibleCleared = cleared.filter(passes);
 
-  const filtered = categories.size > 0 || severities.size > 0;
+  const filtered = categories.size > 0 || severities.size > 0 || parts.size > 0;
 
   /**
-   * One toggle for both rows — a `Set` of whatever the row's values are.
+   * One toggle for a row of chips — a `Set` of whatever that row's values are.
    *
-   * Written generically because the two rows behave identically and a second copy is
-   * a second chance for one of them to stop clearing on a re-click.
+   * Written generically because the rows behave identically and a second copy is a
+   * second chance for one of them to stop clearing on a re-click. Two of the three
+   * use it; the category row has its own because turning `Cabinet` off has to disarm
+   * the tier underneath it.
    */
   const toggler =
     <Value,>(set: (update: (current: ReadonlySet<Value>) => ReadonlySet<Value>) => void) =>
@@ -115,11 +202,33 @@ export const SiteAlarms = ({siteId}: {siteId: string}) => {
         return next;
       });
 
-  const toggleCategory = toggler<PlantAlarmCategory>(setCategories);
   const toggleSeverity = toggler<AlertSeverity>(setSeverities);
+  const togglePart = toggler<CabinetPart>(setParts);
 
   /**
-   * The asset chips, and under them what both chip rows have left standing.
+   * The category toggle, which is no longer generic — it has a tier under it.
+   *
+   * Turning `Cabinet` off **clears the part selection**, because a filter a reader
+   * cannot see must not still be narrowing the table. `inParts` would also let those
+   * rows through once `Cabinet` left the selection, so the table would be correct
+   * either way; what this prevents is the surprise on the way back — clicking
+   * `Cabinet` on again and finding only rectifiers, filtered by a chip row that was
+   * not on screen when the choice was made.
+   *
+   * Written out rather than passed through `toggler` for that one reason. The
+   * generic version is still what the other two rows use.
+   */
+  const toggleCategory = (category: PlantAlarmCategory): void => {
+    const next = new Set(categories);
+    if (!next.delete(category)) next.add(category);
+
+    setCategories(next);
+    if (!next.has('SITE')) setParts(new Set());
+  };
+
+  /**
+   * The asset chips, the cabinet's parts under them, and then what the chip rows
+   * have left standing.
    *
    * Two rows rather than one that wraps. The chips are the control; the `Showing …`
    * line is a **readout of what the control did**, so it belongs under the whole set
@@ -128,57 +237,68 @@ export const SiteAlarms = ({siteId}: {siteId: string}) => {
    * reader looking for the number had to find it first.
    *
    * With the severity row that `AlarmLists` puts above, the stack reads top to bottom
-   * as: narrow by how bad, narrow by what, here is what is left.
+   * as: narrow by how bad, narrow by what, narrow by which part of it, here is what is
+   * left. The third of those appears only under `Cabinet`, which is the only category
+   * with parts to narrow — see the note on `parts`.
    */
   const controls = (
     <div className="flex flex-col gap-2.5">
+      {/* The four assets. Dimmed at zero and still clickable, exactly as a zero
+          severity chip is: turning one on to see an explicit "nothing from the
+          battery" is a legitimate answer, and a disabled control makes a reader
+          wonder whether it is broken. */}
       <div className="flex flex-wrap items-center gap-1.5">
-        {PLANT_ALARM_CATEGORIES.map((category) => {
-          const meta = CATEGORY_META[category];
-          const Icon = meta.icon;
-          const count = categoryCounts.filter((row) => row.asset === category).length;
-          const isOn = categories.has(category);
-
-          return (
-            <Badge
-              key={category}
-              asChild
-              variant="element"
-              size="md"
-              className={cn(
-                'cursor-pointer border-subtle transition-colors hover:bg-highlight',
-                isOn && 'border-default bg-highlight',
-                // Dimmed when there is nothing of that kind standing, exactly as a
-                // zero severity chip is. The chip stays clickable: turning it on to
-                // see an explicit "nothing from the battery" is a legitimate answer,
-                // and a disabled control makes a reader wonder whether it is broken.
-                count === 0 && !isOn && 'opacity-50',
-              )}
-            >
-              <button type="button" aria-pressed={isOn} onClick={() => toggleCategory(category)}>
-                <Icon className="text-tertiary" aria-hidden="true" />
-                <span className={isOn ? 'text-primary' : 'text-secondary'}>
-                  {meta.label} {count}
-                </span>
-              </button>
-            </Badge>
-          );
-        })}
+        {PLANT_ALARM_CATEGORIES.map((category) => (
+          <FilterChip
+            key={category}
+            label={CATEGORY_META[category].label}
+            icon={CATEGORY_META[category].icon}
+            count={categoryCounts.filter((row) => row.asset === category).length}
+            on={categories.has(category)}
+            onToggle={() => toggleCategory(category)}
+          />
+        ))}
       </div>
+
+      {/* The five parts of the cabinet, and only while the cabinet is selected.
+          Indented behind a rule rather than sitting in the row above, because it is a
+          tier and not a fifth asset. The three rows read down as *how bad*, *what*,
+          *which bit of it* — each one narrowing what the row above it left.
+
+          It is drawn from `categories.has('SITE')` rather than from a chip's own
+          expand state, so there is one thing to click and no second control that can
+          disagree with it: the parts are visible exactly when the category they
+          belong to is in play. */}
+      {categories.has('SITE') && (
+        <div className="flex flex-wrap items-center gap-1.5 border-l border-subtle pl-3">
+          {CABINET_PARTS.map((part) => (
+            <FilterChip
+              key={part}
+              label={PART_META[part].label}
+              icon={PART_META[part].icon}
+              count={partCounts.filter((row) => row.part === part).length}
+              on={parts.has(part)}
+              onToggle={() => togglePart(part)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Only while something is on. A permanent `11 of 11` is a number that never
           says anything, and its absence is what makes the filtered case read as a
           state somebody chose. It counts the standing table because that is what the
           chips count; the cleared table narrows with it silently.
 
-          The reset clears **both** rows. With two multi-select axes a reader can
-          reach a combination with nothing in it — `Neutral` plus `Battery` — and
-          working out which of up to seven chips to click off again is not a puzzle an
-          empty table should set.
+          The reset clears **all three** rows. With three multi-select axes a reader
+          can reach a combination with nothing in it — `Neutral` plus `Battery`, or
+          `Cabinet` plus `Enclosure` plus `Critical` on a site with a shut door — and
+          working out which of up to twelve chips to click off again is not a puzzle
+          an empty table should set. It is also the only control that clears the part
+          row without going through the category above it.
 
           It is a chip like the ones it undoes rather than the underlined link it
-          started as, which had put the control that turns seven filters off in a
-          different visual language from the seven that turn them on.
+          started as, which had put the control that turns twelve filters off in a
+          different visual language from the twelve that turn them on.
 
           It carries **no selected state**, because it has none — a toggle stays lit to
           say it is still doing something, and this fires once and then vanishes with
@@ -203,6 +323,7 @@ export const SiteAlarms = ({siteId}: {siteId: string}) => {
               onClick={() => {
                 setCategories(new Set());
                 setSeverities(new Set());
+                setParts(new Set());
               }}
             >
               <FilterXIcon className="text-tertiary" aria-hidden="true" />
