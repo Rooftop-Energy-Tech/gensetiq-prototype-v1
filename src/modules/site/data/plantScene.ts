@@ -96,6 +96,21 @@ type Equipment = {
   url: string;
   box: Box;
   /**
+   * What the thing actually stands on, in millimetres, relative to its own origin.
+   *
+   * The `box` above is the **projected** extent - the drawing, including its roof, its
+   * shadow and whatever sky it carries above itself - and it is no use for deciding where
+   * the concrete has to reach. This is the plan footprint, off each generator's own
+   * dimension table, so the slab can be derived from what is standing on it rather than
+   * drawn as a rectangle somebody guessed and then had to keep re-guessing.
+   *
+   * The signs matter: most objects run positive in both axes from their origin, because
+   * `drawBox` puts the origin at the far corner and the near vertical edge at `(w, d)`.
+   * The array frame is the exception - it rakes back in `-x` from its front posts - and
+   * the tower's foundation pad is centred on its own axis.
+   */
+  foot: {x0: number; y0: number; x1: number; y1: number};
+  /**
    * What the drawing is, for the `alt` text.
    *
    * The node's own label - `SOLAR`, `CABINET` - is the site's vocabulary and comes from
@@ -122,46 +137,55 @@ export const EQUIPMENT: Record<EquipmentId, Equipment> = {
   arrayShelter: {
     url: arrayShelter,
     box: {minX: -13257.59, minY: -6006.42, w: 14775.31, h: 11980.44},
+    foot: {x0: -3924, y0: 0, x1: 155, y1: 9787}, // D5 at rows 3: the frame rakes back in -x from its front posts
     alt: 'Ground-mount solar array on a walk-under frame',
   },
   fenceRun: {
     url: fenceRun,
     box: {minX: -1817.88, minY: -2463.83, w: 19224.22, h: 12779.16},
+    foot: {x0: 0, y0: 0, x1: 18000, y1: 70},
     alt: '',
   },
   gensetCanopy: {
     url: gensetCanopy,
     box: {minX: -962.31, minY: -1109.12, w: 2877.24, h: 2654.48},
+    foot: {x0: 0, y0: 0, x1: 2100, y1: 1000}, // 1900 x 800 canopy plus the skid overhang
     alt: 'Canopied diesel generating set on a plinth',
   },
   linePole: {
     url: linePole,
     box: {minX: -6329.5, minY: -13645.24, w: 12659, h: 14314.73},
+    foot: {x0: -400, y0: -400, x1: 400, y1: 400},
     alt: 'Overhead line pole carrying the incoming supply',
   },
   powerCabinet: {
     url: powerCabinet,
     box: {minX: -727.18, minY: -1661.83, w: 1454.36, h: 2440.4},
+    foot: {x0: 0, y0: 0, x1: 650, y1: 795}, // the ICC330-HA1-C10, 650 wide x 795 deep including the door a/c
     alt: 'Outdoor DC power cabinet',
   },
   shrub: {
     url: shrub,
     box: {minX: -1108.27, minY: -670.5, w: 2216.54, h: 1341.01},
+    foot: {x0: -520, y0: -520, x1: 520, y1: 520},
     alt: '',
   },
   tower: {
     url: tower,
     box: {minX: -7501.34, minY: -31660.46, w: 15002.69, h: 36495.92},
+    foot: {x0: -3167, y0: -3167, x1: 3167, y1: 3167}, // A12's foundation pad, 1.9 x a 3,333 base, centred on the axis
     alt: 'Lattice tower carrying the site radio equipment',
   },
   tree: {
     url: tree,
     box: {minX: -2024.72, minY: -2711.73, w: 4049.45, h: 3936.69},
+    foot: {x0: -950, y0: -950, x1: 950, y1: 950},
     alt: '',
   },
   telcoCabinet: {
     url: telcoCabinet,
     box: {minX: -366.35, minY: -938.08, w: 992.5, h: 1469.91},
+    foot: {x0: 0, y0: 0, x1: 600, y1: 300}, // A9, 600 x 300
     alt: '',
   },
 };
@@ -274,6 +298,15 @@ export type PlantScene = {
  */
 const CABINET_PITCH = 690;
 
+/**
+ * How far the slab reaches past the plant standing on it, in millimetres.
+ *
+ * Access, not decoration: a technician opens a cabinet door and stands in front of it, and
+ * a set needs room to be worked on. 1.2 m is about the walkway the group's own site
+ * photographs show around a cabinet line-up.
+ */
+const PAD_MARGIN = 1200;
+
 /** How many battery cabinets stand beside the subrack one. */
 const BATTERY_CABINETS = 3;
 
@@ -322,9 +355,6 @@ export const plantScene = (
   // what a fence does.
   const size = solar ? 18000 : 11000;
   const compound: Ground = {x0: 0, y0: 0, x1: size, y1: size};
-  const platform: Ground = solar
-    ? {x0: 3000, y0: 3000, x1: 16200, y1: 14000}
-    : {x0: 2200, y0: 2200, x1: 9600, y1: 9600};
 
   // Behind the fence: the treeline. Outside the compound on the two far sides, which are
   // the two the viewer can see past. A backdrop layer rather than an item in the depth
@@ -506,6 +536,34 @@ export const plantScene = (
       y: (solar ? 12600 : 7600) + index * 2800,
     });
   });
+
+  // The slab is **derived from what stands on it**, not drawn as a rectangle and then
+  // kept in step by eye. Every object's plan footprint, plus a working margin for the
+  // access around it, and the union is the concrete.
+  //
+  // It is derived because the alternative kept failing: the pad was two hardcoded
+  // rectangles, one per compound size, and every time the layout moved something the
+  // equipment ended up standing on grass. Lucas caught the sets doing exactly that on a
+  // grid-connected site. A slab that follows the plant cannot fall out of step with it.
+  const feet = placements
+    .filter((placement) => placement.scenery !== true)
+    .map((placement) => {
+      const {foot} = EQUIPMENT[placement.equipment];
+      const scale = placement.scale ?? 1;
+      return {
+        x0: placement.x + foot.x0 * scale,
+        y0: placement.y + foot.y0 * scale,
+        x1: placement.x + foot.x1 * scale,
+        y1: placement.y + foot.y1 * scale,
+      };
+    });
+
+  const platform: Ground = {
+    x0: Math.min(...feet.map((foot) => foot.x0)) - PAD_MARGIN,
+    y0: Math.min(...feet.map((foot) => foot.y0)) - PAD_MARGIN,
+    x1: Math.max(...feet.map((foot) => foot.x1)) + PAD_MARGIN,
+    y1: Math.max(...feet.map((foot) => foot.y1)) + PAD_MARGIN,
+  };
 
   return {placements, platform, compound};
 };
