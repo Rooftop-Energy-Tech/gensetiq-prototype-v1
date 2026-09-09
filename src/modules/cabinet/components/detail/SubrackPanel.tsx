@@ -209,6 +209,19 @@ export const SubrackPanel = ({
           </>
         }
       >
+        {/* What the module is *for*, before what it is doing.
+            The ten bays with readings were the only ones on the drawing with no
+            functional description — the inert ones had to explain themselves to
+            justify being drawn at all, and the modules were left to be identified by
+            their own labels. `Rectifier 3` names a bay; it does not tell a reader
+            what would stop working if that bay were empty, and this page is opened by
+            people deciding whether to drive out to a site. */}
+        <p className="max-w-prose text-sm text-secondary">
+          {rectifier
+            ? 'An R4875G5: turns the AC arriving at the cabinet — the incomer, or the genset — into the −48 V DC the tower runs on, at 48 V / 75 A and 97% efficient. The shelf load-shares across all six, so each carries a sixth of the load and any one can be pulled hot while the rest hold the site up. The G5 is the variant that holds 57 V constant, which is what the lithium bank needs.'
+            : 'An S4875G1, the solar DC/DC module: it takes the string voltage coming off the PV distribution shelf — 58 to 150 V — and converts it to the same −48 V the rectifiers deliver, tracking the array\u2019s maximum power point to better than 99.8% as the light changes. Peak efficiency 98.2%, and it draws under 1.2 W overnight rather than switching off.'}
+        </p>
+
         <SiteDeviceFigures
           figures={[
             {label: 'Delivering now', value: module.outputKw.toFixed(1), unit: 'kW'},
@@ -221,10 +234,33 @@ export const SubrackPanel = ({
               a nameplate the unit publishes, and printing the rectifier's 4 kW
               against it would be the same wrong figure the card rack printed before
               it was corrected. */}
+          {/* The conversion in four words, because it is the one fact that separates
+              the two kinds of module in this shelf and a reader scanning the spec
+              block should not have to infer it from the paragraph above. Both ends
+              of both arrows are the same −48 V bus, which is the whole reason these
+              two live in one rack. */}
+          <MetricRow
+            label="Converts"
+            value={rectifier ? 'AC → −48 V DC' : 'Array DC → −48 V DC'}
+          />
+          {/* Both kinds have a rating now. The SSU's used to read `—`, which was
+              true when nothing on the cabinet stated one and false as soon as the
+              part was identified: an `S4875G1` is 4013 W, datasheet-confirmed, and
+              four of them is 16.05 kW against this site's 16.20 kWp array — a DC:AC
+              ratio of 1.009, so the stage was sized to the roof. It is still `—` at
+              a site whose shelf was sized rather than counted, because there is no
+              part there to have a datasheet. See `MonitoringUnit.ssuKw`. */}
           <MetricRow
             label="Rated"
-            value={rectifier ? amount(cabinet.rectifierKw, 'kW') : '—'}
+            value={
+              rectifier
+                ? amount(cabinet.rectifierKw, 'kW')
+                : cabinet.ssuKw === null
+                  ? '—'
+                  : amount(cabinet.ssuKw, 'kW', 2)
+            }
           />
+          <MetricRow label="Part" value={rectifier ? 'R4875G5' : 'S4875G1'} />
           {/* The vendor's word for the bay, which is the whole reason this row is
               here: the metal is silkscreened `PSU` and every screen in this app says
               `Rectifier`, so a person at the open door needs the two joined once. */}
@@ -238,16 +274,30 @@ export const SubrackPanel = ({
         {alarms}
 
         {rectifier ? (
-          <p className="max-w-prose text-xs text-tertiary">
-            The rows above are about the{' '}
-            <span className="text-secondary">shelf as a group</span> —{' '}
-            <span className="text-secondary">Rectifier Abnormal</span> says one of the
-            six is unwell without saying which. Rectifier addresses are hand-set on the
-            SMU's LCD by watching an indicator blink, nobody has confirmed the six here
-            were addressed, and so the thirty per-rectifier registers are deliberately
-            unpolled. This bay's number is how a person counts along the shelf, not an
-            address the device agreed to.
-          </p>
+          <>
+            <p className="max-w-prose text-xs text-tertiary">
+              The rows above are about the{' '}
+              <span className="text-secondary">shelf as a group</span> —{' '}
+              <span className="text-secondary">Rectifier Abnormal</span> says one of
+              the six is unwell without saying which. Rectifier addresses are hand-set
+              on the SMU's LCD by watching an indicator blink, nobody has confirmed the
+              six here were addressed, and so the thirty per-rectifier registers are
+              deliberately unpolled. This bay's number is how a person counts along the
+              shelf, not an address the device agreed to.
+            </p>
+
+            {/* The shelf's own headroom, which is a fact about the drawing a reader
+                cannot get from it: three of the nine positions are empty and this
+                elevation only draws the six that are filled. */}
+            <p className="max-w-prose text-xs text-tertiary">
+              The shelf has{' '}
+              <span className="text-secondary">nine rectifier positions</span> and six
+              are filled, so 24 kW of the 36 kW it could pass is installed and three
+              bays are headroom for more AC rectification. The nine count rectifiers
+              only — the solar units sit in positions of their own, which is why six
+              plus four was never over-subscribing a nine-slot shelf.
+            </p>
+          </>
         ) : (
           <p className="max-w-prose text-xs text-tertiary">
             An SSU reads its own bay off detection and power-identifying pins, so{' '}
@@ -389,38 +439,50 @@ export const SubrackPanel = ({
       );
     }
 
-    /* The two stacked modules in the top-right corner. Separate bays because they are
-       separate modules, and separate panels because saying "one of the two boards up
-       there" would be the drawing admitting it had not looked. Neither acronym is
-       expanded: they are what the shelf is silkscreened, nobody has confirmed what
-       either stands for, and a plausible expansion under a confident heading is the
-       kind of invention this whole page is written against. */
+    /* The two stacked boards in the top-right corner, and they are the reason those
+       two bays sit where they do: **both occupy the SMU's own expansion slots.** The
+       site record is explicit that only the SMU talks northbound and that these two
+       are southbound expansion, which is why the drawing has them immediately beside
+       it rather than out among the converters.
+       Separate bays because they are separate modules on separate handles, and
+       separate panels because "one of the two boards up there" would be the drawing
+       admitting it had not looked. */
     case 'GIM':
       return (
-        <InertBay label="Interface module" identity="GIM">
-          The upper of the two modules in the top-right corner, above the UIM. Not one
-          register in the poll table addresses this bay, and the app does not model
-          what it does — so a quiet drawing here means nobody is looking, not that it
-          is well.
+        <InertBay label="Genset I/O" identity="GIM01C">
+          The genset expansion board, in the upper of the SMU's two slots: it is what
+          the plant starts and stops the engine through, and it carries the reset line
+          and the fuel-level input. So the diesel side of this site is wired to the
+          tower's DC plant through this bay — a fact worth knowing before pulling it.
+          Nothing in the poll set addresses the board itself, so a quiet drawing here
+          means nobody is looking rather than that it is well.
         </InertBay>
       );
 
     case 'UIM':
       return (
-        <InertBay label="Interface module" identity="UIM">
-          Directly under the GIM, sharing the same bay's height. Nothing in the poll
-          table addresses it either. It is drawn as its own half rather than folded
-          into the GIM above it because it is a separate module on a separate handle —
-          a technician sent to swap one must not be looking at a cell that names both.
+        <InertBay label="Environment I/O" identity="UIM05B1">
+          The sensor and dry-contact board, in the SMU's other slot, sharing one bay's
+          height with the GIM above it. The cabinet's door, water and smoke rows arrive
+          through contacts on a board like this one, which is what makes it the bay
+          those alarms depend on without appearing on it. Its own two temperature
+          registers exist in the map at 0x102E and 0x102F and are{' '}
+          <span className="text-secondary">not in the poll set</span>, so nothing here
+          reports on the board.
         </InertBay>
       );
 
     case 'CONVERTER':
       return (
-        <InertBay label="Shelf module" identity="M48500">
-          A module in the bottom-right bay, beside the two lower SSUs. Nothing in the
-          poll table addresses it and the app does not model its function, so this bay
-          is drawn to keep the elevation honest and says nothing more.
+        <InertBay label="Auxiliary power" identity="M48500N1">
+          Everything else in this shelf converts *into* the −48 V bus; this one
+          converts back out of it, at small scale, to run the equipment that cannot
+          take −48 V. It takes 40 to 60 V in and gives two 12 V DC outputs at 100 W,
+          two 24 V DC at 200 W and four 24 V AC at 200 W, behind its own on/off switch.
+          Two must never be paralleled. It is also where the gateway that reads this
+          whole page gets its power — regulated 12 V was already in the plant, so
+          nothing of ours had to be added to make the cabinet observable. Nothing in
+          the poll set addresses the module itself.
         </InertBay>
       );
 
@@ -437,19 +499,27 @@ export const SubrackPanel = ({
             label="Inverter slot"
             identity={`${position.label} of 3 · empty`}
           >
-            Nothing is fitted in this slot. The ETP23006 takes three inverters and this
-            cabinet has one, in the slot to the left — so the shelf has room for two
-            more without any change to the rack.
+            Nothing is fitted in this slot. The ETP23006-C1A1 takes three 2000 VA
+            I23002G1 modules for its full 6 kVA and this cabinet has one, in the slot to
+            the left — so the shelf is running at a third of its rating and two more
+            could go in without any change to the rack.
           </InertBay>
         );
       }
 
       return (
-        <InertBay label="Inverter" identity={`ETP23006 · slot ${position.slot} of 3`}>
-          The inverter on the 1U shelf below the subrack, and the only one of the
-          shelf's three slots that is fitted. It has no rating, no reading and no alarm
-          row anywhere in this app — it is drawn because it is in the rack and a reader
-          at the open door will see it.
+        <InertBay
+          label="Inverter"
+          identity={`ETP23006-C1A1 · slot ${position.slot} of 3`}
+        >
+          Runs the rack's conversion in reverse and at real scale: −48 V DC back out as
+          230 V AC at 50 Hz, through one 63 A output, for the equipment at the site that
+          needs mains. The shelf is rated 6 kVA — 4.8 kW — from three 2000 VA I23002G1
+          modules, which is what its three slots are, and this cabinet has one of them
+          fitted. Its DC input draws up to 120 A at 53.5 V, so a full shelf is a
+          material share of what the plant delivers rather than an afterthought.
+          Nothing in the poll set addresses it, and no alarm row anywhere in this app is
+          about it.
         </InertBay>
       );
     }
