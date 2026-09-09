@@ -2,7 +2,7 @@ import {BatteryChargingIcon} from 'lucide-react';
 
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
-import {TankGlyph} from '@/components/global/TankGlyph';
+import {BatteryGlyph} from '@/components/global/BatteryGlyph';
 import {Badge} from '@/components/ui/badge';
 import {amount} from '@/lib/format';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
@@ -151,7 +151,9 @@ export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
       <section aria-label="Charge now" className="flex justify-center py-6">
         <div className="flex flex-col items-center gap-3 px-6">
           <div className="flex items-center gap-3">
-            <TankGlyph fraction={bank.soc} tone="battery" />
+            {/* `charging` off the same `flow` the badge below reads, so the bolt and
+                the word cannot disagree — see `bankFlow`. */}
+            <BatteryGlyph fraction={bank.soc} charging={flow === 'CHARGING'} />
 
             {/* The figure beside the glyph rather than under it, which is the
                 design's arrangement and the one that reads as a caption to the

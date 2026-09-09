@@ -1,7 +1,7 @@
 import {cn} from '@/lib/utils';
 
 /**
- * The little segmented tank the design draws beside a level.
+ * The little segmented tank the design draws beside a level of **diesel**.
  *
  * Stacked bars filling from the bottom, which quantises the level to eighths —
  * and that is the point rather than a limitation. Next to it sits the exact
@@ -13,33 +13,39 @@ import {cn} from '@/lib/utils';
  * from the design and it earns its place: it marks *where* the level is, which a
  * flat column of one colour leaves you counting bars to find.
  *
- * ## Why it is not `FuelTank` any more
+ * ## Why it is not `FuelTank` any more, and is nearly one again
  *
  * It was, and it lived in the genset module, because a tank of diesel was the only
- * level the app drew. The battery page's Figma frame then specified **the same
- * glyph at the same 46 × 60 with the same eight bars**, in blue — so the choice was
- * a second copy of thirty lines or one component with a tone. A copy would have
- * been the third time this shape was maintained by hand (see `DetailBand`), and the
- * two would have drifted the moment either design moved a radius.
+ * level the app drew. The battery page's Figma frame then specified **the same glyph
+ * at the same 46 × 60 with the same eight bars**, in blue — so the choice was a second
+ * copy of thirty lines or one component with a tone, and a copy would have been the
+ * third time this shape was maintained by hand (see `DetailBand`).
  *
- * `tone` rather than a pair of class names, because the token pair is not a caller's
- * choice to make: `fuel`/`fuel-tip` and `battery`/`battery-tip` are two halves of one
- * scale each, and a caller free to mix them could draw a violet tank with a blue
- * meniscus. The rule the whole app follows is that a mark is coloured by *what it
- * measures*, and this enumerates the things that can be measured.
+ * That is over: storage moved to `BatteryGlyph`, a horizontal battery with a
+ * continuous bar, because a later mock changed the *shape* rather than the colour.
+ * Both of this component's arguments are diesel arguments and neither survived the
+ * move — a vertical column looks like a tank of liquid, and eighths stop a reader
+ * squinting at the glyph and disagreeing with the litres beside it.
+ *
+ * So the `battery` tone is gone, deliberately rather than left as a spare: a caller
+ * that could still ask for it would get the old shape on a page that has replaced it,
+ * which is the drift this file's own note warns about. What is left is a one-member
+ * enum, and `tone` stays a prop for the reason it was one — the token pair is not a
+ * caller's choice to make, `fuel`/`fuel-tip` being two halves of one scale, and the
+ * rule the whole app follows is that a mark is coloured by *what it measures*. The
+ * next level anybody draws lands here as a second member.
  */
 const TONES = {
   fuel: {fill: 'bg-fuel', tip: 'bg-fuel-tip'},
-  battery: {fill: 'bg-battery', tip: 'bg-battery-tip'},
 } as const;
 
 /**
  * Two sizes, and the same argument `TickGauge` makes for having exactly two.
  *
  * `lg` is the design's: 46 × 60 with eight bars, the tank beside a genset's fuel
- * figures and the battery beside a bank's charge. `sm` is the module tile's, where
- * the same glyph is repeated once per module in a bank and has to survive at a
- * third of the area.
+ * figures. `sm` was the battery module tile's and now has no caller — it is kept
+ * because it is the same measured geometry as `lg` and the argument below is the
+ * record of how it was arrived at, not because anything draws it today.
  *
  * `sm` drops to six segments rather than shrinking eight. Eight 3px bars inside a
  * 30px column would put the gaps below a device pixel at any non-integer zoom, and

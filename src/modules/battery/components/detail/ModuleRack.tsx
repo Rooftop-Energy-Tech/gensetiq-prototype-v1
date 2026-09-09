@@ -1,7 +1,7 @@
 import {Link} from '@tanstack/react-router';
 import {TriangleAlertIcon} from 'lucide-react';
 
-import {TankGlyph} from '@/components/global/TankGlyph';
+import {BatteryGlyph} from '@/components/global/BatteryGlyph';
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
@@ -17,6 +17,7 @@ import {
   moduleChargeRange,
   moduleTempRange,
 } from '../../data/modules';
+import {bankFlow} from '../../types/bank.type';
 import type {BatteryBank} from '../../types/bank.type';
 import type {BatteryModule} from '../../types/module.type';
 
@@ -54,9 +55,16 @@ import type {BatteryModule} from '../../types/module.type';
  * would have bought is on each card in figures anyway, three more of them than the
  * bars could have carried.
  *
- * Six segments rather than the hero's eight, per `TankGlyph`'s note on `sm`: at
- * 26px wide, eight bars merge into a block. It costs nothing here because the card
- * prints its own percentage beside the glyph.
+ * Which is why the cards moved to `BatteryGlyph` with the hero rather than after it.
+ * The pack became a horizontal battery with a continuous bar; a rack of vertical
+ * segmented tanks under it would have left the page carrying two battery shapes and
+ * broken the one relationship this band is drawn to show.
+ *
+ * `sm` rather than the hero's `lg`, and it carries the charging bolt like the hero
+ * does — which is what took `sm` from 34 × 18 to 44 × 22, since a bolt inside an 18px
+ * body is a speck. The direction is the **pack's**, because a module has none of its
+ * own: `charging` is read once from `bankFlow` and handed to all thirteen, so the rack
+ * cannot disagree with the battery above it.
  *
  * ## Why charge is the headline and the other three are rows
  *
@@ -221,6 +229,17 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
   const role = useSitePowerRole(bank.id);
   const faults = faultedModules(bank, role, handling);
 
+  /**
+   * The pack's direction, handed to all of its modules.
+   *
+   * A module has no direction of its own and should not look as though it might: the
+   * bus decides where the energy goes, so every module in a rack takes charge when the
+   * pack does. Read from `bankFlow` — the same function the badge under the hero glyph
+   * reads — so the thirteen little batteries and the big one cannot disagree about
+   * whether anything is charging.
+   */
+  const charging = bankFlow(bank) === 'CHARGING';
+
   // The rack is in slot order, so the lowest module has to be found rather than
   // read off an end — see `modules.ts` on why it is not sorted.
   const lowest = modules.reduce((low, module) => (module.soc < low.soc ? module : low));
@@ -341,10 +360,10 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
               </div>
 
               <div className="flex items-center gap-2.5">
-                <TankGlyph
+                <BatteryGlyph
                   fraction={module.soc}
-                  tone="battery"
                   size="sm"
+                  charging={charging}
                   // The glyph carries the whole reading because the figure beside it
                   // is `aria-hidden` — read on its own, "60 %" is a number with no
                   // subject, exactly as it is beside the pack above.

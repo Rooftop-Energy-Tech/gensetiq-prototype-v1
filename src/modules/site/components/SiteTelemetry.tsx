@@ -1,5 +1,6 @@
 import {useMemo} from 'react';
 
+import {BatteryGlyph} from '@/components/global/BatteryGlyph';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {hybridPlant, hybridState} from '../data/hybrid';
@@ -149,52 +150,42 @@ const Spark = ({trend, className}: {trend: SiteTrend; className?: string}) => {
  * State of charge, drawn as a battery.
  *
  * Horizontal, with the terminal on the right and the charge filling from the left, which
- * is the convention every phone and every BMS screen already uses. The fill is the bank's
- * own token rather than a traffic light: this component's job is to say how full, and
- * whether that is a problem is the alarm rows' job, which the card above already carries.
+ * is the convention every phone and every BMS screen already uses.
+ *
+ * ## Why the SVG went
+ *
+ * This drew that battery itself, in about thirty lines of hand-placed `<rect>` — the
+ * right shape, from the same mock, and separately. So the site page showed **two
+ * batteries at the same percentage in the same state**, one with a charging bolt and
+ * one without, because `BatteryGlyph` had arrived on the other side of a merge and
+ * nobody had joined them up. The one drawn here also had no low-charge colours.
+ *
+ * Its measurements are not lost: they are `BatteryGlyph`'s `xl` size, which is the
+ * only place in the app the battery is a frame's subject rather than a mark beside a
+ * figure. Nothing a reader can see changed size.
+ *
+ * The fill is still the bank's own token at a healthy charge, and the fill going amber
+ * under 40% is not this component contradicting its old note — "whether that is a
+ * problem is the alarm rows' job" is about *raising* something, and a colour beside a
+ * figure raises nothing. `BatteryGlyph` argues that boundary, and why the two
+ * thresholds must never reach `plantAlarms.ts`.
  */
-const SocGauge = ({soc, flow}: {soc: number; flow: 'charging' | 'discharging' | 'standby'}) => {
-  const pct = Math.max(0, Math.min(1, soc));
+const SocGauge = ({soc, flow}: {soc: number; flow: 'charging' | 'discharging' | 'standby'}) => (
+  <div className="flex items-center gap-3">
+    {/* No `label`. The percentage and the direction are real text immediately to the
+        right, so labelling the glyph too would read the level twice — the rule every
+        other level in this app follows. It used to carry
+        `State of charge 71 per cent, charging`, which is exactly that duplication. */}
+    <BatteryGlyph fraction={soc} size="xl" charging={flow === 'charging'} />
 
-  return (
-    <div className="flex items-center gap-3">
-      <svg
-        viewBox="0 0 120 52"
-        className="h-11 w-[104px] text-battery"
-        role="img"
-        aria-label={`State of charge ${Math.round(pct * 100)} per cent, ${flow}`}
-      >
-        <rect
-          x={1}
-          y={1}
-          width={106}
-          height={50}
-          rx={7}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          opacity={0.45}
-        />
-        <rect x={110} y={17} width={9} height={18} rx={2.5} fill="currentColor" opacity={0.45} />
-        <rect
-          x={6}
-          y={6}
-          width={Math.max(2, 96 * pct)}
-          height={40}
-          rx={4}
-          fill="currentColor"
-          opacity={0.85}
-        />
-      </svg>
-      <div className="flex flex-col">
-        <span className="text-lg leading-none font-semibold text-primary">
-          {Math.round(pct * 100)}%
-        </span>
-        <span className="text-[11px] text-secondary">{flow}</span>
-      </div>
+    <div className="flex flex-col">
+      <span className="text-lg leading-none font-semibold text-primary">
+        {Math.round(Math.max(0, Math.min(1, soc)) * 100)}%
+      </span>
+      <span className="text-[11px] text-secondary">{flow}</span>
     </div>
-  );
-};
+  </div>
+);
 
 const Figure = ({label, value}: {label: string; value: string}) => (
   <div className="flex flex-col gap-1">

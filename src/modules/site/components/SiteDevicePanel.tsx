@@ -5,6 +5,7 @@ import type {LinkProps} from '@tanstack/react-router';
 import {
   ActivityIcon,
   BatteryChargingIcon,
+  BatteryIcon,
   DropletIcon,
   ServerIcon,
   SunMediumIcon,
@@ -19,6 +20,7 @@ import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.ty
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
+import {BatteryGlyph} from '@/components/global/BatteryGlyph';
 import {CurrentRunCard} from '@/modules/genset/components/detail/CurrentRunCard';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
 import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
@@ -771,10 +773,16 @@ const BatteryDeviceCard = ({
       badges={
         <>
           <Badge variant="secondary" className="whitespace-pre">
-            <BatteryChargingIcon
-              className={charging ? 'text-battery' : 'text-tertiary'}
-              aria-hidden="true"
-            />
+            {/* The glyph changes with the direction, not just its colour. It was
+                `BatteryChargingIcon` in both states — a battery **with a bolt through
+                it** — so a discharging bank was drawn with the charging icon and only
+                the tint said otherwise. At the 12px a badge gives an icon, a tint is
+                not a word: the shape has to carry it. */}
+            {charging ? (
+              <BatteryChargingIcon className="text-battery" aria-hidden="true" />
+            ) : (
+              <BatteryIcon className="text-tertiary" aria-hidden="true" />
+            )}
             {/* Which way the energy is going, and at what. The sign convention is
                 `hybridState`'s: negative is into the bank. */}
             {charging ? 'Charging' : 'Discharging'}
@@ -793,6 +801,19 @@ const BatteryDeviceCard = ({
         </>
       }
     >
+      {/* The bank's own glyph, the same one the bank page's hero draws — so a reader
+          who clicked this box on the diagram sees the battery they will see when they
+          follow the link, and sees the bolt where the badge above says `Charging`.
+
+          `lg` rather than the module card's `sm`, and that is the point of putting it
+          here at all: the bolt is drawn at `lg` only, because 8px of bolt inside an
+          18px body is a smudge. See `BatteryGlyph`.
+
+          No `label`: the figure directly under it is `Battery charge — 70 %` in real
+          text, so announcing the glyph too would read the level twice. That is the
+          rule every other level in this app follows. */}
+      <BatteryGlyph fraction={state.soc} charging={charging} />
+
       <SiteDeviceFigures
         figures={[
           {label: 'Battery charge', value: `${Math.round(state.soc * 100)}`, unit: '%'},
