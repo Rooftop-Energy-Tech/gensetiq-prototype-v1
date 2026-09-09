@@ -73,6 +73,15 @@ export type SubrackCabinet = {
   /** Solar conversion units in the same shelf. */
   ssus: number;
   /**
+   * What one of them is rated at, kW, or `null` where nothing states it.
+   *
+   * `null` on a sized shelf, and that is the whole reason it is nullable: a rating is
+   * a fact about a part somebody identified, and at a site where the module count was
+   * modelled rather than counted there is no part to have a datasheet. The panel
+   * prints `—` there rather than borrowing this site's figure.
+   */
+  ssuKw: number | null;
+  /**
    * What the rectifier shelf could pass, kW — `rectifiers × rectifierKw`.
    *
    * The **AC→DC** ceiling only. The SSUs add their own conversion beside it and are

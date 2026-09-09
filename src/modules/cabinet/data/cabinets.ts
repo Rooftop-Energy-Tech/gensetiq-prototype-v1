@@ -90,6 +90,9 @@ const cabinetFrom = (
     rectifiers: shelf.rectifiers,
     rectifierKw: shelf.rectifierKw,
     ssus: shelf.ssus,
+    // `unit` and not `shelf`: a sized shelf has a module count but no part, so no
+    // rating. See `SubrackCabinet.ssuKw`.
+    ssuKw: unit?.ssuKw ?? null,
     capacityKw,
     loadKw,
     solarKw: plant?.solarKw ?? 0,

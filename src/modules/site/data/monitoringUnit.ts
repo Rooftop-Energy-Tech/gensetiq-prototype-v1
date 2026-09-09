@@ -83,6 +83,23 @@ export type MonitoringUnit = {
    */
   rectifiers: number;
   rectifierKw: number;
+  /**
+   * What one solar conversion unit is rated at, kW — the `S4875G1`'s **4013 W**.
+   *
+   * A **stated figure, not a read one**, exactly as `rectifierKw` is. Nothing in the
+   * poll set publishes a per-module rating; this is the part's datasheet, confirmed
+   * 2026-08-26, for the part the site census counted. Four of them is 16.05 kW of
+   * nameplate against a 16.20 kWp array — a DC:AC ratio of 1.009, which is the
+   * corroboration worth having: the SSU stage was sized to the roof.
+   *
+   * ⚠️ **`shelf.ts` sizes with 7 kW per SSU, not 4.** That constant guesses a shelf
+   * where no unit is fitted; this is the rating of the module actually in this one.
+   * They are different kinds of number and they disagree — a sized shelf comes out
+   * with fewer, larger units than the real site has. Worth reconciling, and not
+   * silently, which is why both are documented where they are used rather than one
+   * being quietly changed to match the other.
+   */
+  ssuKw: number;
 };
 
 /**
@@ -108,6 +125,7 @@ const UNITS: Readonly<Record<string, MonitoringUnit>> = {
     ssus: 4,
     rectifiers: 6,
     rectifierKw: 4,
+    ssuKw: 4.013,
   },
 };
 

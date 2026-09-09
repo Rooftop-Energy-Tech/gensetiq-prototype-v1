@@ -27,12 +27,13 @@ import type {SubrackModule, SubrackSlotFault} from '../types/subrackModule.type'
  * reading zero. Evenly within each group, which is not a simplification: a telecom
  * shelf load-shares by design. See the note on the shares below.
  *
- * **Temperature** is the enclosure's plus the module's own work. A module passing
- * nothing sits at cabinet temperature; one at its rating sits `FULL_LOAD_RISE_C`
- * above it, with a small per-slot offset so a shelf is not ten identical figures. A
- * flat rack would be the one thing this drawing must not be, for the reason the
- * battery's modules exist at all: a shelf reading one number cannot show you the
- * module that is about to go.
+ * **Temperature** is the enclosure's plus the module's own work, measured against
+ * **its own kind's rating** — the rectifier's 4 kW and the SSU's 4013 W. A module
+ * passing nothing sits at cabinet temperature; one at its rating sits
+ * `FULL_LOAD_RISE_C` above it, with a small per-slot offset so a shelf is not ten
+ * identical figures. A flat rack would be the one thing this drawing must not be, for
+ * the reason the battery's modules exist at all: a shelf reading one number cannot
+ * show you the module that is about to go.
  *
  * **Fault** is read off the **actual alarm list**, not invented. `assertedPlantAlarms`
  * is the same function the Alarms tab renders, so a card marked faulted here has a
@@ -123,6 +124,8 @@ export const subrackModules = (
     /** `r`, `s` — the id's stem, which no reader sees. */
     stem: string,
     outputKw: number,
+    /** What one of this kind is rated at, for the temperature rise. */
+    ratedKw: number | null,
     fault: (slot: number) => SubrackSlotFault,
   ): Array<SubrackModule> =>
     Array.from({length: count}, (_unused, index) => {
@@ -140,18 +143,22 @@ export const subrackModules = (
         kind,
         slot,
         outputKw,
-        /* The enclosure's temperature, plus this module's own work, plus a little
-           per-slot scatter for airflow across the shelf.
-           The duty is **clamped**, and it has to be now that an SSU's output is the
-           array's rather than a share of the tower's load. `rectifierKw` is the only
-           per-module rating this cabinet publishes — `monitoringUnit` states 4 kW for
-           the rectifiers and nothing at all for the SSUs — so a bright noon, when the
-           roof makes 13.7 kW across four units, would otherwise push a bay past its
-           full-load rise on a denominator that was never its rating. Clamping says
-           "at least at full load" rather than inventing a number for the ceiling. */
+        /* The enclosure's temperature, plus this module's own work against **its own
+           rating**, plus a little per-slot scatter for airflow across the shelf.
+           Each kind is measured against its own nameplate now that both have one: a
+           rectifier against the `R4875G5`'s 4 kW and an SSU against the `S4875G1`'s
+           4013 W. It used to divide both by `rectifierKw`, because nothing on the
+           cabinet stated an SSU rating — which was a stand-in rather than a figure,
+           and it mattered from the moment an SSU's output became the array's rather
+           than a share of the tower's load.
+           Still clamped, for the sized shelves where no part is identified and the
+           fallback is the rectifier's number again: "at least at full load" beats a
+           rise computed off a denominator that was never that module's rating. */
         tempC:
           cabinet.tempC +
-          Math.min(1, cabinet.rectifierKw > 0 ? outputKw / cabinet.rectifierKw : 0) *
+          Math.min(1, (ratedKw ?? cabinet.rectifierKw) > 0
+            ? outputKw / (ratedKw ?? cabinet.rectifierKw)
+            : 0) *
             FULL_LOAD_RISE_C +
           scatter * SLOT_SCATTER_C,
         fault: fault(slot),
@@ -159,13 +166,21 @@ export const subrackModules = (
     });
 
   return [
-    ...build('RECTIFIER', cabinet.rectifiers, 'Rectifier', 'r', rectifierShare, () => 'NOT_REPORTED'),
+    ...build(
+      'RECTIFIER',
+      cabinet.rectifiers,
+      'Rectifier',
+      'r',
+      rectifierShare,
+      cabinet.rectifierKw,
+      () => 'NOT_REPORTED',
+    ),
     // `SSU 3`, not `Solar unit 3`, and the reason is the Alarms tab: the row a
     // reader is matching this card against says `SSU 3 Fault`, in the device's own
     // words, and history downstream is keyed on that raw string. A card that
     // renamed it would make the two screens name one module two ways. The plain
     // English is on the card's `Type` row, which is where an explanation belongs.
-    ...build('SSU', cabinet.ssus, 'SSU', 's', ssuShare, (slot) =>
+    ...build('SSU', cabinet.ssus, 'SSU', 's', ssuShare, cabinet.ssuKw, (slot) =>
       faulted.has(slot) ? 'ASSERTED' : 'CLEAR',
     ),
   ];
