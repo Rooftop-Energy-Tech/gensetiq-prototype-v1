@@ -167,8 +167,7 @@ export const SiteTrendChart = ({
    *
    * The colour says it already, and it says it to a reader who has read the legend
    * — this is the same claim for one whose attention is on the crosshair. Lowered
-   * to sentence case because it lands mid-phrase: `07:30 · 62 % · charging from
-   * solar`.
+   * to sentence case because it lands mid-phrase: `07:30 · 62 % · solar-charging`.
    */
   const hoveredTint =
     shown?.tint === undefined
@@ -318,10 +317,10 @@ export const SiteTrendChart = ({
           {trend.caption}
         </span>
 
-        {/* Only the tints the day actually used. A legend entry for `Charging from
-            solar` on a bank that spent the whole night on diesel would have a
-            reader hunting the plot for a colour that is not on it — and on a
-            diesel hybrid with no array it would name plant the site has not
+        {/* Only the tints the day actually used. A legend entry for
+            `Solar-charging` on a bank that spent the whole night on diesel would
+            have a reader hunting the plot for a colour that is not on it — and on
+            a diesel hybrid with no array it would name plant the site has not
             got. */}
         {legend.map(([id, tint]) => (
           <span key={id} className={cn('flex items-center gap-1.5', tint.token)}>

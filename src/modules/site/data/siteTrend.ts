@@ -408,8 +408,8 @@ const dayTrend = (
  * tower back.
  */
 const CHARGE_TINTS: Record<string, {token: string; label: string}> = {
-  SOLAR: {token: SITE_TREND_METRIC_TOKEN.SOLAR, label: 'Charging from solar'},
-  GENSET: {token: SITE_TREND_METRIC_TOKEN.GENSET, label: 'Charging from genset'},
+  SOLAR: {token: SITE_TREND_METRIC_TOKEN.SOLAR, label: 'Solar-charging'},
+  GENSET: {token: SITE_TREND_METRIC_TOKEN.GENSET, label: 'Genset-charging'},
 };
 
 /**
