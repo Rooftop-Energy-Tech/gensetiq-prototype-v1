@@ -78,6 +78,47 @@ export type SystemState = (typeof SYSTEM_STATES)[number];
  * carry two systems, `id` stops equalling `siteId` and nothing that reads
  * `system.siteId` to link to a site page has to be found.
  */
+/**
+ * The run from a panel to the cabinet, as surveyed at SBH-1336 (Jeff, 2026-09-09).
+ *
+ * ```
+ * 30 panels @ 540 W
+ *   ├─ 15 strings          2 panels in series
+ *   ├─ 4 junction boxes    4 strings each, the last one short
+ *   └─ PVDU80A             one DC distribution unit
+ *        └─ 4 SSUs → −48 V bus
+ * ```
+ *
+ * The ratios are the standard and the counts follow the array's capacity, which is
+ * how it is applied at the other three: two panels to a string and four strings to a
+ * box, every time, with the last box short wherever the division does not come out
+ * even. That is not a modelling convenience — SBH-1336's own 15 strings fill three
+ * boxes and leave three strings in a fourth.
+ */
+export type ArrayWiring = {
+  /** Panels in series in one string. */
+  panelsPerString: number;
+  /** Strings landing in one junction box. */
+  stringsPerBox: number;
+  /**
+   * How many boxes that comes to, the last one short where the strings do not divide.
+   *
+   * ⚠️ **This is not the number of `PV N Array Fault` rows.** The poll table generates
+   * one per conversion unit — four at every site that has a unit — and at the
+   * *modelled* capacity this count runs to six, seven or eight. So three or four boxes
+   * on each roof have no row watching them, which is the "nothing watching read as
+   * nothing wrong" case this app is built to state rather than hide.
+   *
+   * At the **surveyed** capacity the two agree exactly: 16.2 kWp is 30 panels, 15
+   * strings, 4 boxes, 4 rows. The gap is produced entirely by keeping `kwp` at the
+   * modelled 28 rather than the measured 16.2 — which is a decision recorded in
+   * `systems.ts`, not an error here.
+   */
+  junctionBoxes: number;
+  /** What the boxes combine into, on the way to the cabinet's conversion units. */
+  feedsInto: string;
+};
+
 export type SolarSystem = {
   id: string;
   siteId: string;
@@ -118,6 +159,36 @@ export type SolarSystem = {
    */
   modules: number;
   moduleWatts: number;
+  /**
+   * How the array is actually wired, where anybody has said — and `null` where nobody
+   * has surveyed it.
+   *
+   * Panels in series make a string, strings land in a junction box, the boxes
+   * combine into one DC distribution unit and that feeds the cabinet's conversion
+   * units. `strings` above is a count; this is the shape it is a count of.
+   *
+   * ## Why it is nullable rather than a constant
+   *
+   * Because it is a **survey**, and the sites that have one are the four with a
+   * monitoring unit — the same split `monitoringUnit.ts` draws, for the same reason.
+   * A wiring standard asserted at a site nobody has visited is a claim about screws
+   * on a roof, and this app's rule is that an unmeasured thing says so rather than
+   * borrowing a measured one's numbers.
+   *
+   * On today's estate that makes this **never null in practice**: an array is only
+   * fitted at a `SOLAR_HYBRID` site, and all four of those have a unit. The null
+   * branch is reachable the moment somebody flips a fifth site to solar hybrid on its
+   * settings tab — which is a thing the app lets a reader do — so it is a live path
+   * rather than dead code, and it is the reason `stringsOn` and the 580 W module
+   * constant are still here.
+   *
+   * ⚠️ **The two wiring models are not compatible.** A surveyed array runs 1.08 kWp
+   * strings — two 540 W panels — and an unsurveyed one runs 6–10 kWp strings out of
+   * `stringsOn`'s spread. Both cannot be one procurement standard. The surveyed number
+   * is the real one; the fallback keeps its own only because nothing has replaced it,
+   * and the day a second site is surveyed it should go.
+   */
+  wiring: ArrayWiring | null;
   /** How many of those strings are dark, for a reason other than the hour. */
   downStrings: number;
   commissionedAt: string;

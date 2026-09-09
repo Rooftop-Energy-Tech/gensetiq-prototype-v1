@@ -26,6 +26,19 @@ import type {SolarSystem} from '../../types/system.type';
  * boxes went and the glass arrived, which is closer to what the rail's word meant
  * all along.
  *
+ * ## The run from a panel to the cabinet
+ *
+ * Where the array has been surveyed, the rows carry the whole chain rather than a
+ * bare string count: two 540 W panels in series make a string, four strings land in a
+ * junction box, and the boxes combine into a `PVDU80A` on the way to the cabinet's
+ * conversion units. `ArrayWiring` draws it out and `systems.ts` says which sites have
+ * it and which do not.
+ *
+ * The three wiring rows are drawn **only where `wiring` is set** — the four sites with
+ * a monitoring unit, which today is every site that has an array at all. Where it is
+ * not, the band is what it always was, because the alternative is asserting the screws
+ * on a roof nobody has been to.
+ *
  * ## What is still missing
  *
  * The modules' make, and the tilt and azimuth they sit at. That last pair is the
@@ -40,9 +53,10 @@ export const ArrayEquipment = ({system}: {system: SolarSystem}) => (
     <div className="flex flex-col gap-0.5">
       <h2 className="text-sm font-medium text-primary">The array</h2>
       <p className="text-xs text-tertiary">
-        Modules, how they are wired, and how many of those runs are dark. Nothing here
-        reports — an array is glass and cable, and every figure on this page is the asset
-        register or this app's own arithmetic over the generation series.
+        Modules, the run from a panel to the cabinet, and how many of those runs are
+        dark. Nothing here reports — an array is glass and cable, and every figure on
+        this page is the asset register or this app's own arithmetic over the generation
+        series.
       </p>
     </div>
 
@@ -54,7 +68,25 @@ export const ArrayEquipment = ({system}: {system: SolarSystem}) => (
           label: 'Modules',
           value: `${system.modules.toLocaleString('en-MY')} × ${system.moduleWatts} W`,
         },
-        {label: 'Strings', value: system.strings.toLocaleString('en-MY')},
+        {
+          // With what one is made of, where that is known. `26 × 2 panels` answers
+          // the question the bare count raises — a string of what? — and it is the
+          // figure that reconciles the modules row above it: 26 × 2 is 52.
+          label: 'Strings',
+          value:
+            system.wiring === null
+              ? system.strings.toLocaleString('en-MY')
+              : `${system.strings.toLocaleString('en-MY')} × ${system.wiring.panelsPerString} panels`,
+        },
+        ...(system.wiring === null
+          ? []
+          : [
+              {
+                label: 'Junction boxes',
+                value: `${system.wiring.junctionBoxes} × ${system.wiring.stringsPerBox} strings`,
+              },
+              {label: 'Boxes feed', value: system.wiring.feedsInto},
+            ]),
         {
           /* An em dash rather than `0`, the rule the health band's readings follow:
              a system with nothing dark has no count to give, and a zero in a column

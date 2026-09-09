@@ -8,7 +8,7 @@ import {siteSeed, siteSeeds} from '@/modules/site/data/siteSeed';
 import {hasSolar} from '@/modules/site/types/site.type';
 import type {SiteSeed} from '@/modules/site/data/siteSeed';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
-import type {SolarSystem, SystemState} from '../types/system.type';
+import type {ArrayWiring, SolarSystem, SystemState} from '../types/system.type';
 
 /**
  * The solar register's rows, built from the estate rather than dealt beside it.
@@ -48,18 +48,109 @@ import type {SolarSystem, SystemState} from '../types/system.type';
  */
 
 /**
- * One module's rating, watts.
+ * One module's rating, watts — the invented figure, for the sites nobody has been to.
  *
  * A constant rather than a spread figure, because a roof is built from one pallet:
  * an estate whose module wattage varied site by site would be one nobody procured.
  * 580 W is an ordinary large-format bifacial panel of the generation these were
  * installed in, which is what makes a 29 kWp tower array come out at fifty panels
  * rather than at a number that reads like an error.
+ *
+ * It is now the **fallback**. `SURVEYED_MODULE_WATTS` is what is actually on the roof
+ * at the four sites anybody has counted, and the "one pallet" argument above is the
+ * reason this ought to end up as one number: the day a fifth site is surveyed and
+ * also reads 540 W, 580 should go.
  */
 const MODULE_WATTS = 580;
 
 /**
- * How many strings the array is wired in.
+ * What is actually on the roof, watts, and how it is wired — surveyed at SBH-1336
+ * (Jeff, 2026-09-09) and asserted at the other three sites with a monitoring unit.
+ *
+ * Thirty 540 W panels, two to a string, four strings to a junction box, the boxes
+ * combining into a `PVDU80A`. See `ArrayWiring` for the run drawn out.
+ *
+ * ## The ratios are the survey; the counts are this site's capacity
+ *
+ * Which is the instruction and worth being exact about, because it is what produces
+ * the one figure on these pages that does not reconcile. Two panels to a string and
+ * four strings to a box hold everywhere; the *number* of strings comes from `kwp`,
+ * and `kwp` is still `hybridPlant`'s modelled 23–31 rather than the surveyed 16.2.
+ *
+ * So at SBH-1336 the page says `28 kWp` and `52 × 540 W`, and 52 × 540 is 28.1 kW —
+ * those two agree. What does **not** agree is the survey: the roof has thirty panels,
+ * not fifty-two. Keeping `kwp` was a deliberate call (see below) and this is its
+ * price, stated here rather than left for a reader to find.
+ *
+ * ## Why `kwp` was not changed to 16.2
+ *
+ * Because `kwp` is the root of every solar figure in the app — generation today, the
+ * month and year charts, expected-against-actual, the site diagram's solar node, and
+ * the bank's own charge windows through `dayEnergyKwh`. Halving it moves all of them,
+ * at the one site that is the estate's showpiece, and that is a change to make
+ * deliberately rather than as a side effect of adding a details row.
+ *
+ * The wiring below is therefore the honest half of the survey and the capacity is
+ * still the model. The day `kwp` becomes 16.2, everything here divides evenly: 30
+ * panels, 15 strings, 4 boxes, and the four `PV N Array Fault` rows land one per box.
+ */
+const SURVEYED_MODULE_WATTS = 540;
+const PANELS_PER_STRING = 2;
+const STRINGS_PER_BOX = 4;
+const DISTRIBUTION_UNIT = 'PVDU80A';
+
+/**
+ * The array's make-up: its module rating, how many, how they are strung, and into
+ * what.
+ *
+ * Surveyed where there is a monitoring unit and modelled everywhere else, which is
+ * the same split `monitoringUnit.ts` draws — and the reason `wiring` is nullable
+ * rather than a constant every site borrows.
+ *
+ * The surveyed branch works **from the string rather than from the panel**, and that
+ * ordering is the whole of it: a string is two panels in series, so a roof cannot
+ * hold an odd number of them, and dividing `kwp` by one panel's rating produces
+ * fifty-seven at SWK-0559 — twenty-eight strings and one panel with nothing to be in
+ * series with. Rounding to whole strings first makes every count below exact by
+ * construction.
+ *
+ * Boxes round **up**, because the last one is allowed to be short. That is not a
+ * rounding convenience: SBH-1336's own fifteen strings fill three boxes and leave
+ * three in a fourth.
+ */
+const arrayBuild = (
+  siteId: string,
+  kwp: number,
+): {moduleWatts: number; modules: number; strings: number; wiring: ArrayWiring | null} => {
+  if (monitoringUnit(siteId) === undefined) {
+    return {
+      moduleWatts: MODULE_WATTS,
+      modules: Math.round((kwp * 1000) / MODULE_WATTS),
+      strings: stringsOn(siteId, kwp),
+      wiring: null,
+    };
+  }
+
+  const stringWatts = SURVEYED_MODULE_WATTS * PANELS_PER_STRING;
+  // Two at minimum, for `stringsOn`'s reason: a one-string array cannot lose a string
+  // and stay up, and the health band exists to say how many went.
+  const strings = Math.max(2, Math.round((kwp * 1000) / stringWatts));
+
+  return {
+    moduleWatts: SURVEYED_MODULE_WATTS,
+    modules: strings * PANELS_PER_STRING,
+    strings,
+    wiring: {
+      panelsPerString: PANELS_PER_STRING,
+      stringsPerBox: STRINGS_PER_BOX,
+      junctionBoxes: Math.ceil(strings / STRINGS_PER_BOX),
+      feedsInto: DISTRIBUTION_UNIT,
+    },
+  };
+};
+
+/**
+ * How many strings the array is wired in — **at the sites nobody has surveyed.**
  *
  * Strings are 6–10 kWp — a plausible number of modules in series for a 1000 V
  * string — and the count follows from the system's capacity. Two at minimum: a
@@ -69,30 +160,25 @@ const MODULE_WATTS = 580;
  * The spread is per site rather than per string, so a 23 kWp tower comes out at
  * three strings and a 1,333 kWp mini-grid at a hundred and sixty-odd, which are
  * both plants somebody could walk along.
+ *
+ * ## What used to be here, and why it went
+ *
+ * A branch returning `monitoringUnit(siteId).ssus` — four — on the argument that a
+ * string and a conversion unit are the same count, "because that is how this plant is
+ * built: each SSU takes one array, which is exactly what makes `PV N Array Fault`
+ * locatable". It ended with the condition under which it would be wrong: *"On a plant
+ * where several strings landed on one unit they would be two numbers."*
+ *
+ * That is the plant. SBH-1336's survey has fifteen strings landing in four junction
+ * boxes, so the four rows index **boxes** and the strings are a separate, larger
+ * count. `arrayBuild` owns every site that has a unit now, so the branch was
+ * unreachable as well as wrong.
+ *
+ * Which leaves this function reachable only by a reader flipping a site to solar
+ * hybrid on its settings tab: every site that has an array today has a unit. That is
+ * why it survives rather than being deleted with the branch.
  */
 const stringsOn = (siteId: string, kwp: number): number => {
-  /**
-   * Except at the one site with a **real monitoring unit on the wall**, where the
-   * count is hardware.
-   *
-   * Its poll table carries one `SSU N Fault` and one `PV N Array Fault` per
-   * conversion unit — four of each — and identity there is positional, so slot 3 is
-   * reliably SSU 3. An array reported as three strings under an alarm list that
-   * names four is a page contradicting the page beside it, and the alarm rows are
-   * the half that cannot move: they are addresses on a device.
-   *
-   * A string and a conversion unit are the same count here because that is how this
-   * plant is built — each SSU takes one array, which is exactly what makes `PV N
-   * Array Fault` locatable. On a plant where several strings landed on one unit they
-   * would be two numbers, and this would be the wrong place to reconcile them.
-   *
-   * The system's kWp is untouched, as the bank's kWh is: what changes is only how the
-   * same array is divided. See `battery/data/banks.ts` for the same argument at
-   * greater length.
-   */
-  const fitted = monitoringUnit(siteId)?.ssus;
-  if (fitted !== undefined && fitted >= 2) return fitted;
-
   const perString = spreadBetween(siteId, 'system/string-kwp', 6, 10);
   return Math.max(2, Math.round(kwp / perString));
 };
@@ -191,7 +277,7 @@ const darkStrings = (
 
 const systemFrom = (seed: SiteSeed, role: SitePowerRole, now: number): SolarSystem => {
   const kwp = hybridPlant(seed, role).solarKwp;
-  const strings = stringsOn(seed.id, kwp);
+  const {moduleWatts, modules, strings, wiring} = arrayBuild(seed.id, kwp);
 
   const silent = isSilent(seed.id);
   const {solarKw} = hybridState(seed, role, now);
@@ -209,8 +295,9 @@ const systemFrom = (seed: SiteSeed, role: SitePowerRole, now: number): SolarSyst
     role,
     kwp,
     strings,
-    modules: Math.round((kwp * 1000) / MODULE_WATTS),
-    moduleWatts: MODULE_WATTS,
+    modules,
+    moduleWatts,
+    wiring,
     downStrings: darkStrings(seed, role, strings, now),
     commissionedAt: commissionedAt(seed.id, now),
     lastUpdated: heardFrom(seed.id, silent, now),
