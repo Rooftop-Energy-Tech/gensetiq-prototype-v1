@@ -20,6 +20,7 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {CurrentRunCard} from '@/modules/genset/components/detail/CurrentRunCard';
+import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
 import {CONDITION_META, SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import {useFuelIntegrity} from '@/modules/genset/data/fuelIntegrity';
 import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
@@ -198,7 +199,35 @@ export const SiteDevicePanel = ({
  * the head of the cabinet page, in the same order and off the same assembly. The
  * capacity moves into the identity line because that is where every other card puts
  * a rating — `PV array | 12 kWp`, `Bank | 93 kWh` — which leaves the two readings for
- * the figures and keeps this card the same shape as its three neighbours.
+ * the figures.
+ *
+ * ## Why this card is taller than the other three, and allowed to be
+ *
+ * It used to end at those two readings, on the argument that it should keep "the same
+ * shape as its three neighbours". That argument was wrong twice. The panel shows **one
+ * card at a time**, so the four are never side by side and their heights never
+ * actually compare — and the cabinet is the deepest asset in the app. Twenty-three
+ * bays, two shelves and a monitoring unit sat behind a card that said less than the
+ * bank's, whose whole subject is one percentage.
+ *
+ * So a spec block joins the readings, in `MetricRow` — the same label-left value-right
+ * pair the shelf's bay panel and every details band use. Rows rather than more
+ * figures, because at this panel's `18rem` minimum a third headline figure wraps to
+ * its own line at 16px semibold and a fourth makes the card mostly numerals; and
+ * because these are specification, not measurement, which is what the two shapes are
+ * for.
+ *
+ * **The bus row comes first, and it is the exception** — it is measurement, and it is
+ * here rather than in the figures because it elaborates the figure immediately above
+ * it. `4.8 kW` then `53.5 V · 94 A` is one bus written twice, which is exactly how the
+ * cabinet page's own strip prints it (there in brackets inside the value, which
+ * `SiteDeviceFigures` cannot take — its value is a `string`, and widening it to
+ * `ReactNode` for one card would put a hole in the other three).
+ *
+ * Then the make-up: the pair that decides whether the shelf can carry the tower
+ * without the sun. It is the shelf band's caption on the cabinet page, and it is the
+ * row that came off that page's details band when the band went — this is the card it
+ * was already duplicating, so it is the one place it should have been all along.
  *
  * ## The badge says what is converting, and it can be nothing
  *
@@ -281,6 +310,30 @@ const CabinetDeviceCard = ({
           {label: 'Enclosure', value: `${cabinet.tempC.toFixed(1)}`, unit: '°C'},
         ]}
       />
+
+      <div className="flex flex-col gap-1">
+        {/* Drawn only where both figures exist, and **no em-dash where they do not**.
+            An unserved tower has no bus current to report, and a `Bus — —` row would
+            read as a measurement nobody recorded when the fact is that nothing is
+            flowing — which the figure directly above already says in words. This is
+            the same call the cabinet page's details band made about its two device
+            rows, and the one the load box makes about `Not served`. */}
+        {cabinet.busVolts !== null && cabinet.busAmps !== null && (
+          <MetricRow
+            label="Bus"
+            value={`${amount(cabinet.busVolts, 'V', 1)} · ${amount(cabinet.busAmps, 'A')}`}
+          />
+        )}
+
+        <MetricRow
+          label="Rectifiers"
+          value={`${cabinet.rectifiers} × ${amount(cabinet.rectifierKw, 'kW')}`}
+        />
+        {/* `Solar Supply Units`, the vendor's own words for the part, not `SSUs` — the
+            badge above already says `SSUs carrying` because a badge has no room, and a
+            spec row does. See `CABINET_PART_LABEL`. */}
+        <MetricRow label="Solar Supply Units" value={`${cabinet.ssus}`} />
+      </div>
     </SiteDeviceCard>
   );
 };
