@@ -85,8 +85,9 @@ import type {BatteryModule} from '../../types/module.type';
  * Every bank on this estate is seven to eighteen modules and lays out in two or
  * three rows. But `banks.ts` divides the same module into whatever a site needs, and
  * an estate whose loads run to 248 kW against a tower's 5 would put *hundreds* here.
- * Neither a row nor a fixed grid survives both, so the cards wrap and the rack takes
- * a maximum height with its own scroll. Every module is still drawn: capping the
+ * Neither a single row nor a grid with a fixed *height* survives both, so the cards wrap
+ * — five to a row at most, the ladder the junction box rack uses — and the rack takes a
+ * maximum height with its own scroll. Every module is still drawn: capping the
  * count and printing "showing 24 of 970" would be picking twenty-four modules to
  * care about, and nothing about a rack makes the first twenty-four the interesting
  * ones.
@@ -239,7 +240,7 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
   const lowest = modules.reduce((low, module) => (module.soc < low.soc ? module : low));
 
   return (
-    <section aria-label="Battery modules" className="flex flex-col gap-3 py-6">
+    <section aria-label="Battery modules" className="@container flex flex-col gap-3 py-6">
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-medium text-primary">The modules</h2>
         {/* What the cards cannot say at a glance, in one line.
@@ -287,17 +288,35 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
         </p>
       </div>
 
-      {/* `auto-fill` at a 10rem minimum rather than a column count: the band sits
-          inside two rails whose width the viewport does not describe, so the number
-          of cards that fit is a fact about this container and nothing else. 10rem is
-          where `Stored ──── 4.09 kWh` stops truncating.
+      {/* **Five cards to a row at most**, which is Jeff's (2026-09-09) and is the same
+          ladder `JunctionBoxRack` climbs — so a rack of modules and a rack of junction
+          boxes break into rows the same way on two pages of one app.
 
-          48rem is about four rows of cards, which is every bank on this estate at
-          five columns or more — so the ceiling is invisible on a desktop and does its
-          work in the two places it is needed: a phone, where eighteen cards in one
-          column would put 3,000px between the pack and the chart, and the estate that
-          would put hundreds of modules here. */}
-      <ul className="grid max-h-[48rem] grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3 overflow-y-auto">
+          It replaced `auto-fill` at a `minmax(10rem,1fr)`, and the argument for that is
+          worth keeping because half of it still holds: the band sits inside two rails
+          whose width the viewport does not describe, so the number of cards that fit is
+          a fact about *this container* and nothing else. Container queries answer that
+          more directly than `auto-fill` did — they measure the same box — which is why
+          this is a swap of mechanism and not a retreat to a breakpoint. A `md:` split
+          would fire at 768px, where the band is 288px wide.
+
+          What the swap costs: `auto-fill` guaranteed a **minimum card** and let the
+          count float, where a fixed count guarantees the **count** and lets the card
+          shrink. So the 10rem floor — where `Stored ──── 4.09 kWh` stops truncating —
+          has to be checked at every rung rather than declared, and it holds at all of
+          them: 2 columns from 384px is 186px, 3 from 672px is 216px, and 5 from 896px
+          is 169px. Five is taken at `@4xl` rather than `@5xl` for the reason the solar
+          rack states — a laptop puts this band at about 1000px, which is *under*
+          `@5xl`, so holding five back would show four on the machine the instruction
+          came from.
+
+          `max-h-[48rem]` and the scroll stay, and they are the other half of the
+          original note. Every bank on this estate is seven to eighteen modules, which
+          is four rows or fewer at five columns, so the ceiling is invisible here. It
+          does its work in the two places it is needed: a phone, where eighteen cards in
+          one column would put 3,000px between the pack and the chart, and the estate
+          whose loads run to 248 kW and would put *hundreds* of modules in this grid. */}
+      <ul className="grid max-h-[48rem] grid-cols-1 gap-3 overflow-y-auto @sm:grid-cols-2 @2xl:grid-cols-3 @4xl:grid-cols-5">
         {modules.map((module, index) => {
           const note = noteFor(module, bank, lowest.id);
           /* Keyed on the slot, not the id: the row's label counts modules from one
