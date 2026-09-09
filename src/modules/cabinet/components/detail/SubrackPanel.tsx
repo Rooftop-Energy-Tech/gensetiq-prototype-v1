@@ -11,7 +11,11 @@ import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {SiteDeviceCard, SiteDeviceFigures} from '@/modules/site/components/SiteDeviceCard';
 import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
-import {positionAlarmRows} from '../../data/shelfLayout';
+import {
+  INVERTER_SHELF_PART,
+  RECTIFIER_POSITIONS,
+  positionAlarmRows,
+} from '../../data/shelfLayout';
 import type {SubrackCabinet} from '../../types/cabinet.type';
 import type {ShelfPosition} from '../../types/shelfPosition.type';
 import type {SubrackModule} from '../../types/subrackModule.type';
@@ -33,11 +37,25 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  * Ten of the nineteen named parts are modules with readings, and this panel prints
  * them the way the cards it replaced did. The other nine are the interesting part: the
  * three distribution branches, the SMU, the GIM, the UIM, the M48500, the AC input and
- * the fitted inverter. Each of those says, in words, that nothing is polled from it —
- * except the four that do carry cross-referenced alarm rows, the three distribution
- * branches and the AC input, which name their rows and say whether any is standing.
- * The two empty inverter slots get a panel of their own saying what could go in
- * them.
+ * the fitted inverter. Each of those says that nothing is polled from it — on a badge,
+ * once, rather than in a closing sentence on each — except the four that do carry
+ * cross-referenced alarm rows, the three distribution branches and the AC input, which
+ * name their rows and say whether any is standing. The two empty inverter slots get a
+ * panel of their own saying what could go in them.
+ *
+ * ## Every bay gets one line and then rows
+ *
+ * The shape is the same whichever bay is picked: a heading, badges, **one sentence**,
+ * the readings if there are any, the specification as `MetricRow`s, and the alarm rows
+ * that watch it. Nothing on this panel is a paragraph.
+ *
+ * That is a deliberate reversal. Each bay used to carry a paragraph of function and,
+ * under the figures, a second smaller paragraph of caveat, and between them they held
+ * every number this page knows — an input range, four output ratings, a hold voltage, a
+ * shelf's fill, two register addresses. All of it survived; none of it is a sentence
+ * any more. A person reading this has a cabinet door open, and a row is faster to find
+ * a number in than a clause is. See `BayLine`, which is where the one-line rule lives
+ * so it cannot quietly become two.
  *
  * That is a real answer and not a shrug. The whole alarm model in this app is built
  * on the argument that a quiet row means one of three things — nothing wrong, nothing
@@ -107,18 +125,94 @@ const BayAlarms = ({
   );
 };
 
-/** A bay the gateway is silent about: what it is, and that nothing is read from it. */
+/**
+ * The **one line** a bay gets to say what it is, and the only prose on this panel.
+ *
+ * ## Why one line and not the paragraph it replaced
+ *
+ * Every bay used to carry a paragraph of function and, under the readings, a second
+ * smaller paragraph of caveat — the nine rectifier positions, the detection pins, the
+ * register block nobody could name. That was written to answer "what would stop
+ * working if this bay were empty", and it answered it at a length nobody reading a
+ * shelf with the door open is going to get through.
+ *
+ * So the facts stay and the sentences go. What was a paragraph is a line; what was a
+ * caveat is either a `MetricRow` or nothing. A reader scanning a spec block finds
+ * `Converts · Array DC → −48 V DC` faster than they find the same claim in the middle
+ * of a sentence, and the numbers that were buried in prose — an input range, four
+ * output ratings, a slot count — are worth more as rows than as clauses.
+ *
+ * It is a component rather than a class string on eleven paragraphs so the rule is
+ * enforceable in one place: this renders a line, and there is nowhere in it for a
+ * second one to grow back.
+ */
+const BayLine = ({children}: {children: ReactNode}) => (
+  <p className="max-w-prose text-sm text-secondary">{children}</p>
+);
+
+/**
+ * The `Part number` row, which **every** bay in the shelf carries.
+ *
+ * ## Why every bay and not only the ones with readings
+ *
+ * Because it is the row somebody orders a spare against, and a bay with no telemetry
+ * is exactly the bay whose part number is hardest to find any other way — nothing
+ * about the `GIM01C` reaches this app except the fact that it is a `GIM01C`. Nineteen
+ * bays with the row in the same place beats ten with it and nine without.
+ *
+ * ## Three answers, and they are different claims
+ *
+ * - **A part number**, from `ShelfPosition.part`, which is the only place one is
+ *   written in this app.
+ * - **`None fitted`** where the bay is an unpopulated slot. Two of the three inverter
+ *   slots are empty, and an empty slot has no part number rather than an unknown one.
+ *   What *would* go in it is on the `Takes` row below, so the fact is not lost.
+ * - **`Not recorded`** where the bay has a part and nobody wrote it down. One bay: the
+ *   AC input, whose arrester is datasheet-confirmed at 30 kA and unnamed. Printed
+ *   rather than omitted, because a missing row reads as a bay that has no part number
+ *   and this one has a part number nobody has.
+ *
+ * Which is the same three-way distinction the whole alarm model in this app rests on —
+ * nothing wrong, nothing watching, nothing fitted — applied to a spare part.
+ */
+const partNumberOf = (position: ShelfPosition): string =>
+  position.fitted === false ? 'None fitted' : (position.part ?? 'Not recorded');
+
+const PartNumber = ({value}: {value: string}) => (
+  <MetricRow label="Part number" value={value} />
+);
+
+/**
+ * A bay the gateway is silent about: what it is, and its specification as rows.
+ *
+ * These are the bays with no readings at all, so `MetricRow`s are the whole body —
+ * there are no figures to put above them and no alarm rows to put below. Which turns
+ * out to suit them: a part nothing is polled from is described entirely by its
+ * datasheet, and a datasheet is a table. The `Nothing polled` badge carries what used
+ * to be a closing sentence on each of them, so no bay repeats it as a row.
+ */
 const InertBay = ({
   label,
   identity,
-  children,
+  /** The part number, which every one of these prepends before its own rows. */
+  part,
+  line,
+  rows,
 }: {
   label: string;
   identity: string;
-  children: ReactNode;
+  part: string;
+  line: string;
+  rows: ReadonlyArray<{label: string; value: string}>;
 }) => (
   <SiteDeviceCard label={label} identity={identity} badges={<NotPolled />}>
-    <p className="max-w-prose text-sm text-secondary">{children}</p>
+    <BayLine>{line}</BayLine>
+    <div className="flex flex-col gap-1">
+      <PartNumber value={part} />
+      {rows.map((row) => (
+        <MetricRow key={row.label} label={row.label} value={row.value} />
+      ))}
+    </div>
   </SiteDeviceCard>
 );
 
@@ -178,7 +272,7 @@ export const SubrackPanel = ({
 
     return (
       <SiteDeviceCard
-        label={rectifier ? 'Rectifier' : 'Solar conversion unit'}
+        label={rectifier ? 'Rectifier' : 'Solar Supply Unit'}
         identity={module.label}
         badges={
           <>
@@ -209,18 +303,15 @@ export const SubrackPanel = ({
           </>
         }
       >
-        {/* What the module is *for*, before what it is doing.
-            The ten bays with readings were the only ones on the drawing with no
-            functional description — the inert ones had to explain themselves to
-            justify being drawn at all, and the modules were left to be identified by
-            their own labels. `Rectifier 3` names a bay; it does not tell a reader
-            what would stop working if that bay were empty, and this page is opened by
-            people deciding whether to drive out to a site. */}
-        <p className="max-w-prose text-sm text-secondary">
+        {/* What the bay is *for*, in the one line these panels now get. The rest of
+            what the paragraph here used to say is in the rows below it, where a
+            reader with the door open can find a number without reading a sentence.
+            See `BayLine`. */}
+        <BayLine>
           {rectifier
-            ? 'An R4875G5: turns the AC arriving at the cabinet — the incomer, or the genset — into the −48 V DC the tower runs on, at 48 V / 75 A and 97% efficient. The shelf load-shares across all six, so each carries a sixth of the load and any one can be pulled hot while the rest hold the site up. The G5 is the variant that holds 57 V constant, which is what the lithium bank needs.'
-            : 'An S4875G1, the solar DC/DC module: it takes the string voltage coming off the PV distribution shelf — 58 to 150 V — and converts it to the same −48 V the rectifiers deliver, tracking the array\u2019s maximum power point to better than 99.8% as the light changes. Peak efficiency 98.2%, and it draws under 1.2 W overnight rather than switching off.'}
-        </p>
+            ? "Turns the AC arriving at the cabinet into the −48 V DC the tower runs on."
+            : "Turns the array's string voltage into the same −48 V the rectifiers deliver."}
+        </BayLine>
 
         <SiteDeviceFigures
           figures={[
@@ -230,26 +321,30 @@ export const SubrackPanel = ({
         />
 
         <div className="flex flex-col gap-1">
-          {/* Rated is the rectifier's alone. An SSU's throughput is the array's, not
-              a nameplate the unit publishes, and printing the rectifier's 4 kW
-              against it would be the same wrong figure the card rack printed before
-              it was corrected. */}
-          {/* The conversion in four words, because it is the one fact that separates
-              the two kinds of module in this shelf and a reader scanning the spec
-              block should not have to infer it from the paragraph above. Both ends
-              of both arrows are the same −48 V bus, which is the whole reason these
-              two live in one rack. */}
+          {/* The specification, as rows, because that is what it is.
+              Three paragraphs used to carry these numbers in sentences — an input
+              range, an efficiency, a hold voltage, a shelf's fill. Each is a label
+              and a value, and a reader at the open door wants the value. */}
+          {/* The part number first, in the same place it sits on all nineteen bays.
+              The conversion used to open this block, on the argument that it is the one
+              fact separating the two kinds of module in the shelf — which is still
+              true and is still the next row down. What changed is that this row now
+              exists on every bay, and a row that moves depending on which bay you
+              clicked is a row a reader has to look for. */}
+          <PartNumber value={partNumberOf(position)} />
+          {/* Both ends of both arrows are the same −48 V bus, which is the whole
+              reason these two live in one rack. */}
           <MetricRow
             label="Converts"
             value={rectifier ? 'AC → −48 V DC' : 'Array DC → −48 V DC'}
           />
-          {/* Both kinds have a rating now. The SSU's used to read `—`, which was
-              true when nothing on the cabinet stated one and false as soon as the
-              part was identified: an `S4875G1` is 4013 W, datasheet-confirmed, and
-              four of them is 16.05 kW against this site's 16.20 kWp array — a DC:AC
-              ratio of 1.009, so the stage was sized to the roof. It is still `—` at
-              a site whose shelf was sized rather than counted, because there is no
-              part there to have a datasheet. See `MonitoringUnit.ssuKw`. */}
+          {/* Both kinds have a rating. The SSU's used to read `—`, which was true
+              when nothing on the cabinet stated one and false as soon as the part was
+              identified: an `S4875G1` is 4013 W, datasheet-confirmed, and four of them
+              is 16.05 kW against this site's 16.20 kWp array — a DC:AC ratio of 1.009,
+              so the stage was sized to the roof. Still `—` at a site whose shelf was
+              sized rather than counted, because there is no part there to have a
+              datasheet. See `MonitoringUnit.ssuKw`. */}
           <MetricRow
             label="Rated"
             value={
@@ -260,55 +355,53 @@ export const SubrackPanel = ({
                   : amount(cabinet.ssuKw, 'kW', 2)
             }
           />
-          <MetricRow label="Part" value={rectifier ? 'R4875G5' : 'S4875G1'} />
+          <MetricRow
+            label={rectifier ? 'Output' : 'String input'}
+            value={rectifier ? '48 V · 75 A' : '58–150 V DC at 58 A'}
+          />
+          <MetricRow
+            label="Efficiency"
+            value={rectifier ? '97%' : '98.2% peak · MPPT better than 99.8%'}
+          />
+          {/* The one behaviour of each part that is not on the other. The G5 suffix
+              is the whole reason this variant is in the shelf; the SSU's overnight
+              draw is why a dark array still costs the bank something. */}
+          <MetricRow
+            label={rectifier ? 'Holds' : 'Night standby'}
+            value={rectifier ? '57 V constant, for the lithium bank' : 'Under 1.2 W'}
+          />
           {/* The vendor's word for the bay, which is the whole reason this row is
-              here: the metal is silkscreened `PSU` and every screen in this app says
-              `Rectifier`, so a person at the open door needs the two joined once. */}
-          <MetricRow label="Marked on the shelf" value={rectifier ? 'PSU' : 'SSU'} />
+              here: the metal is silkscreened `PSU` or `SSU` and a person at the open
+              door needs that joined to the app's own name once. The solar bay carries
+              both — the marking and what it stands for — so the row still names what
+              is actually printed on the shelf rather than replacing it with the
+              expansion. */}
+          <MetricRow
+            label="Marked on the shelf"
+            value={rectifier ? 'PSU' : 'SSU · Solar Supply Unit'}
+          />
           <MetricRow
             label="Bay identity"
             value={rectifier ? 'Hand-set on the LCD' : 'Read off detection pins'}
           />
+          {/* The shelf's own fill, which is a fact about the drawing a reader cannot
+              get from it: this elevation draws only the positions that are filled.
+              Derived rather than written out, so it cannot drift from the count the
+              rest of the page prints. The positions count rectifiers only — the solar
+              units sit in bays of their own, which is why six plus four was never
+              over-subscribing a nine-slot shelf. */}
+          {rectifier && (
+            <MetricRow
+              label="Shelf positions"
+              value={`${cabinet.rectifiers} of ${RECTIFIER_POSITIONS} filled · ${amount(
+                cabinet.rectifiers * cabinet.rectifierKw,
+                'kW',
+              )} of ${amount(RECTIFIER_POSITIONS * cabinet.rectifierKw, 'kW')}`}
+            />
+          )}
         </div>
 
         {alarms}
-
-        {rectifier ? (
-          <>
-            <p className="max-w-prose text-xs text-tertiary">
-              The rows above are about the{' '}
-              <span className="text-secondary">shelf as a group</span> —{' '}
-              <span className="text-secondary">Rectifier Abnormal</span> says one of
-              the six is unwell without saying which. Rectifier addresses are hand-set
-              on the SMU's LCD by watching an indicator blink, nobody has confirmed the
-              six here were addressed, and so the thirty per-rectifier registers are
-              deliberately unpolled. This bay's number is how a person counts along the
-              shelf, not an address the device agreed to.
-            </p>
-
-            {/* The shelf's own headroom, which is a fact about the drawing a reader
-                cannot get from it: three of the nine positions are empty and this
-                elevation only draws the six that are filled. */}
-            <p className="max-w-prose text-xs text-tertiary">
-              The shelf has{' '}
-              <span className="text-secondary">nine rectifier positions</span> and six
-              are filled, so 24 kW of the 36 kW it could pass is installed and three
-              bays are headroom for more AC rectification. The nine count rectifiers
-              only — the solar units sit in positions of their own, which is why six
-              plus four was never over-subscribing a nine-slot shelf.
-            </p>
-          </>
-        ) : (
-          <p className="max-w-prose text-xs text-tertiary">
-            An SSU reads its own bay off detection and power-identifying pins, so{' '}
-            <span className="text-secondary">{`SSU ${module.slot} Fault`}</span> is
-            about the module in this bay and no other — the one thing the rectifiers
-            above cannot say. <span className="text-secondary">SSU Lost</span> beside
-            it is about the four as a group. The strings behind this bay are a separate
-            row on the array's own tab: the pair being separable is the device's best
-            diagnostic here.
-          </p>
-        )}
       </SiteDeviceCard>
     );
   }
@@ -318,7 +411,7 @@ export const SubrackPanel = ({
       return (
         <SiteDeviceCard
           label="Distribution"
-          identity={`DCDU-600AN1 · branch ${position.slot} of 3`}
+          identity={`${partNumberOf(position)} · branch ${position.slot} of 3`}
           badges={
             <>
               <Badge variant="secondary" className="whitespace-pre">
@@ -328,18 +421,23 @@ export const SubrackPanel = ({
             </>
           }
         >
-          <p className="max-w-prose text-sm text-secondary">
-            Where the −48 V bus leaves the cabinet. The DCDU-600AN1 has three 200 A
-            branches and the unit reports on them together, not one by one.
-          </p>
+          <BayLine>
+            Where the −48 V bus leaves the cabinet, on three 200 A branches the unit
+            reports on together rather than one by one.
+          </BayLine>
+          <div className="flex flex-col gap-1">
+            <PartNumber value={partNumberOf(position)} />
+            {/* The same part number on all three cells, which is why the branch number
+                is what tells them apart. */}
+            <MetricRow label="Branches" value={`3 × 200 A · this is ${position.slot}`} />
+            {/* The block that would index the branches individually is out of the
+                poll set on purpose: its index runs to six, and nobody can yet say
+                whether it counts these three branches or six of the thirteen battery
+                modules. A critical row under a possibly-wrong label is the worst
+                outcome available, so the row says which it is instead. */}
+            <MetricRow label="Per-branch registers" value="Unpolled · index unresolved" />
+          </div>
           {alarms}
-          <p className="max-w-prose text-xs text-tertiary">
-            The register block that would index the branches individually was
-            deliberately left out of the poll set: its index runs to six, and nobody
-            can yet say whether it counts these three branches or six of the thirteen
-            battery modules. A critical row under a possibly-wrong label is the worst
-            outcome available.
-          </p>
         </SiteDeviceCard>
       );
     }
@@ -359,11 +457,20 @@ export const SubrackPanel = ({
          mistake, and this is the one panel that would commit it. */
       if (cabinet.deviceName === null) {
         return (
-          <InertBay label="Monitoring unit" identity="No unit fitted">
-            This bay is empty. The shelf's make-up at this site is sized from the
-            plant rather than counted off a device, so nothing here reports on the
-            cabinet — and nothing in the app has looked inside this box.
-          </InertBay>
+          <InertBay
+            label="Monitoring unit"
+            identity="No unit fitted"
+            // Not `partNumberOf(position)`. The drawn bay is an `SMU02C` and this is
+            // the branch where nothing is in it — `fitted` does not cover the case,
+            // because an SMU bay is a part of the shelf rather than one of several
+            // identical slots. See the guard above.
+            part="None fitted"
+            line="This bay is empty, so nothing in the app has looked inside this box."
+            rows={[
+              {label: "Shelf make-up", value: 'Sized from the plant, not counted'},
+              {label: 'Readings from this cabinet', value: 'None'},
+            ]}
+          />
         );
       }
 
@@ -379,29 +486,26 @@ export const SubrackPanel = ({
             )
           }
         >
-          <p className="max-w-prose text-sm text-secondary">
-            Every figure on this page arrives through this bay. The SMU sits on the
-            cabinet's internal CAN bus, reads the rectifiers, the SSUs, the bus and the
-            enclosure, and publishes them over Modbus to the gateway.
-          </p>
+          <BayLine>Every figure on this page arrives through this bay.</BayLine>
 
           {unit !== undefined && (
             <div className="flex flex-col gap-1">
+              <PartNumber value={partNumberOf(position)} />
+              <MetricRow label="Reads" value="Rectifiers · SSUs · bus · enclosure" />
+              <MetricRow label="Buses" value="CAN inside the cabinet · Modbus out" />
               <MetricRow label="Gateway" value={unit.gatewayId} />
               <MetricRow label="Poll table" value={`${unit.pollEntries} entries`} />
               <MetricRow
                 label="Rows published"
                 value={`${unit.alarmRows} alarm · ${unit.telemetryRows} telemetry`}
               />
+              {/* The one thing this cabinet cannot tell you about itself. If this bay
+                  is dead every reading on this page goes stale rather than wrong, and
+                  nothing here would say so — the gateway's own liveness is the only
+                  thing that would. Worth a row precisely because it is the gap. */}
+              <MetricRow label="Own health" value="Not reported by this cabinet" />
             </div>
           )}
-
-          <p className="max-w-prose text-xs text-tertiary">
-            It is also the one part of this cabinet whose own health the cabinet cannot
-            report. If this bay is dead, every reading on this page goes stale rather
-            than wrong, and nothing here would say so — the gateway's own liveness is
-            the only thing that would.
-          </p>
         </SiteDeviceCard>
       );
     }
@@ -420,21 +524,25 @@ export const SubrackPanel = ({
               read live precisely so the figures follow that switch, and copy that
               did not follow it with them would be the one thing on the page still
               describing the old configuration. */}
-          <p className="max-w-prose text-sm text-secondary">
-            Where the AC supply lands before the rectifiers — the incomer at a site
-            that has one, and the genset otherwise. Nothing arrives here at all while
-            the bank or the array is carrying the tower.
-          </p>
+          <BayLine>
+            Where the AC supply lands before the rectifiers — the incomer at a site that
+            has one, the genset otherwise.
+          </BayLine>
+          <div className="flex flex-col gap-1">
+            {/* `Not recorded` here, and it is the only bay in the shelf that says so:
+                the arrester is confirmed fitted and nobody wrote down its model. */}
+            <PartNumber value={partNumberOf(position)} />
+            <MetricRow label="Arrester" value="Fitted at 30 kA, datasheet-confirmed" />
+            {/* Which is what makes a quiet `AC SPD Fault` ambiguous: it rules out
+                "not fitted" and cannot separate a good arrester from an unsupported
+                row. The one thing it would tell you is that the plant runs normally
+                while the site stands unprotected. */}
+            <MetricRow label="Arrester health" value="Not polled" />
+            {/* The nine per-phase rows exist only where there is an incomer, so this
+                bay's watched count moves with the site's configuration. */}
+            <MetricRow label="Per-phase rows" value="Only where there is an incomer" />
+          </div>
           {alarms}
-          <p className="max-w-prose text-xs text-tertiary">
-            The nine per-phase rows exist only where there is an incomer, so this bay's
-            count moves with the site's configuration. The arrester is
-            datasheet-confirmed fitted at 30 kA, so a quiet{' '}
-            <span className="text-secondary">AC SPD Fault</span> rules out "not fitted"
-            — but nothing polled reports its health, so it cannot separate a good
-            arrester from an unsupported row. The one thing it would tell you is that
-            the plant runs normally while the site stands unprotected.
-          </p>
         </SiteDeviceCard>
       );
     }
@@ -449,41 +557,55 @@ export const SubrackPanel = ({
        admitting it had not looked. */
     case 'GIM':
       return (
-        <InertBay label="Genset I/O" identity="GIM01C">
-          The genset expansion board, in the upper of the SMU's two slots: it is what
-          the plant starts and stops the engine through, and it carries the reset line
-          and the fuel-level input. So the diesel side of this site is wired to the
-          tower's DC plant through this bay — a fact worth knowing before pulling it.
-          Nothing in the poll set addresses the board itself, so a quiet drawing here
-          means nobody is looking rather than that it is well.
-        </InertBay>
+        <InertBay
+          label="Genset I/O"
+          identity={partNumberOf(position)}
+          part={partNumberOf(position)}
+          line="The board the plant starts and stops the engine through."
+          rows={[
+            {label: 'Controls', value: 'Start · stop · reset'},
+            {label: 'Reads', value: 'Fuel level'},
+            {label: 'Slot', value: "Upper of the SMU's two"},
+            {label: 'Wires together', value: "The diesel side and the tower's DC plant"},
+          ]}
+        />
       );
 
     case 'UIM':
       return (
-        <InertBay label="Environment I/O" identity="UIM05B1">
-          The sensor and dry-contact board, in the SMU's other slot, sharing one bay's
-          height with the GIM above it. The cabinet's door, water and smoke rows arrive
-          through contacts on a board like this one, which is what makes it the bay
-          those alarms depend on without appearing on it. Its own two temperature
-          registers exist in the map at 0x102E and 0x102F and are{' '}
-          <span className="text-secondary">not in the poll set</span>, so nothing here
-          reports on the board.
-        </InertBay>
+        <InertBay
+          label="Environment I/O"
+          identity={partNumberOf(position)}
+          part={partNumberOf(position)}
+          line="The sensor and dry-contact board the enclosure's alarms arrive through."
+          rows={[
+            {label: 'Carries', value: 'Door · water · smoke contacts'},
+            {label: 'Slot', value: "Lower of the SMU's two, under the GIM"},
+            /* In the register map and out of the poll set — the pair of facts that
+               makes this bay the one the enclosure rows depend on without appearing
+               on it. */
+            {label: 'Own temperatures', value: '0x102E · 0x102F, unpolled'},
+          ]}
+        />
       );
 
     case 'CONVERTER':
       return (
-        <InertBay label="Auxiliary power" identity="M48500N1">
-          Everything else in this shelf converts *into* the −48 V bus; this one
-          converts back out of it, at small scale, to run the equipment that cannot
-          take −48 V. It takes 40 to 60 V in and gives two 12 V DC outputs at 100 W,
-          two 24 V DC at 200 W and four 24 V AC at 200 W, behind its own on/off switch.
-          Two must never be paralleled. It is also where the gateway that reads this
-          whole page gets its power — regulated 12 V was already in the plant, so
-          nothing of ours had to be added to make the cabinet observable. Nothing in
-          the poll set addresses the module itself.
-        </InertBay>
+        <InertBay
+          label="Auxiliary power"
+          identity={partNumberOf(position)}
+          part={partNumberOf(position)}
+          line="The one module that converts back out of the −48 V bus rather than into it."
+          rows={[
+            {label: 'Input', value: '40–60 V DC'},
+            {label: 'DC outputs', value: '2 × 12 V at 100 W · 2 × 24 V at 200 W'},
+            {label: 'AC outputs', value: '4 × 24 V at 200 W'},
+            {label: 'Paralleling', value: 'Never two of these'},
+            /* Regulated 12 V was already in the plant, so nothing of ours had to be
+               added to make this cabinet observable. */
+            {label: 'Powers', value: "The gateway that reads this page"},
+          ]}
+        />
       );
 
     case 'INVERTER': {
@@ -498,29 +620,46 @@ export const SubrackPanel = ({
           <InertBay
             label="Inverter slot"
             identity={`${position.label} of 3 · empty`}
-          >
-            Nothing is fitted in this slot. The ETP23006-C1A1 takes three 2000 VA
-            I23002G1 modules for its full 6 kVA and this cabinet has one, in the slot to
-            the left — so the shelf is running at a third of its rating and two more
-            could go in without any change to the rack.
-          </InertBay>
+            part={partNumberOf(position)}
+            line="Nothing is fitted here, and two more could go in without any change to the rack."
+            rows={[
+              // What would go in here, from the position's own `part` — the same
+              // string the fitted slot names, written once. `Part number` above reads
+              // `None fitted` off `fitted`, so the two rows together say the bay takes
+              // an I23002G1 and has not got one.
+              {label: 'Takes', value: `${position.part ?? 'Unknown part'} · 2000 VA`},
+              {label: 'Shelf', value: '1 of 3 fitted, in the slot to the left'},
+              {label: 'Rating when full', value: '6 kVA · 4.8 kW'},
+            ]}
+          />
         );
       }
 
       return (
         <InertBay
           label="Inverter"
-          identity={`ETP23006-C1A1 · slot ${position.slot} of 3`}
-        >
-          Runs the rack's conversion in reverse and at real scale: −48 V DC back out as
-          230 V AC at 50 Hz, through one 63 A output, for the equipment at the site that
-          needs mains. The shelf is rated 6 kVA — 4.8 kW — from three 2000 VA I23002G1
-          modules, which is what its three slots are, and this cabinet has one of them
-          fitted. Its DC input draws up to 120 A at 53.5 V, so a full shelf is a
-          material share of what the plant delivers rather than an afterthought.
-          Nothing in the poll set addresses it, and no alarm row anywhere in this app is
-          about it.
-        </InertBay>
+          identity={`${INVERTER_SHELF_PART} · slot ${position.slot} of 3`}
+          part={partNumberOf(position)}
+          line="Runs the rack's conversion in reverse, for the equipment at the site that needs mains."
+          /* Split into the module's figures and the shelf's, which is a correction
+             rather than a tidy-up. `6 kVA`, the `53.5 V / 120 A` DC side and the single
+             `63 A` output are all the **ETP23006's**, and they sat here unqualified
+             beside a `Modules` row — so a bay that holds one 2000 VA module read as
+             though it were the thing drawing 120 A. Now the part number names the
+             module, `Rated` is the module's own, and everything belonging to the shelf
+             says `Shelf`. */
+          rows={[
+            {label: 'Rated', value: '2000 VA'},
+            {label: 'Converts', value: '−48 V DC → 230 V AC at 50 Hz'},
+            {label: 'Shelf', value: '3 slots, 1 fitted'},
+            {label: 'Shelf rating', value: '6 kVA · 4.8 kW when full'},
+            /* A full shelf is a material share of what the plant delivers rather than
+               an afterthought, which is the reason the DC side is worth a row. */
+            {label: 'Shelf DC input', value: '53.5 V · up to 120 A'},
+            {label: 'Shelf AC output', value: '230 V ±3% · one 63 A'},
+            {label: 'Alarm rows', value: 'None anywhere in this app'},
+          ]}
+        />
       );
     }
 

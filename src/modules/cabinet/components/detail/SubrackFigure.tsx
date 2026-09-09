@@ -1,7 +1,7 @@
 import {SunMediumIcon, TriangleAlertIcon, UtilityPoleIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
-import {CABINET_SHELVES} from '../../data/shelfLayout';
+import {CABINET_SHELVES, isCompactPosition} from '../../data/shelfLayout';
 import {SHELF_COLUMNS, isModulePosition} from '../../types/shelfPosition.type';
 import type {ShelfPosition} from '../../types/shelfPosition.type';
 import type {SubrackModule} from '../../types/subrackModule.type';
@@ -59,6 +59,27 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  *   selectable: two of the ETP23006's three inverter slots are unpopulated, and a
  *   shelf a third full should look a third full.
  * - **Blanks** are a dashed outline and nothing else. See `SubrackPanel`.
+ *
+ * ## What each bay prints
+ *
+ * A name, and under it one line: the reading where the bay has one, and the part's own
+ * number or rating where it does not — `Auxiliary power` over `M48500N1`,
+ * `Distribution` over `200 A`. So every named bay has the same two-line shape and the
+ * second line always answers the same question, which is *what is the one other thing
+ * worth knowing about this bay from across the room*.
+ *
+ * Both lines are the **app's** words. Four bays used to print an acronym or a part
+ * number as their name — `SMU`, `GIM`, `UIM`, `M48500` — while the panel beside them
+ * was already headed `Monitoring unit`, `Genset I/O`, `Environment I/O` and
+ * `Auxiliary power`, so one bay had two names and the drawing had the harder one. The
+ * cells now carry the panel's heading exactly, and the part numbers moved to the
+ * second line where they are a fact about the bay rather than the whole of its
+ * identity.
+ *
+ * The exception is the two stacked corner boards, which are half a bay tall and have
+ * room for one line of smaller type. `isCompactPosition` measures that off the
+ * geometry rather than being told, so it is the cell's own height that decides — the
+ * `2.75rem` distribution strip is shorter than a bay and still takes two lines.
  */
 
 /** How a bay is filled, edged and coloured — the argument is in the doc above. */
@@ -67,8 +88,13 @@ const bayClassName = (
   module: SubrackModule | undefined,
   selected: boolean,
 ): string => {
+  // `overflow-hidden` is a guard rather than a layout choice: every cell is measured
+  // to fit its content (see `isCompactPosition`), and this makes it impossible for a
+  // name to escape its bay and land across the one beside it if a future label, font
+  // or viewport proves one of those measurements optimistic. A drawing of metal should
+  // clip inside a bay before it spills between two.
   const base =
-    'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-sm border px-2 text-center transition-colors';
+    'flex min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-sm border px-2 text-center transition-colors';
 
   if (position.kind === 'BLANK') {
     return cn(base, 'border-dashed border-subtle');
@@ -120,7 +146,18 @@ const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): s
     return `${position.label}: empty, no inverter fitted`;
   }
 
-  if (module === undefined) return position.label === '' ? 'Empty bay' : position.label;
+  if (module === undefined) {
+    if (position.label === '') return 'Empty bay';
+    // With whatever the cell's second line would say — including where the cell is too
+    // short to print it, since a reader who cannot see the drawing is the one reader
+    // who should never lose a fact to its geometry. That is both corner boards: their
+    // part numbers are spoken here and drawn nowhere.
+    //
+    // No `fitted` guard, unlike the drawing's own second line: an unpopulated slot
+    // returned above with its own sentence, so anything reaching here is present.
+    const second = position.rating ?? position.part;
+    return second === undefined ? position.label : `${position.label}, ${second}`;
+  }
 
   const state =
     module.fault === 'ASSERTED'
@@ -129,7 +166,11 @@ const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): s
         ? 'carrying'
         : 'on standby';
 
-  return `${module.label}: ${state}, ${module.outputKw.toFixed(1)} kW, ${module.tempC.toFixed(1)} °C`;
+  // The **drawn** label, not the module's own. They differ only for a solar unit —
+  // the cell says `Solar Supply Unit 3` and the module calls itself `SSU 3` — and a
+  // reader who cannot see the cell should be told what is in it. The device's own
+  // string is still the panel's identity line, where it joins `SSU 3 Fault`.
+  return `${position.label}: ${state}, ${module.outputKw.toFixed(1)} kW, ${module.tempC.toFixed(1)} °C`;
 };
 
 /**
@@ -199,12 +240,23 @@ export const SubrackFigure = ({
               className="grid gap-1.5"
               style={{
                 gridTemplateColumns: `repeat(${SHELF_COLUMNS}, minmax(0, 1fr))`,
-                gridTemplateRows: shelf.rowHeights.join(' '),
+                // The rem lives here rather than in the layout, which holds the
+                // heights as numbers so `positionHeightRem` can add them up.
+                gridTemplateRows: shelf.rowHeights.map((height) => `${height}rem`).join(' '),
               }}
             >
               {shelf.positions.map((position) => {
                 const module = moduleAt(position);
                 const isSelected = position.key === selected;
+                // Half a bay tall, so one small line and no second one.
+                const compact = isCompactPosition(shelf, position);
+                // Nothing under an unpopulated slot. `part` on an empty inverter
+                // slot is what it *takes*, not what is in it, so drawing it would put
+                // a module in a bay the drawing is showing as empty.
+                const secondLine =
+                  position.fitted === false
+                    ? undefined
+                    : (position.rating ?? position.part);
                 const style = {
                   gridColumn: `${position.col} / span ${position.span}`,
                   // `rowSpan` is one unless the bay shares its row — the GIM and the
@@ -232,20 +284,64 @@ export const SubrackFigure = ({
                     title={bayLabel(position, module)}
                     onClick={() => onSelect(position.key)}
                   >
-                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+                    {/* Two type sizes, and the cell's own height picks between them.
+                        A full bay takes `text-sm`, and may wrap to two lines — which is
+                        what `Solar Supply Unit 3` needs, since truncated it would read
+                        `Solar Supp…` and lose the slot number, the one part of the
+                        label a person counting bays at the open door is using.
+                        `leading-tight` is what pays for that second line: at the
+                        default leading, two lines plus the figure under them come to
+                        58px inside a 58px bay, which is a cell that fits by rounding.
+
+                        The two corner boards are **half a bay** — 27px — so a second
+                        line is not available to them at any leading, and
+                        `Environment I/O` is the longest name in the drawing. They take
+                        `text-xs` and one line, which fits at every width the figure
+                        shrinks to. `truncate` is the backstop rather than the plan: the
+                        smaller type is what makes the name fit, and this only says that
+                        a 27px cell can never be made to overflow. The whole name is in
+                        the tooltip and the aria label either way. */}
+                    <span
+                      className={cn(
+                        'flex min-w-0 items-center gap-1.5 leading-tight font-medium',
+                        compact ? 'text-xs' : 'text-sm',
+                      )}
+                    >
                       {module !== undefined && <BayIcon module={module} />}
-                      <span className="min-w-0 truncate">{position.label}</span>
+                      <span className={cn('min-w-0', compact && 'truncate')}>
+                        {position.label}
+                      </span>
                     </span>
 
-                    {/* The one figure a bay has room for, and it is the right one:
-                        which bays are actually delivering is the whole difference
-                        between a shelf carrying the tower and a shelf idling behind
-                        the array. Inert bays print nothing here rather than a zero,
-                        which would read as a measured nought. */}
-                    {module !== undefined && (
+                    {/* The second line: what the bay is delivering, or the one other
+                        fact worth knowing about a bay that delivers nothing.
+
+                        A module prints its output, because which bays are actually
+                        delivering is the whole difference between a shelf carrying the
+                        tower and a shelf idling behind the array — and never a zero
+                        where there is no reading, which would read as a measured
+                        nought. A bay with no readings prints its rating where it has
+                        one and its part number otherwise, which is how
+                        `Auxiliary power` keeps the `M48500N1` it used to have in place
+                        of a name. The rating wins because the only bays that have one
+                        are the three distribution branches, where all three are the
+                        same part and `200 A` is what tells the strip from the bays
+                        below it. See `ShelfPosition.part` and `.rating`.
+
+                        `tabular-nums` is on the reading only. It lines up a column of
+                        kW figures, which is what it is for; a part number is a name
+                        that happens to contain digits. */}
+                    {module !== undefined ? (
                       <span className="text-xs tabular-nums text-tertiary">
                         {module.outputKw.toFixed(1)} kW
                       </span>
+                    ) : (
+                      secondLine !== undefined &&
+                      !compact && (
+                        <span className="min-w-0 truncate text-xs text-tertiary">
+                          {secondLine}
+                        </span>
+                      )
                     )}
                   </button>
                 );

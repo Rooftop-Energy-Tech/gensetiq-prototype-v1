@@ -43,14 +43,17 @@
  * - `RECTIFIER` — a PSU bay. Six, in two rows of three.
  * - `SSU` — a solar conversion unit. Four: two on the upper row, two on the lower.
  * - `DISTRIBUTION` — one of the `DCDU-600AN1`'s three 200 A branches, along the top.
- * - `SMU` — the monitoring unit's own display and ports. Every figure on the cabinet
- *   page arrives through this position, which makes it the one inert bay a reader
- *   should probably click.
- * - `GIM` — the interface module in the upper right corner.
- * - `UIM` — the module directly under it. The two share one bay's height, half each,
- *   and are separate positions because they are separate modules a technician pulls
- *   separately — one cell with two words in it would draw them as one board.
- * - `CONVERTER` — the `M48500` in the bottom right bay.
+ * - `SMU` — the monitoring unit's own display and ports, drawn `Monitoring unit` over
+ *   `SMU02C`. Every figure on the cabinet page arrives through this position, which
+ *   makes it the one inert bay a reader should probably click.
+ * - `GIM` — the genset interface board in the upper right corner, drawn `Genset I/O`.
+ * - `UIM` — the board directly under it, drawn `Environment I/O`. The two share one
+ *   bay's height, half each, and are separate positions because they are separate
+ *   modules a technician pulls separately — one cell with two words in it would draw
+ *   them as one board. They are also the only two cells in either shelf too short for
+ *   a second line; see `sub`.
+ * - `CONVERTER` — the auxiliary power module in the bottom right bay, drawn
+ *   `Auxiliary power` over `M48500N1`.
  * - `AC_INPUT` — where the incomer lands, on the left of the third row.
  * - `INVERTER` — one of the `ETP23006`'s three inverter slots, on the shelf below the
  *   subrack. This cabinet fits one of the three; `fitted` says which.
@@ -88,18 +91,68 @@ export type ShelfPosition = {
   key: string;
   kind: ShelfPositionKind;
   /**
-   * What the cell prints — `Rectifier 3`, `SSU 1`, `200 A`, `AC input`.
+   * What the cell prints — `Rectifier 3`, `Solar Supply Unit 1`, `Distribution`.
    *
-   * The **app's** words for the modules, not the shelf's silkscreen. The bays are
-   * printed `PSU` on the metal and every other screen in this app says
-   * `Rectifier 3` — most importantly the Alarms tab, whose rows a reader is matching
-   * this drawing against. The vendor's word is on the panel instead, which is where
-   * a translation belongs.
+   * The **app's** words for the parts, not the shelf's silkscreen and not the part
+   * number. The bays are printed `PSU` on the metal and every other screen in this app
+   * says `Rectifier 3` — most importantly the Alarms tab, whose rows a reader is
+   * matching this drawing against. The vendor's word is on the panel instead, which is
+   * where a translation belongs.
+   *
+   * **Every named bay now reads as a name.** Four of them used to carry an acronym
+   * (`SMU`, `GIM`, `UIM`) or a part number (`M48500`) while their own panels were
+   * already headed `Monitoring unit`, `Genset I/O`, `Environment I/O` and
+   * `Auxiliary power` — so the drawing and the card beside it named one bay two ways,
+   * and the drawing chose the harder of the two. The three distribution cells carried
+   * a rating for the same reason and now carry the name with the rating under it. The
+   * labels are exactly the panel headings, so there is one name per bay in the app.
    *
    * Empty for a blanking plate: a bay with nothing in it should read as nothing, and
    * a cell captioned `Blank` is a label claiming to be a part.
    */
   label: string;
+  /**
+   * The part number of whatever is in this bay — **the only place one is written.**
+   *
+   * Two screens print it and they must not each spell it out. Before this field, three
+   * of them were written twice: `M48500N1` and `ETP23006-C1A1` sat in this file and
+   * again in `SubrackPanel`, and `SMU02C` sat here and again in `monitoringUnit.ts`.
+   * Two copies of a part number is the pair that silently stops matching the day one
+   * is corrected — the same argument `bayKey` makes for a key format, and it matters
+   * more here, because a part number is what somebody orders a spare against.
+   *
+   * `undefined` where the site record does not have one. That is one bay: the AC input
+   * is an incomer and a 30 kA arrester, and nobody wrote down the arrester's model.
+   * The panel prints `Not recorded` there rather than dropping the row, so the gap
+   * shows as a gap. An unpopulated slot is a different answer again and comes from
+   * `fitted`, not from here.
+   *
+   * ## What counts as *this bay's* part
+   *
+   * The thing a technician would pull out of it, not the thing around it. A
+   * distribution cell is one branch of a `DCDU-600AN1`, so all three carry that and
+   * the branch number tells them apart. An inverter slot holds an `I23002G1` — the
+   * `ETP23006-C1A1` is the shelf it plugs into and is named in the caption under the
+   * drawing, so putting it on the bay both repeated the shelf and mislabelled the
+   * module.
+   */
+  part?: string;
+  /**
+   * The cell's second line where that line is a **rating** rather than a part number.
+   *
+   * One case, and it is the reason this is separate from `part`: the three distribution
+   * branches are the same `DCDU-600AN1` three times, so a part number on the cell would
+   * be one part drawn three times, while `200 A` is the fact that distinguishes the
+   * strip from the bays under it. Everywhere else the second line is either a reading —
+   * what the bay is delivering — or the part number, and the figure falls back to
+   * `part` when this is unset.
+   *
+   * These were one field called `sub`, which held a rating on three cells and a part
+   * number on three others. That worked for the drawing and made the part number
+   * unusable as a source for anything else, because a reader of the field could not
+   * tell which kind of fact it had.
+   */
+  rating?: string;
   /**
    * 1-based position within its own kind — the two kinds that have readings, and the
    * inverter slots, which are counted so an empty one can say which it is.
@@ -159,8 +212,8 @@ export type Shelf = {
   /** The line under the name, saying what the reader is looking at. */
   caption: string;
   /**
-   * Every row's height, top to bottom, as a CSS length. Columns are always
-   * `SHELF_COLUMNS` and are always equal; rows are not.
+   * Every row's height, top to bottom, **in rem**. Columns are always `SHELF_COLUMNS`
+   * and are always equal; rows are not.
    *
    * Written out rather than derived from a row count and a constant, which is what it
    * was. The rows of this drawing are genuinely different heights — the distribution
@@ -168,8 +221,14 @@ export type Shelf = {
    * holding the GIM over the UIM is two half-bays — so a count and a multiplier could
    * not describe it without the figure re-deriving which rows were special. An
    * explicit list is the geometry, and the geometry is what this file is.
+   *
+   * Numbers rather than the `'3.75rem'` strings this held before, because the heights
+   * are now **read** as well as emitted: a cell half a bay tall cannot take the type
+   * size or the second line a full bay can, and `positionHeightRem` works that out by
+   * adding these up. Storing them as CSS lengths meant parsing them back to do it. The
+   * unit belongs to the renderer, which is the only thing that ever needed it.
    */
-  rowHeights: ReadonlyArray<string>;
+  rowHeights: ReadonlyArray<number>;
   positions: ReadonlyArray<ShelfPosition>;
 };
 
