@@ -1,4 +1,3 @@
-import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount} from '@/lib/format';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
@@ -15,9 +14,41 @@ import {SubrackShelf} from './SubrackShelf';
  *    the box is, and the alarm counts.
  * 2. **The shelf** — the cabinet drawn front-on, bay by bay, with the selected bay
  *    beside it. The centrepiece, and the reason the page exists.
- * 3. **The details** — what the cabinet *is*, in the band all four pages share.
  *
- * ## Three bands, and the middle one used to be two
+ * ## Two bands, because the details band restated the page
+ *
+ * This page carried the `DetailBand` all four asset pages share, with six rows under
+ * the shelf. Five of them were already on the screen:
+ *
+ * - `Rectifier capacity` is the strip's own first column, an inch above.
+ * - `Rectifiers — 6 × 4 kW` and `Solar Supply Units — 4` are the shelf band's
+ *   caption, which reads `6 rectifiers of 4 kW · 4 Solar Supply Units`.
+ * - `Monitoring unit` and `Modbus slave` are the Monitoring unit bay's own panel — its
+ *   identity line and its `Slave 32` badge — one click into the drawing above.
+ *
+ * So it was a third statement of facts the strip and the caption already make, sitting
+ * below the drawing that is the reason to open the page. The divider above it went with
+ * it: a rule that separates nothing is just a line.
+ *
+ * ## The sixth row, which did not have another home
+ *
+ * `Shelf make-up` — `Counted on site` against `Sized from the plant` — and it is worth
+ * being exact rather than claiming a clean removal. It said whether the module counts
+ * came off a device or out of `shelf.ts`, and `SubrackCabinet.shelf` argues that a
+ * reader must be told that *before* acting on a count.
+ *
+ * It is not lost today because it was a constant: all four cabinets in this estate are
+ * `READ`, so the row printed `Counted on site` on every page that could show it. The
+ * `Sized from the plant, not counted` wording still exists on the SMU bay's panel, but
+ * only in the branch where no unit is fitted, and `CabinetDetailShell` states it only
+ * inside the rail's tooltip.
+ *
+ * **The day a sized cabinet is drawn, that needs a visible home** — the shelf band's
+ * caption is the natural one, beside the counts it qualifies. `shelfLayoutFits` no
+ * longer requires `shelf === 'READ'`, so a sized cabinet reaching the elevation is a
+ * change away rather than impossible; it is only the estate that makes it moot.
+ *
+ * ## The middle band used to be two
  *
  * There was a hero `TickGauge` between the strip and the shelf, reading `Tower load
  * against shelf capacity` — 5 kW of 24. Then there were three badges where the dial
@@ -108,43 +139,6 @@ export const CabinetHome = ({cabinet}: {cabinet: SubrackCabinet}) => {
       />
 
       <SubrackShelf cabinet={cabinet} />
-
-      <div className="border-t border-subtle" />
-
-      {/* What the cabinet is. The shelf's make-up first — the pair that decides
-          whether it can carry the tower without the sun — then the box on its wall
-          that reports all of this, which is the one fact a reader needs before
-          trusting any of the rest. */}
-      <DetailBand
-        ariaLabel="Cabinet details"
-        rows={[
-          {
-            label: 'Rectifiers',
-            value: `${cabinet.rectifiers} × ${amount(cabinet.rectifierKw, 'kW')}`,
-          },
-          {label: 'Solar Supply Units', value: `${cabinet.ssus}`},
-          {label: 'Rectifier capacity', value: amount(cabinet.capacityKw, 'kW')},
-          // What the three figures above are worth. `Counted` is the unit's own
-          // hardware; `Sized` says a model put them there, and the row exists so the
-          // reader is told before they act on a module count rather than after. See
-          // `SubrackCabinet.shelf`.
-          {
-            label: 'Shelf make-up',
-            value: cabinet.shelf === 'READ' ? 'Counted on site' : 'Sized from the plant',
-          },
-          // The two device rows only where there is a device. A `Monitoring unit —`
-          // row would be the "0 is ambiguous three ways" mistake in a details band:
-          // an em-dash where a name goes reads as a unit whose name nobody recorded,
-          // when the fact is that no unit is fitted. That is the sentence the row
-          // above already carries, so these simply go.
-          ...(cabinet.deviceName === null
-            ? []
-            : [{label: 'Monitoring unit', value: cabinet.deviceName}]),
-          ...(cabinet.slaveId === null
-            ? []
-            : [{label: 'Modbus slave', value: `${cabinet.slaveId}`}]),
-        ]}
-      />
     </div>
   );
 };
