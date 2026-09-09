@@ -37,9 +37,6 @@ import type {SiteTrend} from '../data/siteTrend';
  */
 
 const HEIGHT = 260;
-
-/** `2,405` on a bar's own label — thousands separated, no decimals invented. */
-const BAR_FIGURE = new Intl.NumberFormat('en-MY', {maximumFractionDigits: 1});
 const PAD_TOP = 16;
 const PAD_BOTTOM = 28;
 const AXIS_WIDTH = 44;
@@ -317,30 +314,6 @@ export const SiteTrendChart = ({
                       className={cn('fill-current', trend.paired?.token)}
                       opacity={dim}
                     />
-                  )}
-                  {/* Each bar's own figure, where the bars are few enough for the
-                      figures to fit — a year of twelve, not a month of thirty,
-                      which keeps its numbers on hover. A mirrored bar is
-                      labelled below, on its own side of the zero rule. */}
-                  {points.length <= 13 && (
-                    <text
-                      x={x(index)}
-                      y={y(point.value) - 4}
-                      textAnchor="middle"
-                      className="fill-current text-[10px] text-secondary tabular-nums"
-                    >
-                      {BAR_FIGURE.format(point.value)} {unit}
-                    </text>
-                  )}
-                  {points.length <= 13 && paired !== null && paired !== undefined && paired > 0 && (
-                    <text
-                      x={x(index)}
-                      y={y(-paired) + 11}
-                      textAnchor="middle"
-                      className="fill-current text-[10px] text-secondary tabular-nums"
-                    >
-                      {BAR_FIGURE.format(paired)} {unit}
-                    </text>
                   )}
                 </g>
               );
