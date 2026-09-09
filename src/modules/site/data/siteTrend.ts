@@ -419,15 +419,6 @@ const solarMix = (toLoad: number, toBank: number): SiteTrend['mix'] => {
   ];
 };
 
-/**
- * An hours figure for a readout — `6.2 h` while a tenth means something, `1,284 h`
- * once it does not.
- *
- * The threshold is a hundred hours, which is roughly where a reader stops thinking
- * in starts and shifts and starts thinking in service intervals.
- */
-const hoursLabel = (hours: number): string =>
-  hours < 100 ? `${Math.round(hours * 10) / 10} h` : `${NUMBER.format(Math.round(hours))} h`;
 
 /** The series, for one metric over one window. */
 export const siteTrend = (
@@ -694,28 +685,23 @@ const dayValue = (
  * height of the chart *meant*, which is the one thing a period control should not
  * do.
  *
- * ## Why minutes, and why the axis is fixed at the hour
+ * ## Litres, in hourly buckets
  *
- * An hour of clock time holds at most an hour of running, so the bar is a fraction
- * of its own bucket and the ceiling is known before the day is read — the same
- * argument state of charge makes for its 0–100 axis. Fixed, a full-height bar is
- * an hour turning start to finish and a half-height one is thirty minutes, on
- * every day and every machine; auto-scaled, a quiet day with one eight-minute
- * start would draw that start as a full-height bar.
+ * The day used to be minutes-run-per-hour — a duty profile — and it became fuel
+ * when the question the whole tab answers became *what did the running cost*.
+ * The run log prices every run through the one SFC curve the tank chart and the
+ * reports use, so an hour's bar here is the same litres the fuel ladder loses
+ * over that hour. The axis auto-scales: unlike minutes, an hour of burn has no
+ * natural ceiling — it depends on what is fitted and how hard it is loaded.
  *
- * Minutes rather than fractions of an hour because the axis has to be readable:
- * a fixed hour divides into `0 15 30 45 60`, where hours give `0 0.25 0.5` and a
- * tick row that cannot be written to one decimal place.
- *
- * A site with two sets gets a ceiling of two hours' worth — this sums engine
- * minutes across the yard, exactly as `gensetHoursIn` sums its hours, and the
- * ceiling has to be able to hold both machines turning at once.
+ * A site with two sets sums litres across the yard, exactly as `gensetHoursIn`
+ * sums its hours — unrounded per set, rounded once per bar.
  */
 const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): SiteTrend => {
   const start = startOfDay(dayAt);
   const today = startOfDay(now);
   // The hour in progress is drawn, and every hour after it is `null`. A part-hour
-  // bar is honest — the minutes in it did happen — and the chart marks where the
+  // bar is honest — the burn in it did happen — and the chart marks where the
   // record stops, so a short bar at the right edge is not read as a set that shut
   // down. Hours the day has not reached are absent rather than zero, for the
   // reason `TrendPoint.value` gives.
@@ -726,28 +712,32 @@ const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): S
 
     return {
       label: clockLabel(hour),
-      value: hour > edgeHour ? null : gensetMinutesIn(gensetIds, from, from + 3_600_000, now),
+      value:
+        hour > edgeHour
+          ? null
+          : Math.round(
+              gensetIds.reduce(
+                (litres, gensetId) =>
+                  litres + runTotalsIn(gensetId, from, from + 3_600_000, now).fuelLitres,
+                0,
+              ) * 10,
+            ) / 10,
     };
   });
 
-  const minutes = points.reduce((total, point) => total + (point.value ?? 0), 0);
+  const litres = points.reduce((total, point) => total + (point.value ?? 0), 0);
 
   return {
     metric: 'GENSET',
     period: 'day',
     points,
     shape: 'bars',
-    unit: 'min',
-    axisMax: 60 * Math.max(1, gensetIds.length),
+    unit: 'L',
     caption:
       gensetIds.length > 1
-        ? 'Engine minutes run in each hour, across the sets here'
-        : 'Minutes run in each hour of the day',
-    // Stated in hours even though the bars are minutes: `6.2 h` is how a day's
-    // running is spoken about everywhere else on the page — the service interval,
-    // the runs tab — and `372 min` would be the same fact in a unit nobody plans
-    // in.
-    total: {label: 'Hours run', value: hoursLabel(minutes / 60)},
+        ? 'Fuel burned in each hour, across the sets here'
+        : 'Fuel burned in each hour of the day',
+    total: {label: 'Total', value: `${NUMBER.format(Math.round(litres))} L`},
   };
 };
 
