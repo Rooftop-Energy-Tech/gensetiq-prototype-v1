@@ -12,7 +12,9 @@ import {
 
 import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {Badge} from '@/components/ui/badge';
-import {amount, fuelHeadline} from '@/lib/format';
+import {amount, fuelFraction, fuelHeadline} from '@/lib/format';
+import {TankGlyph} from '@/components/global/TankGlyph';
+import {runTotalsIn} from '@/modules/genset/data/history';
 import {BANK_RESERVE_LABEL} from '@/modules/battery/types/bank.type';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
@@ -450,6 +452,16 @@ const GensetDeviceCard = ({
   const StateIcon = stateMeta.icon;
   const conditionMeta = CONDITION_META[detail.condition];
 
+  // The day's totals off the run log — the same sums the fuel chart is drawn
+  // from, read here so they can sit beside the tank.
+  const dayAnchor = new Date(now);
+  const dayStart = new Date(
+    dayAnchor.getFullYear(),
+    dayAnchor.getMonth(),
+    dayAnchor.getDate(),
+  ).getTime();
+  const today = runTotalsIn(genset.id, dayStart, dayStart + 86_400_000, now);
+
   /**
    * Everything standing on this machine — **both** things that report on it.
    *
@@ -548,9 +560,43 @@ const GensetDeviceCard = ({
         </>
       }
     >
-      <SiteDeviceFigures
-        figures={[{label: 'Fuel level', value: `${Math.round(genset.fuelLitres).toLocaleString('en-MY')}`, unit: 'L'}]}
-      />
+      {/* The level as the tank itself — the same segmented glyph the genset's
+          own fuel panel draws, with the litres as the headline and the fraction
+          under them. Beside it, the day's two answers off the run log: what the
+          running cost and how long it ran — the barrel says what is left, the
+          figures say what it took to get here. */}
+      <div className="flex items-start gap-8 self-start">
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-[11px] leading-none text-secondary">Fuel level</span>
+          <TankGlyph
+            fraction={fuelFraction(genset.fuelLitres, genset.fuelCapacityLitres)}
+            tone="fuel"
+          />
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-xl leading-none font-semibold text-primary tabular-nums">
+              {Math.round(genset.fuelLitres).toLocaleString('en-MY')} L
+            </span>
+            <span className="text-sm leading-none text-secondary tabular-nums">
+              {Math.round(fuelFraction(genset.fuelLitres, genset.fuelCapacityLitres) * 100)}%
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 pt-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] leading-none text-secondary">Total fuel burned today</span>
+            <span className="text-xl leading-none font-semibold text-primary tabular-nums">
+              {Math.round(today.fuelLitres).toLocaleString('en-MY')} L
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] leading-none text-secondary">Total genset runtime</span>
+            <span className="text-xl leading-none font-semibold text-primary tabular-nums">
+              {Math.round((today.runtimeMs / 3_600_000) * 10) / 10} h
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* The design's discrepancy chip, and it is drawn only when there is one.
           A chip reading "0% fuel discrepancy" would be an alarm-shaped element at

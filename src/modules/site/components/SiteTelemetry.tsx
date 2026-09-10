@@ -401,10 +401,18 @@ const SocGauge = ({soc, flow}: {soc: number; flow: 'charging' | 'discharging' | 
   </div>
 );
 
-const Figure = ({label, value}: {label: string; value: string}) => (
+/**
+ * `hero` sizes the value like the strip figures above the scene — for the one or
+ * two numbers a panel exists to deliver, not for every supporting fact.
+ */
+const Figure = ({label, value, hero = false}: {label: string; value: string; hero?: boolean}) => (
   <div className="flex flex-col gap-1">
     <span className="text-[11px] leading-none text-secondary">{label}</span>
-    <span className="text-sm leading-none font-semibold text-primary">{value}</span>
+    <span
+      className={cn('leading-none font-semibold text-primary', hero ? 'text-xl' : 'text-sm')}
+    >
+      {value}
+    </span>
   </div>
 );
 
@@ -554,16 +562,17 @@ export const SiteTelemetry = ({
         embedded={embedded}
       >
         <DayChart trend={trend} />
-        {/* The day's totals, off the same series the bars are drawn from — the
-            figures the sparkline views carry beside their chart, which this one had
-            nowhere to put until it had a chart worth reading them against. */}
-        {(trend.total !== undefined || trend.extra !== undefined) && (
+        {/* The day's totals, off the same series the bars are drawn from. Not on
+            the genset's frame: its litres and hours moved up beside the tank,
+            where they answer at hero size, and stating them twice in one panel
+            would have a reader checking whether the two agree. */}
+        {gensetId === undefined && (trend.total !== undefined || trend.extra !== undefined) && (
           <div className="flex items-start gap-6">
             {trend.total !== undefined && (
-              <Figure label={trend.total.label} value={trend.total.value} />
+              <Figure label={trend.total.label} value={trend.total.value} hero />
             )}
             {trend.extra !== undefined && (
-              <Figure label={trend.extra.label} value={trend.extra.value} />
+              <Figure label={trend.extra.label} value={trend.extra.value} hero />
             )}
           </div>
         )}
