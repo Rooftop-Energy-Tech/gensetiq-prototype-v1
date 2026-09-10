@@ -1,5 +1,6 @@
 import type {SubrackCabinet} from '../types/cabinet.type';
 import type {Shelf, ShelfPosition} from '../types/shelfPosition.type';
+import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 
 /**
  * The front of the cabinet, bay by bay — the drawing the figure is laid out from.
@@ -123,10 +124,29 @@ export const RECTIFIER_POSITIONS = 9;
  * both would stand taller than the rectifiers below them and the shelf would look
  * built out of two different drawings.
  */
-const BAY = 3.75;
+/**
+ * One bay's height in rem — **the app's unit for a slot in a drawn enclosure.**
+ *
+ * Exported because the battery line-up builds its module slots on it too (Jeff asked
+ * for the two drawings to share their spacing, 2026-09-10). It stays defined here, in
+ * the file that measured it off the photograph, rather than being lifted to a shared
+ * constants module: the subrack elevation is where the figure came from and every other
+ * height in this file is derived from it, so a copy in `moduleCabinet.type.ts` would be
+ * the same number with no source.
+ */
+export const BAY_REM = 3.75;
+
+const BAY = BAY_REM;
 const DISTRIBUTION = 2.75;
-/** The grid's own `gap-1.5`, which sits between the two halves and must be paid for. */
-const ROW_GAP = 0.375;
+/**
+ * The grid's own `gap-1.5`, which sits between the two halves and must be paid for.
+ *
+ * Exported alongside `BAY_REM` for the same reason — the battery slots leave the same
+ * gap between them, and two drawings claiming to share a rhythm should share the number.
+ */
+export const ROW_GAP_REM = 0.375;
+
+const ROW_GAP = ROW_GAP_REM;
 const HALF_BAY = (BAY - ROW_GAP) / 2;
 
 /**
@@ -486,6 +506,40 @@ export const shelfPositions = (cabinet: SubrackCabinet): ReadonlyArray<ShelfPosi
  * denominator, because "ten rows watch this bay" at a site with nine of them missing
  * is the kind of confident wrong number this whole section exists to avoid.
  */
+/**
+ * The rows this site's unit publishes against a bay.
+ *
+ * Narrowed to the catalogue, which is the part that matters: `positionAlarmRows` names
+ * ten rows against the AC input, nine of which only exist where there is an incomer, so
+ * an unfiltered list would tell a reader at a hybrid that ten rows watch a bay when one
+ * does.
+ */
+export const bayWatchedRows = (
+  position: ShelfPosition,
+  catalogue: ReadonlySet<string>,
+): ReadonlyArray<string> => positionAlarmRows(position).filter((row) => catalogue.has(row));
+
+/**
+ * The rows against a bay that are actually standing, in the layout's own order.
+ *
+ * **One derivation, three readers.** The elevation colours a bay from it, the panel's
+ * badge row draws a pill per row, and the panel's foot counts them against the watched
+ * total. Deriving it three times from the same layout would be three chances for the
+ * drawing, the headline and the detail to disagree about what is standing.
+ *
+ * Ordered by `positionAlarmRows` rather than by the queue, so a bay's **own** row leads
+ * its group's — `SSU 4 Fault` before `SSU Lost`, which is the order this file puts them
+ * in and the order a reader wants them.
+ */
+export const bayAssertedRows = (
+  position: ShelfPosition,
+  standing: ReadonlyArray<AlarmView>,
+  catalogue: ReadonlySet<string>,
+): ReadonlyArray<AlarmView> =>
+  bayWatchedRows(position, catalogue).flatMap((name) =>
+    standing.filter((row) => row.name === name),
+  );
+
 export const positionAlarmRows = (position: ShelfPosition): ReadonlyArray<string> => {
   switch (position.kind) {
     case 'RECTIFIER':

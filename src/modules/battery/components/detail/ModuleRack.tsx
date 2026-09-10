@@ -1,7 +1,7 @@
 import {TriangleAlertIcon} from 'lucide-react';
 
+import {AlarmPill} from '@/components/global/AlarmPill';
 import {BatteryGlyph} from '@/components/global/BatteryGlyph';
-import {FaultBadge, FaultChip} from '@/components/global/FaultChip';
 import {Badge} from '@/components/ui/badge';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
@@ -100,9 +100,9 @@ import type {BatteryModule} from '../../types/module.type';
  *
  * - **`Lithium Battery 4 Abnormal` is standing.** The module's own BMS reports a
  *   problem with itself, on a register the site's monitoring unit polls. A *reported*
- *   fact. The card takes an edge, a fill **and its badge** from the row's own severity
- *   — red and `Critical` for what every module row on this estate is, amber and
- *   `Warning` a rank down, and the achromatic grey `Neutral` for a note. All three
+ *   fact. The card takes an edge, a fill **and its `AlarmPill`** from the row's own
+ *   severity — red and `Critical` for what every module row on this estate is, amber
+ *   and `Warning` a rank down, and the achromatic grey `Neutral` for a note. All three
  *   come out of one `SEVERITY_META` entry, so nothing on the card can disagree with
  *   anything else on it about how bad the row is.
  * - **The module is `IMBALANCE_POINTS` or more under the pack.** This app's own
@@ -160,26 +160,36 @@ const noteFor = (module: BatteryModule, bank: BatteryBank, lowestId: string): Mo
 };
 
 /**
- * The register a faulted module is asserting is now `FaultChip` — the shared chip the
- * junction box cards use — and it moved from the card's foot to directly under the
- * module's label (Jeff, 2026-09-09).
+ * A faulted module's mark is **one `AlarmPill`** directly under its label — the rank and
+ * the register together, in the row's own severity colour, linking to the Alarms tab.
+ * The same element the junction box cards and both cabinet panels draw.
  *
- * What was here was a bare `<Link>` with the raw register name in `text-xs
- * text-secondary`, and `JunctionBoxRack` had a byte-identical copy of it. Both were
+ * ## How it got here, because each step answered the last one's failure
+ *
+ * A bare `<Link>` with the raw register name at the card's foot in
+ * `text-xs text-secondary`, byte-identical to a copy in `JunctionBoxRack`. Both were
  * camouflaged for the same reason: that grey is the grey of the `Health` / `Temp` /
  * `Stored` labels stacked above it, one step smaller and last in reading order, so the
  * one exceptional thing on the card read as a metric row with its value missing.
  *
- * The old note's two arguments still hold and now live in `FaultChip`: the label is the
- * string the gateway publishes, exactly — `Lithium Battery 4 Abnormal`, because that is
- * what the Alarms tab lists and what history is keyed on — and it truncates rather than
- * wraps, because a grid row is as tall as its tallest card. A 10rem card cuts that name
- * at any size, so the tooltip is how it is read in full.
+ * Then the shared `FaultChip` under the label, plus a `FaultBadge` in the top-right
+ * corner naming the rank (2026-09-09, Jeff) — which fixed the camouflage and left the
+ * mark **split in two**, `how bad` in one corner and `which register` in the other.
  *
- * The severity badge opposite the module's label went the same way on the same day: it
- * was a local `FaultBadge` here and nowhere else, and it is now the shared one beside the
- * chip. The junction box card draws both too, so the two racks mark a faulted part
- * identically — which is the whole point of the pair living in `global/`.
+ * Then one pill carrying both (2026-09-10, Jeff), after the same merge landed on the
+ * cabinet's bay panel. `FaultChip` and `FaultBadge` had no callers left and were deleted.
+ *
+ * ## The two arguments that survived every step
+ *
+ * **The label is the string the gateway publishes, exactly** — `Lithium Battery 4
+ * Abnormal` — because that is what the Alarms tab lists and what history is keyed on.
+ *
+ * **It wraps rather than cuts.** That one reversed: the chip truncated, because a grid
+ * row is as tall as its tallest card and a wrapped name deepens every card beside it. A
+ * 10rem card cuts `Lithium Battery 4 Abnormal` at any size, and with the rank now in
+ * front of it there is less room again — so cutting stopped being the occasional cost
+ * and became the normal case. Jeff took the extra line instead. `AlarmPill`'s `wrap`
+ * prop carries the trade; the detail panels are wide enough not to need it.
  */
 
 export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
@@ -328,8 +338,6 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
                 <span className="text-sm font-medium text-secondary">{module.label}</span>
 
                 <span className="flex min-w-0 flex-wrap items-center justify-end gap-1">
-                  {fault !== undefined && <FaultBadge severity={fault.severity} />}
-
                   {note !== undefined &&
                     (note.flagged ? (
                       <Badge variant="secondary" className="gap-1">
@@ -354,7 +362,12 @@ export const ModuleRack = ({bank}: {bank: BatteryBank}) => {
                   overrode that is that nobody was finding it at all: last in reading order
                   and dressed as a metric label, it was a fifth row with no value. */}
               {fault !== undefined && (
-                <FaultChip fault={fault} to="/battery/$bankId/alarms" params={{bankId: bank.id}} />
+                <AlarmPill
+                  fault={fault}
+                  to="/battery/$bankId/alarms"
+                  params={{bankId: bank.id}}
+                  wrap
+                />
               )}
 
               <div className="flex items-center gap-2.5">

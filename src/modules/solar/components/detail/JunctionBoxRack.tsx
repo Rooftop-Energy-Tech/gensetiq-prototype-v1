@@ -1,6 +1,6 @@
 import type {ReactNode} from 'react';
 
-import {FaultBadge, FaultChip} from '@/components/global/FaultChip';
+import {AlarmPill} from '@/components/global/AlarmPill';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
@@ -85,19 +85,22 @@ import type {SolarSystem} from '../../types/system.type';
  * it against the reading and the step behind it — and only where there *is* a step, so a
  * loss known only from a register does not get a message claiming the output dropped.
  *
- * ## The fault mark is shared with the battery rack
+ * ## The fault mark is `AlarmPill`, shared with every other part in the app
  *
- * The register name is a **chip directly under the box's own name** — `FaultChip`, which
- * carries the whole argument for its shape and is the same element `ModuleRack` draws on a
- * faulted battery module. It began as two byte-identical copies of a bare `<Link>`, one
- * here and one there, which is how a faulted junction box and a faulted battery module
- * came to be a fork waiting to happen; promoted on 2026-09-09 (Jeff), the same move
- * `AlarmBadge` made a day earlier and for the same reason.
+ * **One pill directly under the box's own name**, carrying the rank and the register
+ * together — `Critical · PV 1 Array Fault` — in the row's own severity colour, linking to
+ * the Alarms tab. `AlarmPill` carries the whole argument for the shape.
  *
- * `FaultBadge` beside it — the severity in the card's top-right corner — is the other half
- * of the same mark and comes out of the same file. It was a local component in `ModuleRack`
- * and this card briefly had none; both now draw the shared pair, so **a faulted junction box
- * and a faulted battery module are marked identically**, which is what the promotion was
+ * It replaced a **pair**: a `FaultBadge` in the card's top-right corner saying `Critical`
+ * and a `FaultChip` under the label naming the register in grey. The pair itself had
+ * replaced two byte-identical copies of a bare `<Link>`, one here and one in `ModuleRack`,
+ * which is how a faulted junction box and a faulted battery module came to be a fork
+ * waiting to happen (promoted 2026-09-09, Jeff).
+ *
+ * Merged on 2026-09-10 (Jeff), after the same merge was made on the cabinet's bay panel:
+ * the rank at the top of the card and the reason under it were one fact split in two, and
+ * the split cost a reader a glance between them. So **a faulted junction box, battery
+ * module, SSU and rectifier are now marked identically**, which is what the promotion was
  * for. The two racks differ in nothing about the mark now.
  *
  * ## The boxes with nothing watching them
@@ -283,16 +286,17 @@ export const JunctionBoxRack = ({
                   register is asserting one — the shape the battery module cards already
                   had, which is what Jeff asked this card to match (2026-09-09).
 
-                  The badge was briefly dropped here on the argument that the chip below
-                  plus the card's red edge said enough. What that missed is that the two
-                  answer different questions — this one *how bad*, the chip *which
-                  register* — and that hue alone says nothing for `NEUTRAL`, whose edge and
-                  tint are deliberately achromatic. `FaultBadge` carries the rest.
+                  **Nothing sits opposite the label any more.** A `Critical` badge did,
+                  and the argument for it was that the chip below said *which register*
+                  while the badge said *how bad* — two questions, two elements, and hue
+                  alone says nothing for `NEUTRAL`, whose edge and tint are deliberately
+                  achromatic.
 
-                  It fits at the narrowest rung with room to spare: `SJB 1` is about 38px
-                  and the badge about 81px against the 145px a five-across card has on a
-                  laptop. `flex-wrap` stays as the guard for the label that is one
-                  character longer than any on this estate.
+                  That argument is answered rather than abandoned: `AlarmPill` below now
+                  carries the rank **and** the register in one pill, so the rank is still
+                  in words and `NEUTRAL` still reads. What went is the split, not the
+                  fact. `flex-wrap` stays as the guard for a label one character longer
+                  than any on this estate.
 
                   A `not reported` note sat opposite the label on the boxes past the
                   last conversion unit, in the `SubrackRack` idiom, and Jeff removed it
@@ -307,8 +311,6 @@ export const JunctionBoxRack = ({
                 <span className="text-sm font-medium whitespace-nowrap text-secondary">
                   {box.label}
                 </span>
-
-                {fault !== undefined && <FaultBadge severity={fault.severity} />}
               </div>
 
               {/* **The register behind the mark, as a chip under the box's name** — Jeff's
@@ -322,11 +324,12 @@ export const JunctionBoxRack = ({
                   the card's top edge and then a row lower so `SJB 1` stayed first. Now a
                   chip in the same place the band was.
 
-                  `FaultChip` carries the whole argument for the shape — why the bell rather
-                  than a warning triangle, why the name stays grey while the glyph takes the
-                  severity, and why it is `text-xs` where the filters it copies are
-                  `text-sm`. It is shared with `ModuleRack`, which is what stopped this from
-                  being one idiom drawn two ways.
+                  `AlarmPill` carries the whole argument for the shape — why the rank
+                  leads the register, why the entire pill takes the severity's colour
+                  rather than colouring the glyph and greying the name, and why it wraps
+                  here while the detail panels let it cut. It is shared with `ModuleRack`
+                  and both cabinet panels, which is what stopped this from being one idiom
+                  drawn four ways.
 
                   ## What still marks the card, and why the chip can be quiet
 
@@ -366,7 +369,12 @@ export const JunctionBoxRack = ({
                   below them, and it was taken knowingly. Moving the chip back under the
                   metric rows is a two-line move of this block. */}
               {fault !== undefined && (
-                <FaultChip fault={fault} to="/solar/$systemId/alarms" params={{systemId: system.id}} />
+                <AlarmPill
+                  fault={fault}
+                  to="/solar/$systemId/alarms"
+                  params={{systemId: system.id}}
+                  wrap
+                />
               )}
 
               {/* `Current generation` **over** its figure rather than beside it, and the

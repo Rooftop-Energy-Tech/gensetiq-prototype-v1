@@ -44,17 +44,27 @@ import type {PlantAlarmCategory} from '../types/plantAlarm.type';
  *
  * ## What it changes and what it does not
  *
- * For a category it names, it **replaces** that category's asserted rows rather than
- * editing them — well-defined for both, because each is the only row family in its
- * category. It also steps around `dealt`, which is the point for the bank: `groupOf` files
- * all thirteen module addresses as one group, so the real dealing can never stand more
- * than one module row, and one module is not a severity showcase.
+ * Each category says how it wants to be applied — see `DemoShowcase.mode`.
  *
- * Untouched: the register catalogue, `SEVERITY_OF_HUAWEI`, the Huawei class each row still
- * publishes, the `SITE` and `GENSET` categories, and any site with no monitoring unit.
- * `PlantAlarmCatalogue` — the page that lists the register map itself — reads the catalogue
- * and still shows every one of these rows as `MA`/critical, which is correct: that page
- * documents the device, and this one dresses a demo.
+ * `SOLAR` and `BATTERY` **replace** the category's asserted rows, which is well defined
+ * because each is the only row family in its category. Replacing also steps around
+ * `dealt`, which is the point for the bank: `groupOf` files all thirteen module
+ * addresses as one group, so the real dealing can never stand more than one module row,
+ * and one module is not a severity showcase.
+ *
+ * `SITE` **adds** instead, and it has to. That category is seventeen rows across six
+ * parts — the enclosure's door and smoke sensors, the load fuses, both surge arresters,
+ * the DC bus pair, the rectifier group, the solar units — and replacing it would take
+ * the cabinet page's door and rectifier rows off the board to make room for three. Jeff
+ * chose to keep them (2026-09-10).
+ *
+ * Untouched: the register catalogue, `SEVERITY_OF_HUAWEI`, the Huawei class each row
+ * still publishes, the `GENSET` category, and any site with no monitoring unit.
+ * `PlantAlarmCatalogue` — the page that lists the register map itself — reads the
+ * catalogue and still shows every `PV N Array Fault` and `Lithium Battery N Abnormal`
+ * as `MA`/critical, which is correct: that page documents the device, and this one
+ * dresses a demo. **The cabinet's three rows need no such caveat** — their ranks are
+ * the catalogue's own.
  *
  * ## Turning it off
  *
@@ -75,29 +85,97 @@ const DEMO_SEVERITY_SHOWCASE = true;
  * and that rank is skipped, rather than a row being invented for a unit the catalogue does
  * not publish.
  */
-const DEMO_RANKS: Partial<
-  Record<PlantAlarmCategory, ReadonlyArray<{label: string; severity: AlertSeverity}>>
-> = {
-  SOLAR: [
-    {label: 'PV 1 Array Fault', severity: 'CRITICAL'},
-    {label: 'PV 2 Array Fault', severity: 'WARNING'},
-    {label: 'PV 3 Array Fault', severity: 'NEUTRAL'},
-  ],
-  BATTERY: [
-    {label: 'Lithium Battery 1 Abnormal', severity: 'CRITICAL'},
-    {label: 'Lithium Battery 2 Abnormal', severity: 'WARNING'},
-    {label: 'Lithium Battery 3 Abnormal', severity: 'NEUTRAL'},
-  ],
+type DemoShowcase = {
+  /**
+   * Whether the rows below **replace** what the category deals or **join** it.
+   *
+   * `REPLACE` for a category that is one row family, where the three ranks are the whole
+   * story and the dealing has nothing else to say. `ADD` for `SITE`, seventeen rows about
+   * six different parts of the cabinet — see the note at the top of this file.
+   */
+  mode: 'REPLACE' | 'ADD';
+  rows: ReadonlyArray<{label: string; severity: AlertSeverity}>;
 };
 
-/** The ranks this category is dressed with, or `undefined` to leave it to the catalogue. */
-export const demoRanksFor = (
-  category: PlantAlarmCategory,
-): ReadonlyArray<{label: string; severity: AlertSeverity}> | undefined =>
+const DEMO_RANKS: Partial<Record<PlantAlarmCategory, DemoShowcase>> = {
+  SOLAR: {
+    mode: 'REPLACE',
+    rows: [
+      {label: 'PV 1 Array Fault', severity: 'CRITICAL'},
+      {label: 'PV 2 Array Fault', severity: 'WARNING'},
+      {label: 'PV 3 Array Fault', severity: 'NEUTRAL'},
+    ],
+  },
+  BATTERY: {
+    mode: 'REPLACE',
+    rows: [
+      {label: 'Lithium Battery 1 Abnormal', severity: 'CRITICAL'},
+      {label: 'Lithium Battery 2 Abnormal', severity: 'WARNING'},
+      {label: 'Lithium Battery 3 Abnormal', severity: 'NEUTRAL'},
+    ],
+  },
+
+  /**
+   * **The cabinet's three are real, and that is why they are these three.**
+   *
+   * Nothing here is a rerank. The `SITE` catalogue already publishes a row at every rank,
+   * because it draws on far more of the SMU02C's poll table than one generated family
+   * does — seventeen rows across six parts rather than one per unit:
+   *
+   * - `SSU 1 Fault` is Huawei class `MA` → `CRITICAL`
+   * - `DC Overvoltage Alarm` is `MI` → `WARNING` — the only `MI` row in the category
+   * - `SSU Lost` is `WA` → `NEUTRAL` — the only `WA` row
+   *
+   * So every severity below is **the severity the device publishes**, this fixture only
+   * makes the rows stand, and none of them takes a `(test)` marker. Jeff chose it over
+   * reranking `SSU 1/2/3 Fault` the way solar and battery are reranked (2026-09-10), and
+   * it is the better showcase for being true.
+   *
+   * ## What it costs, which is where the marks land
+   *
+   * A bay's edge and tint come from its **own positional row** — `subrackModules` matches
+   * `SSU N Fault` and nothing else — and every one of those is `MA`. The warning and the
+   * neutral are *group* rows: they draw as `AlarmPill`s on the three distribution
+   * branches and on all of the solar bays, and they colour no bay of their own.
+   *
+   * So the cabinet's elevation marks **one** bay red where the array and the bank each
+   * mark three parts in three colours. Reranking `SSU 2/3 Fault` is the one change that
+   * would put three colours in the drawing, and doing it would be a false claim about the
+   * SMU02C — which is the argument this file opens with. The three treatments are still
+   * all on the page, in the pills; they are simply not all in the metal.
+   */
+  SITE: {
+    mode: 'ADD',
+    rows: [
+      {label: 'SSU 1 Fault', severity: 'CRITICAL'},
+      {label: 'DC Overvoltage Alarm', severity: 'WARNING'},
+      {label: 'SSU Lost', severity: 'NEUTRAL'},
+    ],
+  },
+};
+
+/** How this category is dressed, or `undefined` to leave it to the catalogue. */
+export const demoShowcaseFor = (category: PlantAlarmCategory): DemoShowcase | undefined =>
   DEMO_SEVERITY_SHOWCASE ? DEMO_RANKS[category] : undefined;
 
 /**
- * How an invented row names itself — `(test) Lithium Battery 2 Abnormal`.
+ * How a **reranked** row names itself — `(test) Lithium Battery 2 Abnormal`.
+ *
+ * ## What it marks, exactly
+ *
+ * A row whose **severity this fixture fabricated** — nothing else. It is not a marker for
+ * a row that has been made to stand: `dealt` decides that for every row in this whole
+ * dataset and none of them is marked for it, so a marker meaning "asserted by the demo"
+ * would have to go on all of them and would say nothing.
+ *
+ * That distinction was sharpened on 2026-09-10 when the cabinet's `SITE` showcase went
+ * in. Its three rows are `MA`, `MI` and `WA` in the catalogue and are asked for at exactly
+ * those ranks, so there is nothing false about them and they keep their real names.
+ *
+ * The test used to also require that the site's own `dealt` had picked the row, which
+ * marked `PV 1 Array Fault` at SBH-1495 but not at SBH-1336 — the same row, at its own
+ * true rank, marked at one site and not another because a shuffle landed differently.
+ * That was the predicate describing `dealt` rather than describing the claim.
  *
  * **The marker leads because a trailing one does not survive the card.** A fault chip has
  * about 109px of text at five cards across; `PV 2 Array Fault` is about 98px of it, so

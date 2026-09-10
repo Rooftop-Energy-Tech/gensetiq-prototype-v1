@@ -2,7 +2,10 @@ import {SunMediumIcon, TriangleAlertIcon, UtilityPoleIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
 import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
-import {isCompactPosition} from '../../data/shelfLayout';
+import {worstSeverity} from '@/modules/genset/types/alert.type';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
+import type {AlarmView} from '@/modules/genset/types/alarmView.type';
+import {bayAssertedRows, isCompactPosition} from '../../data/shelfLayout';
 import {SHELF_COLUMNS, isModulePosition} from '../../types/shelfPosition.type';
 import type {Shelf, ShelfPosition} from '../../types/shelfPosition.type';
 import type {SubrackModule} from '../../types/subrackModule.type';
@@ -95,6 +98,12 @@ import type {SubrackModule} from '../../types/subrackModule.type';
 const bayClassName = (
   position: ShelfPosition,
   module: SubrackModule | undefined,
+  /**
+   * The worst rank standing against a bay that has **no module of its own**.
+   *
+   * See `raisedOn` for why module bays are excluded.
+   */
+  raised: AlertSeverity | undefined,
   selected: boolean,
 ): string => {
   // `overflow-hidden` is a guard rather than a layout choice: every cell is measured
@@ -119,6 +128,14 @@ const bayClassName = (
   }
 
   if (module === undefined) {
+    /* A bay with no readings but a row standing against it — the distribution branches
+       and the AC input. It takes the row's edge and tint exactly as a faulted module bay
+       does, so the drawing agrees with the pill on the panel beside it. */
+    if (raised !== undefined) {
+      const meta = SEVERITY_META[raised];
+      return cn(base, meta.edgeClassName, meta.tintClassName, 'text-primary cursor-pointer', ring);
+    }
+
     return cn(base, 'border-subtle bg-element text-tertiary cursor-pointer', ring);
   }
 
@@ -151,7 +168,11 @@ const bayClassName = (
  * a reader who cannot see that the fill is unlit has no other way to learn that six
  * rectifiers are on standby behind a generating array.
  */
-const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): string => {
+const bayLabel = (
+  position: ShelfPosition,
+  module: SubrackModule | undefined,
+  raised: AlertSeverity | undefined,
+): string => {
   if (position.fitted === false) {
     // Kind-neutral. It said "no inverter fitted", which was true while the inverter
     // slots were the only bays that could be empty — a five-rectifier shelf has an
@@ -161,6 +182,15 @@ const bayLabel = (position: ShelfPosition, module: SubrackModule | undefined): s
 
   if (module === undefined) {
     if (position.label === '') return 'Empty bay';
+
+    /* The rank is spoken, because on a bay with no readings the colour is the whole of
+       what the cell can say about it and a reader who cannot see it has no other route.
+       The row itself is named on the panel; this says there is one. */
+    if (raised !== undefined) {
+      const second = position.rating ?? position.part;
+      return `${position.label}${second === undefined ? '' : `, ${second}`}: ${SEVERITY_META[raised].label} alarm standing`;
+    }
+
     // With whatever the cell's second line would say — including where the cell is too
     // short to print it, since a reader who cannot see the drawing is the one reader
     // who should never lose a fact to its geometry. That is both corner boards: their
@@ -235,6 +265,8 @@ const BayIcon = ({module}: {module: SubrackModule}) => {
 export const SubrackFigure = ({
   shelves,
   modules,
+  standing,
+  catalogue,
   selected,
   onSelect,
 }: {
@@ -248,6 +280,10 @@ export const SubrackFigure = ({
    */
   shelves: ReadonlyArray<Shelf>;
   modules: ReadonlyArray<SubrackModule>;
+  /** Every standing `SITE` row, so a bay with no readings can still be marked. */
+  standing: ReadonlyArray<AlarmView>;
+  /** Every `SITE` row this site's unit publishes — the narrowing `bayWatchedRows` needs. */
+  catalogue: ReadonlySet<string>;
   selected: string;
   onSelect: (key: string) => void;
 }) => {
@@ -260,6 +296,38 @@ export const SubrackFigure = ({
    * drawing joins to that site's modules with no change here. `shelfLayoutFits`
    * guards the case where it should not.
    */
+  /**
+   * The worst rank standing against a bay, **for bays that have no module.**
+   *
+   * ## Why module bays are excluded
+   *
+   * A rectifier or SSU bay is coloured by its **own positional row** — `SSU 3 Fault`
+   * means the module in slot 3, because SSU identity is read off detection pins — and
+   * `subrackModules` already resolves that into `module.faultSeverity`. Every other row
+   * watching those bays is a *group* row: `SSU Lost` is about the four solar units
+   * together, `Rectifier Abnormal` about the six rectifiers. Colouring a bay from one
+   * would paint the whole group.
+   *
+   * That is not hypothetical — `SSU Lost` stands at every site on this estate, so
+   * feeding group rows in here would tint all four SSU bays grey, and each of them would
+   * lose the fill that says whether it is *carrying*. A neutral row is a note rather
+   * than a problem, and four bays repainted for a note is the loudest possible reading
+   * of the quietest rank.
+   *
+   * ## Why the bays without modules are the opposite case
+   *
+   * The three distribution branches and the AC input have **no positional row at all** —
+   * every row watching them is a group row, so there is no specific claim to prefer and
+   * a group row is the only claim there is. Drawing it is strictly better than drawing
+   * nothing, which is what they did before: `AlarmPill` put `Warning · DC Overvoltage
+   * Alarm` on the distribution panel while the bay beside it stayed plain, so the
+   * drawing quietly contradicted the card it was driving (Jeff spotted it, 2026-09-10).
+   */
+  const raisedOn = (position: ShelfPosition): AlertSeverity | undefined =>
+    isModulePosition(position.kind)
+      ? undefined
+      : worstSeverity([...bayAssertedRows(position, standing, catalogue)]);
+
   const moduleAt = (position: ShelfPosition): SubrackModule | undefined =>
     isModulePosition(position.kind)
       ? modules.find(
@@ -285,6 +353,7 @@ export const SubrackFigure = ({
             >
               {shelf.positions.map((position) => {
                 const module = moduleAt(position);
+                const raised = raisedOn(position);
                 const isSelected = position.key === selected;
                 // Half a bay tall, so one small line and no second one.
                 const compact = isCompactPosition(shelf, position);
@@ -301,7 +370,7 @@ export const SubrackFigure = ({
                   // UIM each take half of one, so everything beside them spans both.
                   gridRow: `${position.row} / span ${position.rowSpan ?? 1}`,
                 };
-                const className = bayClassName(position, module, isSelected);
+                const className = bayClassName(position, module, raised, isSelected);
 
                 // A blank is drawn and left inert — it is spacing that happens to be
                 // visible, and a tab stop that says nothing is worse than no control.
@@ -318,8 +387,8 @@ export const SubrackFigure = ({
                     style={style}
                     className={cn(className, 'outline-none')}
                     aria-pressed={isSelected}
-                    aria-label={bayLabel(position, module)}
-                    title={bayLabel(position, module)}
+                    aria-label={bayLabel(position, module, raised)}
+                    title={bayLabel(position, module, raised)}
                     onClick={() => onSelect(position.key)}
                   >
                     {/* Two type sizes, and the cell's own height picks between them.
@@ -346,6 +415,16 @@ export const SubrackFigure = ({
                       )}
                     >
                       {module !== undefined && <BayIcon module={module} />}
+                      {/* A bay with no readings but a row standing against it. The same
+                          triangle a faulted module bay shows, in the same hue — a bay
+                          marked by colour alone is marked twice as weakly, and `NEUTRAL`
+                          takes no hue at all, so the shape is what carries it there. */}
+                      {module === undefined && raised !== undefined && (
+                        <TriangleAlertIcon
+                          className={cn('size-4 shrink-0', SEVERITY_META[raised].textClassName)}
+                          aria-hidden="true"
+                        />
+                      )}
                       <span className={cn('min-w-0', compact && 'truncate')}>
                         {position.label}
                       </span>

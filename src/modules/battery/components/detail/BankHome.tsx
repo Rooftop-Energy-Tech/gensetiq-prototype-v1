@@ -16,7 +16,7 @@ import {siteSummary} from '@/modules/site/data/sites';
 import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {BANK_FLOW_LABEL, BANK_RESERVE_LABEL, bankFlow} from '../../types/bank.type';
 import type {BatteryBank} from '../../types/bank.type';
-import {ModuleRack} from './ModuleRack';
+import {ModuleCabinets} from './ModuleCabinets';
 
 /**
  * A bank's home page, in the bands the solar page uses — because it is the same
@@ -159,7 +159,8 @@ export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
           whether its modules agreed with it. A module is four figures now rather than
           one, and four figures do not fit in the column that was left over. So the
           rack is its own band directly below, and `ModuleRack` carries the argument
-          about what that trade cost and what buys it back. */}
+          about what that trade cost and what buys it back — it is now the fallback
+          under `ModuleCabinets`, which draws the same modules in their cabinets. */}
       <section aria-label="Charge now" className="flex justify-center py-6">
         <div className="flex flex-col items-center gap-3 px-6">
           <div className="flex items-center gap-3">
@@ -217,8 +218,11 @@ export const BankHome = ({bank, now}: {bank: BatteryBank; now: number}) => {
 
       <div className="border-t border-subtle" />
 
-      {/* The same battery, once per module, each with its own four figures. */}
-      <ModuleRack bank={bank} />
+      {/* The same battery, once per module — drawn in the cabinets the modules stand
+          in, with whichever slot is selected beside them. `ModuleCabinets` falls back
+          to the wrapping grid of cards where a line-up of `ESC330`s is not a credible
+          claim about the bank; it carries both arguments. */}
+      <ModuleCabinets bank={bank} />
 
       <div className="border-t border-subtle" />
 

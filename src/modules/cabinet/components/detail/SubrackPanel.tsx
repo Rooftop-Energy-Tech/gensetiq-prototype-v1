@@ -1,20 +1,19 @@
-import {Link} from '@tanstack/react-router';
-import {SunMediumIcon, ThermometerIcon, TriangleAlertIcon, UtilityPoleIcon} from 'lucide-react';
+import {SunMediumIcon, ThermometerIcon, UtilityPoleIcon} from 'lucide-react';
 
 import type {ReactNode} from 'react';
 
+import {AlarmPill} from '@/components/global/AlarmPill';
 import {Badge} from '@/components/ui/badge';
 import {amount} from '@/lib/format';
-import {cn} from '@/lib/utils';
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
-import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {SiteDeviceCard, SiteDeviceFigures} from '@/modules/site/components/SiteDeviceCard';
 import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
 import {
   INVERTER_SHELF_PART,
   RECTIFIER_POSITIONS,
-  positionAlarmRows,
+  bayAssertedRows,
+  bayWatchedRows,
 } from '../../data/shelfLayout';
 import type {SubrackCabinet} from '../../types/cabinet.type';
 import type {ShelfPosition} from '../../types/shelfPosition.type';
@@ -69,59 +68,49 @@ import type {SubrackModule} from '../../types/subrackModule.type';
  */
 
 /**
- * The rows this bay's alarms would appear as, and whether any is standing.
+ * **How much of this bay is watched, and how much of that is standing.** One sentence.
  *
- * Both halves matter and the second is the one usually missing. A bay with two rows
- * watching it and neither asserted has been **checked and found well**; a bay with no
- * rows at all has not been checked. Printing the denominator is what separates them,
- * and it is the same sentence every Alarms tab in this app now ends with.
+ * A bay with two rows watching it and neither asserted has been **checked and found
+ * well**; a bay with no rows at all has not been checked. Printing the denominator is
+ * what separates those two, and it is the same sentence every Alarms tab in this app
+ * ends with. That is the whole of what this says now.
+ *
+ * ## It used to list the rows, and the pills took that over
+ *
+ * Under this sentence sat one link per standing row — a triangle in the row's severity,
+ * the register name, the rank behind it. `AlarmPill` in the badge row at the head of
+ * the card now carries exactly that, so the list was the same fact twice on one card,
+ * about four rows of specification apart. Jeff had it removed (2026-09-10).
+ *
+ * What it cost is nothing this panel needed: the pills are links to the same tab, in
+ * the same `positionAlarmRows` order, reading the same `bayAssertedRows`. What is kept
+ * is the part the pills genuinely cannot say — **the denominator** — because a pill can
+ * only exist for a row that is standing, and the honest signal about most bays in this
+ * cabinet is that nothing is looking at them at all.
  */
 const BayAlarms = ({
   position,
   standing,
   catalogue,
-  cabinetId,
 }: {
   position: ShelfPosition;
   standing: ReadonlyArray<AlarmView>;
   catalogue: ReadonlySet<string>;
-  cabinetId: string;
 }) => {
-  /* The claim, narrowed to the rows this site's unit actually publishes.
-     `positionAlarmRows` names ten rows against the AC input, nine of which only
-     exist where there is an incomer — so an unfiltered denominator would tell a
-     reader at a hybrid that ten rows watch a bay when one does. */
-  const watched = positionAlarmRows(position).filter((row) => catalogue.has(row));
+  const watched = bayWatchedRows(position, catalogue);
   if (watched.length === 0) return null;
 
-  const asserted = standing.filter((row) => watched.includes(row.name));
+  /* Only the count is wanted now — the pills name the rows themselves. Still read
+     through `bayAssertedRows` rather than counted here, so this sentence and those
+     pills can never disagree about how many are standing. */
+  const asserted = bayAssertedRows(position, standing, catalogue);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      {asserted.map((row) => (
-        <Link
-          key={row.id}
-          to="/cabinet/$cabinetId/alarms"
-          params={{cabinetId}}
-          className="flex items-center gap-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-outline"
-        >
-          <TriangleAlertIcon
-            className={cn('size-4 shrink-0', SEVERITY_META[row.severity].textClassName)}
-            aria-hidden="true"
-          />
-          <span className="min-w-0 truncate text-primary">{row.name}</span>
-          <span className={cn('shrink-0 text-xs', SEVERITY_META[row.severity].textClassName)}>
-            {SEVERITY_META[row.severity].label}
-          </span>
-        </Link>
-      ))}
-
-      <p className="text-xs text-tertiary">
-        {asserted.length === 0
-          ? `${watched.length === 1 ? 'One row watches' : `${watched.length} rows watch`} this bay and ${watched.length === 1 ? 'it is not' : 'none is'} standing.`
-          : `${asserted.length} of ${watched.length} rows against this bay ${asserted.length === 1 ? 'is' : 'are'} standing.`}
-      </p>
-    </div>
+    <p className="text-xs text-tertiary">
+      {asserted.length === 0
+        ? `${watched.length === 1 ? 'One row watches' : `${watched.length} rows watch`} this bay and ${watched.length === 1 ? 'it is not' : 'none is'} standing.`
+        : `${asserted.length} of ${watched.length} rows against this bay ${asserted.length === 1 ? 'is' : 'are'} standing.`}
+    </p>
   );
 };
 
@@ -233,7 +222,37 @@ const NotPolled = () => (
 
 /** How many of a bay's claimed rows this site's unit actually publishes. */
 const watchedCount = (position: ShelfPosition, catalogue: ReadonlySet<string>): number =>
-  positionAlarmRows(position).filter((row) => catalogue.has(row)).length;
+  bayWatchedRows(position, catalogue).length;
+
+/**
+ * Every standing row against a bay, one pill each, at the head of its panel.
+ *
+ * Drawn on all four kinds of bay that have rows watching them — the rectifier and SSU
+ * modules, the three distribution branches and the AC input — which is exactly the set
+ * `BayAlarms` lists at the foot. Wherever the detail names a row, the headline names it
+ * too, and neither can name one the other does not: both read `bayAssertedRows`.
+ *
+ * Nothing when nothing stands, so a healthy bay's badge row is its own facts and not a
+ * space where an alarm would go.
+ */
+const AlarmPills = ({
+  rows,
+  cabinetId,
+}: {
+  rows: ReadonlyArray<AlarmView>;
+  cabinetId: string;
+}) => (
+  <>
+    {rows.map((row) => (
+      <AlarmPill
+        key={row.id}
+        fault={row}
+        to="/cabinet/$cabinetId/alarms"
+        params={{cabinetId}}
+      />
+    ))}
+  </>
+);
 
 /** `Watched by 10 rows` — the same number `BayAlarms` prints its denominator from. */
 const WatchedBy = ({count}: {count: number}) => (
@@ -257,13 +276,12 @@ export const SubrackPanel = ({
   catalogue: ReadonlySet<string>;
 }) => {
   const alarms = (
-    <BayAlarms
-      position={position}
-      standing={standing}
-      catalogue={catalogue}
-      cabinetId={cabinet.id}
-    />
+    <BayAlarms position={position} standing={standing} catalogue={catalogue} />
   );
+
+  /* The same rows `BayAlarms` lists at the foot, for the pills at the top — one
+     derivation, so the headline and the detail cannot disagree. */
+  const assertedRows = bayAssertedRows(position, standing, catalogue);
 
   if (module !== undefined) {
     const rectifier = module.kind === 'RECTIFIER';
@@ -289,22 +307,26 @@ export const SubrackPanel = ({
               <ThermometerIcon className="text-tertiary" aria-hidden="true" />
               {module.tempC.toFixed(1)} °C
             </Badge>
-            {/* The row's rank in its own words, matching the bay's colour in the
-                drawing and the battery rack's badge. It said `Fault` in flat amber,
-                which named the kind of mark and left the rank to be read off the
-                border — and the row it refers to is listed by `BayAlarms` a few lines
-                below in this same severity's colour, so the two now agree. */}
-            {module.fault === 'ASSERTED' && (
-              <Badge variant="secondary" className="whitespace-pre">
-                <TriangleAlertIcon
-                  className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}
-                  aria-hidden="true"
-                />
-                <span className={SEVERITY_META[module.faultSeverity ?? 'WARNING'].textClassName}>
-                  {SEVERITY_META[module.faultSeverity ?? 'WARNING'].label}
-                </span>
-              </Badge>
-            )}
+            {/* **One pill per standing row, rank then register.** It said `Critical`
+                and nothing else, so a reader looking at a red bay learned how bad it
+                was at the top of the card and had to reach `BayAlarms` at the foot to
+                learn *what* was wrong. Jeff asked for the title in the pill
+                (2026-09-10) and for one pill each where several stand.
+
+                Read from the **alarm rows** rather than from `module.faultSeverity`,
+                which is the change that matters. That field is one severity, set by
+                `subrackModules` off the bay's own positional row — so it could say
+                `Critical` while `SSU Lost` stood alongside `SSU 4 Fault` and the second
+                row went unmentioned until the foot of the card. The rows are the
+                claim; the field was a summary of the first of them.
+
+                Which also means these appear on bays that have no module at all — the
+                distribution branches, the AC input — because those bays have watched
+                rows too. `module` here only narrows the *card*, not the pills.
+
+                `positionAlarmRows` order, so a bay's own row leads its group's. The
+                badge row wraps, which is what pays for an unknown count. */}
+            <AlarmPills rows={assertedRows} cabinetId={cabinet.id} />
             {module.fault === 'NOT_REPORTED' && (
               <Badge variant="secondary" className="text-tertiary">
                 Not reported per bay
@@ -427,6 +449,7 @@ export const SubrackPanel = ({
               <Badge variant="secondary" className="whitespace-pre">
                 200 A
               </Badge>
+              <AlarmPills rows={assertedRows} cabinetId={cabinet.id} />
               <WatchedBy count={watchedCount(position, catalogue)} />
             </>
           }
@@ -525,7 +548,12 @@ export const SubrackPanel = ({
         <SiteDeviceCard
           label="AC input"
           identity="Incomer and surge arrester"
-          badges={<WatchedBy count={watchedCount(position, catalogue)} />}
+          badges={
+            <>
+              <AlarmPills rows={assertedRows} cabinetId={cabinet.id} />
+              <WatchedBy count={watchedCount(position, catalogue)} />
+            </>
+          }
         >
           {/* Role-neutral on purpose. This said "there is no grid at this site, so
               what arrives here is the genset" — true of the configuration SBH-1336

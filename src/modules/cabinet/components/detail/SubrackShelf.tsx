@@ -141,9 +141,16 @@ export const SubrackShelf = ({cabinet}: {cabinet: SubrackCabinet}) => {
         className="flex flex-col gap-4 xl:grid xl:items-start xl:gap-6"
         style={{gridTemplateColumns: 'minmax(0, 44rem) minmax(20rem, 1fr)'}}
       >
+        {/* `standing` and `catalogue` go to the drawing as well as the panel: a bay with
+            no readings of its own — the distribution branches, the AC input — can only
+            be marked from the rows watching it, and until it was they stayed plain while
+            the panel beside them named a standing alarm. Both read `bayAssertedRows`, so
+            the elevation and the card cannot disagree. */}
         <SubrackFigure
           shelves={shelves}
           modules={modules}
+          standing={standing}
+          catalogue={catalogue}
           selected={selected}
           onSelect={setPicked}
         />

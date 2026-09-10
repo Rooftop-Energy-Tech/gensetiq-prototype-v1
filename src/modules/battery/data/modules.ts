@@ -204,10 +204,16 @@ export const bankModules = (bank: BatteryBank): Array<BatteryModule> => {
  *
  * ## Why this returns the row and not a boolean
  *
- * Because the rack has no detail panel. The shelf can mark a bay and let the panel
- * beside it name the register, link to the tab and colour the severity; a card in a
- * wrapping grid has to carry all of that itself or not at all. So the row comes back
- * whole and the card prints its published name as the link.
+ * Because both drawings need more than *whether*. It was written for the card rack,
+ * which had no panel to defer to: a card in a wrapping grid has to carry the register
+ * name, the link and the severity itself or not at all, so the row came back whole and
+ * the card printed its published name.
+ *
+ * The bank has a panel now — `ModuleCabinets` draws the line-up with `ModuleSlotPanel`
+ * beside it, the shape the subrack has had since its own card rack was replaced — and
+ * the answer does not change. The panel names the register and links to the tab, and
+ * the *slot* still needs the severity to take its edge and tint from. One row, read by
+ * the drawing and the panel together, is what keeps them agreeing.
  *
  * ## Why standing rather than asserted
  *

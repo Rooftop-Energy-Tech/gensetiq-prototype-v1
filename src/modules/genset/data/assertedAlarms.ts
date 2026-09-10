@@ -1,6 +1,6 @@
 import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
 import type {MonitoringUnit} from '@/modules/site/data/monitoringUnit';
-import {demoRanksFor, demoTestName} from '@/modules/site/data/demoPlantAlarms';
+import {demoShowcaseFor, demoTestName} from '@/modules/site/data/demoPlantAlarms';
 import {plantAlarmsIn} from '@/modules/site/data/plantAlarms';
 import {HUAWEI_SEVERITY_LABEL, hexAddress} from '@/modules/site/types/plantAlarm.type';
 import type {PlantAlarm, PlantAlarmCategory} from '@/modules/site/types/plantAlarm.type';
@@ -183,31 +183,43 @@ export const assertedPlantAlarms = (
 
   const asserted = dealt(siteId, rows).map((row) => plantAlarmView(row, unit, handling));
 
-  /* The severity showcase, where one is defined for this category. It replaces the
-     dealing rather than adding to it, and it is consulted **here** — the one function
-     every reader of asserted rows goes through — because a fixture applied at a part
-     card instead would leave that card disagreeing with the strip counting it and the
-     tab listing it. `demoPlantAlarms.ts` carries the whole argument, including why this
-     is not a `reranked` entry in the catalogue. */
-  const ranks = demoRanksFor(category);
-  if (ranks === undefined) return asserted;
+  /* The severity showcase, where one is defined for this category. Consulted **here** —
+     the one function every reader of asserted rows goes through — because a fixture
+     applied at a part card instead would leave that card disagreeing with the strip
+     counting it and the tab listing it. `demoPlantAlarms.ts` carries the whole argument,
+     including why this is not a `reranked` entry in the catalogue. */
+  const showcase = demoShowcaseFor(category);
+  if (showcase === undefined) return asserted;
 
-  const dealtNames = new Set(asserted.map((row) => row.name));
-
-  return ranks.flatMap(({label, severity}) => {
+  const ranked = showcase.rows.flatMap(({label, severity}) => {
     const row = rows.find((candidate) => candidate.label === label);
+    /* A site publishing fewer units than there are ranks simply shows fewer, rather than
+       a row being invented for a unit the catalogue does not publish. */
     if (row === undefined) return [];
 
     const view = plantAlarmView(row, unit, handling);
 
-    /* **The marker is derived, not listed**, because which rows are real differs per
-       site and a list would go stale the day `dealt`'s per-site shuffle moved. A row
-       escapes it only by being true twice over here: this site's catalogue deals it,
-       *and* the rank the fixture wants is the rank it already has. */
-    const invented = !(dealtNames.has(label) && view.severity === severity);
+    /* **The marker is derived, not listed**, and it marks exactly one thing: a rank this
+       fixture fabricated. It is not a marker for "made to stand" — `dealt` does that to
+       every row in the dataset and none of them is marked for it.
+
+       So the test is the severity and nothing else. It used to also require that this
+       site's `dealt` had picked the row, which marked `PV 1 Array Fault` at SBH-1495 but
+       not at SBH-1336: one row, at its own true rank, marked at one site and not another
+       because a shuffle landed differently. `demoTestName` carries the argument. */
+    const invented = view.severity !== severity;
 
     return [{...view, severity, ...(invented ? {name: demoTestName(label)} : {})}];
   });
+
+  if (showcase.mode === 'REPLACE') return ranked;
+
+  /* `ADD` — the dealing keeps its rows and the showcase joins them, filtered so a row the
+     site already deals is not listed twice. The showcase's copy wins where they overlap,
+     because it is the one carrying the rank the fixture asked for. */
+  const rankedNames = new Set(showcase.rows.map((entry) => entry.label));
+
+  return [...asserted.filter((row) => !rankedNames.has(row.name)), ...ranked];
 };
 
 /**
