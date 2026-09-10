@@ -1,4 +1,6 @@
 import {monitoringUnit} from '@/modules/site/data/monitoringUnit';
+import type {MonitoringUnit} from '@/modules/site/data/monitoringUnit';
+import {demoRanksFor, demoTestName} from '@/modules/site/data/demoPlantAlarms';
 import {plantAlarmsIn} from '@/modules/site/data/plantAlarms';
 import {HUAWEI_SEVERITY_LABEL, hexAddress} from '@/modules/site/types/plantAlarm.type';
 import type {PlantAlarm, PlantAlarmCategory} from '@/modules/site/types/plantAlarm.type';
@@ -179,53 +181,97 @@ export const assertedPlantAlarms = (
   const rows = plantAlarmsIn(siteId, role, category);
   if (rows.length === 0) return [];
 
-  return dealt(siteId, rows).map((row) => ({
-    id: row.id,
-    // The label the gateway publishes, exactly. History downstream is keyed on the
-    // raw string, so a row tidied for this table would be a name in no log.
-    name: row.label,
-    /**
-     * The line under the name.
-     *
-     * Deliberately the **same shape** the controller's own rows use — `< 24 V ·
-     * register 1299 bit 0` — with the rule first and the coordinates after it,
-     * because the two kinds of row sit in one table and a reader scanning down the
-     * column should not have to change how they read it halfway. Where the register
-     * map documents no setpoint there is simply no leading clause, which is most
-     * rows: see `PlantAlarm.threshold`.
-     */
-    provenance:
-      row.threshold === null
-        ? `${unit.deviceName} · ${hexAddress(row)}`
-        : `${row.threshold} · ${unit.deviceName} · ${hexAddress(row)}`,
-    // Huawei's own class, not Deep Sea's. The severity chip beside it is this
-    // site's ranking, and the two deliberately disagree on thirty of the
-    // fifty-eight rows — see `plantAlarm.type.ts`.
-    className: HUAWEI_SEVERITY_LABEL[row.huawei],
-    severity: row.severity,
-    /**
-     * The cabinet part, where the row has one **and is filed under the cabinet**.
-     *
-     * Two conditions, and the second is the one worth explaining. `PlantAlarm.part`
-     * is a property of the row whatever category it lands in — the nine per-phase AC
-     * rows are on the AC input whether they are filed `GENSET` at a hybrid or `SITE`
-     * at a grid-backed site, which is exactly why the part lives on the row.
-     *
-     * On the **view** it has to mean less than that, because the view is what a table
-     * tags and a filter narrows. A part on a row filed under the genset would put an
-     * `AC input` tag on the genset's own Alarms tab, where `Part` reads as part of the
-     * engine, and it would show a tag the site tab's part chips do not act on — the
-     * chips narrow the cabinet only. So `part` on an `AlarmView` carries a stronger
-     * claim: *this is a cabinet row, about this part of it.*
-     *
-     * Holding the line here rather than with a display flag on `AlarmLists` is what
-     * keeps the four pages that render alarms from each having to know the rule.
-     */
-    ...(row.part === null || row.category !== 'SITE' ? {} : {part: row.part}),
-    raisedAt: raisedAt(row.id),
-    handling: handling[row.id] ?? UNHANDLED,
-  }));
+  const asserted = dealt(siteId, rows).map((row) => plantAlarmView(row, unit, handling));
+
+  /* The severity showcase, where one is defined for this category. It replaces the
+     dealing rather than adding to it, and it is consulted **here** — the one function
+     every reader of asserted rows goes through — because a fixture applied at a part
+     card instead would leave that card disagreeing with the strip counting it and the
+     tab listing it. `demoPlantAlarms.ts` carries the whole argument, including why this
+     is not a `reranked` entry in the catalogue. */
+  const ranks = demoRanksFor(category);
+  if (ranks === undefined) return asserted;
+
+  const dealtNames = new Set(asserted.map((row) => row.name));
+
+  return ranks.flatMap(({label, severity}) => {
+    const row = rows.find((candidate) => candidate.label === label);
+    if (row === undefined) return [];
+
+    const view = plantAlarmView(row, unit, handling);
+
+    /* **The marker is derived, not listed**, because which rows are real differs per
+       site and a list would go stale the day `dealt`'s per-site shuffle moved. A row
+       escapes it only by being true twice over here: this site's catalogue deals it,
+       *and* the rank the fixture wants is the rank it already has. */
+    const invented = !(dealtNames.has(label) && view.severity === severity);
+
+    return [{...view, severity, ...(invented ? {name: demoTestName(label)} : {})}];
+  });
 };
+
+/**
+ * One catalogue row as the view four pages render, given the unit that publishes it.
+ *
+ * Extracted from `assertedPlantAlarms` above (2026-09-10) so the dealt rows and the
+ * severity showcase's rows are built the same way. `provenance`, `className` and the
+ * `part` rule below are decisions this file has already made once, and a second
+ * hand-rolled view is how a row starts reading differently depending on which path
+ * reached it.
+ *
+ * It does **not** decide whether a row is asserted. `dealt` does that for the catalogue,
+ * and the fixture does it for itself.
+ */
+const plantAlarmView = (
+  row: PlantAlarm,
+  unit: MonitoringUnit,
+  handling: Record<string, AlarmHandling>,
+): AlarmView => ({
+  id: row.id,
+  // The label the gateway publishes, exactly. History downstream is keyed on the
+  // raw string, so a row tidied for this table would be a name in no log.
+  name: row.label,
+  /**
+   * The line under the name.
+   *
+   * Deliberately the **same shape** the controller's own rows use — `< 24 V ·
+   * register 1299 bit 0` — with the rule first and the coordinates after it,
+   * because the two kinds of row sit in one table and a reader scanning down the
+   * column should not have to change how they read it halfway. Where the register
+   * map documents no setpoint there is simply no leading clause, which is most
+   * rows: see `PlantAlarm.threshold`.
+   */
+  provenance:
+    row.threshold === null
+      ? `${unit.deviceName} · ${hexAddress(row)}`
+      : `${row.threshold} · ${unit.deviceName} · ${hexAddress(row)}`,
+  // Huawei's own class, not Deep Sea's. The severity chip beside it is this
+  // site's ranking, and the two deliberately disagree on thirty of the
+  // fifty-eight rows — see `plantAlarm.type.ts`.
+  className: HUAWEI_SEVERITY_LABEL[row.huawei],
+  severity: row.severity,
+  /**
+   * The cabinet part, where the row has one **and is filed under the cabinet**.
+   *
+   * Two conditions, and the second is the one worth explaining. `PlantAlarm.part`
+   * is a property of the row whatever category it lands in — the nine per-phase AC
+   * rows are on the AC input whether they are filed `GENSET` at a hybrid or `SITE`
+   * at a grid-backed site, which is exactly why the part lives on the row.
+   *
+   * On the **view** it has to mean less than that, because the view is what a table
+   * tags and a filter narrows. A part on a row filed under the genset would put an
+   * `AC input` tag on the genset's own Alarms tab, where `Part` reads as part of the
+   * engine, and it would show a tag the site tab's part chips do not act on — the
+   * chips narrow the cabinet only. So `part` on an `AlarmView` carries a stronger
+   * claim: *this is a cabinet row, about this part of it.*
+   *
+   * Holding the line here rather than with a display flag on `AlarmLists` is what
+   * keeps the four pages that render alarms from each having to know the rule.
+   */
+  ...(row.part === null || row.category !== 'SITE' ? {} : {part: row.part}),
+  raisedAt: raisedAt(row.id),
+  handling: handling[row.id] ?? UNHANDLED,
+});
 
 /**
  * The asserted rows split into the two tables, each ordered as its table wants.

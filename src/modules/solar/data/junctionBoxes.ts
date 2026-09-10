@@ -311,6 +311,22 @@ export const junctionBoxes = (
  * match: `Strings offline` and `Wash overdue` are the app's own arithmetic over the
  * whole array and name no box. Only a register row carries an index, which is the
  * distinction `health.type.ts` exists to keep.
+ *
+ * ## Why a parenthesised prefix is skipped before matching
+ *
+ * **Which box a row is about is a property of the register, not of how the row is
+ * labelled**, so the match steps over a leading `(...)` marker rather than failing on it.
+ *
+ * It is not hypothetical tidiness. `solarAsserted.ts` names its invented demo rows
+ * `(test) PV 2 Array Fault` so nobody reads a fabricated warning as something a roof is
+ * doing, and with the pattern anchored hard at `PV` those rows silently stopped marking
+ * their boxes — the cards went unmarked while the Alarms tab listed the faults, which is
+ * the exact class of disagreement the rest of this file is built to prevent. Caught on
+ * 2026-09-10, before it shipped, by a probe that printed the matched indexes.
+ *
+ * The prefix is still narrow: a parenthesised group and optional space, then the register
+ * name exactly. `Something PV 2 Array Fault` does not match, and neither does
+ * `PV 2 Array Fault cleared`.
  */
 export const faultedBoxes = (
   standing: ReadonlyArray<AlarmView>,
@@ -318,7 +334,7 @@ export const faultedBoxes = (
   const faults = new Map<number, AlarmView>();
 
   for (const row of standing) {
-    const match = /^PV (\d+) Array Fault$/.exec(row.name);
+    const match = /^(?:\([^)]*\)\s*)?PV (\d+) Array Fault$/.exec(row.name);
     if (match?.[1] !== undefined) faults.set(Number(match[1]), row);
   }
 

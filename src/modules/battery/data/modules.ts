@@ -217,6 +217,22 @@ export const bankModules = (bank: BatteryBank): Array<BatteryModule> => {
  * `Lithium Battery 4 Abnormal` on the tab unmarks `M04` on the way back, which is the
  * behaviour a reader will check first.
  *
+ * ## Why a parenthesised prefix is skipped before matching
+ *
+ * **Which module a row is about is a property of the register, not of how the row is
+ * labelled**, so the match steps over a leading `(...)` marker rather than failing on it.
+ *
+ * `demoPlantAlarms.ts` names its invented rows `(test) Lithium Battery 2 Abnormal` so
+ * nobody reads a fabricated warning as a BMS actually complaining, and with the pattern
+ * anchored hard at `Lithium` those rows silently stop marking their cards — the rack goes
+ * unmarked while the Alarms tab lists the faults, which is the exact disagreement the rest
+ * of this function is built to prevent. The array page hit this first and
+ * `junctionBoxes.faultedBoxes` carries the same guard.
+ *
+ * The tolerance is narrow: a parenthesised group and optional space, then the register
+ * name exactly. `Spare Lithium Battery 2 Abnormal` does not match, and neither does
+ * `Lithium Battery 2 Abnormal cleared`.
+ *
  * ## What it returns where nothing is watching
  *
  * An empty map, at the twenty-four sites with no monitoring unit — and the rack must
@@ -233,7 +249,7 @@ export const faultedModules = (
   for (const row of assertedPlantAlarms(bank.id, role, 'BATTERY', handling)) {
     if (!isStanding(row)) continue;
 
-    const match = /^Lithium Battery (\d+) Abnormal$/.exec(row.name);
+    const match = /^(?:\([^)]*\)\s*)?Lithium Battery (\d+) Abnormal$/.exec(row.name);
     if (match?.[1] !== undefined) faults.set(Number(match[1]), row);
   }
 
