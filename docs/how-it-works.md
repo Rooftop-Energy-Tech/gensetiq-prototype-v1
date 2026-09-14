@@ -1092,9 +1092,12 @@ tie so the order is total and the list doesn't reshuffle between renders.
 The column is a **link**, so a row is one click from the queue itself rather than one
 click from a page that has the queue on another tab. Every row draws a pill, a quiet
 site included — a column is read down, and a hole in it reads as missing data rather
-than as nothing standing. The phone cards take the opposite rule, because they are a
-badge row: there the pill appears only when something is standing, since a `0 0 0` chip
-between `1 · 0 running` and a fuel level is an alarm-shaped element on a healthy yard.
+than as nothing standing. **A severity with nothing standing draws a dash rather than a
+`0`**, so a quiet row reads `– – –` and the only figures on the screen are counts that
+exist; a zero is a number a reader has to parse before learning it says nothing. The
+phone cards take the opposite rule, because they are a badge row: there the pill appears
+only when something is standing, since an empty alarm chip between `1 · 0 running` and a
+fuel level is an alarm-shaped element on a healthy yard.
 
 The counts come from `useEstateAlarmCounts`, one pass over the estate off the same union
 `useSiteAlarmQueue` gives a single site — so a row's pill, the site's own strip and its

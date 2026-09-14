@@ -22,12 +22,12 @@ import {SITE_KIND_LABEL} from '../data/sites';
  *
  * ## The alarm pill here is quiet when there is nothing to say
  *
- * The table's `Alarms` column draws three zeros at a healthy site, because a column is
- * read down and a hole in it reads as missing data. This is a **badge row**, and the
- * rule there is the site page's: a `0 0 0` chip sitting between the genset count and
- * the fuel level is an alarm-shaped element on a healthy yard, which is how a row of
- * badges stops being read. So the pill appears when something is standing and the row
- * closes up when nothing is.
+ * The table's `Alarms` column draws a pill of dashes at a healthy site, because a
+ * column is read down and a hole in it reads as missing data. This is a **badge row**,
+ * and the rule there is the site page's: an empty alarm chip sitting between the genset
+ * count and the fuel level is an alarm-shaped element on a healthy yard, which is how a
+ * row of badges stops being read. So the pill appears when something is standing and
+ * the row closes up when nothing is.
  *
  * It is also `StaticAlarmBadge` rather than `AlarmBadge` — an anchor cannot nest
  * inside the card's own, and see that component for why nothing is lost by it.

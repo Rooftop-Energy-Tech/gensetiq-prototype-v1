@@ -55,9 +55,10 @@ import {supplyMeta} from './supplyMeta';
  *
  * **Every row draws a pill, including a quiet one.** That is the opposite of the rule
  * a badge *row* follows — the site page's device cards hide the pill at zero, because
- * a `0 0 0` chip among `Standby` and `44.6 °C` is an alarm-shaped thing on a healthy
+ * an all-empty chip among `Standby` and `44.6 °C` is an alarm-shaped thing on a healthy
  * machine. A column is not a badge row: it is read down, and a hole in it reads as
- * missing data rather than as nothing standing. Three quiet zeros are the answer here.
+ * missing data rather than as nothing standing. A quiet site draws `– – –` here, which
+ * holds the column without putting three numbers in it — see `AlarmCounts`.
  *
  * ## Why `Supply` is what is carrying, not what is installed
  *
@@ -106,9 +107,10 @@ const COLUMNS = [
 const TABLE_MIN_WIDTH = 'min-w-[600px]';
 
 /**
- * What a site with no entry in the counts map draws — three zeros rather than a blank
- * cell, for the reason the column always draws a pill. The map is built over the same
- * seeds the summaries are, so this is a guard rather than a state anybody will meet.
+ * What a site with no entry in the counts map draws — a pill of dashes rather than a
+ * blank cell, for the reason the column always draws a pill. The map is built over the
+ * same seeds the summaries are, so this is a guard rather than a state anybody will
+ * meet.
  */
 const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
 

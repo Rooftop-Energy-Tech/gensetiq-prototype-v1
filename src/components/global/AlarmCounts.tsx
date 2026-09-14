@@ -22,8 +22,24 @@ import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
  * shape before it reads as a number. A reader can tell a site has something wrong
  * without having parsed a single figure.
  *
- * A zero stays as it always was — coloured text on the bare pill — so a healthy
- * asset still shows three quiet zeros rather than three blocks.
+ * ## A severity with nothing standing draws a dash, not a `0`
+ *
+ * Tristan's call, 2026-09-14. It used to print the digit — coloured text on the bare
+ * pill, so a healthy asset read `0 0 0` — and a zero is a **number a reader has to
+ * parse before learning it says nothing**. Three of them on a row, on a list of
+ * seventeen rows, is forty-odd figures whose whole content is "not this one".
+ *
+ * A dash is read as absence without being read as a quantity, so the only glyphs left
+ * on the pill are the counts that exist: `8 – 4` names two standing severities and one
+ * empty, and the eye goes to the two.
+ *
+ * The dash keeps the severity's own colour rather than going grey, because the cell's
+ * hue is the only thing saying *which* severity the position is — that is the legend,
+ * and a row of three grey dashes would lose it. It stays on the bare pill; only a
+ * standing count takes the filled block.
+ *
+ * An en dash rather than a hyphen or an em dash: a hyphen reads as a minus sign
+ * against a digit, and an em dash is wider than the 12px figures it is lining up with.
  *
  * ## Why the cells are flush and the pill has no padding
  *
@@ -64,7 +80,10 @@ export const AlarmCounts = ({counts}: {counts: Record<AlertSeverity, number>}) =
             : SEVERITY_META[severity].textClassName
         }`}
       >
-        {counts[severity]}
+        {/* The count, or `–` when there is none — see the note above. Not
+            `counts[severity] || '–'`, which is the same thing until somebody's
+            count is `NaN`. */}
+        {counts[severity] > 0 ? counts[severity] : '–'}
       </span>
     ))}
   </>
