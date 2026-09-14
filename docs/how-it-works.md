@@ -1064,11 +1064,24 @@ through it:
 ```
 
 **Assets name themselves by their site, and the prefix is no longer uniform.** A bank
-reads `SBH-1495`, an array `Solar | SWK-0559`, a set `Genset | WPKL-0207`. The four
-shared one shape — asset, then code — until 2026-09-14, when the battery's prefix came
-off: every place the name is drawn already says `Battery` louder than the word did —
-the rail item is lit, the breadcrumb reads `Battery ▸ …`, the register's column is
-headed `Bank` — and on the register it cost the column its left third.
+reads `SBH-1495`, an array `Solar | SWK-0559`, a set `WPKL-0207` on its register and
+`Genset | WPKL-0207` on its own page. The four shared one shape — asset, then code —
+until 2026-09-14, when the battery's prefix came off: every place the name is drawn
+already says `Battery` louder than the word did — the rail item is lit, the breadcrumb
+reads `Battery ▸ …`, the register's column is headed `Bank` — and on the register it
+cost the column its left third.
+
+**The genset took half of that, and the split is the point.** Its register drops the
+prefix — the column is headed `Genset name`, the page `Gensets`, and thirty rows of
+`Genset | …` under it is the header read once per row — and all three of the
+register's renderings drop it together, because the table, the phone cards and the
+preview panel are one screen. Its **detail page keeps it**: a set, a bank, an array
+and a cabinet standing at one site all take that site's name, so `SBH-1336` alone
+would title four different pages identically, and the rail a reader is sitting in
+lists all four. `gensetName` and `gensetSiteName` are the two, one line each, and the
+note on the second is where the line is drawn. The battery does not make that split —
+it is bare everywhere — so the two assets read differently on their own pages, which
+is the open end of this.
 
 ⚠️ **A set is named by its site, which five sites cannot answer uniquely.** The genset
 tag — `BRF9540` — is fixture data rather than a recorded name, so the label falls back

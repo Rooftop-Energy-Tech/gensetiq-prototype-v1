@@ -125,5 +125,24 @@ export type Genset = {
  * identifies a set, and the name's job here is to say *what kind of thing* the page
  * is about before saying which one.
  */
-export const gensetName = (genset: Genset): string =>
-  `Genset | ${genset.siteId === null ? genset.tag : siteLabel(genset.siteId)}`;
+export const gensetName = (genset: Genset): string => `Genset | ${gensetSiteName(genset)}`;
+
+/**
+ * The **second half on its own** — `WPKL-0207`, no `Genset |` in front of it.
+ *
+ * For the surfaces where something beside the name has already said what kind of
+ * thing this is — the **fleet register**: its column is headed `Genset name`, its page
+ * is headed `Gensets`, and printing the word again is the header read once per row,
+ * thirty times down a column that says it at the top. Tristan's call, 2026-09-14. The
+ * register's three renderings all take it: the table, the phone cards and the preview
+ * panel are one screen and must not name the same machine two ways.
+ *
+ * **`gensetName` above is still the right one for a detail page**, and that is the
+ * line between them. A set, a bank, an array and a cabinet standing at one site all
+ * take that site's name, so `SBH-1336` alone would title four different pages
+ * identically — there the prefix is the only thing saying which of the four you are
+ * reading, and the rail it sits in lists all four. A column header cannot be in two
+ * places at once; a page title has to carry its own.
+ */
+export const gensetSiteName = (genset: Genset): string =>
+  genset.siteId === null ? genset.tag : siteLabel(genset.siteId);
