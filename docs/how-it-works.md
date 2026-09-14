@@ -1835,23 +1835,34 @@ a site has an SLA.
 ### The solar register, and a system's pages
 
 `/solar` is a row per [system](#solar-system), the way `/gensets` is a row per
-machine: system, state, output, capacity, health. It was a scaffold of six empty tabs
+machine: system, state, output, capacity, alarms. It was a scaffold of six empty tabs
 before it was a table, and the six moved down onto a system, which is the shape
 `/gensets` has always had.
 
 There was a sixth column, `Strings`, carrying a count with `N dark` under it, and a
 fourth summary card totalling the dark ones across the estate. Both went on
-2026-09-14. A string is a wiring detail of one array: this register's job is to say
-*which system needs someone*, and `Health` already says that for a system whose
-strings have stopped delivering — a dark string is not `OPTIMUM`, so the system is
-inside `Attention` on the strip either way. The count is still on the system's own
-page, box by box, where a reader who has decided to look at one array can act on it.
+2026-09-14, and the preview panel's `Strings` row — `3 of 29 dark` — went with them.
+A string is a wiring detail of one array: this register's job is to say *which system
+needs someone*, and a dark string is not `OPTIMUM`, so the system is inside
+`Attention` on the strip either way. The count is still on the system's own page, box
+by box, where a reader who has decided to look at one array can act on it.
 
-`Health` is drawn as a pill, the treatment the sites list gives `Condition` — the same
-verdict about the same kind of thing. It carried a second line under the verdict
-(`Strings offline`, `Wash overdue`) and does not now: that is a sentence in a column
-answering a one-word question, and the system's own `Health` section is where it
-belongs.
+**The last column is `Alarm`, and it was `Health`.** Same slot, different question:
+the verdict is this app's summary over the rows, and the counts are the rows. The
+estate list moved first, for the reasons `SitesTable` gives, and the two registers
+are meant to read alike. The cell is a **link** to that system's Alarms tab, and the
+counts come off `solarAlarmQueue` — the array's two sources reconciled — rather than
+off `systemHealth`'s derived rules alone, which would read `1` beside a tab listing
+`2`. The panel beside the map draws the same cell, for the same reason it draws the
+table's state badge: a row and its own preview saying two things about one array is
+how they come to disagree.
+
+⚠️ **The register is still *ordered* by the verdict**, which ranks the derived rules
+only. So two rows can sit in an order their own pills contradict — a system with
+three criticals off the monitoring unit below one with a single derived critical.
+That is the fault `useEstateAlarmCounts` and `alarmRank` fixed on the estate list and
+it is not fixed here yet; `alarmRank` over `SolarRow.counts` is the shape the answer
+wants.
 
 **A system's home page is four bands**, the shared grammar over an array: the strip
 (capacity, generated today, alarms); what it is putting out now, broken out a junction

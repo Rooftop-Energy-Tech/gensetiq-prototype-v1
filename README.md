@@ -439,7 +439,7 @@ behind the code is worse than no bench, because a reader trusts it.
 | Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
 | Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
 | Report — Genset | `/report/genset` | The engines over the same thirty days: hours, what each set burns per kilowatt-hour at the loading it holds, what part load costs the fleet in litres, diesel unaccounted for, and what is falling due. Not a Figma frame — same. |
-| Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity and its condition. Worst first. |
+| Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity and its alarm counts. Worst first. |
 | System home | `/solar/<id>` | The system's own page in the four bands: the strip, what the array is putting out now a junction box at a time, generation over time, and what the system is. Every solar site has one. |
 | System analysis | `/solar/<id>/analysis` | Generation over a chosen window, a bar per bucket, with the window in the URL. |
 | System devices | `/solar/<id>/equipment` | The array: its capacity, its modules and their rating, how many strings it is wired in and how many of those are dark. A description, not a list — see [below](#a-row-is-a-system-and-there-is-nothing-under-it). |

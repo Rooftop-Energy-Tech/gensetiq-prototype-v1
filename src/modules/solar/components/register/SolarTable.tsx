@@ -2,10 +2,10 @@ import {Link} from '@tanstack/react-router';
 import {useEffect} from 'react';
 import type {KeyboardEvent, RefObject} from 'react';
 
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {Badge} from '@/components/ui/badge';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import {SYSTEM_STATE_META} from '../systemStateMeta';
 import type {SolarRow} from '../../data/register';
 
@@ -88,7 +88,9 @@ const COLUMNS = [
   {label: 'State', wide: '20%', dense: '23%', nameplate: false},
   {label: 'Output', wide: '13%', dense: '15%', nameplate: false},
   {label: 'Capacity', wide: '15%', dense: '0%', nameplate: true},
-  {label: 'Health', wide: '20%', dense: '30%', nameplate: false},
+  // The pill is a fixed ~90px object rather than text, so this share is a floor to
+  // clear it rather than a measure of its content: 20% of the 780px floor is 156px.
+  {label: 'Alarm', wide: '20%', dense: '30%', nameplate: false},
   // Wide adds up to 100 and is measured against the 780px floor below, not against a
   // desktop: at phone width the table is held at that floor and scrolls, so `State`
   // has to clear its 95px pill there — 15% of 780 did not, and `Generating` arrived as
@@ -149,7 +151,7 @@ export const SolarTable = ({
       <table className="w-full min-w-[780px] table-fixed border-separate border-spacing-0 text-sm md:min-w-0">
         <caption className="sr-only">
           Every solar system on the estate — where it is, what it is rated at, what it is
-          doing now and what its condition is
+          doing now and what is standing against it
         </caption>
         <colgroup>
           {columns.map((column) => (
@@ -173,7 +175,6 @@ export const SolarTable = ({
           {rows.map((row) => {
             const {system} = row;
             const selected = system.id === selectedId;
-            const meta = CONDITION_META[row.condition];
             const state = SYSTEM_STATE_META[system.state];
 
             return (
@@ -228,22 +229,23 @@ export const SolarTable = ({
                   </td>
                 )}
 
-                {/* A pill, as `SitesTable` draws `Condition` — the same verdict about
-                    the same kind of thing, so it is drawn the same way and a reader
-                    crossing from the sites list to this one recognises it without
-                    reading it. It was an icon, a label and a `headline` line under
-                    them — `Strings offline`, `Wash overdue` — which is a second
-                    sentence in a column that answers a one-word question, and the
-                    system's own Health tab is where that sentence belongs.
+                {/* The pill every strip and device card in the app draws, and a link
+                    to this system's Alarms tab — see `AlarmBadge` for why a count is
+                    a door rather than a figure. No `keepFrom`: this register *is*
+                    where the trail starts, so there is nothing to crumb back to.
 
-                    `overflow-hidden` and `max-w-full` for the reason the state cell
-                    above gives: a `Badge` is `w-fit shrink-0` and a table cell does
-                    not clip. */}
-                <td className="h-13 overflow-hidden border-b border-subtle p-2">
-                  <Badge variant="secondary" className="max-w-full">
-                    <meta.icon className={meta.textClassName} aria-hidden="true" />
-                    <span className="min-w-0 truncate">{meta.label}</span>
-                  </Badge>
+                    `stopPropagation` so following it does not also fire the row's
+                    select on a screen we are in the middle of leaving — the name
+                    cell's rule. */}
+                <td
+                  className="h-13 overflow-hidden border-b border-subtle p-2"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <AlarmBadge
+                    counts={row.counts}
+                    to="/solar/$systemId/alarms"
+                    params={{systemId: system.id}}
+                  />
                 </td>
               </tr>
             );

@@ -1,4 +1,8 @@
 import {CUSTOMERS} from '@/modules/site/data/customers';
+import {countBySeverity} from '@/modules/genset/types/alert.type';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
+import type {AlarmHandling} from '@/modules/genset/types/alarmState.type';
+import {solarAlarmQueue} from './solarAlarmQueue';
 import {systemDetail} from './systemDetail';
 import {systemHealth} from './systemHealth';
 import type {SystemCondition} from '../types/health.type';
@@ -27,9 +31,27 @@ const CONDITION_ORDER: Record<SystemCondition, number> = {
 
 export type SolarRow = {
   system: SolarSystem;
+  /**
+   * Still the sort key, and no longer a column — see `SolarTable`.
+   *
+   * ⚠️ It ranks the **derived rules only**, which is the narrower of this array's two
+   * alarm sources, so it can order two rows against each other in a way their own
+   * pills contradict. That is the same fault `useEstateAlarmCounts` was built to fix
+   * on the estate list, and it is not fixed here yet: `alarmRank` is the shape the
+   * answer wants, over `counts` below.
+   */
   condition: SystemCondition;
   /** The worst thing wrong, in the rule's own words, or `undefined`. */
   headline: string | undefined;
+  /**
+   * What is standing on this array, by severity — the row's `Alarm` cell.
+   *
+   * Counted off `solarAlarmQueue`, the call the system's own strip and its Alarms tab
+   * both make, and **not** off `systemHealth`'s alerts. That file records why: the
+   * derived rules are one of two sources, the monitoring unit's registers are the
+   * other, and a register counting one of them reads `1` beside a tab listing `2`.
+   */
+  counts: Record<AlertSeverity, number>;
 };
 
 /**
@@ -37,8 +59,16 @@ export type SolarRow = {
  *
  * `includeCurve: false`, because the intraday curve is the expensive part of a
  * `systemDetail` and no row draws one.
+ *
+ * `handling` is threaded in rather than read here, so this stays pure over what it is
+ * handed and the register subscribes once for the whole list — `useEstateAlarmCounts`'
+ * rule, one pass rather than one per row.
  */
-export const solarRows = (systems: Array<SolarSystem>, now: number): Array<SolarRow> =>
+export const solarRows = (
+  systems: Array<SolarSystem>,
+  now: number,
+  handling: Record<string, AlarmHandling>,
+): Array<SolarRow> =>
   systems.flatMap((system) => {
     const detail = systemDetail(system, now, false);
     if (detail === undefined) return [];
@@ -53,6 +83,7 @@ export const solarRows = (systems: Array<SolarSystem>, now: number): Array<Solar
         // its own squeezed into a sixth of a row; the system's own health band is one
         // click away and lists them all.
         headline: alerts[0]?.name,
+        counts: countBySeverity(solarAlarmQueue(system, detail, now, handling).standing),
       },
     ];
   });

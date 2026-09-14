@@ -4,6 +4,7 @@ import {SearchXIcon} from 'lucide-react';
 import {PlantToolbar} from '@/components/global/PlantToolbar';
 import {useIsCompact} from '@/lib/useIsCompact';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
+import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {CUSTOMER_TERM} from '@/modules/site/data/customers';
 import {
   filterSolarRows,
@@ -98,7 +99,15 @@ export const SolarRegister = ({
   const [now] = useState(() => Date.now());
   const systems = useSolarSystems(now);
 
-  const all = useMemo(() => solarRows(systems, now), [systems, now]);
+  /**
+   * One subscription for the register, handed to every row.
+   *
+   * The `Alarm` column counts what each system's Alarms tab lists, so clearing a row
+   * on a tab drops the count on the way back here — which needs this list reading the
+   * handling store rather than a snapshot of it.
+   */
+  const handling = useAlarmHandling();
+  const all = useMemo(() => solarRows(systems, now, handling), [systems, now, handling]);
 
   // Counted over the whole register, deliberately — see `solarSummary`. The strip and
   // the region dropdown are a picture of the estate that holds still while the table

@@ -1,13 +1,13 @@
 import {Link} from '@tanstack/react-router';
 import {ArrowRightIcon} from 'lucide-react';
 
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {PreviewPanel, PreviewRow} from '@/components/global/PreviewPanel';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, relativeTime} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import {SYSTEM_STATE_META} from '../systemStateMeta';
 import {systemName} from '../../types/system.type';
 import type {SolarRow} from '../../data/register';
@@ -47,7 +47,6 @@ export const SystemPreviewPanel = ({
 
   const {system} = row;
   const state = SYSTEM_STATE_META[system.state];
-  const condition = CONDITION_META[row.condition];
 
   return (
     <PreviewPanel
@@ -81,18 +80,22 @@ export const SystemPreviewPanel = ({
       <PreviewRow label="Output">
         {system.state === 'GENERATING' ? amount(system.outputKw, 'kW', 1) : '—'}
       </PreviewRow>
-      <PreviewRow label="Strings">
-        {system.downStrings === 0
-          ? `${system.strings} live`
-          : `${system.downStrings} of ${system.strings} dark`}
-      </PreviewRow>
-      <PreviewRow label="Health">
-        <span className={cn('flex items-center gap-1.5', condition.textClassName)}>
-          <condition.icon className="size-4 shrink-0" aria-hidden="true" />
-          {/* The rule's own words where there is a fault, since "Attention" on its
-              own sends the reader into the system page to find out what for. */}
-          <span className="truncate">{row.headline ?? condition.label}</span>
-        </span>
+      {/* 🎯 **The table's own cell**, not a second rendering of it. A row and the
+          panel beside it describing one array two ways is how the two come to
+          disagree about it, so when the column became `Alarm` this did too.
+
+          `Strings` sat above it — `3 of 29 dark` — and went with the table's
+          `Strings` column on 2026-09-14: a string is a wiring detail of one array,
+          and the count is on the array's own page box by box, where a reader who
+          has decided to look at one can act on it. The `Health` row under it stated
+          the rule's own words for the same fault (`Strings offline`), which made
+          the pair a fault explained twice in a panel four rows long. */}
+      <PreviewRow label="Alarm">
+        <AlarmBadge
+          counts={row.counts}
+          to="/solar/$systemId/alarms"
+          params={{systemId: system.id}}
+        />
       </PreviewRow>
       <PreviewRow label="Last updated">{relativeTime(system.lastUpdated)}</PreviewRow>
     </PreviewPanel>
