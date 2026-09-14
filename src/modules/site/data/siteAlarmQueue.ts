@@ -4,15 +4,17 @@ import {GENSETS} from '@/modules/genset/data/fleet';
 import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
 import {controllerAlarms} from '@/modules/genset/data/alarmViews';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
-import {ALERT_SEVERITIES} from '@/modules/genset/types/alert.type';
+import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {byUrgency, isStanding} from '@/modules/genset/types/alarmState.type';
 import type {AlarmHandling} from '@/modules/genset/types/alarmState.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {systemDetail} from '@/modules/solar/data/systemDetail';
 import {solarAlarmRows} from '@/modules/solar/data/solarAlarmQueue';
-import {useSolarSystem} from '@/modules/solar/data/systems';
+import {solarSystem, useSolarSystem} from '@/modules/solar/data/systems';
 import type {SolarSystem} from '@/modules/solar/types/system.type';
-import {useSitePowerRole} from './siteConfig';
+import {FALLBACK_POWER_ROLE, useSitePowerRole, useSitePowerRoles} from './siteConfig';
+import {siteSeeds} from './siteSeed';
 import type {PlantAlarmCategory} from '../types/plantAlarm.type';
 import type {SitePowerRole} from '../types/site.type';
 
@@ -157,4 +159,97 @@ export const useSiteAlarmQueue = (siteId: string, now: number): SiteAlarmQueue =
         ),
     };
   }, [siteId, role, system, now, handling]);
+};
+
+/**
+ * Every site's standing count, in one pass — what the estate list ranks and draws.
+ *
+ * ## Why the list counts rather than judges
+ *
+ * The sites list used to carry a **condition verdict** — `Critical`, `Attention`,
+ * `Optimum` — rolled up from the yard's gensets, and it was removed (Tristan,
+ * 2026-09-14) in favour of the count the rest of the app already shows. Two reasons,
+ * and the second is the one that settles it:
+ *
+ * 1. **A verdict is a compression of a list nobody was shown.** `Attention` told a
+ *    reader that something was wrong and then made them open the site to find out
+ *    what, which is the same click the alarm pill costs — except the pill also says
+ *    *how many* and *how bad* before it is clicked.
+ * 2. **It was a second opinion.** The verdict ranked the **gensets' alarms only**, and
+ *    a site is watched by more than its engines: the monitoring unit reports on the
+ *    plant, the cabinet and the bank, and this app derives its own rules over the
+ *    array. So a site with eleven standing rows and no genset among them read
+ *    `Optimum` in the list while its own Alarms tab listed eleven — the same
+ *    undercount the metric strip was fixed for, one screen up. The strip's note says
+ *    it plainly: a summary that disagrees with the page it summarises is worse than
+ *    no summary.
+ *
+ * So the estate reads the **same union** every site page reads — `rowsFor` above, the
+ * four Alarms tabs — and the list, the map's ranking and the preview panel are three
+ * renderings of one queue. Clearing a row on any tab drops the count on the way back.
+ *
+ * ## Why the whole estate at once, rather than a hook per row
+ *
+ * `useSiteAlarmQueue` is one site's, and a table cannot call it once per row — the
+ * rows are drawn in a `map`, not as components, and seventeen subscriptions to three
+ * stores would be seventeen chances to read three different moments. One pass over the
+ * seeds, memoised on the same three inputs the single-site hook takes, keeps every row
+ * on one reading.
+ *
+ * Counts only. The rows themselves are the site page's business, and materialising
+ * seventeen sorted queues to render seventeen pills would be work nobody reads.
+ */
+export const useEstateAlarmCounts = (
+  now: number,
+): Record<string, Record<AlertSeverity, number>> => {
+  const handling = useAlarmHandling();
+  const roles = useSitePowerRoles();
+
+  return useMemo(
+    () =>
+      Object.fromEntries(
+        siteSeeds().map((seed) => {
+          const role = roles[seed.id] ?? FALLBACK_POWER_ROLE;
+          // `solarSystem` rather than the hook, for the reason this is one pass:
+          // `useSolarSystem` is `useSitePowerRoles` + `useAlarmHandling` + a memo,
+          // and both of those are already subscribed here. `undefined` where the
+          // role carries no array, which is how a site flipped to `GRID_BACKUP`
+          // loses its solar rows without this file knowing the rule.
+          const system = solarSystem(seed.id, roles, now, handling);
+          const rows = rowsFor(seed.id, role, system, now, handling);
+          return [seed.id, countBySeverity(rows.filter(isStanding))];
+        }),
+      ),
+    [roles, now, handling],
+  );
+};
+
+/**
+ * A site's place in the estate list: worst standing severity first, then how many.
+ *
+ * The replacement for `CONDITION_RANK` in `sites.ts`, and the same shape of answer —
+ * one small integer per site, lowest first — so the list, the switcher and the map
+ * still rank the estate once rather than three times.
+ *
+ * **Severity before volume.** One critical outranks nine warnings, because they are
+ * different jobs: a shutdown alarm is a van today and nine notices are a morning's
+ * reading. Volume breaks the tie *within* a severity, worst-first, which is what
+ * separates two sites that both have criticals standing.
+ *
+ * A site with nothing standing sorts last and sorts among its peers by name — there is
+ * no ranking to be had between two quiet yards, and inventing one would make the foot
+ * of the list reshuffle for no reason a reader could see.
+ */
+export const ALARM_RANK_FLOOR = ALERT_SEVERITIES.length;
+
+export const alarmRank = (counts: Record<AlertSeverity, number> | undefined): number => {
+  if (counts === undefined) return ALARM_RANK_FLOOR;
+  const worst = ALERT_SEVERITIES.findIndex((severity) => counts[severity] > 0);
+  return worst === -1 ? ALARM_RANK_FLOOR : worst;
+};
+
+/** How many rows are standing at the rank `alarmRank` returned — the tie-break. */
+export const alarmRankCount = (counts: Record<AlertSeverity, number> | undefined): number => {
+  const rank = alarmRank(counts);
+  return rank === ALARM_RANK_FLOOR || counts === undefined ? 0 : counts[ALERT_SEVERITIES[rank]];
 };

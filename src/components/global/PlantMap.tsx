@@ -17,9 +17,15 @@ import {lightToken} from '@/styles/colors';
  * differently or frame differently read as two products."* Two copies held in step
  * by a comment is a bet that comes off at two and does not come off at four. So
  * `/solar` and `/battery` share this one instead, and it takes the same argument
- * `SitesMap` already made about `colorBy` — *"a prop rather than a second map
+ * `SitesMap` once made about its own `colorBy` — *"a prop rather than a second map
  * component, because the two differ in one paint expression and nothing else"* —
  * and finishes it: the paint expression is the prop, and there is nothing else.
+ *
+ * That prop is **no longer on `SitesMap`**, which now paints one way only: its second
+ * scale was the condition verdict, and the verdict was removed from the app on
+ * 2026-09-14. The argument is unaffected — it is why this component has a `colorBy`
+ * and `/solar` and `/battery` are not two files — but do not go looking for the
+ * original there.
  *
  * What it does *not* do is reach back and rewrite the two existing maps. Both carry
  * things this does not — the fleet map's pin has no count to size itself by, the

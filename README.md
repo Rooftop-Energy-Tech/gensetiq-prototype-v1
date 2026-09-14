@@ -430,8 +430,8 @@ behind the code is worse than no bench, because a reader trusts it.
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
 | Genset runs | `/gensets/<id>/runs` | The run log: a timeline strip, totals for the chosen window, the list, and a CSV export. Not a Figma frame — see [below](#the-runs-tab-is-not-in-the-design). |
 | Alarms / Equipment / Settings | `/gensets/<id>/alarms`, … | Named in the design's tab strip but not drawn — labelled placeholders so the strip isn't dead. Settings says what would belong on it: the [fuel leakage alarm](#fuel-leakage-is-not-in-the-design)'s switch and threshold, tags, notification routing. |
-| Sites — list | `/sites?view=list` | 17 sites, worst condition first. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
-| Sites — map | `/sites?view=map` | One pin per yard, coloured by the site's condition and sized by how many sets stand there. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
+| Sites — list | `/sites?view=list` | 17 sites, worst standing alarm first, with the alarm pill as a column. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
+| Sites — map | `/sites?view=map` | One pin per yard, coloured by the site's status bucket and sized by how many sets stand there. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Site home | `/sites/<id>` | Matches the Figma frame: the site's single-line diagram, then one row per genset with its run and its controls. All 17 sites have one. |
 | Site settings | `/sites/<id>/settings` | How the site is fed and which gensets stand on it. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design) and [gensets](#attaching-and-detaching-gensets). |
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
@@ -1241,19 +1241,61 @@ already draws that. True of the coordinates, wrong about the question. The fleet
 map answers *where are my machines*, so a yard with three sets is three pins and a
 customer site reads as a cluster of hardware; this one answers *where are my
 customers, and which of them is in trouble* — one pin per site, coloured by the
-site's own condition and sized by how much plant is standing there. Neither screen
-is derivable by eye from the other.
+site's own status bucket and sized by how much plant is standing there. Neither
+screen is derivable by eye from the other.
+
+The pins painted by the site's **condition verdict** until 2026-09-14, with a
+`colorBy` prop choosing between that and the buckets. The verdict came off the whole
+app (see below) and the prop went with it. Status is the right survivor rather than a
+fallback: it is the vocabulary of the `Status` card sitting directly above this map
+and of the chip that filters it, so clicking `Alarms raised` now narrows the list and
+leaves the red pins standing. The *ranking* moved to the list beside it, which is
+ordered by the alarm queue.
 
 Both views carry the fleet screen's preview panel, and for its reason: a pin has
 nowhere to put a link, so a clicked site has to open something that carries the way
 in. The panel is a preview rather than a copy of the site page — what is feeding
-the yard, its condition, capacity and fuel, and the sets standing there worst
-first, each a link to its own page. Site draw stays off it for the same reason it
-is off the list.
+the yard, what is standing against it, capacity and fuel, and the sets standing
+there worst first, each a link to its own page. Its alarm row is a link too, so the
+panel has two ways out of itself: the arrow opens the site, the pill opens what is
+wrong with it. Site draw stays off it for the same reason it is off the list.
 
 Adding the map gave a site row a second thing it could do, so the list adopted the
 fleet table's split: **the row selects into the panel, the name navigates.** It was
 one link when selecting meant nothing.
+
+### The site condition verdict was removed
+
+A site used to report a **condition** of its own — `Critical`, `Attention`,
+`Optimum` — ranked from the gensets standing on it, and it was the sites list's
+second column, the preview panel's first row, the phone card's first badge, the pin
+colour and the ranking for all of them. Tristan removed it on **2026-09-14** and the
+**alarm pill** took every one of those places: `Critical · Warning · Neutral`, the
+same three figures every metric strip and device card in the app already drew, and a
+link to the queue itself.
+
+Two things were wrong with the verdict:
+
+1. **It compressed a list nobody was shown.** `Attention` told a reader something was
+   wrong and made them open the site to find out what — the same click the pill costs,
+   except the pill says *how many* and *how bad* before it is clicked.
+2. **It was a second opinion.** It ranked the **gensets' alarms only**, and a site is
+   watched by more than its engines: the monitoring unit reports on the plant, the
+   cabinet and the bank, and this app derives its own rules over the array. A yard with
+   eleven standing rows and no genset among them read `Optimum` in the list while its
+   own Alarms tab listed all eleven — the same undercount the site's metric strip was
+   fixed for one screen up, and `SiteMetricStrip` states the rule: a summary that
+   disagrees with the page it summarises is worse than no summary.
+
+The counts come from `useEstateAlarmCounts` in `modules/site/data/siteAlarmQueue.ts` —
+one pass over the estate off the same union `useSiteAlarmQueue` gives a single site. So
+a row's pill, that site's own strip and its Alarms tab are three renderings of one
+queue, and clearing a row on the tab drops the count and re-ranks the list on the way
+back.
+
+The **genset's** condition verdict is untouched. It still heads a machine's alerts
+section, still colours its row on `/gensets`, and `GensetCondition` is still what a
+leak moves. What went is the site-level roll-up of it.
 
 ### The runs tab is not in the design
 
@@ -1383,9 +1425,9 @@ stopped machine reports.
   a diesel engine cannot tell you — a site's name, the kind of load it carries, where
   the yard is, what the customer draws, which region it sits in and which rollout
   programme it was filed under. Everything else in `sites.ts` is summed or
-  ranked from the gensets standing there: membership from the sets naming it, capacity,
-  fuel and condition from them. Change a genset's `siteId` and every one of those
-  figures follows.
+  ranked from the gensets standing there: membership from the sets naming it, and
+  capacity and fuel from them. Change a genset's `siteId` and every one of those
+  figures follows — and so does which yard's alarm queue its controller's rows land in.
 
   Six of those givens are **editable** from the site's Settings tab — name, latitude,
   longitude, region, programme and supply. The edits are differences held in

@@ -474,11 +474,19 @@ command, and those are inert here) and an unreachable set cannot be commanded at
 
 What a site can say that no genset can is **which of its sets is on the bus**, and the
 site-level verdicts stop there and at rankings. A site reports its duty set, its summed
-figures (capacity, fuel), the worst condition among its sets and its worst
-[bucket](#fleet-status) — every one of which is a *ranking over the machines*, not a new
-vocabulary. There is no site run state and no invented status beside them: no `Covered` /
-`Standby` / `Exposed`. The states themselves stay on the machines that have them, one row
-each.
+figures (capacity, fuel), the count of what is standing anywhere on it and its worst
+[bucket](#fleet-status) — none of which is a new vocabulary. There is no site run state
+and no invented status beside them: no `Covered` / `Standby` / `Exposed`. The states
+themselves stay on the machines that have them, one row each.
+
+**A site used to carry a condition verdict of its own — `Critical` / `Attention` /
+`Optimum`, ranked worst-among-its-sets — and it was removed on 2026-09-14.** Two things
+were wrong with it. It compressed a list nobody was shown, so `Attention` sent a reader
+into the site to find out what; and it ranked the **gensets only**, while a site is
+watched by its monitoring unit, its cabinet, its bank and its array — so a yard with
+eleven standing rows and no genset among them read `Optimum` in the list while its own
+Alarms tab listed all eleven. The alarm counts took its place everywhere it appeared: see
+[the registers](#the-registers-list-map-and-split).
 
 → `src/modules/site/types/site.type.ts`, `src/modules/site/data/estateSummary.ts`
 
@@ -1055,13 +1063,28 @@ through it:
 /sites?view=split&program=jendela-swk
 ```
 
-**The estate list is worst condition first, then by name.** Condition is the genset
-module's own verdict, ranked worst-among-the-sets-standing-here; name breaks the tie
-so the order is total and the list doesn't reshuffle between renders. Site draw is
-deliberately not a column — it is instantaneous and changes while you read the list,
-which makes it a detail-page figure.
+**The estate list is worst standing alarm first, then by name.** Its second column is
+the **alarm pill** — `Critical · Warning · Neutral`, the same three figures every metric
+strip and device card in the app draws — and the ranking is that pill: worst severity
+first, then how many rows are standing at it. Severity outranks volume, because one
+shutdown alarm is a van today and nine notices are a morning's reading. Name breaks the
+tie so the order is total and the list doesn't reshuffle between renders.
 
-**The estate map is one pin per yard**, coloured by the site's own condition and
+The column is a **link**, so a row is one click from the queue itself rather than one
+click from a page that has the queue on another tab. Every row draws a pill, a quiet
+site included — a column is read down, and a hole in it reads as missing data rather
+than as nothing standing. The phone cards take the opposite rule, because they are a
+badge row: there the pill appears only when something is standing, since a `0 0 0` chip
+between `1 · 0 running` and a fuel level is an alarm-shaped element on a healthy yard.
+
+The counts come from `useEstateAlarmCounts`, one pass over the estate off the same union
+`useSiteAlarmQueue` gives a single site — so a row's pill, the site's own strip and its
+Alarms tab are three renderings of one queue, and clearing a row on the tab re-ranks the
+list on the way back. Site draw is deliberately not a column — it is instantaneous and
+changes while you read the list, which makes it a detail-page figure.
+
+**The estate map is one pin per yard**, coloured by the site's own [status
+bucket](#fleet-status) and
 sized by how many sets stand there, because "one set or three" is the difference
 between a site that loses its supply when a machine faults and one that does not. It
 was argued against for a long time on the grounds that a site's position *is* its
@@ -1095,10 +1118,12 @@ The two rails differ only in their header and their items, and share one compone
 the geometry is stated once. A site's header is a **switcher** — the design puts a
 `ChevronsUpDown` on it, and it is the gesture the page was missing: moving between two
 sites used to mean going back to `/sites`, finding the row and clicking it, three steps
-to compare two yards during an incident. Its list is condition-ordered, the same
-ranking the sites list uses, because a separately alphabetised menu would be a second
-opinion about the estate and the first thing anyone would notice is that the two
-disagreed. A machine's header is a **back card** to the site it stands at.
+to compare two yards during an incident. Its list is alarm-ordered, the same ranking the
+sites list uses, because a separately alphabetised menu would be a second opinion about
+the estate and the first thing anyone would notice is that the two disagreed. It does
+not draw the counts themselves: the menu is a way *to* a site, and thirteen alarm pills
+stacked in a 224px popover would be a worse copy of the screen the menu exists to save a
+trip to. A machine's header is a **back card** to the site it stands at.
 
 Two consequences of the move are load-bearing:
 
@@ -2076,7 +2101,7 @@ src/modules/site/
     ├── SitesSummaryCards.tsx   four cards: two counts, two links out
     ├── SiteDetailPanel.tsx  the preview beside the list and over the map
     ├── SiteDetailShell.tsx  the rail, and which plant this yard has
-    ├── SiteSwitcher.tsx     the rail's header — condition-ordered, like the list
+    ├── SiteSwitcher.tsx     the rail's header — alarm-ordered, like the list
     ├── SiteHome.tsx         the four bands
     ├── SiteMetricStrip.tsx  band 1 — the two figures this site can answer for
     ├── SiteCircuit.tsx      band 2 — the drawing, its picker, and which is picked
@@ -2130,9 +2155,11 @@ wobbled around a mean, because the slope of a tank is a quantity somebody reads 
 chart to plan a tanker.
 
 **`data/sites.ts` follows the same rule one level up.** Only a site's *givens* are seeded.
-Membership comes from the gensets naming their site; its draw, capacity, fuel and condition
-are summed or ranked from them; its plant is sized by `hybrid.ts` from its load and its
-role. There is no stored site figure to drift.
+Membership comes from the gensets naming their site; its draw, capacity and fuel are
+summed from them; its plant is sized by `hybrid.ts` from its load and its role. There is
+no stored site figure to drift — and since 2026-09-14 no site *verdict* either: what is
+wrong with a yard is the alarm queue, counted in `siteAlarmQueue.ts`, not a roll-up
+stored on the summary.
 
 **`data/hybrid.ts` is the one place two models meet, and they are not reconciled.** See
 [Hybrid plant](#hybrid-plant) for the seam and the rule that keeps it off the screen.

@@ -5,11 +5,11 @@ import type {ReactNode} from 'react';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {amount, fuelHeadline} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import {RunStateBadge} from '@/modules/genset/components/RunStateBadge';
-import type {GensetCondition} from '@/modules/genset/types/alert.type';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {SITE_KIND_LABEL, siteFeed} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 import {useSitePowerRole} from '../data/siteConfig';
@@ -23,17 +23,6 @@ const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
     <dd className="flex min-w-0 flex-1 items-center truncate text-primary">{children}</dd>
   </div>
 );
-
-const ConditionBadge = ({condition}: {condition: GensetCondition}) => {
-  const {label, icon: Icon, textClassName} = CONDITION_META[condition];
-
-  return (
-    <Badge variant="secondary">
-      <Icon className={textClassName} aria-hidden="true" />
-      {label}
-    </Badge>
-  );
-};
 
 /**
  * What is feeding the yard, in one badge.
@@ -76,9 +65,16 @@ const SupplyBadge = ({summary}: {summary: SiteSummary}) => {
  */
 export const SiteDetailPanel = ({
   summary,
+  counts,
   className,
 }: {
   summary: SiteSummary | undefined;
+  /**
+   * What is standing at the site being previewed, from `useEstateAlarmCounts` — the
+   * same map the list beside it ranks and draws from, so the row a reader clicked and
+   * the panel it opened cannot report different figures.
+   */
+  counts: Record<AlertSeverity, number> | undefined;
   className?: string;
 }) => {
   return (
@@ -125,8 +121,22 @@ export const SiteDetailPanel = ({
           <SupplyBadge summary={summary} />
 
           <dl className="flex flex-col">
-            <DetailRow label="Condition">
-              <ConditionBadge condition={summary.condition} />
+            {/* The verdict this row used to hold — `Critical` / `Attention` /
+                `Optimum` — came off on 2026-09-14 and the queue took its place. A
+                preview exists to state the facts a pin cannot, and *how many and how
+                bad* is a fact; *somebody should look at this* is a summary of one. The
+                pill is a link, so the panel now has a second way out of itself: the
+                arrow above opens the site, this opens what is wrong with it. */}
+            <DetailRow label="Alarms">
+              {counts === undefined ? (
+                <span className="text-secondary">—</span>
+              ) : (
+                <AlarmBadge
+                  counts={counts}
+                  to="/sites/$siteId/alarms"
+                  params={{siteId: summary.site.id}}
+                />
+              )}
             </DetailRow>
             <DetailRow label="Location">{summary.site.locationLabel}</DetailRow>
             <DetailRow label="Installed capacity">{amount(summary.ratedKw, 'kW')}</DetailRow>

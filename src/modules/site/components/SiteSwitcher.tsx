@@ -5,6 +5,7 @@ import {useState} from 'react';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {cn} from '@/lib/utils';
 import {sortSites, useSiteSummaries} from '../data/sites';
+import {useEstateAlarmCounts} from '../data/siteAlarmQueue';
 import type {Site} from '../types/site.type';
 
 /**
@@ -18,12 +19,18 @@ import type {Site} from '../types/site.type';
  * steps to compare two yards, which is a thing operators do constantly during an
  * incident.
  *
- * ## Why the list is condition-ordered
+ * ## Why the list is alarm-ordered
  *
- * `sortSites` is the sites list's own ranking — worst first, then by name — so the
- * switcher and the list agree about what is urgent. A separately alphabetised menu
- * would be a second opinion about the estate, and the first thing anyone would
- * notice is that the two disagreed.
+ * `sortSites` is the sites list's own ranking — worst standing alarm first, then by
+ * name — so the switcher and the list agree about what is urgent. A separately
+ * alphabetised menu would be a second opinion about the estate, and the first thing
+ * anyone would notice is that the two disagreed.
+ *
+ * It ranked by the **condition verdict** until 2026-09-14 and now ranks by the queue
+ * itself, which is the same change the list made and for the same reason. The counts
+ * that do the ranking are not drawn here: the menu is a way *to* a site, and thirteen
+ * alarm pills stacked in a 224px popover would be a worse copy of the screen this
+ * menu exists to save a trip to.
  *
  * The list is not filtered or searchable. Twenty-five sites fit a scrolling menu,
  * and a search field here would be a second, worse copy of the sites screen's
@@ -33,6 +40,11 @@ import type {Site} from '../types/site.type';
 export const SiteSwitcher = ({site}: {site: Site}) => {
   const [open, setOpen] = useState(false);
   const summaries = useSiteSummaries();
+  // One reading for as long as the rail is mounted, the rule every `now` in this app
+  // follows: a menu that re-derived the estate's queue on each render would reshuffle
+  // itself under the pointer.
+  const [now] = useState(() => Date.now());
+  const counts = useEstateAlarmCounts(now);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -48,7 +60,7 @@ export const SiteSwitcher = ({site}: {site: Site}) => {
           rather than as a panel landing on top of it. Capped in height because
           twenty-five rows is taller than a short viewport. */}
       <PopoverContent align="start" className="max-h-80 w-[224px] overflow-y-auto">
-        {sortSites(summaries).map((summary) => (
+        {sortSites(summaries, counts).map((summary) => (
           <Link
             key={summary.site.id}
             to="/sites/$siteId"

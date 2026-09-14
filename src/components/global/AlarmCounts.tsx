@@ -93,6 +93,19 @@ export const AlarmCounts = ({counts}: {counts: Record<AlertSeverity, number>}) =
 const alarmPillClassName = 'h-6 gap-0 border-0 px-0 py-0';
 
 /**
+ * `Critical 2 · Warning 0 · Neutral 0` — the pill's numbers as a sentence.
+ *
+ * Both pills carry it as their `title` **and** their accessible name, so the three
+ * figures announce as words rather than as `2 0 0`, and a reader who has not met the
+ * severity order yet can hover it. One function because the two pills must not spell
+ * the same fact two ways.
+ */
+const alarmLegend = (counts: Record<AlertSeverity, number>) =>
+  ALERT_SEVERITIES.map((severity) => `${SEVERITY_META[severity].label} ${counts[severity]}`).join(
+    ' · ',
+  );
+
+/**
  * The alarm pill as **the way through to the rows themselves** — the one linked
  * alarm count in the app.
  *
@@ -149,9 +162,7 @@ export const AlarmBadge = ({
    */
   search?: LinkProps['search'];
 }) => {
-  const legend = ALERT_SEVERITIES.map(
-    (severity) => `${SEVERITY_META[severity].label} ${counts[severity]}`,
-  ).join(' · ');
+  const legend = alarmLegend(counts);
 
   return (
     <Badge
@@ -169,6 +180,33 @@ export const AlarmBadge = ({
       >
         <AlarmCounts counts={counts} />
       </Link>
+    </Badge>
+  );
+};
+
+/**
+ * The same pill, going nowhere — for the one place a link cannot be put.
+ *
+ * `AlarmBadge` above is the rule: every count in this app is clickable, because a
+ * count is the question *which ones*, and a pill that names alarms and cannot be
+ * opened is the one alarm in the app you cannot read. This is the exception, and it
+ * is a markup exception rather than a design one: the sites screen's phone card is
+ * itself a `<Link>` into the site, and an anchor inside an anchor is invalid — the
+ * browser closes the outer one, and the rest of the card stops navigating.
+ *
+ * Nothing is lost by it. The card leads to the site, the site's strip carries the
+ * same three figures as `AlarmBadge`, and that pill opens the queue. The reading is
+ * one tap further away on the surface that has no room for the queue anyway.
+ *
+ * Use it only where an enclosing element already owns the click. Anywhere else the
+ * badge is the element.
+ */
+export const StaticAlarmBadge = ({counts}: {counts: Record<AlertSeverity, number>}) => {
+  const legend = alarmLegend(counts);
+
+  return (
+    <Badge variant="secondary" className={alarmPillClassName} aria-label={legend} title={legend}>
+      <AlarmCounts counts={counts} />
     </Badge>
   );
 };

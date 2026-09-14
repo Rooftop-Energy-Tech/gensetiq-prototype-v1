@@ -211,9 +211,11 @@ export const attachClusterDonuts = (
 /**
  * Redraws every ring on the next frame.
  *
- * For the sites map, whose bubbles can be recoloured without the data under them
- * changing: switching the scale from condition to fleet status changes what the
- * segments mean, and nothing about the map has moved to make `render` fire.
+ * For a map whose bubbles can be recoloured without the data under them changing:
+ * `PlantMap` switches its scale between run state and fault severity, which changes
+ * what the segments mean without anything moving to make `render` fire. The sites map
+ * used to need it for the same reason and no longer does — it lost its second scale
+ * when the condition verdict was removed (2026-09-14) and now paints one way only.
  */
 export const refreshClusterDonuts = (map: maplibregl.Map): void => {
   map.triggerRepaint();

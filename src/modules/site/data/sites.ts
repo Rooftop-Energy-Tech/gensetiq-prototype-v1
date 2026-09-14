@@ -1,16 +1,16 @@
 import {useSyncExternalStore} from 'react';
 
-import type {GensetCondition} from '@/modules/genset/types/alert.type';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {RUN_STATES} from '@/modules/genset/types/genset.type';
 import type {Genset} from '@/modules/genset/types/genset.type';
 import {fleet, subscribeFleet} from '@/modules/genset/data/deployment';
 import {gensetDetail} from '@/modules/genset/data/detail';
 import type {GensetDetail} from '@/modules/genset/data/detail';
-import {gensetCondition} from '@/modules/genset/data/fuelIntegrity';
 import {spreadBetween} from '@/modules/genset/data/spread';
 import {hasBattery, hasMains} from '../types/site.type';
 import type {MainsSupply, Site, SitePowerRole} from '../types/site.type';
 import {hybridState} from './hybrid';
+import {alarmRank, alarmRankCount} from './siteAlarmQueue';
 import {SITE_KIND_LABEL, siteSeed, siteSeeds} from './siteSeed';
 import {subscribeSiteOverrides} from './siteOverrides';
 import type {SiteSeed} from './siteSeed';
@@ -22,8 +22,12 @@ import type {SiteSeed} from './siteSeed';
  * givens live in `siteSeed.ts` — its name, what kind of load it carries, where the
  * yard is and what the customer draws, none of which can be inferred from a diesel
  * engine — and every other number here is summed or ranked from the gensets that
- * name it. There is no stored site fuel figure or site condition to drift out of step
- * with the machines.
+ * name it. There is no stored site fuel figure to drift out of step with the machines.
+ *
+ * What a site **no longer** states is a verdict on itself. The `condition` field —
+ * `Critical` / `Attention` / `Optimum`, ranked from the gensets — came off on
+ * 2026-09-14; the estate now shows the alarm queue itself. See the note where it
+ * stood, in `buildSummary`.
  *
  * The membership direction matters too. Sites do not list their gensets; gensets
  * name their site, and this file groups them. A site cannot therefore claim a unit
@@ -68,8 +72,6 @@ export type SiteSummary = {
   onlineCount: number;
   fuelLitres: number;
   fuelCapacityLitres: number;
-  /** Worst condition among the sets — a site is as healthy as its sickest unit. */
-  condition: GensetCondition;
   /**
    * What the incomer reads.
    *
@@ -378,18 +380,13 @@ const buildSummary = (seed: SiteSeed, all: Array<Genset>): SiteSummary => {
     onlineCount: gensets.filter(({genset}) => genset.runState !== 'OFFLINE').length,
     fuelLitres: members.reduce((sum, g) => sum + g.fuelLitres, 0),
     fuelCapacityLitres: members.reduce((sum, g) => sum + g.fuelCapacityLitres, 0),
-    // Worst wins, on the severity ordering the alert module already defines.
-    //
-    // Read through `gensetCondition` rather than off the detail snapshot, so a
-    // yard holding a set that is losing fuel is not reported as healthy. The
-    // register map has no bit for a leak, and this roll-up is the whole reason
-    // that gap could not be left at the genset page: a site's colour on the map
-    // is how most readers meet the fault.
-    condition: gensets.some(({genset}) => gensetCondition(genset.id) === 'CRITICAL')
-      ? 'CRITICAL'
-      : gensets.some(({genset}) => gensetCondition(genset.id) === 'ATTENTION')
-        ? 'ATTENTION'
-        : 'OPTIMUM',
+    // **No condition verdict.** This object used to carry one — the worst of its
+    // gensets' alarms, rolled up as `Critical` / `Attention` / `Optimum` — and it was
+    // removed (Tristan, 2026-09-14) along with every chip that drew it. It ranked the
+    // *engines* and nothing else, so a yard whose monitoring unit was asserting eleven
+    // rows could report `Optimum` in the list while its own Alarms tab listed all
+    // eleven. See `useEstateAlarmCounts` in `siteAlarmQueue.ts` for what replaced it
+    // and why it is a count rather than a verdict.
     mains: mainsSupply(seed, members),
   };
 };
@@ -474,18 +471,30 @@ export const useSiteSummary = (siteId: string): SiteSummary | undefined =>
   );
 
 /**
- * Sites in the order the list shows them: by how much is wrong, then by name.
+ * Sites in the order the list shows them: by what is standing, then by name.
  *
- * Condition is the ranking the list has, and it is the genset module's own —
- * worst severity among the sets standing here. Name breaks the tie so the order
- * is total and the list does not reshuffle between renders.
+ * The ranking used to be the **condition verdict** and is now the **alarm queue** —
+ * worst standing severity first, then how many rows are standing at it. That is the
+ * same queue the row's pill draws and the same one the site's Alarms tab lists, so the
+ * order and the figure beside it cannot tell a reader two different stories. See
+ * `alarmRank` for why severity outranks volume.
+ *
+ * Name breaks the tie, so the order is total and the list does not reshuffle between
+ * renders — and so the quiet foot of the list, where every site ranks the same, stays
+ * put.
+ *
+ * **The counts are the caller's**, from `useEstateAlarmCounts`. They are live — a row
+ * cleared on a site's tab re-ranks this list on the way back — and a sort that fetched
+ * its own would be a second subscription reading a second moment.
  */
-const CONDITION_RANK: Record<GensetCondition, number> = {CRITICAL: 0, ATTENTION: 1, OPTIMUM: 2};
-
-export const sortSites = (summaries: Array<SiteSummary>): Array<SiteSummary> =>
+export const sortSites = (
+  summaries: Array<SiteSummary>,
+  counts: Record<string, Record<AlertSeverity, number>>,
+): Array<SiteSummary> =>
   [...summaries].sort(
     (left, right) =>
-      CONDITION_RANK[left.condition] - CONDITION_RANK[right.condition] ||
+      alarmRank(counts[left.site.id]) - alarmRank(counts[right.site.id]) ||
+      alarmRankCount(counts[right.site.id]) - alarmRankCount(counts[left.site.id]) ||
       left.site.name.localeCompare(right.site.name),
   );
 

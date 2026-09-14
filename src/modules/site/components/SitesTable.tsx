@@ -2,10 +2,10 @@ import {Link} from '@tanstack/react-router';
 import {useEffect} from 'react';
 import type {KeyboardEvent, RefObject} from 'react';
 
-import {Badge} from '@/components/ui/badge';
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {fuelHeadline} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {SiteSummary} from '../data/sites';
 import {siteFeed} from '../data/sites';
 import {FALLBACK_POWER_ROLE} from '../data/siteConfig';
@@ -39,6 +39,26 @@ import {supplyMeta} from './supplyMeta';
  * row could not say which without it. It rides under the name rather than taking
  * a column because it is a property *of the site*, the same way the name is.
  *
+ * ## Why the second column is a count and not a verdict
+ *
+ * It was `Condition` — one chip reading `Critical`, `Attention` or `Optimum`, rolled
+ * up from the yard's gensets — and it is now the **alarm pill**, the same three
+ * figures this app draws on every metric strip and device card. Tristan's call,
+ * 2026-09-14.
+ *
+ * A verdict answers *is anything wrong* and then sends the reader to the site to find
+ * out what; the pill answers *how bad* and *how many* in the same width, and it is a
+ * link, so the row is one click from the queue itself rather than one click from a
+ * page that has the queue on another tab. It also stopped the column lying: the
+ * verdict ranked the gensets only, so a site whose monitoring unit was asserting
+ * eleven rows could read `Optimum` here. See `useEstateAlarmCounts`.
+ *
+ * **Every row draws a pill, including a quiet one.** That is the opposite of the rule
+ * a badge *row* follows — the site page's device cards hide the pill at zero, because
+ * a `0 0 0` chip among `Standby` and `44.6 °C` is an alarm-shaped thing on a healthy
+ * machine. A column is not a badge row: it is read down, and a hole in it reads as
+ * missing data rather than as nothing standing. Three quiet zeros are the answer here.
+ *
  * ## Why `Supply` is what is carrying, not what is installed
  *
  * The column used to be `supplyLabel` — `Mains + 2 gensets` — which is the
@@ -59,14 +79,47 @@ import {supplyMeta} from './supplyMeta';
  * remaining columns share the width it gives up — hence two widths per column.
  */
 const COLUMNS = [
-  {label: 'Site', withFuel: '30%', withoutFuel: '36%', fuel: false},
-  {label: 'Condition', withFuel: '18%', withoutFuel: '22%', fuel: false},
+  {label: 'Site', withFuel: '28%', withoutFuel: '36%', fuel: false},
+  {label: 'Alarms', withFuel: '20%', withoutFuel: '22%', fuel: false},
   {label: 'Supply', withFuel: '30%', withoutFuel: '42%', fuel: false},
   {label: 'Fuel on site', withFuel: '22%', withoutFuel: '0%', fuel: true},
 ] as const;
 
+/**
+ * The width below which this table scrolls sideways rather than squeezing.
+ *
+ * The `Alarms` column holds a **fixed-size object**: the pill is a bell and three
+ * 20px cells, 80px however narrow its column gets, because cells that resized as
+ * counts crossed into double figures would shift everything beside them (see
+ * `AlarmCounts`). A percentage column can therefore be given less width than its
+ * contents, and in a `table-fixed` layout the overflow lands *on the next column* —
+ * the counts printed over the supply label, which is how this first shipped.
+ *
+ * 600px is where 20% is comfortably past 80px and a hair of padding. Below it the
+ * row's own scroll container takes over, which is the honest failure: a table you
+ * can push sideways, rather than two columns wearing each other.
+ *
+ * It only bites in the split view between 768px — where the cards take over
+ * entirely — and roughly 1220px, where the map's own `min-w-[620px]` is already
+ * pushing the page wider than the viewport.
+ */
+const TABLE_MIN_WIDTH = 'min-w-[600px]';
+
+/**
+ * What a site with no entry in the counts map draws — three zeros rather than a blank
+ * cell, for the reason the column always draws a pill. The map is built over the same
+ * seeds the summaries are, so this is a guard rather than a state anybody will meet.
+ */
+const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
+
 type SitesTableProps = {
   summaries: Array<SiteSummary>;
+  /**
+   * Every site's standing count, from `useEstateAlarmCounts` — one pass over the
+   * estate rather than a subscription per row, so every pill in the table reads the
+   * same moment. See the hook for why the table cannot fetch its own.
+   */
+  counts: Record<string, Record<AlertSeverity, number>>;
   /**
    * Every site's effective power role, from `useSitePowerRoles`.
    *
@@ -89,6 +142,7 @@ type SitesTableProps = {
 
 export const SitesTable = ({
   summaries,
+  counts,
   roles,
   showFuel,
   selectedId,
@@ -127,11 +181,16 @@ export const SitesTable = ({
 
   return (
     <div ref={scrollRef} className="h-full overflow-auto">
-      <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
+      <table
+        className={cn(
+          'w-full table-fixed border-separate border-spacing-0 text-sm',
+          TABLE_MIN_WIDTH,
+        )}
+      >
         <caption className="sr-only">
           {showFuel
-            ? 'Sites, with condition, what is supplying each right now and fuel on site'
-            : 'Sites, with condition and what is supplying each right now'}
+            ? 'Sites, with what is standing against each, what is supplying it right now and fuel on site'
+            : 'Sites, with what is standing against each and what is supplying it right now'}
         </caption>
         <colgroup>
           {columns.map((column) => (
@@ -156,8 +215,6 @@ export const SitesTable = ({
         </thead>
         <tbody>
           {summaries.map((summary) => {
-            const condition = CONDITION_META[summary.condition];
-            const ConditionIcon = condition.icon;
             const selected = summary.site.id === selectedId;
             // `?? FALLBACK_POWER_ROLE` for the reason `siteConfig` gives: a row with
             // no seed behind it is a site we know nothing about, and grid-backed is
@@ -204,18 +261,23 @@ export const SitesTable = ({
                   </span>
                 </td>
                 <td className="h-13 border-b border-subtle p-2">
-                  <Badge variant="secondary">
-                    <ConditionIcon className={condition.textClassName} aria-hidden="true" />
-                    {condition.label}
-                  </Badge>
+                  {/* The pill navigates and the row selects, the split the name cell
+                      above already makes — so `stopPropagation`, or opening the queue
+                      would also move the preview panel onto a site we are leaving. */}
+                  <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
+                    <AlarmBadge
+                      counts={counts[summary.site.id] ?? EMPTY_COUNTS}
+                      to="/sites/$siteId/alarms"
+                      params={{siteId: summary.site.id}}
+                    />
+                  </span>
                 </td>
                 {/* One line: who has the load. It carried a `N running` count
                     underneath, which was a second fact in a column asked for one —
                     the reader is scanning for the source, and a set turning off-load
                     is a genset-screen detail rather than a qualifier on it. Icon
-                    rather than the strip's badge: `Condition` is already a pill in
-                    the next column over, and two pills a row reads as a row of
-                    chips. */}
+                    rather than the strip's badge: `Alarms` is already a pill in the
+                    next column over, and two pills a row reads as a row of chips. */}
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
                   <span className="flex items-center gap-1.5 truncate">
                     <SupplyIcon

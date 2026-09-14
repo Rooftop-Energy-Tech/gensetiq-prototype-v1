@@ -2,9 +2,8 @@ import maplibregl from 'maplibre-gl';
 import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
-import {attachClusterDonuts, clusterCount, refreshClusterDonuts} from '@/lib/clusterDonut';
+import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
 import {lightToken} from '@/styles/colors';
-import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
 import {FLEET_STATUSES, STATUS_META} from '@/modules/genset/data/fleetStatus';
 import {siteStatus} from '../data/estateSummary';
 import type {SiteSummary} from '../data/sites';
@@ -19,10 +18,12 @@ import type {SiteSummary} from '../data/sites';
  *
  * Two things are genuinely different, and both follow from what a site *is*:
  *
- *  - **pins are coloured by condition, not run state.** A site has no run state —
- *    it is a place with a load, and the machines standing on it are what turn. Its
- *    own verdict is the worst condition among them, which is also what the list
- *    ranks by, so the map and the list agree on which sites are worth looking at.
+ *  - **pins are coloured by the site's status bucket, not by run state.** A site has
+ *    no run state — it is a place with a load, and the machines standing on it are
+ *    what turn. Its own colour is the worst bucket among them — `Tank empty`, `Alarms
+ *    raised`, `Refuel soon`, `OK` — which is the vocabulary of the `Status` card and
+ *    the chip that filters this map, so the two controls on the screen agree. It was
+ *    the condition verdict until 2026-09-14; see `statusColor`.
  *  - **a pin's size carries how many sets stand there.** On the fleet map every
  *    pin is one machine and size is free to mean selection alone. Here a pin is a
  *    yard, and "one set or three" is the difference between a site that loses its
@@ -75,20 +76,6 @@ type SitesMapProps = {
    * stays drawn; see `GensetsMap` for why framing and filtering are kept apart.
    */
   focusIds?: Array<string>;
-  /**
-   * Which verdict the pins are painted by.
-   *
-   * `condition` is the sites list's own scale — worst alarm among the sets — and is
-   * what the list's Condition column shows, so the map beside it agrees with the
-   * rows. `status` is the overview's four buckets, so the pins there agree with the
-   * tiles above them.
-   *
-   * A prop rather than a second map component, because the two differ in one paint
-   * expression and nothing else: the clustering, the framing, the fly-to and the
-   * count-driven radius are the same map. A copy would drift on all of them to
-   * express a difference in one.
-   */
-  colorBy?: 'condition' | 'status';
 };
 
 const toFeatureCollection = (
@@ -105,7 +92,6 @@ const toFeatureCollection = (
     },
     properties: {
       id: summary.site.id,
-      condition: summary.condition,
       status: siteStatus(summary),
       // The yard's own count, so pin size says how much plant is standing here.
       // A site with no sets attached is a real state — see `siteSeed.ts` — and it
@@ -117,30 +103,32 @@ const toFeatureCollection = (
 });
 
 /**
- * Condition → pin fill, as a MapLibre `match` expression.
+ * The four buckets → pin fill, built from `STATUS_META` for the reason the fleet map
+ * builds its own from `RUN_STATE_META`: the arms come from the `FleetStatus` union, so
+ * they cannot fall out of step with the tiles that share the record.
  *
- * Built from `CONDITION_META` rather than written out, for the reason the fleet
- * map builds its own from `RUN_STATE_META`: the arms come from a
- * `Record<GensetCondition, …>`, so they are exhaustive by construction and a new
- * condition cannot quietly fall through to the fallback.
+ * ## This used to be one of two scales, and the other one is gone
+ *
+ * The pins were painted by the site's **condition verdict** — `Critical`, `Attention`,
+ * `Optimum` — with `colorBy` selecting between that and the four buckets. The verdict
+ * came off the whole app on 2026-09-14 (see `sites.ts`), and with one scale left the
+ * prop was a switch with one position.
+ *
+ * Status is the right survivor rather than a fallback. It is the vocabulary of the
+ * `Status` card sitting directly above this map and of the chip that filters it, so a
+ * reader clicking `Alarms raised` now watches the red pins survive the filter — the two
+ * controls on this screen finally name their colours the same way. And a colour is read
+ * as a *category* before it is read as a rank: `Tank empty` is a tanker and `Alarms
+ * raised` is an engineer, which is the decision somebody glancing at a map is making.
+ * `STATUS_META` argues that at length.
+ *
+ * What the pins no longer do is rank. That moved to the list beside them, which is
+ * ordered by the alarm queue itself — see `sortSites`.
  */
-const conditionColor = (): maplibregl.ExpressionSpecification =>
+const statusColor = (): maplibregl.ExpressionSpecification =>
   // A `match` expression is variadic — N label/value pairs then a fallback — and
   // TypeScript cannot derive that tuple shape from a `flatMap`, so the assertion
   // is unavoidable. It is not covering a missing case.
-  [
-    'match',
-    ['get', 'condition'],
-    ...Object.entries(CONDITION_META).flatMap(([condition, meta]) => [condition, meta.mapColor]),
-    CONDITION_META.OPTIMUM.mapColor,
-  ] as unknown as maplibregl.ExpressionSpecification;
-
-/**
- * The four buckets → pin fill, built from `STATUS_META` for the reason above: the
- * arms come from the `FleetStatus` union, so they cannot fall out of step with the
- * tiles that share the record.
- */
-const statusColor = (): maplibregl.ExpressionSpecification =>
   [
     'match',
     ['get', 'status'],
@@ -149,38 +137,24 @@ const statusColor = (): maplibregl.ExpressionSpecification =>
   ] as unknown as maplibregl.ExpressionSpecification;
 
 /**
- * Conditions worst-first, which is the order the donut ring inside a cluster's
- * count is drawn in — critical from twelve o'clock, so the same estate always
- * draws the same ring and the eye learns where to look. `CONDITION_META` is a
- * record and carries no order of its own; this is that order written down.
- */
-const CONDITIONS = ['CRITICAL', 'ATTENTION', 'OPTIMUM'] as const;
-
-/**
- * The per-bucket tallies each cluster carries up from its sites.
+ * The per-bucket tallies each cluster carries up from its sites — the donut ring
+ * inside a cluster's count.
  *
- * Both vocabularies are accumulated, not just the one in force: `colorBy` can
- * change without the data moving — the overview paints by status and the sites
- * page by condition, off the same component — and a source rebuilt to follow it
- * would drop every cluster and re-cluster the estate to recolour a ring.
+ * `FLEET_STATUSES` is worst-first, so the ring is drawn from twelve o'clock in the
+ * same order every time and the eye learns where to look.
  *
- * Namespaced because the two unions are only accidentally disjoint; `ALARM` and
- * `ATTENTION` sitting in one flat namespace is a collision waiting for whichever
- * vocabulary grows first.
+ * Still namespaced, though only one vocabulary is accumulated now. The prefix costs
+ * nothing and it is what kept `ALARM` and `ATTENTION` from colliding when there were
+ * two; the day a second scale comes back it will want the same guard.
  */
-const conditionKey = (condition: string) => `condition:${condition}`;
 const statusKey = (status: string) => `status:${status}`;
 
-const CLUSTER_PROPERTIES = Object.fromEntries([
-  ...CONDITIONS.map((condition) => [
-    conditionKey(condition),
-    ['+', ['case', ['==', ['get', 'condition'], condition], 1, 0]],
-  ]),
-  ...FLEET_STATUSES.map((status) => [
+const CLUSTER_PROPERTIES = Object.fromEntries(
+  FLEET_STATUSES.map((status) => [
     statusKey(status),
     ['+', ['case', ['==', ['get', 'status'], status], 1, 0]],
   ]),
-]) as Record<string, maplibregl.ExpressionSpecification>;
+) as Record<string, maplibregl.ExpressionSpecification>;
 
 /**
  * Radius from genset count: 8px for one set, 12px at four or more, interpolated
@@ -214,16 +188,10 @@ export const SitesMap = ({
   onDeselect,
   panelInset,
   focusIds,
-  colorBy = 'condition',
 }: SitesMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const loadedRef = useRef(false);
-
-  // Read inside the layer-creation closure, which runs once. Held in a ref for the
-  // reason `onSelect` is: so the map is not torn down and rebuilt to change a colour.
-  const colorByRef = useRef(colorBy);
-  colorByRef.current = colorBy;
 
   // `onSelect` is read from inside a MapLibre click handler registered once.
   // Holding it in a ref keeps that handler pointed at the current closure without
@@ -338,10 +306,10 @@ export const SitesMap = ({
         filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': POINT_RADIUS,
-          // The mount-time value. The map is built once in an effect with no deps,
-          // so a `colorBy` that changed later would never reach the shader — the
-          // effect below is what keeps the paint current.
-          'circle-color': colorByRef.current === 'status' ? statusColor() : conditionColor(),
+          // Built once, and it stays. There used to be a second scale and a `colorBy`
+          // prop to choose it, which meant a repaint effect below to push a change
+          // that arrived after mount into the shader. One scale needs neither.
+          'circle-color': statusColor(),
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
           'circle-stroke-color': [
             'case',
@@ -410,23 +378,16 @@ export const SitesMap = ({
       map.on('mouseleave', layer, clearPointer);
     }
 
-    // The ring inside each cluster's count, on whichever scale the pins are using:
-    // the mix of conditions in that group of yards, or the mix of fleet-status
-    // buckets. Read through the ref so a scale change recolours the rings without
-    // rebuilding the map, exactly as it recolours the pins.
+    // The ring inside each cluster's count: the mix of status buckets among that
+    // group of yards, drawn in the same colours as the pins it is standing in for.
     const detachDonuts = attachClusterDonuts(map, {
       sourceId: SOURCE,
       clusterLayerId: LAYER.clusterCore,
       segmentsFor: (properties) =>
-        colorByRef.current === 'status'
-          ? FLEET_STATUSES.map((status) => ({
-              color: STATUS_META[status].mapColor,
-              count: clusterCount(properties, statusKey(status)),
-            }))
-          : CONDITIONS.map((condition) => ({
-              color: CONDITION_META[condition].mapColor,
-              count: clusterCount(properties, conditionKey(condition)),
-            })),
+        FLEET_STATUSES.map((status) => ({
+          color: STATUS_META[status].mapColor,
+          count: clusterCount(properties, statusKey(status)),
+        })),
     });
 
     map.on('error', (event) => {
@@ -442,30 +403,6 @@ export const SitesMap = ({
       mapRef.current = null;
     };
   }, []);
-
-  // — Repaint when the scale changes, since the layer was built with the old one.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map === null) return;
-
-    const repaint = () => {
-      if (map.getLayer(LAYER.point) === undefined) return;
-      map.setPaintProperty(
-        LAYER.point,
-        'circle-color',
-        colorBy === 'status' ? statusColor() : conditionColor(),
-      );
-      // The pins are the shader's business and repaint themselves; the rings are
-      // DOM, and nothing about the map has moved to make them redraw.
-      refreshClusterDonuts(map);
-    };
-
-    if (loadedRef.current) {
-      repaint();
-      return;
-    }
-    map.once('gensetiq.ready', repaint);
-  }, [colorBy]);
 
   // — Push data (and the selection highlight) into the source.
   useEffect(() => {

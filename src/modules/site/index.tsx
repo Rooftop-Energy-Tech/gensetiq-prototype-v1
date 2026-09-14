@@ -7,6 +7,7 @@ import {isDueForService, useServiceRecords} from '@/modules/genset/data/services
 import {estateSummary, filterSites} from './data/estateSummary';
 import {estateEnergy} from './data/hybrid';
 import {searchSites, sortSites, useSiteSummaries} from './data/sites';
+import {useEstateAlarmCounts} from './data/siteAlarmQueue';
 import {useSitePowerRoles} from './data/siteConfig';
 import {SiteDetailPanel} from './components/SiteDetailPanel';
 import {SitesCards} from './components/SitesCards';
@@ -37,7 +38,7 @@ type SitesPageProps = {
 };
 
 /**
- * `/sites` — seventeen sites, worst condition first, as a list beside a map.
+ * `/sites` — seventeen sites, worst alarm first, as a list beside a map.
  *
  * The map used to be argued against on the grounds that a site's position is its
  * gensets' position, which `/gensets?view=map` already draws. That is true of the
@@ -69,9 +70,10 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   const {view, q = '', id, panel, customer, role, status, program} = search;
 
   // Keyed on the summaries as well as the query: attaching or detaching a genset
-  // changes a site's genset count, its fuel and its condition, and condition is what
-  // this list is *ordered* by. Memoising on `q` alone would leave the list ranked by
-  // a fleet that has since moved.
+  // changes a site's genset count and its fuel, and moves the machine's alarms from
+  // one yard's queue to another's — and that queue is what this list is *ordered* by.
+  // Memoising on `q` alone would leave the list ranked by a fleet that has since
+  // moved.
   const all = useSiteSummaries();
   const roles = useSitePowerRoles();
 
@@ -81,6 +83,17 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   // One clock reading for the whole render, so the service count cannot straddle a
   // minute boundary between the tally and the detail line under it.
   const [now] = useState(() => Date.now());
+
+  /**
+   * What is standing at every site, in one pass — the list's ranking, its `Alarms`
+   * column, the phone cards' pill and the preview panel's row, off one reading.
+   *
+   * Live: it is derived from the same handling store the Alarms tabs write to, so
+   * clearing a row on a site's own tab re-ranks this list and drops its pill on the
+   * way back. It replaced the `condition` verdict the summaries used to carry — see
+   * `useEstateAlarmCounts` for why a count rather than a verdict.
+   */
+  const alarmCounts = useEstateAlarmCounts(now);
 
   /**
    * Machines past one of their two intervals, and the yards they stand in.
@@ -120,8 +133,12 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   const energy = useMemo(() => estateEnergy(roles, ratedKwBySite), [roles, ratedKwBySite]);
 
   const summaries = useMemo(
-    () => sortSites(filterSites(searchSites(all, q), {customer, role, status, program}, roles)),
-    [all, q, customer, role, status, program, roles],
+    () =>
+      sortSites(
+        filterSites(searchSites(all, q), {customer, role, status, program}, roles),
+        alarmCounts,
+      ),
+    [all, q, customer, role, status, program, roles, alarmCounts],
   );
 
   // Resolved against the *filtered* list, not the whole estate: if a search hides
@@ -205,10 +222,11 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
           ) : (
             <div className="min-h-0 min-w-0 flex-1">
               {compact ? (
-                <SitesCards summaries={summaries} />
+                <SitesCards summaries={summaries} counts={alarmCounts} />
               ) : (
                 <SitesTable
                   summaries={summaries}
+                  counts={alarmCounts}
                   roles={roles}
                   // The fuel column only where the table has the full width —
                   // beside the map it is the first thing worth giving up. See
@@ -255,6 +273,7 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         {panelOpen && (
           <SiteDetailPanel
             summary={selected}
+            counts={selected === undefined ? undefined : alarmCounts[selected.site.id]}
             className={
               // Over the map the panel floats, so the basemap keeps running
               // underneath it. In the list-only view it takes its own column
