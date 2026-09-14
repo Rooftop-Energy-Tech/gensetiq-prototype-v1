@@ -1703,7 +1703,34 @@ off, which is the only reason to draw a curve at all.
 #### What the diagram draws
 
 Every source, its switch, the bus they share, and the load at the end of it. Every node
-is captioned in two lines — what it is, and what it is putting into the bus.
+is captioned in two lines — what it is, and what it is putting into the bus — and every
+node that is a **device** carries the alarm pill under those two.
+
+**The pill is what makes the drawing say where the trouble is** (Tristan, 2026-09-14).
+The band already answered *what is feeding this tower*; it could not answer *which of
+these boxes has something wrong with it* without a reader clicking each one in turn. Four
+boxes — array, bank, cabinet, set — now carry `Critical · Warning · Neutral` in the app's
+own pill, in the same position on each, so the column of them reads down like a column in
+a table. The mains and the load carry none: an incomer is a supply rather than a machine
+on this estate's books, and nothing reports on a load.
+
+The counts are **sliced out of the site's own queue** — the union the page's strip counts
+and its Alarms tab lists, `useSiteAlarmQueue` — so a box and the
+device card it opens beside the drawing cannot report different numbers. Each set takes
+the union its own page takes instead, the controller's bits plus the unit's `GENSET`
+rows, which means two sets in one yard both carry that yard's AC rows; at a site with no
+incomer that AC is each engine's own output, so this is right rather than double-counted.
+
+It is a **static** pill here, not a link, and that is a markup constraint rather than a
+choice: a device node is a `<button>`, and an anchor inside one is invalid — the browser
+closes the button and the node stops selecting. Clicking the node opens the device's card
+beside the drawing, and that card's pill is the link.
+
+Pills are drawn on **every** device node, a quiet one included, so their absence never
+becomes the signal — and a severity with nothing standing draws a dash rather than a `0`.
+The settings page, which renders this same drawing twice as a preview of a power role,
+passes no counts at all and gets the tighter geometry back: the pitch and the bottom
+margin both open up by one pill's height only when there are pills to put there.
 
 Only a connected, energised source gets a **kW figure**; the rest get a word
 (`off-load`, `stopped`, `unavailable`, `failed`, `night`), because `0 kW` is a

@@ -1,9 +1,15 @@
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 import {BoxesIcon, NetworkIcon} from 'lucide-react';
 
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 
+import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
+import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
+import {countBySeverity} from '@/modules/genset/types/alert.type';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {SiteSummary} from '../data/sites';
+import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
+import {gensetDeviceKey} from '../types/device.type';
 import type {SiteDeviceKey} from '../types/device.type';
 import type {SitePowerRole} from '../types/site.type';
 import {SiteDiagram} from './SiteDiagram';
@@ -84,6 +90,49 @@ export const SiteCircuit = ({
   const [view, setView] = useState<'schematic' | 'plant'>('plant');
 
   const devices = siteDevices(summary, role);
+
+  /**
+   * What is standing on each box in the drawing — the pills under the node names.
+   *
+   * **Sliced out of the site's own queue**, exactly as `SiteDevicePanel` does it, and
+   * for the identical reason: `useSiteAlarmQueue` is the union the strip at the top of
+   * this page counts and the Alarms tab lists, with every row tagged by the asset it
+   * belongs to. Slicing it is the one way to get these numbers that cannot disagree
+   * with the card this drawing opens, a few hundred pixels to the right. A second call
+   * to `assertedPlantAlarms` here would agree today and be a second place for it to
+   * stop.
+   *
+   * One tag each for the array, the bank and the cabinet, because a site has one of
+   * each. `SITE` is the cabinet's slice — the category id and the word it prints
+   * differ; `plantAlarm.type.ts` says why.
+   *
+   * **The sets are not sliced that way.** A yard can hold several, they share the
+   * monitoring unit's AC rows, and each box is about one machine — so each takes the
+   * union its own page takes, the controller's bits plus the unit's `GENSET` rows. The
+   * genset device card is built from the same two calls, so a box and the card it opens
+   * count one list. Two sets in one yard therefore both carry the yard's AC rows, which
+   * is correct: at a site with no incomer that AC is each engine's own output.
+   */
+  const handling = useAlarmHandling();
+  const {standing} = useSiteAlarmQueue(summary.site.id, now);
+  const alarms = useMemo(() => {
+    const plantStanding = plantAlarmQueue(summary.site.id, role, 'GENSET', handling).standing;
+
+    const byDevice: Partial<Record<SiteDeviceKey, Record<AlertSeverity, number>>> = {
+      solar: countBySeverity(standing.filter((row) => row.asset === 'SOLAR')),
+      battery: countBySeverity(standing.filter((row) => row.asset === 'BATTERY')),
+      cabinet: countBySeverity(standing.filter((row) => row.asset === 'SITE')),
+    };
+
+    for (const {genset} of summary.gensets) {
+      byDevice[gensetDeviceKey(genset.id)] = countBySeverity([
+        ...standingAlarms(genset.id, handling),
+        ...plantStanding,
+      ]);
+    }
+
+    return byDevice;
+  }, [standing, summary, role, handling]);
   /**
    * What the panel is reporting on, or `undefined` for the site's own overview.
    *
@@ -204,6 +253,7 @@ export const SiteCircuit = ({
               dutyId={summary.defaultDutyId}
               role={role}
               selection={{devices, selected, onSelect: setPicked}}
+              alarms={alarms}
             />
           ) : (
             <SitePlantScene

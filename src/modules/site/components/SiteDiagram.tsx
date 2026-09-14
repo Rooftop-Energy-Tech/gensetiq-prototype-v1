@@ -11,6 +11,8 @@ import type {LucideIcon} from 'lucide-react';
 
 import type {RunState} from '@/modules/genset/types/genset.type';
 
+import {StaticAlarmBadge} from '@/components/global/AlarmCounts';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
@@ -144,6 +146,21 @@ const ELBOW = 47;
 const TAP = 67;
 /** Room under the bottom node for its two caption lines. */
 const CAPTION = 30;
+
+/**
+ * What an alarm pill adds under a node, when the drawing is given counts to draw.
+ *
+ * The pill is `h-6` on the badge scale — 24px — plus the 4px that keeps it off the
+ * power line above it. Both the pitch and the bottom margin take it, so the gap
+ * between one node's last line and the next node's box is the one the design drew,
+ * whether or not there is a pill in between.
+ *
+ * Reserved only when `alarms` is passed. The settings page renders this drawing twice
+ * as a preview of a power role, with no counts and nothing to say about alarms; making
+ * it carry 28px of empty band per row for a pill it will not draw would stretch a
+ * preview to buy nothing.
+ */
+const PILL_ROOM = 28;
 
 const SWITCH_X = NODE_W + LEAD;
 const BUS_X = SWITCH_X + SWITCH_W + ELBOW;
@@ -431,6 +448,17 @@ const Node = ({
   icon: Icon,
   label,
   caption,
+  /**
+   * What is standing on this device, drawn as the app's alarm pill under the caption
+   * — or `undefined` for a node that is not a device, and for the whole drawing when
+   * it is rendered without counts.
+   *
+   * `StaticAlarmBadge` rather than `AlarmBadge`: a device node **is** a `<button>`,
+   * and an anchor inside a button is invalid markup — the browser closes the button
+   * and the node stops selecting. Nothing is lost, because a click on the node already
+   * opens that device's card beside the drawing and the card's own pill is the link.
+   */
+  counts,
   /** The power line under the caption — a kW figure, or why there isn't one. */
   power,
   /** `false` dims the power line: it is a word about state, not a measurement. */
@@ -449,6 +477,7 @@ const Node = ({
   icon: LucideIcon;
   label: string;
   caption: string;
+  counts?: Record<AlertSeverity, number>;
   power: string;
   powered: boolean;
   /** `undefined` for the load — nothing reports its state, so it gets no dot. */
@@ -547,6 +576,19 @@ const Node = ({
           {power}
         </p>
       </div>
+
+      {/* Outside the caption's `bg-canvas` band and centred on the box rather than on
+          the text, so the four pills down a drawing line up with each other and can be
+          read as a column. Drawn on every device node including a quiet one — a pill
+          that appeared only where something was wrong would make its *absence* the
+          signal, and an absence is what a node with no plant behind it looks like too.
+          A severity with nothing standing draws a dash, so a healthy node is three
+          quiet marks rather than three zeros. See `AlarmCounts`. */}
+      {counts !== undefined && (
+        <div className="mt-1 flex justify-center">
+          <StaticAlarmBadge counts={counts} />
+        </div>
+      )}
     </>
   );
 
@@ -959,11 +1001,27 @@ export const SiteDiagram = ({
    * leaves every node inert.
    */
   selection,
+  /**
+   * What is standing on each device, so the drawing can say **which box has the
+   * alarms** rather than only which box is feeding.
+   *
+   * Keyed by `SiteDeviceKey`, the same key `selection` picks by, so the node a reader
+   * clicks and the pill under it are addressing one device by one name. A key that is
+   * absent draws no pill, which is what keeps the mains and the load — neither of them
+   * a device — clean.
+   *
+   * **Handed in rather than derived here**, for the reason `role` is: this stays a
+   * pure function of its props, so the settings page can render it twice as a preview
+   * of a role nobody has chosen yet. That preview passes no counts, and the drawing
+   * then reserves no room for them — see `PILL_ROOM`.
+   */
+  alarms,
 }: {
   summary: SiteSummary;
   dutyId: string | undefined;
   role: SitePowerRole;
   selection?: SiteDiagramSelection;
+  alarms?: Partial<Record<SiteDeviceKey, Record<AlertSeverity, number>>>;
 }) => {
   const sources = sourcesOf(summary, dutyId, role);
   const count = Math.max(1, sources.length);
@@ -982,10 +1040,18 @@ export const SiteDiagram = ({
   // `siteLoadKw`. `null` here means nothing is feeding the load at all.
   const loadKw = siteLoadKw(summary, dutyId, role);
 
-  /** Centreline of source `index` — where its conductor leaves the box. */
-  const centreline = (index: number) => index * PITCH + NODE_H / 2;
+  // The pitch and the bottom margin both open up by one pill's height when there are
+  // pills to draw, so the drawing keeps the design's gap between a node's last line and
+  // the next node's box either way. Every conductor in the drawing is derived from
+  // these two, so nothing else has to know. See `PILL_ROOM`.
+  const pillRoom = alarms === undefined ? 0 : PILL_ROOM;
+  const pitch = PITCH + pillRoom;
+  const caption = CAPTION + pillRoom;
 
-  const height = (count - 1) * PITCH + NODE_H + CAPTION;
+  /** Centreline of source `index` — where its conductor leaves the box. */
+  const centreline = (index: number) => index * pitch + NODE_H / 2;
+
+  const height = (count - 1) * pitch + NODE_H + caption;
   // The point every source's run meets at: the cabinet's centre where there is one,
   // and the bare drawing's own elbow line where there is not. See `CABINET_X`.
   const junctionX = hasCabinet ? JUNCTION_X_CABINET : JUNCTION_X_BARE;
@@ -1145,8 +1211,8 @@ export const SiteDiagram = ({
             <Conductor
               key={`tie-${source.key}`}
               points={[
-                [TIE_X, index * PITCH + NODE_H],
-                [TIE_X, (index + 1) * PITCH],
+                [TIE_X, index * pitch + NODE_H],
+                [TIE_X, (index + 1) * pitch],
               ]}
               live={tieLive(index)}
             />
@@ -1227,11 +1293,12 @@ export const SiteDiagram = ({
             icon={source.icon}
             label={source.label}
             caption={source.caption}
+            counts={device === undefined ? undefined : alarms?.[device]}
             power={source.power}
             powered={source.switchState.live}
             live={source.switchState.live}
             x={0}
-            y={index * PITCH}
+            y={index * pitch}
             onSelect={selectHandler(selection, device)}
             selected={device !== undefined && device === selection?.selected}
           />
@@ -1246,6 +1313,7 @@ export const SiteDiagram = ({
           icon={ServerIcon}
           label="CABINET"
           caption="DC plant"
+          counts={alarms?.cabinet}
           power={cabinetPowerLabel(feed.source)}
           // Dimmed unless the box is actually converting. `bank carrying` and `not
           // served` are both words about a shelf doing nothing, and the power line's
