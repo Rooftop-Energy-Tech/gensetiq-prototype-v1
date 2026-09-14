@@ -34,30 +34,44 @@ const ARROW = {up: ArrowUpIcon, down: ArrowDownIcon, flat: ArrowRightIcon};
  * which is how the page's *cards* are set, and rightly, because a card is one fact
  * being presented — makes the reader parse four names to find four numbers.
  *
- * ## Why equal columns rather than a flowing row
+ * ## Why columns rather than a flowing row
  *
  * The figures used to run on as `Total · 26 L   Total genset runtime · 3 h`, which
  * is a sentence: the eye has to find each `·` to know where one fact ends and the
- * next begins, and the whole row reflows when a figure gains a digit. Equal columns
- * give every figure the same start, so the row is stable as the day changes and a
- * reader can compare the same position across two sites.
+ * next begins, and the whole row reflows when a figure gains a digit. Columns give
+ * every figure the same start, so the row is stable as the day changes and a reader
+ * can compare the same position across two sites.
  *
- * Follows the design's metric row (Figma `Section - Site diagnostics`).
+ * ## The columns are a fixed width, not a share of the row
+ *
+ * They were `flex-1 basis-0` — equal shares of **the whole band** — and on a chart
+ * band that is most of a desktop, two figures came out 512px apart with nothing in
+ * between (Tristan, 2026-09-14). Two facts about one window read as two unrelated
+ * readings when they are half a screen from each other; the row stopped being a row.
+ *
+ * The design sets them as a 155px column on a 24px gutter, packed from the left
+ * (Figma `3890:5859` — two 154.67px cards, 24px apart, in a 1048px band). So that is
+ * what this is: 155px is the floor rather than the width, because a handful of labels
+ * are longer than it — `generated over the window` is the widest — and a column that
+ * clipped its own label to hold a grid would be the grid winning an argument it
+ * should not be in. Short labels all land on the same column width, which is what
+ * makes the row scannable.
  */
 export const ChartMetrics = ({metrics}: {metrics: ReadonlyArray<ChartMetric>}) => {
   if (metrics.length === 0) return null;
 
   return (
+    // `gap-x-6` is the design's 24px gutter. The row still wraps: four figures at
+    // 155px plus gutters is wider than a phone.
     <div className="flex flex-wrap gap-x-6 gap-y-3">
       {metrics.map((metric) => {
         const Arrow = metric.badge === undefined ? undefined : ARROW[metric.badge.direction];
 
         return (
-          // `basis-0` with `flex-1`: equal shares of the row rather than shares of
-          // whatever each one's content happens to need. `min-w-32` is the floor at
-          // which a figure and its label still fit — under it the row wraps rather
-          // than breaking a figure across two lines.
-          <div key={metric.key} className="flex min-w-32 flex-1 basis-0 flex-col">
+          // No `flex-1 basis-0`: a column is its content, floored at the design's
+          // 155px, and the row packs from the left. `shrink-0` so a long label pushes
+          // the row to wrap rather than squeezing every column narrow — see above.
+          <div key={metric.key} className="flex min-w-[155px] shrink-0 flex-col">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-base leading-6 font-semibold text-primary tabular-nums">
                 {metric.value}
@@ -83,7 +97,7 @@ export const ChartMetrics = ({metrics}: {metrics: ReadonlyArray<ChartMetric>}) =
             {/* Lowercase, as the design sets it: the label is an annotation on the
                 figure rather than a heading over it, and a capital would give it
                 the weight of one. */}
-            <span className="truncate text-sm leading-5 text-secondary lowercase">
+            <span className="text-sm leading-5 text-secondary lowercase">
               {metric.label}
             </span>
           </div>
