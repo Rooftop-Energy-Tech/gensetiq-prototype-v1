@@ -28,6 +28,24 @@
  * the output gauge, which the home page draws itself. It stays in the vocabulary
  * because it is the first thing a real telemetry feed would need.
  */
+/**
+ * First light and last, the hours `hybrid.ts` builds every solar day between.
+ *
+ * Here rather than on a page because two now ask the question: the home page, for
+ * the `Dark` badge beside a band of zeroes, and the Alarms tab, where the health
+ * band decides what a `daylightOnly` reading prints. Two copies of the sunrise is
+ * the pair that drifts.
+ */
+export const FIRST_LIGHT = 7;
+const LAST_LIGHT = 19;
+
+/** Whether the sun is up at `now` — the rule `daylightOnly` turns on. */
+export const isDaylight = (now: number): boolean => {
+  const at = new Date(now);
+  const hour = at.getHours() + at.getMinutes() / 60;
+  return hour >= FIRST_LIGHT && hour <= LAST_LIGHT;
+};
+
 export const READING_KINDS = ['instantaneous', 'cumulative', 'windowed'] as const;
 
 export type ReadingKind = (typeof READING_KINDS)[number];

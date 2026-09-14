@@ -37,7 +37,7 @@ const Figure = ({label, value, stale}: {label: string; value: string; stale: boo
  * scroll back up to find out whether starting it is possible.
  *
  * Everything else a stopped controller reports is still on the page — the
- * analysis tab plots it and band 6 lists it under its tag. This band is not the
+ * analysis tab plots it and the Alarms tab lists it under its tag. This band is not the
  * place for it.
  *
  * ## The two states are not the same absence

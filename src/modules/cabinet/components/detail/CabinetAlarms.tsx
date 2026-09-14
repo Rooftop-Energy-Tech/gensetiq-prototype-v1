@@ -64,7 +64,6 @@ export const CabinetAlarms = ({cabinetId}: {cabinetId: string}) => {
         cleared={cleared}
         by={by}
         subject="this cabinet"
-        device="the monitoring unit"
       />
 
       {/* Which of the two zeros this cabinet's is, exactly as the bank's tab does it

@@ -1,5 +1,6 @@
 import {useMemo} from 'react';
 
+import {ChartMetrics} from '@/components/global/ChartMetrics';
 import {SolarYieldChart} from '@/modules/site/components/SolarYieldChart';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {amount} from '@/lib/format';
@@ -79,6 +80,9 @@ export const SystemAnalysis = ({
 
   return (
     <div className="flex min-h-full flex-col gap-4 px-4 pt-4 pb-24 md:pb-6">
+      {/* The band's one layout, which every chart in the app follows: the chart's
+          name on the left, the window control on the right, then what the window
+          came to, then the plot with its key centred under it. */}
       <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <h2 className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium text-primary">
@@ -92,10 +96,6 @@ export const SystemAnalysis = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-secondary tabular-nums">
-            {amount(total, 'kWh')} over the window
-          </span>
-
           <SolarRangeTabs
             range={range}
             from={search.from}
@@ -110,13 +110,28 @@ export const SystemAnalysis = ({
         </div>
       </header>
 
-      <div className="flex min-w-0 flex-col gap-2 rounded-md border border-subtle bg-element px-3 py-3">
+      <div className="flex min-w-0 flex-col gap-4 rounded-md border border-subtle bg-element px-3 py-3">
         {series.length === 0 ? (
           <p className="py-10 text-center text-sm text-secondary">
             Nothing generated in this window.
           </p>
         ) : (
-          <SolarYieldChart months={series} />
+          <>
+            {/* The window's total, above the plot it sums — it used to sit beside
+                the range control, where it read as part of the control rather than
+                as a reading of what the control had selected. */}
+            <ChartMetrics
+              metrics={[
+                {
+                  key: 'generated',
+                  label: 'generated over the window',
+                  value: amount(total, 'kWh'),
+                },
+              ]}
+            />
+
+            <SolarYieldChart months={series} />
+          </>
         )}
       </div>
 

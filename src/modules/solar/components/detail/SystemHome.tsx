@@ -7,36 +7,38 @@ import {Badge} from '@/components/ui/badge';
 import {amount, stampDate} from '@/lib/format';
 import {TickGauge} from '@/modules/genset/components/detail/TickGauge';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
-import {UNHANDLED, isStanding} from '@/modules/genset/types/alarmState.type';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {junctionBoxes} from '../../data/junctionBoxes';
 import {solarAlarmQueue} from '../../data/solarAlarmQueue';
-import {systemAlerts} from '../../data/systemHealth';
-import {systemCondition} from '../../types/health.type';
+import {FIRST_LIGHT, isDaylight} from '../../types/reading.type';
 import type {SystemDetail} from '../../data/systemDetail';
 import type {SolarSystem} from '../../types/system.type';
 import {JunctionBoxRack} from './JunctionBoxRack';
-import {SystemHealth} from './SystemHealth';
 
 /**
- * A solar system's home page, in the five bands the design stacks — the same
+ * A solar system's home page, in the four bands the design stacks — the same
  * bands, in the same order, as a site's and a genset's.
  *
  * 1. **The strip** — solar capacity, what it has made today, and the alarm counts.
  * 2. **The junction boxes** — what the array is putting out right now, broken out a
  *    box at a time, with a `Dark` badge beside the total when the sun is down.
- * 3. **The details** — what the system *is*: three nameplate facts, nothing live.
- * 4. **The chart** — generation, with a day stepper and a period control.
- * 5. **What is wrong** — the rules, and the numbers behind them.
+ * 3. **The chart** — generation, with a day stepper and a period control.
+ * 4. **The details** — what the system *is*: three nameplate facts, nothing live.
+ *
+ * There was a fifth: **what is wrong** — the rules, and the numbers behind them.
+ * It is on the `Alarms` tab now, above the standing and cleared tables, which is
+ * where a rule and what has been done about it belong together. The band was this
+ * page's last screen and it was restating the count the strip gives at the top; the
+ * strip's alarm pill is the one click from here to there.
  *
  * ## What changed, and why the old shape went
  *
  * This page used to open on a state hero, a four-row figure card and today's curve
  * side by side, then list the inverters and close on an activity feed. What is left
- * is the design's five bands and nothing else, which is the whole point: an
+ * is the design's bands and nothing else, which is the whole point: an
  * operator moving between a tower's genset, its array and its bank now finds the
  * same things in the same places, and the pages differ only in what they are
  * *about*. Three pages that each invented their own shape was the thing this design
@@ -71,7 +73,7 @@ import {SystemHealth} from './SystemHealth';
  * system is and what it made, and it does not hold either up against a target —
  * there is no design figure anywhere in this app to hold them against. The one
  * comparison it does draw is the system against **itself**: band 4's day view
- * carries the array's own recent normal, and band 5's string rule fires on a step
+ * carries the array's own recent normal, and the Alarms tab's string rule fires on a step
  * in its own series.
  *
  * ## At phone width
@@ -79,10 +81,6 @@ import {SystemHealth} from './SystemHealth';
  * The bands are already a column, so nothing rearranges, and there is nothing left
  * on the page that cannot reflow.
  */
-
-/** First light and last, the hours `hybrid.ts` builds every solar day between. */
-const FIRST_LIGHT = 7;
-const LAST_LIGHT = 19;
 
 export const SystemHome = ({
   system,
@@ -93,8 +91,7 @@ export const SystemHome = ({
   detail: SystemDetail;
   now: number;
 }) => {
-  const hour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
-  const daylight = hour >= FIRST_LIGHT && hour <= LAST_LIGHT;
+  const daylight = isDaylight(now);
   const reporting = system.state !== 'OFFLINE';
 
   const seed = siteSeed(system.siteId);
@@ -106,7 +103,8 @@ export const SystemHome = ({
    * Without it this is the most misread thing on the page. At nine in the evening every
    * figure in the band reads 0 kW and the state rolls up to `Idle`, which is
    * pixel-for-pixel what a plant that has tripped in the middle of the afternoon looks
-   * like — and the health band below raises nothing, because nothing is wrong. A reader
+   * like — and the health band on the Alarms tab raises nothing, because nothing is
+   * wrong. A reader
    * who has learned to check this page in a hurry would be checking it at exactly the
    * hour it cannot answer.
    *
@@ -151,25 +149,6 @@ export const SystemHome = ({
    * `system.downStrings` at the number of faulted boxes so the budget is there to place.
    */
   const boxes = junctionBoxes(system, standing);
-
-  /**
-   * Band 5 keeps only the derived rules, because it is the band that draws them.
-   *
-   * Every card in it prints the reading and the line the reading crossed, and the
-   * chart above it marks the same threshold — that is what makes a rule reviewable
-   * rather than merely announced. A register on a device nothing has read has no
-   * reading to draw and no axis to sit on, so the unit's rows stay on the Alarms
-   * tab and the footnote under the band says where they went.
-   *
-   * Filtered by the same handling as the strip, so clearing a wash from the tab
-   * empties the card here too. `condition` is recomputed from what survives rather
-   * than taken from `systemHealth` — a verdict of `Attention` over a band with
-   * nothing in it is the mismatch this whole file is about, in miniature.
-   */
-  const derived = systemAlerts(system, detail, now).filter(
-    (alert) => isStanding({handling: handling[alert.id] ?? UNHANDLED}),
-  );
-  const condition = systemCondition(derived);
 
   /**
    * Today's figures are the plant's, so a system nobody can hear has none.
@@ -316,32 +295,6 @@ export const SystemHome = ({
           {label: 'Commissioned', value: stampDate(system.commissionedAt)},
         ]}
       />
-
-      {/* Band 5 — what is wrong, and the numbers behind it. Every rule the system
-          carries: this is the page somebody opens to find out whether anything
-          needs doing, and it is now the only page that answers. */}
-      <SystemHealth
-        alerts={derived}
-        condition={condition}
-        readings={detail.readings}
-        daylight={daylight}
-        lastUpdated={system.lastUpdated}
-        now={now}
-        heading="The system's own figures"
-      />
-
-      {/* Why band 1 counts more than this band shows — stated on the page rather
-          than left as a discrepancy a reader has to notice and then distrust. */}
-      {standing.length > derived.length && (
-        <p className="max-w-prose text-xs text-tertiary">
-          The counts above also include {standing.length - derived.length}{' '}
-          {standing.length - derived.length === 1 ? 'alarm' : 'alarms'} asserted by the
-          site's monitoring unit against the conversion units and their arrays. They are
-          not carded here — this band draws each rule against the reading and threshold
-          behind it, and those registers carry no reading. The Alarms tab lists every row
-          from both sources, with what has been done about each one.
-        </p>
-      )}
     </div>
   );
 };

@@ -33,9 +33,9 @@ import type {Genset} from './genset.type';
  *
  * ## Why the lines sit here rather than in Settings
  *
- * They are fixed, deliberately. `GensetSettings` states the rule the app works to:
- * a setpoint that lives in the panel is not editable from a screen that cannot
- * issue the command. These two are the app's own, so they *could* be editable —
+ * They are fixed, deliberately, and the Settings tab itself is empty. The rule the
+ * app works to: a setpoint that lives in the panel is not editable from a screen
+ * that cannot issue the command. These two are the app's own, so they *could* be editable —
  * but they are also what the overview's four buckets are defined as, and a
  * per-genset reserve line would leave the fleet tiles counting to a different
  * definition on every row. If they ever move, they move for the estate.

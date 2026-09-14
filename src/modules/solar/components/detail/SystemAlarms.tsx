@@ -4,9 +4,14 @@ import {useSession} from '@/modules/auth/session';
 import {AlarmLists} from '@/modules/genset/components/alarms/AlarmLists';
 import {plantAlarmsWatched} from '@/modules/genset/data/assertedAlarms';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
+import {UNHANDLED, isStanding} from '@/modules/genset/types/alarmState.type';
 import {solarAlarmQueue} from '../../data/solarAlarmQueue';
+import {systemAlerts} from '../../data/systemHealth';
 import {systemDetail} from '../../data/systemDetail';
 import {useSolarSystem} from '../../data/systems';
+import {systemCondition} from '../../types/health.type';
+import {isDaylight} from '../../types/reading.type';
+import {SystemHealth} from './SystemHealth';
 
 /**
  * The array's Alarms tab — every alarm it is carrying, from both sources.
@@ -17,6 +22,20 @@ import {useSolarSystem} from '../../data/systems';
  * the derived rules alone, so the page and the strip that summarised it printed
  * different totals. They are one list now, built by `solarAlarmQueue`, and this is
  * the only screen where a row from either source can be acted on.
+ *
+ * ## And the health band, which used to close the home page
+ *
+ * It is the first thing on this tab now. It draws the **derived** rules alone —
+ * each card against the reading and the line the reading crossed — and the figures
+ * those rules are computed from underneath. That is exactly why it belongs here
+ * rather than a page away: a reader who has just been told a wash is overdue is one
+ * glance from the row that says whether anybody has acknowledged it, and the band
+ * is no longer restating on the home page's last screen a count the home page's
+ * strip gives at the top.
+ *
+ * The registers are deliberately still not carded in it. A device nothing has read
+ * has no reading to draw and no axis to sit on; those rows are in the table below,
+ * which is where the note at the foot of this page sends a reader who counts.
  *
  * The distinction between them is not lost by merging, because it decides which page
  * to believe about a given morning. The model can see that output stepped down in
@@ -72,14 +91,44 @@ export const SystemAlarms = ({systemId}: {systemId: string}) => {
   const watched =
     system === undefined ? 0 : plantAlarmsWatched(systemId, system.role, 'SOLAR');
 
+  /**
+   * The derived rules still standing, and the verdict recomputed from them.
+   *
+   * Filtered by the same handling the queue above reads, so clearing a wash from the
+   * table empties its card from the band on the way back. `condition` is taken from
+   * what survives rather than from `systemHealth` — a verdict of `Attention` over a
+   * band with nothing in it is the mismatch this file is about, in miniature.
+   */
+  const derived =
+    system === undefined || detail === undefined
+      ? []
+      : systemAlerts(system, detail, now).filter((alert) =>
+          isStanding({handling: handling[alert.id] ?? UNHANDLED}),
+        );
+
   return (
     <div className="flex flex-col gap-6 px-4 pt-2 pb-8">
+      {system !== undefined && detail !== undefined && (
+        <>
+          <SystemHealth
+            alerts={derived}
+            condition={systemCondition(derived)}
+            readings={detail.readings}
+            daylight={isDaylight(now)}
+            lastUpdated={system.lastUpdated}
+            now={now}
+            heading="The system's own figures"
+          />
+
+          <hr className="border-subtle" />
+        </>
+      )}
+
       <AlarmLists
         standing={queue.standing}
         cleared={queue.cleared}
         by={by}
         subject="this array"
-        device="the monitoring unit"
       />
 
       {/* The denominator. Four registers is the whole of what the device knows about
@@ -100,8 +149,8 @@ export const SystemAlarms = ({systemId}: {systemId: string}) => {
           but they are modules in the site's own cabinet and are counted there. Rows
           marked <span className="text-secondary">Derived</span> are not from the device
           at all: they are this app's own arithmetic over the generation series and the
-          service schedule, and the system's home page draws each one against the
-          reading behind it.
+          service schedule, and the band at the top of this page draws each one against
+          the reading behind it.
         </p>
       ) : (
         // The other twenty-four sites, where every row here is `Derived` and the

@@ -25,8 +25,12 @@ export const TELCOIQ: BrandIdentity = {
   mark,
   // The wordmark is 672 x 162 in the source PNG, carried at the same ratio.
   logoSize: {width: 218, height: 53},
-  // The IQ glyph cut out of the wordmark, 218 x 166 of ink.
-  markSize: {width: 42, height: 32},
+  // The short logo for a dark ground — white letters with the wordmark's blue on
+  // its own transparency, 228 x 170 in the source PNG and carried at that ratio.
+  // It replaced a cut of the wordmark that had its own near-black baked in as
+  // opaque pixels, which read on the rail as a dark tile sitting on a dark rail
+  // rather than as a mark on it.
+  markSize: {width: 43, height: 32},
   theme: {
     // Sampled from the wordmark's "telco": the dominant saturated blue across
     // 293 pixels of the glyph, with #0268FF and #036AFF either side of it as

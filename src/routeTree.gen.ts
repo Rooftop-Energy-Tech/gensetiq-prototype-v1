@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedBatteryRouteImport } from './routes/_authenticated/battery'
 import { Route as AuthenticatedGensetsRouteImport } from './routes/_authenticated/gensets'
@@ -58,6 +59,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -291,6 +297,7 @@ const AuthenticatedSolarSystemIdSettingsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
   '/battery': typeof AuthenticatedBatteryRoute
   '/gensets': typeof AuthenticatedGensetsRoute
@@ -333,6 +340,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
   '/battery': typeof AuthenticatedBatteryRoute
   '/gensets': typeof AuthenticatedGensetsRoute
@@ -372,6 +380,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
   '/_authenticated/battery': typeof AuthenticatedBatteryRoute
   '/_authenticated/gensets': typeof AuthenticatedGensetsRoute
@@ -416,6 +425,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/gallery'
     | '/login'
     | '/battery'
     | '/gensets'
@@ -458,6 +468,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/gallery'
     | '/login'
     | '/battery'
     | '/gensets'
@@ -496,6 +507,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/gallery'
     | '/login'
     | '/_authenticated/battery'
     | '/_authenticated/gensets'
@@ -540,6 +552,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  GalleryRoute: typeof GalleryRoute
   LoginRoute: typeof LoginRoute
 }
 
@@ -557,6 +570,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1009,6 +1029,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  GalleryRoute: GalleryRoute,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport

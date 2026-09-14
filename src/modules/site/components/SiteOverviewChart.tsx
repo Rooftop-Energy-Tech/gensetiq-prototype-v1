@@ -1,5 +1,7 @@
 import {useRef, useState} from 'react';
 
+import {ChartMetrics} from '@/components/global/ChartMetrics';
+import {ChartTooltip} from '@/components/global/ChartTooltip';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {SiteOverview} from '../data/siteOverview';
@@ -23,7 +25,8 @@ import {ShareBar} from './ShareBar';
  * - **A crosshair and a tooltip listing every series at that instant.** This is the
  *   part of NetEco's panel doing the real work: four curves at a glance for the
  *   shape, and one hover for the arithmetic. Without it an overlay chart is only an
- *   impression.
+ *   impression. The box floats beside the crosshair — see `ChartTooltip` for why
+ *   the per-instant figures ride with the pointer and the window's totals do not.
  * - **The legend above rather than beside.** Four labels of this length do not fit
  *   a side rail at the widths this band gets, and NetEco puts them on top.
  *
@@ -90,6 +93,20 @@ const axisFor = (values: Array<number>): {top: number; bottom: number; step: num
 /** About one label per 90px, always keeping the first and last. */
 const labelStride = (count: number, plotWidth: number): number =>
   Math.max(1, Math.ceil(count / Math.max(2, Math.floor(plotWidth / 90))));
+
+/**
+ * Whether the closing label is far enough past the last strided one to be drawn.
+ *
+ * The last sample always gets a label — it is one of the two a reader checks to
+ * know what window they are looking at — but the strided run does not land on it,
+ * so the two can end up a few pixels apart and print as `22:3023:30`. Half a stride
+ * is the clearance: nearer than that and the closing label is dropped, and the run's
+ * own last one stands as the right-hand end of the axis.
+ */
+const showsLast = (count: number, stride: number): boolean => {
+  const gap = (count - 1) % stride;
+  return gap === 0 || gap > stride / 2;
+};
 
 export const SiteOverviewChart = ({overview}: {overview: SiteOverview}) => {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -178,182 +195,202 @@ export const SiteOverviewChart = ({overview}: {overview: SiteOverview}) => {
 
   const shown = hovered === null ? undefined : hovered;
 
+  // The plot is drawn in viewBox units and laid out in CSS pixels; below the
+  // minimum width they part company, and the tooltip is positioned in the latter.
+  const frameWidth = available > 0 ? available : width;
+  const scale = frameWidth / width;
+
   return (
-    <div ref={boxRef} className="relative w-full">
-      {/* NetEco puts the legend on top of the frame; four labels of this length
-          have nowhere else to go at the widths this band gets. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pb-2 text-xs">
-        {series.map((one) => (
-          <span key={one.id} className={cn('flex items-center gap-1.5', one.token)}>
-            <span className="h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true" />
-            <span className="text-secondary">{one.label}</span>
-          </span>
-        ))}
-      </div>
+    <div ref={boxRef} className="flex w-full flex-col gap-4">
+      {/* The window's arithmetic, above the plot rather than under it — the design's
+          own order (Figma `Section - Site diagnostics`). It reads as the headline
+          the chart then explains: *what carried this day*, then *when*. Under the
+          plot it was the last thing on a 470px card and was routinely never seen.
 
-      <svg
-        width={width}
-        height={HEIGHT}
-        viewBox={`0 0 ${width} ${HEIGHT}`}
-        className="w-full"
-        role="img"
-        aria-label={`Power supply distribution, in ${unit}`}
-        onPointerLeave={() => setHovered(null)}
-        onPointerMove={(event) => {
-          const box = event.currentTarget.getBoundingClientRect();
-          const ratio = (event.clientX - box.left) / box.width;
-          const at = ratio * width - AXIS_WIDTH;
-          const index = Math.round((at / plotWidth) * (count - 1));
-          setHovered(index >= 0 && index < count ? index : null);
-        }}
-      >
-        <text
-          x={AXIS_WIDTH - 8}
-          y={PAD_TOP - 5}
-          textAnchor="end"
-          className="fill-current text-[10px] text-tertiary"
+          The charge view publishes no mix — its figures are `From solar`,
+          `From genset`, `Solar share` — so it keeps a plain row of totals in the
+          same slot rather than losing them with the bar. */}
+      {overview.mix !== undefined ? (
+        <ShareBar rows={overview.mix} />
+      ) : (
+        <ChartMetrics
+          metrics={overview.totals.map((total) => ({
+            key: total.label,
+            label: total.label,
+            value: total.value,
+          }))}
+        />
+      )}
+
+      {/* The plot's own positioning box: the tooltip is offset from the top of the
+          frame, which is not where this component starts — the share bar is above
+          it and its key wraps to two rows at narrow widths. */}
+      <div className="relative">
+        <svg
+          width={width}
+          height={HEIGHT}
+          viewBox={`0 0 ${width} ${HEIGHT}`}
+          className="w-full"
+          role="img"
+          aria-label={`Power supply distribution, in ${unit}`}
+          onPointerLeave={() => setHovered(null)}
+          onPointerMove={(event) => {
+            const box = event.currentTarget.getBoundingClientRect();
+            const ratio = (event.clientX - box.left) / box.width;
+            const at = ratio * width - AXIS_WIDTH;
+            const index = Math.round((at / plotWidth) * (count - 1));
+            setHovered(index >= 0 && index < count ? index : null);
+          }}
         >
-          {unit}
-        </text>
+          <text
+            x={AXIS_WIDTH - 8}
+            y={PAD_TOP - 5}
+            textAnchor="end"
+            className="fill-current text-[10px] text-tertiary"
+          >
+            {unit}
+          </text>
 
-        {ticks.map((tick) => (
-          <g key={tick}>
-            <line
-              x1={AXIS_WIDTH}
-              y1={y(tick)}
-              x2={width}
-              y2={y(tick)}
-              className={cn('stroke-current', tick === 0 ? 'text-default' : 'text-subtle')}
-              strokeWidth={1}
-            />
-            <text
-              x={AXIS_WIDTH - 8}
-              y={y(tick) + 3.5}
-              textAnchor="end"
-              className="fill-current text-[10px] text-tertiary tabular-nums"
-            >
-              {tickLabel(tick, step)}
-            </text>
-          </g>
-        ))}
+          {ticks.map((tick) => (
+            <g key={tick}>
+              <line
+                x1={AXIS_WIDTH}
+                y1={y(tick)}
+                x2={width}
+                y2={y(tick)}
+                className={cn('stroke-current', tick === 0 ? 'text-default' : 'text-subtle')}
+                strokeWidth={1}
+              />
+              <text
+                x={AXIS_WIDTH - 8}
+                y={y(tick) + 3.5}
+                textAnchor="end"
+                className="fill-current text-[10px] text-tertiary tabular-nums"
+              >
+                {tickLabel(tick, step)}
+              </text>
+            </g>
+          ))}
 
-        {/* Bottom band first, so a stroke shared by two bands is drawn by the
-            upper one and the pile reads as a single stack of shares. */}
-        {bands.map((band) => (
-          <g key={band.id} className={band.token}>
-            <polygon points={band.area} className="fill-current" opacity={0.55} />
+          {/* Bottom band first, so a stroke shared by two bands is drawn by the
+              upper one and the pile reads as a single stack of shares. */}
+          {bands.map((band) => (
+            <g key={band.id} className={band.token}>
+              <polygon points={band.area} className="fill-current" opacity={0.55} />
+              <polyline
+                points={band.line}
+                fill="none"
+                className="stroke-current"
+                strokeWidth={1}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+          ))}
+
+          {/* The load over the top of them. Dashed, and the one series with no fill:
+              it is not a share of anything — it is the level the shares add up to, so
+              the line should sit exactly on the crown of the stack. Where it does
+              not, the chart is wrong, which is a useful thing to be able to see. */}
+          {loadLine !== undefined && (
             <polyline
-              points={band.line}
+              points={loadLine.points}
               fill="none"
-              className="stroke-current"
-              strokeWidth={1}
+              className={cn('stroke-current', loadLine.token)}
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
               strokeLinecap="round"
               strokeLinejoin="round"
+              opacity={hovered === null ? 1 : 0.85}
             />
-          </g>
-        ))}
+          )}
 
-        {/* The load over the top of them. Dashed, and the one series with no fill:
-            it is not a share of anything — it is the level the shares add up to, so
-            the line should sit exactly on the crown of the stack. Where it does
-            not, the chart is wrong, which is a useful thing to be able to see. */}
-        {loadLine !== undefined && (
-          <polyline
-            points={loadLine.points}
-            fill="none"
-            className={cn('stroke-current', loadLine.token)}
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={hovered === null ? 1 : 0.85}
-          />
-        )}
+          {/* Where the record ends. Without it the curves simply stop and read as a
+              plant that went quiet, rather than as a day that is not over. */}
+          {measured > 0 && measured < count && (
+            <line
+              x1={x(measured - 1)}
+              y1={PAD_TOP}
+              x2={x(measured - 1)}
+              y2={PAD_TOP + plotHeight}
+              className="stroke-current text-default"
+              strokeWidth={1}
+              strokeDasharray="2 3"
+            />
+          )}
 
-        {/* Where the record ends. Without it the curves simply stop and read as a
-            plant that went quiet, rather than as a day that is not over. */}
-        {measured > 0 && measured < count && (
-          <line
-            x1={x(measured - 1)}
-            y1={PAD_TOP}
-            x2={x(measured - 1)}
-            y2={PAD_TOP + plotHeight}
-            className="stroke-current text-default"
-            strokeWidth={1}
-            strokeDasharray="2 3"
-          />
-        )}
+          {shown !== undefined && (
+            <line
+              x1={x(shown)}
+              y1={PAD_TOP}
+              x2={x(shown)}
+              y2={PAD_TOP + plotHeight}
+              className="stroke-current text-strong"
+              strokeWidth={1}
+            />
+          )}
 
+          {labels.map((label, index) =>
+            index % stride === 0 || (index === count - 1 && showsLast(count, stride)) ? (
+              <text
+                key={`${label}-${index}`}
+                x={x(index)}
+                y={HEIGHT - 10}
+                textAnchor={index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'}
+                className="fill-current text-[10px] text-tertiary"
+              >
+                {label}
+              </text>
+            ) : null,
+          )}
+        </svg>
+
+        {/* NetEco's readout, which is the part of its panel doing the real work:
+            the instant, then every series at it — beside the crosshair, where the
+            reader is already looking. */}
         {shown !== undefined && (
-          <line
-            x1={x(shown)}
-            y1={PAD_TOP}
-            x2={x(shown)}
-            y2={PAD_TOP + plotHeight}
-            className="stroke-current text-strong"
-            strokeWidth={1}
+          <ChartTooltip
+            x={x(shown) * scale}
+            frameWidth={frameWidth}
+            title={stamps[shown] ?? ''}
+            rows={series.map((one) => {
+              const value = one.values[shown];
+              return {
+                key: one.id,
+                label: one.label,
+                // The load is the dashed crown over the stack rather than a share
+                // of it, and its swatch says which of the two it is.
+                swatch: one.stacked ? ('line' as const) : ('dashed' as const),
+                token: one.token,
+                value:
+                  value === null || value === undefined ? 'not yet' : `${value} ${unit}`,
+              };
+            })}
           />
         )}
+        {/* The key, centred under the frame it describes — the design's placement.
+            It names what is drawn and nothing else: the figures moved up to the
+            share bar's key, and the caption sentence went with them. What the
+            window is, and how fine its grain, is what the date stepper and the
+            period control beside it say.
 
-        {labels.map((label, index) =>
-          index % stride === 0 || index === count - 1 ? (
-            <text
-              key={`${label}-${index}`}
-              x={x(index)}
-              y={HEIGHT - 10}
-              textAnchor={index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'}
-              className="fill-current text-[10px] text-tertiary"
-            >
-              {label}
-            </text>
-          ) : null,
-        )}
-      </svg>
-
-      {/* NetEco's readout, which is the part of its panel doing the real work: the
-          instant, then every series at it. Placed under the frame rather than
-          floating over the curves — a box that follows the pointer covers the very
-          shape a reader is pointing at, and at this band's height there is nowhere
-          for it to go that isn't on top of something. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5 text-xs">
-        {shown === undefined ? (
-          <>
-            <span className="text-secondary">{overview.caption}</span>
-            {overview.totals.map((total) => (
-              <span key={total.label} className="text-tertiary tabular-nums">
-                {total.label} · <span className="text-primary">{total.value}</span>
-              </span>
-            ))}
-          </>
-        ) : (
-          <>
-            <span className="text-primary tabular-nums">{stamps[shown]}</span>
-            {series.map((one) => {
-              const value = one.values[shown];
-              return (
-                <span key={one.id} className={cn('flex items-center gap-1.5', one.token)}>
-                  <span className="h-0.5 w-3.5 rounded-full bg-current" aria-hidden="true" />
-                  <span className="text-tertiary">
-                    {one.label} ·{' '}
-                    <span className="text-primary tabular-nums">
-                      {value === null || value === undefined
-                        ? 'not yet'
-                        : `${value} ${unit}`}
-                    </span>
-                  </span>
-                </span>
-              );
-            })}
-          </>
-        )}
+            A square for a band and a rule for the load, because that is how the
+            two are drawn: three filled areas and one dashed line over them. A
+            single swatch shape would have a reader hunting the plot for a fourth
+            band that is not there. */}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-2 text-xs">
+          {series.map((one) => (
+            <span key={one.id} className={cn('flex items-center gap-1.5', one.token)}>
+              {one.stacked ? (
+                <span className="size-3.5 shrink-0 rounded bg-current" aria-hidden="true" />
+              ) : (
+                <span className="h-0.5 w-3.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
+              )}
+              <span className="text-secondary">{one.label}</span>
+            </span>
+          ))}
+        </div>
       </div>
-
-      {/* The stack as arithmetic: each source's energy to the load over the shown
-          window, and its share of it. The rows recompute with the period control
-          and the day stepper because they come off the same window the bands do.
-          The load closes the table at 100% — it is what the shares are of, set off
-          by the rule above it the way its dashed line caps the stack. */}
-      {overview.mix !== undefined && <ShareBar rows={overview.mix} />}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import {useRef, useState} from 'react';
 
+import {ChartTooltip} from '@/components/global/ChartTooltip';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {SolarBucket} from '../data/hybrid';
@@ -80,6 +81,11 @@ export const SolarYieldChart = ({months}: {months: Array<SolarBucket>}) => {
   const labelEvery = column >= 26 ? 1 : 2;
   const ticks = Array.from({length: TICK_ROWS + 1}, (_, index) => (top / TICK_ROWS) * index);
   const shown = hovered === null ? undefined : months[hovered];
+
+  // The plot is drawn in viewBox units and laid out in CSS pixels; below the
+  // minimum width they part company, and the tooltip is positioned in the latter.
+  const frameWidth = available > 0 ? available : width;
+  const scale = frameWidth / width;
 
   return (
     <div ref={boxRef} className="relative w-full">
@@ -184,19 +190,36 @@ export const SolarYieldChart = ({months}: {months: Array<SolarBucket>}) => {
         })}
       </svg>
 
-      {/* The readout, under the plot. A tooltip anchored to the bar would sit over
-          the neighbour a reader is comparing it with. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs">
+      {/* The bucket's own figure, beside the bar it belongs to. Offset to the side
+          of the crosshair and flipped at the right-hand edge, so the neighbour a
+          reader is comparing against stays visible — which was the objection to a
+          tooltip when this readout sat under the plot. */}
+      {shown !== undefined && hovered !== null && (
+        <ChartTooltip
+          x={centre(hovered) * scale}
+          frameWidth={frameWidth}
+          title={shown.label}
+          width={168}
+          rows={[
+            {
+              key: 'generated',
+              label: 'Generated',
+              value: kwh(shown.actualKwh),
+              token: 'text-solar',
+              swatch: 'square',
+            },
+          ]}
+          note={shown.inProgress ? 'Still running' : undefined}
+        />
+      )}
+
+      {/* The key, centred under the frame — the band's one layout, which every
+          chart in the app follows. */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-2 text-xs">
         <span className="flex items-center gap-1.5 text-secondary">
-          <span className="h-2 w-3 rounded-[2px] bg-solar" aria-hidden="true" />
+          <span className="size-3.5 shrink-0 rounded bg-solar" aria-hidden="true" />
           Generated
         </span>
-        {shown !== undefined && (
-          <span className="text-primary tabular-nums">
-            {shown.label} · {kwh(shown.actualKwh)}
-            {shown.inProgress && ' · still running'}
-          </span>
-        )}
       </div>
     </div>
   );

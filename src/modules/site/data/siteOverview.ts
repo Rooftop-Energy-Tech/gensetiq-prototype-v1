@@ -582,9 +582,14 @@ export const siteOverview = (
     energy: KWH(energy.batteryToLoad),
     share: percent(energy.batteryToLoad),
   });
+  // `Total`, not `Site load` — though the load is exactly what it is. The key this
+  // closes sits above a chart whose own legend already carries `Site load` as the
+  // dashed line over the stack, and the same two words in both places read as the
+  // same thing said twice rather than as a sum and a series. See the design's own
+  // wording (Figma `Section - Site diagnostics`).
   mix.push({
     id: 'LOAD',
-    label: 'Site load',
+    label: 'Total',
     token: OVERVIEW_SERIES_TOKEN.LOAD,
     energy: KWH(energy.load),
     share: energy.load <= 0 ? '—' : '100%',

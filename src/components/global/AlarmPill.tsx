@@ -48,29 +48,30 @@ import type {AlarmView} from '@/modules/genset/types/alarmView.type';
  * reached its Alarms tab through that chip, and this pill took its place. A pill that
  * named a register and went nowhere would be the one alarm in the app you cannot click.
  *
- * ## The whole pill takes the row's severity
+ * ## Only the glyph takes the row's severity
  *
- * Glyph, rank, separator and name, all from one `SEVERITY_META` entry.
+ * The triangle is coloured from `SEVERITY_META`; the rank, the separator and the name
+ * are the badge's own ink.
  *
- * It shipped with the name in grey, on the filter chips' rule the old `FaultChip` also
- * followed — the glyph and the verdict take the hue, the subject stays grey — and the
- * argument for it was that a quiet pill would not compete with the faulted part's own
- * coloured edge. **Jeff overrode that the same day (2026-09-10): the name goes red
- * too.** Worth recording which way the trade went rather than leaving the old reasoning
- * standing over code that contradicts it.
+ * **This has now gone both ways and the current answer is Tristan's (2026-09-14):
+ * colour the icon, leave the text black.** It first shipped with the name in grey and
+ * the rank coloured, Jeff overrode that to an all-red pill the same day it was built
+ * (2026-09-10) — the argument being that a pill sitting among `Standby` and `44.6 °C`
+ * has to not read like them, and that a half-red, half-grey pill read as a severity
+ * chip with a caption bolted on. Both are recorded here rather than quietly replaced,
+ * because a reader finding a one-colour pill in a screenshot should be able to tell
+ * when it changed and why.
  *
- * The override is the better call in this position, and the grey was a habit carried in
- * from somewhere it fits better. A filter chip sits in a row of its own peers where the
- * hue is the only thing separating them, so colouring the label there would leave
- * nothing to scan. This pill sits among `Standby` and `44.6 °C` — pills that are *not*
- * alarms — and the one thing it has to do is not read like them. A single-colour pill
- * does that at a glance; a pill whose left half was red and right half grey read as a
- * severity chip with a caption bolted on.
+ * What settles it is that this is the app's rule everywhere else and this pill was the
+ * one exception. `ClassBadge` on the alarm tables, the alert rows on a genset's home,
+ * the severity counts — all of them colour a glyph and set the words in the text
+ * colour, and a reader who has learned that reads the hue off the mark rather than off
+ * the sentence. A pill that coloured its whole string was a second convention for the
+ * same fact.
  *
- * `NEUTRAL` is unaffected and still works, which was the reason to keep the rank as a
- * word in the first place: `SEVERITY_META` gives it no hue by design, so its name
- * resolves to `text-primary` and the rank is carried by the word `Neutral` and the
- * triangle rather than by colour.
+ * `NEUTRAL` is unaffected either way, which was the reason to keep the rank as a word
+ * in the first place: `SEVERITY_META` gives it no hue by design, so the rank is carried
+ * by the word `Neutral` and the triangle rather than by colour.
  */
 export const AlarmPill = ({
   fault,
@@ -135,8 +136,9 @@ export const AlarmPill = ({
         {/* Sized by the badge's own `[&>svg]:size-3`, which reaches direct children —
             with `asChild` the `<Link>` is the badge, so this is one. */}
         <TriangleAlertIcon className={cn('shrink-0', meta.textClassName)} aria-hidden="true" />
-        <span className={cn('shrink-0', meta.textClassName)}>{meta.label}</span>
-        <span aria-hidden="true" className={cn('shrink-0', meta.textClassName)}>
+        {/* The badge's own ink from here on — see the note above. */}
+        <span className="shrink-0">{meta.label}</span>
+        <span aria-hidden="true" className="shrink-0">
           ·
         </span>
         {/* The name exactly as the gateway publishes it, which is what the Alarms tab
@@ -146,13 +148,7 @@ export const AlarmPill = ({
             even a second line breaks inside itself rather than overflowing the badge's
             `overflow-hidden` and vanishing. Truncating keeps the single line and puts
             the whole string on the tooltip. */}
-        <span
-          className={cn(
-            'min-w-0',
-            wrap ? 'break-words' : 'truncate',
-            meta.textClassName,
-          )}
-        >
+        <span className={cn('min-w-0', wrap ? 'break-words' : 'truncate')}>
           {fault.name}
         </span>
       </Link>

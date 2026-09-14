@@ -81,8 +81,8 @@ import type {SolarSystem} from '../../types/system.type';
  * The rule underneath both: **claims are placed and marked, measurements are spread and
  * left grey.** `placeDark` is where it is implemented.
  *
- * The array-level loss is not going unsaid either. `SystemHealth`, two bands down, raises
- * it against the reading and the step behind it — and only where there *is* a step, so a
+ * The array-level loss is not going unsaid either. `SystemHealth`, at the top of the
+ * Alarms tab, raises it against the reading and the step behind it — and only where there *is* a step, so a
  * loss known only from a register does not get a message claiming the output dropped.
  *
  * ## The fault mark is `AlarmPill`, shared with every other part in the app

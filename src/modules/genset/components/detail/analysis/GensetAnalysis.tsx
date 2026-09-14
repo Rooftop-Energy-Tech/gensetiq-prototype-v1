@@ -1,6 +1,7 @@
 import {useMemo, useState} from 'react';
 
 import {relativeTime} from '@/lib/format';
+import {cn} from '@/lib/utils';
 import {gensetInstallations} from '../../../data/installations';
 import {PLOTTABLE_READING_GROUPS, PLOTTABLE_READING_KEYS} from '../../../data/detail';
 import type {GensetDetail} from '../../../data/detail';
@@ -19,6 +20,7 @@ import type {AnalysisSearch, AnalysisWindow} from '../../../types/analysisView.t
 import {InstallationPicker} from '../../runs/InstallationPicker';
 import {RangePicker} from './RangePicker';
 import {SeriesPicker} from './SeriesPicker';
+import {SERIES_SLOTS} from './seriesMeta';
 import {TimeSeriesChart} from './TimeSeriesChart';
 
 /**
@@ -137,13 +139,43 @@ export const GensetAnalysis = ({
         )}
       </div>
 
-      {/* Only alongside a chart. It is a legend, and a legend under an empty
-          panel is an explanation of marks the reader cannot see. */}
+      {/* The key, centred under the frame — the band's one layout, which every
+          chart in the app follows. Only alongside a chart: a legend under an empty
+          panel is an explanation of marks the reader cannot see.
+
+          It names the traces as well as the shading now. The picker above says
+          which readings are *selected*; this says which colour each one was
+          drawn in, which is the only thing tying a trace to its own axis. */}
       {drawn.length > 0 && (
-        <p className="text-xs text-secondary">
-          Shaded bands are runs — the engine turning. A broken trace is a reading
-          that did not exist, not a reading of zero.
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+            {drawn.map((one, index) => (
+              <span key={one.key} className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    'h-0.5 w-3.5 shrink-0 rounded-full',
+                    SERIES_SLOTS[index]?.background,
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="text-secondary">{one.label}</span>
+              </span>
+            ))}
+
+            <span className="flex items-center gap-1.5">
+              <span
+                className="size-3.5 shrink-0 rounded bg-highlight"
+                aria-hidden="true"
+              />
+              <span className="text-secondary">Engine running</span>
+            </span>
+          </div>
+
+          {/* What no swatch can say. */}
+          <p className="text-xs text-tertiary">
+            A broken trace is a reading that did not exist, not a reading of zero.
+          </p>
+        </div>
       )}
     </div>
   );

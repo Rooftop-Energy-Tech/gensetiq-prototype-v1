@@ -58,7 +58,6 @@ export const BankAlarms = ({bankId}: {bankId: string}) => {
         cleared={cleared}
         by={by}
         subject="this bank"
-        device="the monitoring unit"
       />
 
       {/* Which of the two zeros this bank's is — the whole reason this tab stopped

@@ -18,19 +18,21 @@ const SEVERITY_PARAM = {
 /**
  * Which chip is selected in the alerts section, as URL state.
  *
- * Same reason the fleet screen keeps its view in the URL: a link to a genset with
- * its coolant readings already open is the useful thing to paste into a message,
- * and the back button should step out of a filter rather than off the page.
+ * It belongs to the **Alarms tab**, which is where the alerts section now lives;
+ * it was the home page's until the band moved. Same reason the fleet screen keeps
+ * its view in the URL: a link to a genset with its coolant readings already open
+ * is the useful thing to paste into a message, and the back button should step out
+ * of a filter rather than off the page.
  *
  * Both fields are `.catch()`-guarded. A hand-edited `?severity=urgent` should fall
  * back to no filter, not throw out of `validateSearch` and blank the route.
  */
-export const gensetHomeSearchSchema = z.object({
+export const gensetAlarmsSearchSchema = z.object({
   severity: z.enum(['critical', 'warning', 'neutral']).optional().catch(undefined),
   tag: z.string().optional().catch(undefined),
 });
 
-export type GensetHomeSearch = z.infer<typeof gensetHomeSearchSchema>;
+export type GensetAlarmsSearch = z.infer<typeof gensetAlarmsSearchSchema>;
 
 /**
  * The resolved selection the alerts section works with.
@@ -45,7 +47,7 @@ export type AlertFocus =
   | {kind: 'severity'; severity: AlertSeverity}
   | {kind: 'tag'; tagId: string};
 
-export const alertFocus = (search: GensetHomeSearch): AlertFocus => {
+export const alertFocus = (search: GensetAlarmsSearch): AlertFocus => {
   const match = Object.entries(SEVERITY_PARAM).find(([, param]) => param === search.severity);
   if (match !== undefined) return {kind: 'severity', severity: match[0] as AlertSeverity};
   if (search.tag !== undefined) return {kind: 'tag', tagId: search.tag};
@@ -61,7 +63,7 @@ export const alertFocus = (search: GensetHomeSearch): AlertFocus => {
  * contradiction in favour of severity, a severity chip would stay selected no
  * matter how many tags were clicked afterwards.
  */
-export const alertFocusSearch = (focus: AlertFocus): GensetHomeSearch => {
+export const alertFocusSearch = (focus: AlertFocus): GensetAlarmsSearch => {
   if (focus.kind === 'severity')
     return {severity: SEVERITY_PARAM[focus.severity], tag: undefined};
   if (focus.kind === 'tag') return {severity: undefined, tag: focus.tagId};

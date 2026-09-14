@@ -1,5 +1,6 @@
 import {useMemo, useRef, useState} from 'react';
 
+import {ChartTooltip} from '@/components/global/ChartTooltip';
 import {amount, clockTime, dayMonth} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
@@ -351,47 +352,36 @@ export const TimeSeriesChart = ({
         </svg>
       )}
 
+      {/* The readout every chart in the app shares. It was this component's own box
+          first; `ChartTooltip` is that box lifted out, so the trend and telemetry
+          charts report a hover the same way this one always has. */}
       {hovered !== undefined && (
-        <div
-          // Flipped to the left of the cursor once it would otherwise run off the
-          // plot. Following the cursor is what makes the readout feel attached to
-          // the crosshair rather than parked in a corner of the panel.
-          className="pointer-events-none absolute top-6 flex flex-col gap-1.5 rounded-md border border-default bg-overlay px-2.5 py-2 shadow-md"
-          style={{
-            width: READOUT_WIDTH,
-            left:
-              hoverX + READOUT_WIDTH + 12 > width
-                ? hoverX - READOUT_WIDTH - 12
-                : hoverX + 12,
-          }}
-        >
-          <p className="text-xs font-medium text-secondary">
-            {clockTime(hovered.t)} · {dayMonth(hovered.t)}
-          </p>
-
-          {series.map((one, index) => {
+        <ChartTooltip
+          x={hoverX}
+          frameWidth={width}
+          width={READOUT_WIDTH}
+          top={24}
+          title={`${clockTime(hovered.t)} · ${dayMonth(hovered.t)}`}
+          rows={series.map((one, index) => {
             const sample = sampleAt(one, hovered.t);
-            const slot = SERIES_SLOTS[index];
 
-            return (
-              <div key={one.key} className="flex items-baseline justify-between gap-2">
-                <span className="flex min-w-0 items-baseline gap-1.5">
-                  <span className={cn('size-1.5 shrink-0 rounded-full', slot.background)} />
-                  <span className="truncate text-xs text-secondary">{one.label}</span>
-                </span>
-                <span className={cn('shrink-0 text-xs font-semibold', slot.text)}>
-                  {sample?.value === undefined || sample.value === null
-                    ? '—'
-                    : amount(sample.value, one.unit, one.precision)}
-                </span>
-              </div>
-            );
+            return {
+              key: one.key,
+              label: one.label,
+              swatch: 'dot' as const,
+              token: SERIES_SLOTS[index].text,
+              value:
+                sample?.value === undefined || sample.value === null
+                  ? '—'
+                  : amount(sample.value, one.unit, one.precision),
+            };
           })}
-
-          {series.some((one) => sampleAt(one, hovered.t)?.value === null) && (
-            <p className="text-[10px] text-secondary">— engine not turning</p>
-          )}
-        </div>
+          note={
+            series.some((one) => sampleAt(one, hovered.t)?.value === null)
+              ? '— engine not turning'
+              : undefined
+          }
+        />
       )}
     </div>
   );

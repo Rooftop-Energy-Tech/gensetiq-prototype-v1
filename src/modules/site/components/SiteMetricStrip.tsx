@@ -23,13 +23,14 @@ import {supplyMeta} from './supplyMeta';
  *
  * ## The four columns, and which of them is contested
  *
- * Three are fixed. **Site draw** is the site-level essential — it is the only
- * column that carries a figure about *the tower* rather than about the plant
- * standing beside it, and it is where the DC bus reading hangs (see below).
- * **Alarm** holds the third column at every site, because every site can have one —
- * and it counts what the site's Alarms tab lists, not just the gensets'. See below.
- * **Supply** holds the fourth for the same reason: every site is being fed by
- * something, including by nothing.
+ * Three are fixed, and the two that answer *what is happening at this tower right
+ * now* lead. **Supply** is first — what is feeding the yard is the fact every other
+ * figure on the page is conditional on, and it is the one column every site can
+ * fill, including a site being fed by nothing. **Site draw** is second: the only
+ * figure about *the tower* rather than about the plant standing beside it, and
+ * where the DC bus reading hangs (see below). **Alarm** holds the third column at
+ * every site, because every site can have one — and it counts what the site's
+ * Alarms tab lists, not just the gensets'. See below.
  *
  * That leaves one slot, and it is contested. The design draws `Generation today`
  * and `Fuel level`, which are the right two **for the site it draws** — a solar
@@ -38,8 +39,18 @@ import {supplyMeta} from './supplyMeta';
  * tank. Fixing either would mean printing `0 kWh` under `Generation today` at every
  * site without a panel on it, which reads as an array that made nothing rather than
  * as a site that has none. So the slot is filled from what is actually fitted, in
- * the design's own order of preference, and a site with nothing fitted simply runs
- * three columns.
+ * the design's own order of preference, it takes the column past the alarms, and a
+ * site with nothing fitted simply runs three columns.
+ *
+ * ## Why the plant figure moved to the end rather than the supply badge to the
+ * front of the queue
+ *
+ * Because the alarm pill is the third column on **every** strip in the app — a
+ * system's, a bank's, a cabinet's, a set's — and a reader moving between them
+ * knows where the pill is before they have read a label. Leading with supply and
+ * draw without moving it costs one thing only: the contested slot goes last. That
+ * slot is the one column that already changes its own name between sites, so it is
+ * the one a reader is reading rather than locating.
  *
  * The strip is held there. A column that moves between pages costs a reader the
  * one thing a strip is for — knowing where to look before reading the labels.
@@ -61,29 +72,27 @@ type StripMetric = {label: string; value: ReactNode};
  * The contested slot, filled from what is actually fitted — see the note above.
  *
  * One entry, not two: the second of the old pair is now `Site draw`, which is
- * pinned. Returned as an array rather than a possibly-`undefined` metric so a site
- * with nothing fitted drops the column instead of drawing an empty one.
+ * pinned. `undefined` rather than an empty list so a site with nothing fitted drops
+ * the column instead of drawing an empty one.
  */
 const fittedPlantMetric = (
   summary: SiteSummary,
   role: SitePowerRole,
   now: number,
-): Array<StripMetric> => {
+): StripMetric | undefined => {
   const seed = siteSeed(summary.site.id);
 
   // The design's own order. Generation leads at a site that generates, because it
   // is the number the whole hybrid was bought for.
   if (seed !== undefined && hasSolar(role) && hybridPlant(seed, role).solarKwp > 0) {
-    return [
-      {
-        label: 'Generation today',
-        value: amount(Math.round(todaySoFarKwh(seed, role, now)), 'kWh'),
-      },
-    ];
+    return {
+      label: 'Generation today',
+      value: amount(Math.round(todaySoFarKwh(seed, role, now)), 'kWh'),
+    };
   }
 
   if (summary.gensets.length > 0) {
-    return [{label: 'Fuel level', value: amount(summary.fuelLitres, 'L')}];
+    return {label: 'Fuel level', value: amount(summary.fuelLitres, 'L')};
   }
 
   // Hours, not percent. The slot is contested; a figure whose denominator is off
@@ -91,15 +100,13 @@ const fittedPlantMetric = (
   // weakest thing that could hold it. The diagram below still carries the
   // percentage, where a level drawn as a level belongs.
   if (seed !== undefined && hasBattery(role) && hybridPlant(seed, role).batteryKwh > 0) {
-    return [
-      {
-        label: 'Battery left',
-        value: amount(hybridState(seed, role, now).hoursLeft, 'h', 1),
-      },
-    ];
+    return {
+      label: 'Battery left',
+      value: amount(hybridState(seed, role, now).hoursLeft, 'h', 1),
+    };
   }
 
-  return [];
+  return undefined;
 };
 
 /**
@@ -141,7 +148,7 @@ const drawMetric = (
 };
 
 /**
- * The fourth column: what is feeding the yard right now.
+ * The first column: what is feeding the yard right now.
  *
  * The same `supplyMeta` the sites list's preview panel reads, so the badge a
  * reader clicked through from and the one at the top of this page cannot say two
@@ -149,7 +156,7 @@ const drawMetric = (
  * badge sits *on* the strip's `element` surface, where an `element` badge has no
  * silhouette, and it is the treatment the alarm pill beside it already uses.
  */
-const supplyColumn = (summary: SiteSummary, role: SitePowerRole) => {
+const supplyColumn = (summary: SiteSummary, role: SitePowerRole): StripMetric => {
   const supply = supplyMeta(
     siteFeed(summary, summary.defaultDutyId, role),
     role,
@@ -159,7 +166,7 @@ const supplyColumn = (summary: SiteSummary, role: SitePowerRole) => {
 
   return {
     label: 'Supply',
-    content: (
+    value: (
       <Badge variant="secondary" className="max-w-full">
         <SupplyIcon
           className={supply.live ? 'text-teal' : 'text-tertiary'}
@@ -180,10 +187,11 @@ export const SiteMetricStrip = ({
   role: SitePowerRole;
   now: number;
 }) => {
-  const metrics = [
-    ...fittedPlantMetric(summary, role, now),
-    drawMetric(summary, role, now),
-  ];
+  // Supply, then draw — see the note at the top of the file. The plant figure the
+  // site happens to be able to answer for takes the column past the alarms, and a
+  // site with nothing fitted runs three columns.
+  const metrics = [supplyColumn(summary, role), drawMetric(summary, role, now)];
+  const fitted = fittedPlantMetric(summary, role, now);
 
   /**
    * Everything standing on the yard — **the same list the Alarms tab shows**.
@@ -210,7 +218,7 @@ export const SiteMetricStrip = ({
          crumb back to the site that opened it, and this *is* that site — its own pages
          are the end of that trail rather than a step along it. */
       alarmLink={{to: '/sites/$siteId/alarms', params: {siteId: summary.site.id}}}
-      trailing={supplyColumn(summary, role)}
+      trailing={fitted}
       ariaLabel="Site summary"
     />
   );

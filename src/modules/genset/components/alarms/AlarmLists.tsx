@@ -310,8 +310,6 @@ export const AlarmLists = ({
   heading = 'Alarms',
   /** `this genset`, `this bank`, `this array` — for the two empty states. */
   subject,
-  /** What a clear cannot reach: `the controller`, `the monitoring unit`. */
-  device,
   /**
    * A control row under the severity chips, for the one page that needs one.
    *
@@ -344,7 +342,6 @@ export const AlarmLists = ({
   by: string;
   heading?: string;
   subject: string;
-  device: string;
   controls?: ReactNode;
   severityFilter?: {
     counts: Record<AlertSeverity, number>;
@@ -418,7 +415,7 @@ export const AlarmLists = ({
         }
 
         // And a control, on the one that does. Same chip, same weights as the
-        // genset home page's filter row — see `AlertsSection`.
+        // filter row `AlertsSection` puts above this table on a genset's own tab.
         const isOn = severityFilter.selected.has(severity);
 
         return (
@@ -536,24 +533,6 @@ export const AlarmLists = ({
           </div>
         )}
       </section>
-
-      {/* The limit, named on the screen rather than left to be discovered.
-
-          On a live panel a fault still asserting its bit raises again on the next
-          poll, which is what makes a manual clear safe: it disposes of a stale
-          alarm and cannot hide a live one. Here the bits are a fixture built at
-          module load and never change, so a cleared alarm stays cleared. That is
-          the one place this page's behaviour parts company with the thing it is
-          modelled on, and a reader deciding whether to trust the Standing count
-          needs to know it. */}
-      <p className="max-w-prose text-xs text-tertiary">
-        Acknowledging records that somebody has taken an alarm on; it does not clear it,
-        and it can be handed back while the alarm still stands. Clearing marks it finished
-        with. None of it reaches {device} — this prototype has no write path to
-        the plant, and on a live system an alarm whose fault is still present would raise
-        again at the next poll. Here the registers are a fixture, so a cleared alarm stays
-        cleared until it is reopened.
-      </p>
 
     </>
   );

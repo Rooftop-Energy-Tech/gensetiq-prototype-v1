@@ -39,12 +39,13 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
  *
  * ## Why `trailing` comes *after* the alarms rather than before them
  *
- * The site page carries a fourth column the other two have nothing to put in —
- * what is feeding the yard. Slotting it third, where it reads more naturally, would
- * push the alarms to fourth **on that page only**, and the paragraph above is the
- * whole reason not to: a reader moving site → solar → battery would find the pill
- * in a different place on the first of them. So the strip grows on the right, and
- * the alarm column stays the third one everywhere it is drawn.
+ * The site page carries a fourth column the other two have nothing to put in — the
+ * plant figure that site can answer for, which is `Generation today` at one yard
+ * and `Fuel level` at the next. Slotting it third would push the alarms to fourth
+ * **on that page only**, and the paragraph above is the whole reason not to: a
+ * reader moving site → solar → battery would find the pill in a different place on
+ * the first of them. So the strip grows on the right, and the alarm column stays
+ * the third one everywhere it is drawn.
  */
 export const MetricStrip = ({
   metrics,
@@ -76,12 +77,13 @@ export const MetricStrip = ({
     search?: LinkProps['search'];
   };
   /**
-   * An extra column past the alarms, label and all — the site page's supply badge
-   * and nothing else so far. The caller supplies the content because what goes in
-   * it is its own business; the column shell is here so the fourth column is
-   * measured, spaced and labelled exactly like the three beside it.
+   * An extra column past the alarms, label and all — the site page's fitted-plant
+   * figure and nothing else so far. The caller supplies the value because what goes
+   * in it is its own business; the column shell is here so the fourth column is
+   * measured, spaced and labelled exactly like the three beside it, and typeset
+   * like them too: a figure in the fourth column is still a figure.
    */
-  trailing?: {label: string; content: ReactNode};
+  trailing?: {label: string; value: ReactNode};
   ariaLabel: string;
 }) => (
   // A **container** query, not a breakpoint, and for the reason `DetailBand` gives:
@@ -133,7 +135,9 @@ export const MetricStrip = ({
           <span className="truncate text-sm font-medium text-secondary">
             {trailing.label}
           </span>
-          {trailing.content}
+          <span className="text-base font-semibold text-primary tabular-nums">
+            {trailing.value}
+          </span>
         </div>
       )}
     </section>

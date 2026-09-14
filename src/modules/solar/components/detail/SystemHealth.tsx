@@ -110,8 +110,8 @@ const ReadingRow = ({
  * genset carries thirty-odd alarms across ten operator-defined tags, and the
  * chips exist to narrow that. A solar system has three rules. A filter over three
  * rows costs a click to do nothing and makes this look like a bigger page than it
- * is. When array alarms become a real set — the Alarms tab is where that lands —
- * the chips come back.
+ * is. Both bands sit on their asset's Alarms tab now, over the tables that carry
+ * the registers; when array alarms become a real set the chips come back.
  */
 export const SystemHealth = ({
   alerts,

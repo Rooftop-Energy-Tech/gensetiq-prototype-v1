@@ -22,7 +22,7 @@ import {useSolarSystem} from '@/modules/solar/data/systems';
  * site away from `SOLAR_HYBRID` while the page is open.
  *
  * The alerts did not go with the list. `string-out` is the rule that survived the
- * boxes, and it is on the home page's health band with the month it started, where
+ * boxes, and it is on the Alarms tab's health band with the month it started, where
  * every other rule this system carries already was.
  */
 const SystemDevicesRoute = () => {

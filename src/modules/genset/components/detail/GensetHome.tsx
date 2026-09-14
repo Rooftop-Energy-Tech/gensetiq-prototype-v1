@@ -4,13 +4,11 @@ import type {LinkProps} from '@tanstack/react-router';
 
 import type {Genset} from '../../types/genset.type';
 import type {ControlMode} from '../../types/telemetry.type';
-import type {AlertFocus} from '../../types/detailView.type';
-import {serviceHeadline, serviceNotice} from '../../types/service.type';
+import {serviceHeadline} from '../../types/service.type';
 import type {GensetDetail} from '../../data/detail';
 import {useServiceStatus} from '../../data/services';
-import {gensetCondition, useFuelIntegrity} from '../../data/fuelIntegrity';
-import {fuelLeakNotice} from '../../types/fuelIntegrity.type';
-import {fuelLevelNotice, fuelRemainingHeadline} from '../../types/fuelLevel.type';
+import {useFuelIntegrity} from '../../data/fuelIntegrity';
+import {fuelRemainingHeadline} from '../../types/fuelLevel.type';
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount, fuelHeadline} from '@/lib/format';
@@ -22,7 +20,6 @@ import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {countBySeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
-import {AlertsSection} from './AlertsSection';
 import {ControlPad} from './ControlPad';
 import {CurrentRunCard} from './CurrentRunCard';
 import {FuelPanel} from './FuelPanel';
@@ -39,10 +36,17 @@ import {TickGauge} from './TickGauge';
  * 2. **The dials** — the controls and the live readings.
  * 3. **The run and the tank** — one start's totals, and when the tank needs
  *    filling.
- * 4. **The details** — which machine this is and what size it is, in a narrow
+ * 4. **The chart** — diesel output, with a day stepper and a period control.
+ * 5. **The details** — which machine this is and what size it is, in a narrow
  *    block between two rules.
- * 5. **The chart** — diesel output, with a day stepper and a period control.
- * 6. **What is wrong** — alerts, and the readings behind them.
+ *
+ * There was a sixth: **what is wrong** — the alerts and the readings behind them.
+ * It is on the `Alarms` tab now, with the standing and cleared tables it was
+ * repeating the subject of. The argument is the one the site page already made
+ * about its device stack: a band that restates the page's alarm counts nine
+ * hundred pixels below them is a second answer to a question the strip has
+ * already answered, and the reader who wants the detail wants the log beside it.
+ * The strip's alarm pill is the one click from here to there.
  *
  * ## The order, and what the design changed about it
  *
@@ -80,20 +84,11 @@ import {TickGauge} from './TickGauge';
  * needs to shrink or scroll sideways — the pad in particular is four **tap targets**
  * and a control shrunk below a thumb is worse than no reflow at all.
  */
-export const GensetHome = ({
-  genset,
-  detail,
-  focus,
-  onFocusChange,
-}: {
-  genset: Genset;
-  detail: GensetDetail;
-  focus: AlertFocus;
-  onFocusChange: (focus: AlertFocus) => void;
-}) => {
+export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDetail}) => {
   /**
    * Control mode is the one thing on this page a person can change, and it lives
-   * in component state rather than the URL — unlike the alert filter.
+   * in component state rather than the URL — unlike the alert filter, which went
+   * to the Alarms tab with the band it filtered.
    *
    * The difference is that a filter describes what you are *looking at* and a
    * mode describes what the *machine* is set to. Putting a machine setting in a
@@ -133,10 +128,10 @@ export const GensetHome = ({
   /**
    * One subscription for both alarm sources on this page.
    *
-   * Clearing a row on the Alarms tab has to empty it out of band 6 and drop it
-   * from band 1's counts on the way back, without a reload. Read once here rather
-   * than inside each consumer: the strip's counts and the cards below are claims
-   * about the same store, and two subscriptions is how they end up a render apart.
+   * Clearing a row on the Alarms tab has to drop it from band 1's counts on the way
+   * back, without a reload. Read once here rather than inside each consumer: the
+   * strip's two sources are claims about the same store, and two subscriptions is
+   * how they end up a render apart.
    */
   const handling = useAlarmHandling();
 
@@ -153,11 +148,11 @@ export const GensetHome = ({
    * one; a summary that undercounts the page it summarises is worse than no
    * summary, since a reader who trusts it never opens the tab.
    *
-   * Band 6 is deliberately **not** given these rows. It is the thresholds band —
-   * every card in it prints the register, the reading and the line the reading
-   * crossed — and this prototype has read none of those registers, so there is no
-   * reading to draw. The footnote under it says so rather than leaving a reader to
-   * work out why the strip is ahead of the cards.
+   * The thresholds band that used to sit at the foot of this page was deliberately
+   * **not** given these rows, and it still is not — it has moved to the Alarms tab,
+   * where the tables beside it list them. Every card in that band prints the
+   * register, the reading and the line the reading crossed, and this prototype has
+   * read none of these registers, so there is no reading to draw.
    */
   const plantStanding = plantAlarmQueue(
     genset.siteId ?? '',
@@ -375,34 +370,6 @@ export const GensetHome = ({
             : [{label: 'Number plate', value: genset.plateNumber}]),
         ]}
       />
-
-      {/* Band 6 — thresholds and the numbers behind them. */}
-      <AlertsSection
-        detail={detail}
-        alerts={alerts}
-        service={service}
-        notice={serviceNotice(genset.id, service)}
-        leak={fuelLeakNotice(genset.id, integrity)}
-        fuelLevel={fuelLevelNotice(genset)}
-        condition={gensetCondition(genset.id, now)}
-        focus={focus}
-        onFocusChange={onFocusChange}
-      />
-
-      {/* Why band 1 counts more than band 6 shows.
-
-          Stated on the page rather than left as a discrepancy a reader has to
-          notice and then distrust. The strip is the total this set is carrying;
-          this band is the subset with a reading and a threshold behind it. */}
-      {plantStanding.length > 0 && (
-        <p className="max-w-prose text-xs text-tertiary">
-          The counts above also include {plantStanding.length} AC{' '}
-          {plantStanding.length === 1 ? 'alarm' : 'alarms'} asserted by the site's
-          monitoring unit, which are not carded here — this band draws each alert
-          against the reading and threshold behind it, and those registers have no
-          reading. They are listed in full on the Alarms tab.
-        </p>
-      )}
     </div>
   );
 };

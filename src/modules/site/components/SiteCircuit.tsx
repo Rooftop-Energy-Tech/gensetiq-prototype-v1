@@ -135,7 +135,10 @@ export const SiteCircuit = ({
           drawing chose it. */}
       <div className="flex justify-center pb-1 xl:justify-start">
         <Tabs value={view} onValueChange={(next) => setView(next as 'schematic' | 'plant')}>
-          <TabsList className="w-[70px]">
+          {/* No fixed width: at `w-[70px]` the two triggers' own `px-2` was being
+              squeezed out by `flex-1` and the icons sat against the rail's edges.
+              `w-fit` lets the list take the width its padding asks for. */}
+          <TabsList>
             {/* `tabIndex` by hand for the reason `PlantToolbar` gives: Radix's
                 roving-focus group leaves every trigger at -1 until one is clicked,
                 which makes a fresh switcher unreachable by keyboard. */}

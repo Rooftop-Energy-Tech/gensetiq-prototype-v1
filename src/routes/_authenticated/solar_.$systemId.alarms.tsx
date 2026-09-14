@@ -18,7 +18,7 @@ import {SystemAlarms} from '@/modules/solar/components/detail/SystemAlarms';
  * So SBH-1495 and SWK-0559 carried one standing condition each and SWK-1163 two,
  * every one of them printed on the home page, while this tab said the feature was
  * coming. The gate was not protecting a reader from an empty page; it was hiding the
- * page's contents.
+ * page's contents. The band that printed them is on this tab now, over the tables.
  *
  * What the three still lack is a **poll table**, and that is said where it belongs —
  * `SystemAlarms` prints the register denominator only when there is one, so an

@@ -1,15 +1,7 @@
-import {createFileRoute, useNavigate, useParams} from '@tanstack/react-router';
+import {createFileRoute, useParams} from '@tanstack/react-router';
 
 import {GensetHome} from '@/modules/genset/components/detail/GensetHome';
 import {gensetById, gensetDetail} from '@/modules/genset/data/detail';
-import {
-  alertFocus,
-  alertFocusSearch,
-  gensetHomeSearchSchema,
-} from '@/modules/genset/types/detailView.type';
-import type {AlertFocus, GensetHomeSearch} from '@/modules/genset/types/detailView.type';
-import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';
-import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * The genset home page — the tab a click from the fleet list lands on.
@@ -19,51 +11,29 @@ import type {FromSearch} from '@/modules/site/types/fromSearch.type';
  * because the parent only needs the fleet row for its header, and the whole
  * `GensetDetail` is a much larger object to carry through a route boundary that
  * doesn't use it.
+ *
+ * No search params of its own. It had two — `severity` and `tag`, the alerts
+ * section's chip selection — and they went to the Alarms tab with the band they
+ * filtered. `from` is still accepted, on the section route above, so a set opened
+ * at a site crumbs back to that site.
  */
 const GensetHomeRoute = () => {
   // Read off the parent explicitly: `$gensetId` belongs to the layout route, and
   // this index route's own params are empty.
   const {gensetId} = useParams({from: '/_authenticated/gensets_/$gensetId'});
-  const search = Route.useSearch();
-  const navigate = useNavigate({from: Route.fullPath});
 
   const genset = gensetById(gensetId);
   const detail = gensetDetail(gensetId);
   if (genset === undefined || detail === undefined) return null;
-
-  const handleFocusChange = (focus: AlertFocus) => {
-    void navigate({
-      search: (previous: GensetHomeSearch) => ({...previous, ...alertFocusSearch(focus)}),
-      // Selecting a chip is a deliberate move and worth a Back — it is how a
-      // reader steps out of a filter without leaving the genset.
-      replace: false,
-    });
-  };
 
   // `key` so a different genset is a different component instance. `GensetHome`
   // holds the control mode in `useState`, and moving between two units' pages reuses
   // this instance — so without it, unit B's page opens showing unit A's mode. A
   // control mode is a fact about one machine's controller; it must not follow the
   // reader to the next machine.
-  return (
-    <GensetHome
-      key={gensetId}
-      genset={genset}
-      detail={detail}
-      focus={alertFocus(search)}
-      onFocusChange={handleFocusChange}
-    />
-  );
+  return <GensetHome key={gensetId} genset={genset} detail={detail} />;
 };
 
 export const Route = createFileRoute('/_authenticated/gensets_/$gensetId/')({
-  // The tab's own params, plus `from` passed straight through. Without the second
-  // half a zod schema strips it as an unknown key and the router rewrites the URL
-  // without it, so a reader who walked in from a site loses that trail on the one
-  // tab that happens to filter — see `fromSearch.type.ts`.
-  validateSearch: (search: Record<string, unknown>): GensetHomeSearch & FromSearch => ({
-    ...gensetHomeSearchSchema.parse(search),
-    ...fromSearchSchema.parse(search),
-  }),
   component: GensetHomeRoute,
 });

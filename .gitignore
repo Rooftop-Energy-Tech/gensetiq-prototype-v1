@@ -3,6 +3,7 @@ dist/
 dist-sesb/
 dist-celcomdigi/
 dist-unbranded/
+dist-telcoiq/
 .tanstack/
 .vite/
 

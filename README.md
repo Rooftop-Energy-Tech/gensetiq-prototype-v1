@@ -1,22 +1,23 @@
-# gensetIQ — prototype
+# telcoIQ — prototype
 
-A clickable prototype of gensetIQ, built from the
+A clickable prototype of **telcoIQ**, the telco-power product line, built from the
 [RooftopIQ V2 Figma](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2463-6889)
 — login, the gensets map and list ("Section 1"), the
 [genset home page](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2560-1834),
 and the
 [site page](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2478-7187).
 
-## Brands: one build, four customers
+## Brands: one build, five customers
 
 The brand is **configuration, not a branch**. `VITE_BRAND` picks it, and each one
 runs on its own port so you can have them open side by side:
 
 ```bash
-npm run dev             # REDTONE      :3400  (the default)
-npm run dev:celcomdigi  # CelcomDigi   :3403
-npm run dev:sesb        # SESB         :3401
-npm run dev:unbranded   # gensetIQ     :3402
+bun run dev             # REDTONE      :3400  (the default)
+bun run dev:sesb        # SESB         :3401
+bun run dev:unbranded   # gensetIQ     :3402
+bun run dev:celcomdigi  # CelcomDigi   :3403
+bun run dev:telcoiq     # telcoIQ      :3404
 ```
 
 | Brand | Estate | Rail | Tab |
@@ -25,6 +26,7 @@ npm run dev:unbranded   # gensetIQ     :3402
 | `celcomdigi` | carrier — 25 towers, 29 sets | CelcomDigi navy `#001871` | CelcomDigi Site Power |
 | `sesb` | utility — 25 substations, 37 sets | SESB blue `#0F4586` | SESB Genset Monitoring |
 | `gensetiq` | carrier | design-system near-black | gensetIQ |
+| `telcoiq` | carrier | IQ near-black `#040710`, blue `#0369FF` | telcoIQ |
 
 Everything a brand may change is in **`src/brands/`**, and
 [`src/brands/types.ts`](src/brands/types.ts) is the file to read first — it states
@@ -43,8 +45,8 @@ which emits static imports for those brands alone:
 
 | Build | Carries | Picker |
 | --- | --- | --- |
-| dev | all four | yes |
-| production, `gensetiq` | all four | yes |
+| dev | all five | yes |
+| production, `gensetiq` | all five | yes |
 | production, a customer's brand | that brand only | no |
 
 This is the difference between hiding a control and not shipping the data. A
@@ -357,19 +359,65 @@ There is no backend. The fleet is mock data and "logging in" writes a flag to
 localStorage — see [Caveats](#caveats).
 
 ```bash
-git clone git@github.com:tristanlim0303/gensetiq-prototype-1.git
-cd gensetiq-prototype-1
+git clone git@github.com:Rooftop-Energy-Tech/telcoiq-design.git
+cd telcoiq-design
 bun install
-bun run dev     # http://localhost:3100 — CelcomDigi
+bun run dev          # http://localhost:3400 — REDTONE, the default brand
+bun run dev:telcoiq  # http://localhost:3404 — telcoIQ
 ```
 
 Needs [Bun](https://bun.sh) (`curl -fsSL https://bun.sh/install | bash`); the
 lockfile is `bun.lock`, so npm/pnpm will resolve different versions.
 
-Port 3100, not 3000: `rooftopiq-frontend-v3` pins 3000 with `strictPort`, so the
-two run side by side.
+Port 3400, not 3000: this repo was forked from `gensetiq-frontend`, which keeps
+:3100, and `rooftopiq-frontend-v3`, the mobile prototype and the tagging
+prototype hold :3000, :3200 and :3300. Every one of them pins `strictPort`, so
+each prototype owns a hundred and they all run side by side.
 
 Any email and password gets you in.
+
+## The component gallery
+
+**`/gallery`** — every shared component, every state, one page. Dev only: the
+route 404s in the `dist-*` builds, which are the ones that go in front of
+customers.
+
+```bash
+bun run dev:telcoiq   # then http://localhost:3404/gallery
+```
+
+It covers the two shared tiers — the eight Radix primitives in
+`src/components/ui`, and the shared pieces in `src/components/global` — plus a
+full table of the colour palette. The ~140 page-shaped components under
+`src/modules/*` are deliberately **not** in it: every one of them already renders
+against real fixture data at its own URL in the table below, which is a better
+bench than anything the gallery could stage.
+
+What the running app cannot show you is **every state at once**, and that is what
+the gallery is for: a battery glyph at five charge levels, an alarm pill at all
+three severities, a filter card active and inactive, a button in seven variants.
+
+Two things on it are not component benches at all, and are the reason it beats a
+Storybook here:
+
+- **The brand switcher**, top right. Five brands recolour the whole app through
+  the token layer; on this page you watch every component change at once, which
+  is the fastest way to find a hardcoded colour.
+- **The token table**, at the foot. `src/styles/colors.ts` is the real design
+  system — brands recolour through it, `figmaMap()` maps it onto Figma variables,
+  and an org skill diffs it against the live file — and it had no viewer. Every
+  token is drawn light-over-dark with its Figma variable beside it, over a
+  checkerboard so the translucent ones read as translucent.
+
+There is also a **dark switch**. `main.tsx` ships this build light-only and never
+adds the `dark` class, but `colors.ts` carries a complete dark palette and
+`colorThemeCss()` already emits the `.dark` block. The switch adds the class, so
+a palette that has never been exercised can at least be looked at.
+
+The variant lists are tied to each component's `cva` union by a
+`Record<Variant, true>`, so adding a variant to `button.tsx` fails
+`bun run typecheck` until the gallery lists it. A bench that has quietly fallen
+behind the code is worse than no bench, because a reader trusts it.
 
 ## What's built
 
@@ -381,8 +429,7 @@ Any email and password gets you in.
 | Genset home | `/gensets/<id>` | The genset's own page: tank + runway + service, controls + live gauges, this run beside today, what it is, alerts. All 24 units have one. |
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
 | Genset runs | `/gensets/<id>/runs` | The run log: a timeline strip, totals for the chosen window, the list, and a CSV export. Not a Figma frame — see [below](#the-runs-tab-is-not-in-the-design). |
-| Genset settings | `/gensets/<id>/settings` | The fuel leakage alarm — what this set is instrumented with, whether the check is on, where its line sits, and the arithmetic behind the verdict. Not a Figma frame — see [below](#fuel-leakage-is-not-in-the-design). |
-| Alarms / Equipment | `/gensets/<id>/alarms`, … | Named in the design's tab strip but not drawn — labelled placeholders so the strip isn't dead. |
+| Alarms / Equipment / Settings | `/gensets/<id>/alarms`, … | Named in the design's tab strip but not drawn — labelled placeholders so the strip isn't dead. Settings says what would belong on it: the [fuel leakage alarm](#fuel-leakage-is-not-in-the-design)'s switch and threshold, tags, notification routing. |
 | Sites — list | `/sites?view=list` | 17 sites, worst condition first. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Sites — map | `/sites?view=map` | One pin per yard, coloured by the site's condition and sized by how many sets stand there. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Site home | `/sites/<id>` | Matches the Figma frame: the site's single-line diagram, then one row per genset with its run and its controls. All 17 sites have one. |
@@ -393,10 +440,11 @@ Any email and password gets you in.
 | Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
 | Report — Genset | `/report/genset` | The engines over the same thirty days: hours, what each set burns per kilowatt-hour at the loading it holds, what part load costs the fleet in litres, diesel unaccounted for, and what is falling due. Not a Figma frame — same. |
 | Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity, strings (and how many are dark) and its condition. Worst first. |
-| System home | `/solar/<id>` | The system's own page in the five bands: the strip, the output dial, what the system is, generation over time, and what is wrong with it. Every solar site has one. |
+| System home | `/solar/<id>` | The system's own page in the four bands: the strip, what the array is putting out now a junction box at a time, generation over time, and what the system is. Every solar site has one. |
 | System analysis | `/solar/<id>/analysis` | Generation over a chosen window, a bar per bucket, with the window in the URL. |
 | System devices | `/solar/<id>/equipment` | The array: its capacity, its modules and their rating, how many strings it is wired in and how many of those are dark. A description, not a list — see [below](#a-row-is-a-system-and-there-is-nothing-under-it). |
-| System service / alarms / … | `/solar/<id>/service`, … | The four tabs in the strip that are not drawn yet — labelled placeholders, same treatment as a genset's. |
+| System alarms | `/solar/<id>/alarms` | Every alarm the array carries, from both sources, over the health band that used to close the home page. |
+| System service / settings | `/solar/<id>/service`, … | The tabs in the strip that are not drawn yet — labelled placeholders, same treatment as a genset's. |
 
 Getting from the fleet into a genset: click its **name** in the list, or the `→`
 in the preview panel's header. Clicking a row or a map pin still only *selects*
@@ -411,8 +459,8 @@ through it:
 
 ```
 /gensets?view=map&q=selangor&id=brf9540&panel=true
-/gensets/brf9540?tag=coolant          # home page, coolant readings showing
-/gensets/brf9540?severity=critical    # home page, filtered to criticals
+/gensets/brf9540/alarms?tag=coolant       # alarms tab, coolant readings showing
+/gensets/brf9540/alarms?severity=critical # alarms tab, filtered to criticals
 /gensets/brf9540/analysis?keys=coolant-temp,oil-pressure&window=7d
 /gensets/brf9540/analysis?from=2026-07-20&to=2026-08-05
 /gensets/brf9540/analysis?run=brf9540-run-3           # one run, end to end
@@ -492,29 +540,36 @@ overloaded a word to reintroduce.
 
 #### The system page
 
-**Five bands**, the same five in the same order as a site's, a genset's and a
+**Four bands**, the same four in the same order as a site's, a genset's and a
 bank's — which is the whole point. An operator moving between a tower's genset,
 its array and its bank finds the same things in the same places, and the pages
 differ only in what they are *about*.
 
 1. **The strip** — solar capacity, generation today, and the alarm counts.
-2. **The dial** — what the system is putting out right now, scaled to the array's
-   **kWp**, which is the only ceiling there is. It was scaled to the inverters'
-   combined AC rating, on the argument that a dial which can never fill reads as a
-   plant permanently underperforming; with no boxes there is no AC rating, and the
-   honest full scale is the glass. A clear noon lands near half way up, because
-   that is what an array does. Under it, when the sun is down, a `Dark · first
-   light 07:00` badge — without which a 0 kW dial at nine in the evening is
-   pixel-for-pixel a plant that has tripped.
-3. **The details** — three nameplate facts: system capacity in kWp, the module
+2. **The junction boxes** — what the array is putting out right now, broken out a
+   box at a time: strings, panels, how many are delivering, and the box's share of
+   the kilowatts. Where nobody has surveyed the roof there is no box breakdown to
+   draw, and the band falls back to one dial scaled to the array's **kWp**, which is
+   the only ceiling there is. It was scaled to the inverters' combined AC rating, on
+   the argument that a dial which can never fill reads as a plant permanently
+   underperforming; with no boxes there is no AC rating, and the honest full scale is
+   the glass. A clear noon lands near half way up, because that is what an array
+   does. Beside the total, when the sun is down, a `Dark · first light 07:00` badge —
+   without which a band of zeroes at nine in the evening is pixel-for-pixel a plant
+   that has tripped.
+3. **The chart** — generation, `Day / Month / Year / Lifetime`, one series.
+4. **The details** — three nameplate facts: system capacity in kWp, the module
    count and rating, and the commissioning date. It was four; `Installed capacity`
    was the AC figure and it went with the boxes, along with the question it
-   existed to answer. Nothing live is in this band.
-4. **The chart** — generation, `Day / Month / Year / Lifetime`, one series.
-5. **What is wrong** — every rule the system carries, and it is the only page that
-   answers.
+   existed to answer. Nothing live is in this band, which is why it sits under the
+   chart rather than over it — the order all four detail pages keep.
 
-Strings and the last module wash are deliberately not in band 3: `Devices` and
+**What is wrong** was a fifth band and is now the first thing on the array's
+`Alarms` tab, over the standing and cleared tables: a rule and what has been done
+about it belong on one screen, and the band was spending the home page's last
+screen restating the alarm counts the strip gives at the top.
+
+Strings and the last module wash are deliberately not in band 4: `Devices` and
 `Service` each own one, and restating them here would make it a second index of
 the page rather than a description of the system.
 
@@ -652,7 +707,8 @@ What changes below `md`:
   already vertical: the genset's three bands and the site's diagram-then-rows are
   asked in sequence, so each band's row becomes a column. The alerts band turns too
   — its 113px condition rail would take a third of the screen, so the verdict reads
-  across the top instead.
+  across the top instead — and it does that on the `Alarms` tab, which is where it
+  now lives on both the genset and the array.
 - **the two fixed-geometry drawings never reflow**, because their conductors land on
   the boxes at measured coordinates and a reflow leaves a wire ending in mid-air.
   They answer the narrow screen differently, and the difference is which failure is
@@ -671,7 +727,7 @@ instead — see `GensetHome` band 1, `SiteHome`'s top band and `SiteGensetRow`.
 
 ## Relationship to rooftopiq-frontend-v3
 
-Separate app, deliberately: gensetIQ has its own login, its own mark, and a
+Separate app, deliberately: telcoIQ has its own login, its own mark, and a
 completely different sidebar (Gensets / Deployment / Sites / Refuel; this branch
 ships Sites / Solar / Battery / Gensets). Nothing in
 `rooftopiq-frontend-v3` was touched.
@@ -1122,16 +1178,18 @@ Five things worth knowing. The concept itself is in
    the service change established: its own type, its own card, printing
    `Fuel reconciliation` where an alarm prints its register and bit.
 
-2. **The switch is on the Settings tab and it defaults on.** The tab's placeholder
-   already promised "alert thresholds, tags, who gets notified", and this is the only
-   threshold the *app* owns — every other limit on the machine is a commissioning
-   value in the panel, which a screen has no business letting you retype. On a set
-   that cannot reconcile the switch is inoperable and names the instrument it wants,
-   rather than simply being absent: somebody who goes looking for the feature should
-   find out why this machine does not have it, not conclude the feature does not
-   exist. It defaults on wherever both instruments are fitted, because the
-   alternative fails silently — a customer who paid for flow meters and never found a
-   switch gets nothing back for them, and no screen says so.
+2. **There is no screen for it — it runs on its defaults.** The check is on wherever
+   both instruments are fitted, and off where they are not, at the threshold floor the
+   instruments' own accuracy sets. A switch and a threshold field used to sit on the
+   Settings tab; that tab is empty again, and getting them back is the main thing it
+   is waiting for. This is the only threshold the *app* owns — every other limit on
+   the machine is a commissioning value in the panel, which a screen has no business
+   letting you retype — so it is the one setting a save would actually change. Two
+   things to preserve when it is redrawn: on a set that cannot reconcile the control
+   should be inoperable and name the instrument it wants rather than be absent, and it
+   should default on, because the alternative fails silently — a customer who paid for
+   flow meters and never found a switch gets nothing back for them, and no screen says
+   so.
 
 3. **The threshold is a percentage of tank capacity, floored at the probe's own
    accuracy.** Percent because it is the only form that carries across a fleet of
@@ -1351,7 +1409,8 @@ stopped machine reports.
 - **Three stores are browser-local.** `site/data/siteConfig.ts` (the power role, keyed by
   site), `genset/data/deployment.ts` (which yard each set stands at, keyed by
   genset) and `genset/data/fuelInstruments.ts` (the leak alarm's switch and
-  threshold, keyed by genset). They are the only things in either module that are neither seeded nor
+  threshold, keyed by genset — the store stands, with no screen writing to it since
+  Settings was emptied, so every set reads its default). They are the only things in either module that are neither seeded nor
   derived — choices made while the app runs. Both hold *overrides only*, so a fresh
   browser gets the designed fleet and clearing site data restores it. Neither is a
   settings API.

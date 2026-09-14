@@ -1,6 +1,7 @@
 import {useMemo, useRef, useState} from 'react';
 
 import {BatteryGlyph} from '@/components/global/BatteryGlyph';
+import {ChartTooltip} from '@/components/global/ChartTooltip';
 import {amount} from '@/lib/format';
 import {useElementSize} from '@/lib/useElementSize';
 import {cn} from '@/lib/utils';
@@ -112,14 +113,17 @@ const SPARK = {w: 240, h: 56};
  */
 const Spark = ({trend, className}: {trend: SiteTrend; className?: string}) => {
   const values = trend.points.map((point) => point.value);
-  const ceiling = Math.max(
-    // `axisMax` is the fixed ceiling a bounded quantity has - state of charge is a
-    // percentage of a known bank, and letting it auto-scale would draw a day between 71%
-    // and 74% as a mountain range.
-    trend.axisMax ?? 0,
-    ...values.map((value) => (value === null ? 0 : value)),
-  );
-  const top = ceiling > 0 ? ceiling : 1;
+  const peak = Math.max(0, ...values.map((value) => (value === null ? 0 : value)));
+  // `axisMax` is the fixed ceiling a bounded quantity has - state of charge is a
+  // percentage of a known bank, and letting it auto-scale would draw a day between 71%
+  // and 74% as a mountain range. It already carries its own headroom.
+  //
+  // Everything else gets 15% of it, because without any the day's peak sits exactly on
+  // the top edge - and a load that held steady all day is then a filled rectangle with
+  // no line visible at all. With headroom the same day is a rule near the top of the
+  // box, which is what "steady" should look like.
+  const top =
+    trend.axisMax !== undefined ? Math.max(trend.axisMax, peak) : Math.max(peak * 1.15, 1);
   const step = trend.points.length > 1 ? SPARK.w / (trend.points.length - 1) : SPARK.w;
   const y = (value: number) => SPARK.h - (value / top) * (SPARK.h - 2) - 1;
 
@@ -240,6 +244,11 @@ const DayChart = ({trend}: {trend: SiteTrend}) => {
   const {line, area} = curvePaths(values, x, y, baseline);
   const shown = hovered === null ? undefined : points[hovered];
 
+  // The plot is drawn in viewBox units and laid out in CSS pixels; below the
+  // minimum width they part company, and the tooltip is positioned in the latter.
+  const frameWidth = available > 0 ? available : width;
+  const scale = frameWidth / width;
+
   return (
     <div ref={boxRef} className={cn('relative w-full', SITE_TREND_METRIC_TOKEN[trend.metric])}>
       <svg
@@ -268,19 +277,6 @@ const DayChart = ({trend}: {trend: SiteTrend}) => {
         >
           {unit}
         </text>
-
-        {/* The hovered reading, in the top corner where it covers nothing. */}
-        {shown !== undefined && (
-          <text
-            x={width}
-            y={DAY.padTop - 7}
-            textAnchor="end"
-            className="fill-current text-[10px] font-medium text-secondary tabular-nums"
-          >
-            {shown.label} ·{' '}
-            {shown.value === null ? 'not yet reached' : amount(shown.value, unit, 1)}
-          </text>
-        )}
 
         {ticks.map((tick) => (
           <g key={tick}>
@@ -356,6 +352,27 @@ const DayChart = ({trend}: {trend: SiteTrend}) => {
           ) : null,
         )}
       </svg>
+
+      {/* The hovered reading, beside the crosshair — the same tooltip every other
+          chart in the app uses, rather than a figure in the corner that a reader
+          has to look away from the plot to read. */}
+      {shown !== undefined && hovered !== null && (
+        <ChartTooltip
+          x={x(hovered) * scale}
+          frameWidth={frameWidth}
+          title={shown.label}
+          width={150}
+          top={DAY.padTop}
+          rows={[
+            {
+              key: 'value',
+              swatch: bars ? 'square' : 'line',
+              value:
+                shown.value === null ? 'not yet reached' : amount(shown.value, unit, 1),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 };
@@ -437,7 +454,14 @@ const Frame = ({
     aria-label={title}
     className={cn(
       'flex flex-col gap-3.5',
-      embedded === true ? 'w-full' : 'rounded-lg border border-default bg-element p-4',
+      // `h-full` on the standalone card, the way `SiteDeviceCard` already takes it:
+      // the track beside the diagram is a stretched grid item, and a card that only
+      // claimed its content's height left the band ragged — a panel stopping a
+      // third of the way down beside a full-height drawing. Inert in the phone
+      // column, where the parent has no height to be a fraction of.
+      embedded === true
+        ? 'w-full'
+        : 'h-full rounded-lg border border-default bg-element p-4',
     )}
   >
     <h3 className="text-[11px] leading-none font-semibold tracking-wide text-secondary uppercase">
@@ -561,11 +585,11 @@ export const SiteTelemetry = ({
         title={gensetId !== undefined ? 'Fuel burned today' : 'Site draw today'}
         embedded={embedded}
       >
-        <DayChart trend={trend} />
-        {/* The day's totals, off the same series the bars are drawn from. Not on
-            the genset's frame: its litres and hours moved up beside the tank,
-            where they answer at hero size, and stating them twice in one panel
-            would have a reader checking whether the two agree. */}
+        {/* The day's totals, off the same series the bars are drawn from — above
+            the plot, where every chart in the app puts what is true of the whole
+            window. Not on the genset's frame: its litres and hours are already up
+            beside the tank at hero size, and stating them twice in one panel would
+            have a reader checking whether the two agree. */}
         {gensetId === undefined && (trend.total !== undefined || trend.extra !== undefined) && (
           <div className="flex items-start gap-6">
             {trend.total !== undefined && (
@@ -576,6 +600,8 @@ export const SiteTelemetry = ({
             )}
           </div>
         )}
+
+        <DayChart trend={trend} />
       </Frame>
     );
   }
@@ -611,12 +637,15 @@ export const SiteTelemetry = ({
           <Figure label="State of charge" value={`${Math.round(state.soc * 100)}%`} />
         )}
       </div>
-      {trend !== undefined && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] leading-none text-secondary">Draw through today</span>
-          <Spark trend={trend} />
-        </div>
-      )}
+      {/* No `Draw through today` spark here any more. A site's load barely moves —
+          it is a tower, not a plant that starts and stops — so the sparkline was a
+          filled rectangle with a rule along the top, and at the height this card is
+          stretched to it was the loudest thing on it while saying the least. The
+          same series is a full chart with an axis two bands down, under
+          `Site Load`, where its shape can actually be read.
+
+          The device cards keep theirs: a genset's fuel and an array's generation do
+          have a shape at this size. */}
     </Frame>
   );
 };

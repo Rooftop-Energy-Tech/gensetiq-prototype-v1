@@ -625,8 +625,8 @@ record one at all. The stamp costs nothing and the boolean is one `!== null` awa
 
 Handling is the app's record, not the panel's, and it lives in `localStorage` for
 the same reason every other choice does. It is also **live**: clearing an alarm
-empties it out of the genset home page's alerts band, drops it from that page's
-counts, and moves the fleet buckets, without a reload.
+empties it out of the alerts band at the top of the same tab, drops it from the
+genset home page's counts, and moves the fleet buckets, without a reload.
 
 → `src/modules/genset/types/alarmState.type.ts`, `src/modules/genset/data/alarms.ts`
 
@@ -810,7 +810,7 @@ Asking the wide `gensetCondition` there would say the same fact twice: every `RE
 set would test true for `ALARM`, `ALARM` outranks `REFUEL`, and the two fuel buckets
 those tiles exist to show would both drain into the red one.
 
-**The lines are fixed, and not editable.** `GensetSettings` states the rule: a
+**The lines are fixed, and not editable.** The rule the app works to: a
 setpoint that lives in the panel is not editable from a screen that cannot issue the
 command. These two are the app's own, so they *could* be — but they are also what the
 [four buckets](#fleet-status) are defined as, and a per-genset reserve line would leave
@@ -1126,15 +1126,23 @@ out to fix.
 | --- | --- | --- |
 | 1 | **The strip** — the two or three figures that move, then the alarm counts | `MetricStrip` |
 | 2 | **What it is doing now** — the dials, the gauge, or the circuit | — |
-| 3 | **The details** — what the thing *is*, nameplates only | `DetailBand` |
-| 4 | **The chart** — one metric, a day stepper, a period control | `TrendPanel` |
-| 5 | **What is wrong** — the rules, and the numbers behind them | — |
+| 3 | **The chart** — one metric, a day stepper, a period control | `TrendPanel` |
+| 4 | **The details** — what the thing *is*, nameplates only | `DetailBand` |
 
-Pages carry **four to six** of those, and the variation is the model's rather than
+Pages carry **four or five** of those, and the variation is the model's rather than
 the page's: a genset splits band 2 in two, because its live dials and its run totals
-are the same subject read at two speeds; a bank has no band 5 because nothing in
-this app raises a battery alarm yet. Nothing is dropped for want of room, and every
-missing band has a rail section of its own saying what it will hold.
+are the same subject read at two speeds. Nothing is dropped for want of room, and
+every missing band has a rail section of its own saying what it will hold.
+
+**There was a fifth band: *what is wrong* — the rules, and the numbers behind them.**
+A genset carried it and so did a solar system; a site and a bank never did. It is on
+each asset's **`Alarms` section** now, above the standing and cleared tables, and the
+move is the same argument the site page made when it took its device stack off the
+foot of the page. A band that restates the strip's alarm counts nine hundred pixels
+below them is a second answer to a question the top of the page has already answered,
+and a reader who wants the detail wants the log beside it — the row that says whether
+anybody has acknowledged the thing the card is describing. The strip's alarm pill is
+the one click from here to there, and it always was.
 
 **Every band is full width, because only one thing on these pages has a natural
 width.** The diagram is a fixed canvas, the figures are short, the chart wants
@@ -1172,7 +1180,7 @@ site that has none.
 
 ### The genset home page
 
-Where a click into a machine lands. **Six bands, and the order is the order the
+Where a click into a machine lands. **Five bands, and the order is the order the
 questions get asked.**
 
 **Band 1 — the strip: fuel level, fuel remaining, service.** Two diesel and one
@@ -1184,7 +1192,7 @@ stopped engine, which is what a summary has to do — the tank is the tank wheth
 not the engine is turning, and a set sitting idle is exactly the one whose service is
 quietly going overdue.
 
-The design's `Generation today` is deliberately **not** here. It lives in band 5,
+The design's `Generation today` is deliberately **not** here. It lives in band 4,
 where a day stepper and a period control put it beside yesterday and the week. On its
 own in a strip it invited a share-of-site reading this page cannot honestly give: an
 engine's output may go into a battery and come back out tomorrow, so what fraction of
@@ -1239,66 +1247,37 @@ still the runtime it would get if you started it, but a *date* would claim the t
 draining while the engine sits idle. So a stopped set shows runtime and no date, and
 labels its rate as the one from its last run.
 
-**Band 4 — what the machine is.** The `DetailBand` all four detail pages share, and
+**Band 4 — what this engine has put out over time.** The shared `TrendPanel`, held to
+one metric: diesel output. An undeployed set has no chart at all rather than a flat
+line — it has made nothing today because it is not wired to anything, and a plot of
+that would be claiming a measurement.
+
+**Band 5 — what the machine is.** The `DetailBand` all four detail pages share, and
 identity is deliberately all it holds: which machine this is, what it is, what size it
 is — the rows a person needs to order a part, brief a technician or find it in a yard.
 Rating is among them because it is also the denominator of every load figure in the
 bands above.
+
+Under the chart rather than over it, which is the order all four detail pages keep:
+nothing in this band changes between one visit and the next, so it is what a reader
+consults having already read the live bands. It used to sit between the fuel panel and
+the runtime trend, wedging a block of nameplates between two bands read together.
 
 The frame puts the *site's* `Supply` and `Installed capacity` here, which is the site
 page's band copied across. A genset page stating how the yard is fed would be the
 machine answering a question about the yard, and the rail's back card is one click from
 the page that does answer it.
 
-**Band 5 — what this engine has put out over time.** The shared `TrendPanel`, held to
-one metric: diesel output. An undeployed set has no chart at all rather than a flat
-line — it has made nothing today because it is not wired to anything, and a plot of
-that would be claiming a measurement.
-
-**Band 6 — what is wrong.** A condition verdict on the left, two rows of filter chips,
-then the results.
-
-The chips are a **single-select filter** with two kinds of entry, and the asymmetry
-between them is deliberate:
-
-| Chip | Question | Shows |
-| --- | --- | --- |
-| **Severity** (`Critical 2`) | what is wrong, worst first | matching alerts only |
-| **Tag** (`Coolant`) | how is this subsystem doing | every reading under the tag — alerting ones promoted into cards, quiet ones as plain rows |
-
-A severity is a property of *alerts*, so filtering by it cannot surface a healthy
-reading. A tag is a property of *readings*, so filtering by it has to show the ones
-that are fine as well — otherwise selecting `Coolant` on a healthy engine returns an
-empty list and the reader cannot tell "nothing wrong" from "nothing measured".
-
-Single-select, not multi: two filters intersected produce a result nobody asked for
-("critical alerts, but only coolant ones"), and the chip row stops being readable as a
-summary of the machine.
-
-Tag chips are **coloured before anybody clicks them**, by the worst alert among their
-readings. Green means "these numbers are all inside their thresholds", which is the
-answer most of the time and worth being able to see without opening anything.
-
-The verdict — `Optimum` / `Attention` / `Critical` — is *derived* from the alerts,
-never stored, so it cannot drift from them. Worst severity wins; neutral alerts do not
-spoil it.
-
-**The band reads the live alarm list, not the snapshot.** Clearing an alarm on the
-Alarms section has to empty it out of here and drop it from band 1's counts on the way
-back, without a reload — and the counts above and the cards below subscribe once
-between them, because two subscriptions is how they end up a render apart.
-
-The selection lives in the URL, so a link can open a genset with its coolant readings
-already showing:
-
-```
-/gensets/brf9540?tag=coolant
-/gensets/brf9540?severity=critical
-```
+**There was a sixth band: what is wrong** — the condition verdict, the filter chips
+and the alert cards. It is on the [`Alarms` section](#the-gensets-remaining-sections)
+now, over the two tables, and the reasoning is in
+[the shared bands](#the-four-home-pages-and-the-bands-they-share). The page ends on
+its details band.
 
 **Where the activity feed went.** Nowhere; it is gone, as it is from a system's page.
-It closed the page as a seventh band — a list of things that had already happened, with
-a text field for adding another — and it was the page's only backwards-looking band,
+It closed the page as a band below the alerts — a list of things that had already
+happened, with a text field for adding another — and it was the page's only
+backwards-looking band,
 which is why it was last and why nothing above it moves now that it has gone.
 Everything it showed is owned by a section of its own: runs on `Runs`, services on
 `Service`, and deliveries on the tank chart.
@@ -1489,23 +1468,67 @@ and date of every service including the newest, so the middle band was re-statin
 neighbours rather than adding to them.
 
 **`Alarms`** — every alarm this machine is carrying, and what has been done about each.
+**Two readings of one list, on one page.**
 
-Against the home page's band: the home page answers *is anything wrong right now*,
-mixes the register map's alarms with the app's own rows — a leak, a low tank, a service
-falling due — and files them under the operator's tags. This page answers *what is the
-state of the alarm list*, carries the register map alone, and is the only screen where
-an alarm can be acted on. The two are the same alarms seen through different questions,
-and they read from one store so they cannot disagree about which are standing.
+**The band, first.** It used to close the home page. It answers *is anything wrong
+right now*, mixes the register map's alarms with the app's own rows — a leak, a low
+tank, a service falling due — and files them under the operator's tags: a condition
+verdict on the left, two rows of filter chips, then the cards, each drawn against the
+reading and the line the reading crossed.
 
-**Two tables, because there are [two axes](#alarm-handling).** `Standing` holds
+The chips are a **single-select filter** with two kinds of entry, and the asymmetry
+between them is deliberate:
+
+| Chip | Question | Shows |
+| --- | --- | --- |
+| **Severity** (`Critical 2`) | what is wrong, worst first | matching alerts only |
+| **Tag** (`Coolant`) | how is this subsystem doing | every reading under the tag — alerting ones promoted into cards, quiet ones as plain rows |
+
+A severity is a property of *alerts*, so filtering by it cannot surface a healthy
+reading. A tag is a property of *readings*, so filtering by it has to show the ones
+that are fine as well — otherwise selecting `Coolant` on a healthy engine returns an
+empty list and the reader cannot tell "nothing wrong" from "nothing measured".
+
+Single-select, not multi: two filters intersected produce a result nobody asked for
+("critical alerts, but only coolant ones"), and the chip row stops being readable as a
+summary of the machine.
+
+Tag chips are **coloured before anybody clicks them**, by the worst alert among their
+readings. Green means "these numbers are all inside their thresholds", which is the
+answer most of the time and worth being able to see without opening anything.
+
+The verdict — `Optimum` / `Attention` / `Critical` — is *derived* from the alerts,
+never stored, so it cannot drift from them. Worst severity wins; neutral alerts do not
+spoil it.
+
+The selection lives in the URL, so a link can open a genset with its coolant readings
+already showing:
+
+```
+/gensets/brf9540/alarms?tag=coolant
+/gensets/brf9540/alarms?severity=critical
+```
+
+**The band deliberately carries fewer rows than the tables under it,** and says so in
+a footnote rather than leaving the reader to notice. Every card in it prints the
+register, the reading and the line the reading crossed; the site monitoring unit's
+per-phase AC rows have no reading this prototype has ever taken, so they have nothing
+to draw against and stay in the tables.
+
+**Then the two tables, because there are [two axes](#alarm-handling).** `Standing` holds
 everything still live, acknowledged or not — clearing is what moves a row out of it and
 acknowledging deliberately does not. `Cleared` is the log: what was raised, when it was
 closed, and by whom, with a `Reopen` on each. Splitting them is what lets the first
 table be a work queue rather than a mixture of jobs and receipts.
 
-Every row prints its register and bit, and it matters more here than on the home page's
-cards: this is the log, and a row that gets screenshotted into a message to the panel
-supplier has to say which bit it came from, or it is one crew's paraphrase of a fault.
+Every row prints its register and bit, and it matters more in the tables than in the
+band above them: this is the log, and a row that gets screenshotted into a message to
+the panel supplier has to say which bit it came from, or it is one crew's paraphrase
+of a fault.
+
+**Both halves read one store**, subscribed once between them, so they cannot disagree
+about which alarms are standing: clearing a row in a table empties its card out of the
+band and drops it from the home page's counts on the way back, without a reload.
 
 **Not here:** the threshold rules behind these alarms, which the section's earlier
 placeholder promised. They are controller configuration — the voltage window this panel
@@ -1515,9 +1538,11 @@ assignment to a named engineer and notification routing are likewise absent: the
 the layer above acknowledgement, and they need a decision about who gets told and how
 before they are worth drawing.
 
-**`Settings`** — what this genset's [fuel leakage alarm](#fuel-reconciliation) is
-watching and where its line sits, and nothing else. The page states the rule it is
-bounded by: **a setpoint that lives in the panel is not editable from a screen that
+**`Settings`** — **empty.** The rail names the section and the design draws nothing
+behind it. What belongs here is the short list of lines the *app* owns, as against the
+ones the controller does: the [fuel leakage alarm](#fuel-reconciliation)'s switch and
+threshold, tags, and notification routing. Everything else on this machine is bounded
+by the rule **a setpoint that lives in the panel is not editable from a screen that
 cannot issue the command.** The tank's reserve and empty lines are the app's own so they
 *could* be editable, but they are also what the [four buckets](#fleet-status) are
 defined as, and a per-genset reserve line would leave those counts working to a
@@ -1768,10 +1793,12 @@ machine: system, state, output, capacity, strings, health. It was a scaffold of 
 empty tabs before it was a table, and the six moved down onto a system, which is the
 shape `/gensets` has always had.
 
-**A system's home page is five bands**, the shared grammar over an array: the strip
-(capacity, generated today, alarms); one dial for what it is putting out now, with a
-`Dark` badge under it when the sun is down; the details; the chart; and what is
-wrong.
+**A system's home page is four bands**, the shared grammar over an array: the strip
+(capacity, generated today, alarms); what it is putting out now, broken out a junction
+box at a time, with a `Dark` badge beside the total when the sun is down; the details;
+and the chart. *What is wrong* was a fifth and is now the first thing on the array's
+own `Alarms` section — see
+[the shared bands](#the-four-home-pages-and-the-bands-they-share).
 
 **Nothing on that page is a verdict.** Every figure is a measurement or a nameplate,
 and the page does not hold either up against a target — there is no design figure
@@ -1780,7 +1807,9 @@ out again; what is left compares the system against **itself**, which is the onl
 comparison the model can support: the chart's day view carries the array's own
 recent normal, and the health band's string rule fires on a step in its own series.
 
-**Three health rules, and every one is checkable on the page it appears on.** A
+**Three health rules, and every one is checkable on the page it appears on.** That
+page is the `Alarms` section, where the band draws each rule against the reading
+behind it and the tables carry the device's own registers beside them. A
 genset's alerts are a register map's bits, so the app can print the coordinates and a
 reader can go and check. A PV system has no such map, so each rule here had to earn
 its place a different way — by being derivable from something else drawn on the same
@@ -1813,7 +1842,9 @@ drawn next to the bars once there was no design figure to hold the series agains
 pinned to a cause, and the model cannot separate a soiled array from a shaded one.
 
 `Devices` holds the array — the glass, the strings, and how many of them are dark.
-`Service`, `Alarms` and `Settings` are named and not drawn.
+`Alarms` carries the health band over both sources' rows — the derived rules and, where
+a monitoring unit is fitted, its four `PV N Array Fault` registers. `Service` and
+`Settings` are named and not drawn.
 
 ### The battery register, and a bank's pages
 
@@ -1964,7 +1995,7 @@ src/modules/genset/
 │   ├── fuelLevel.type.ts    the reserve and empty lines
 │   ├── series.type.ts       Sample, ReadingSeries — a reading over time
 │   ├── view.type.ts         the fleet register's URL state — views and filters
-│   ├── detailView.type.ts   the alerts band's URL state
+│   ├── detailView.type.ts   the alerts band's URL state, on the Alarms section
 │   ├── analysisView.type.ts the analysis section's URL state
 │   └── runsView.type.ts     the runs section's URL state, window rules and totals
 ├── data/
@@ -1978,17 +2009,16 @@ src/modules/genset/
 │   ├── services.ts          the service log; serviceSeed.ts is its givens
 │   ├── fleetStatus.ts       the four buckets, worst-wins and exhaustive
 │   ├── fleetSummary.ts      the register cards' tallies
-│   ├── fuelInstruments.ts   which sets carry what, and the leak alarm's settings
+│   ├── fuelInstruments.ts   which sets carry what, and the leak alarm's defaults
 │   ├── fuelIntegrity.ts     the reconciliation, and the condition it can move
 │   └── runsCsv.ts           the run log as a file somebody bills against
 └── components/
     ├── …                    the register, incl. GensetsCards for phone width
-    ├── detail/              the six bands, and StandbyPanel for a stopped set
+    ├── detail/              the five bands, AlertsSection, and StandbyPanel for a stopped set
     │   └── analysis/        the analysis section: picker, range, calendar, chart
     ├── runs/                strip, totals, log, installation picker — shared with sites
-    ├── alarms/              the standing and cleared tables
-    ├── service/             the two counters, the schedule, the log, the dialog
-    └── settings/            the leak alarm's threshold, and the rule about setpoints
+    ├── alarms/              the alerts band over the standing and cleared tables
+    └── service/             the two counters, the schedule, the log, the dialog
 
 src/modules/site/
 ├── types/
@@ -2025,7 +2055,7 @@ src/modules/site/
     ├── settings/SiteIdentityPanel.tsx   six editable givens
     └── SiteGensets.tsx      attach and detach — and it says the lorry out loud
 
-src/modules/solar/           the register, a system's five bands, three health rules
+src/modules/solar/           the register, a system's four bands, three health rules
 src/modules/battery/         the register, a bank's four bands
 src/modules/settings/        the brand picker
 ```
