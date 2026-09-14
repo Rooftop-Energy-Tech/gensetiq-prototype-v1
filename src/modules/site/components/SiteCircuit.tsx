@@ -261,6 +261,7 @@ export const SiteCircuit = ({
               dutyId={summary.defaultDutyId}
               role={role}
               selection={{devices, selected, onSelect: setPicked}}
+              alarms={alarms}
               onClear={() => setPicked(undefined)}
             />
           )}

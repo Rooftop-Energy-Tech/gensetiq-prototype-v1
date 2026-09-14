@@ -471,8 +471,12 @@ const Isolator = ({y, closed, live}: {y: number; closed: boolean; live: boolean}
  *
  * `fromSite` on both, so a page opened from this drawing crumbs back to this site
  * rather than springing to that asset's own register.
+ *
+ * Exported because the **plant scene** is the same band's other projection and has the
+ * same two ways out of a device. One table, so the two drawings cannot send a reader to
+ * two different places for the same box.
  */
-const deviceRoutes = (
+export const deviceRoutes = (
   device: SiteDeviceKey,
   siteId: string,
 ): {page: LinkProps['to']; alarms: LinkProps['to']; params: LinkProps['params']} => {

@@ -1718,10 +1718,19 @@ the union its own page takes instead, the controller's bits plus the unit's `GEN
 rows, which means two sets in one yard both carry that yard's AC rows; at a site with no
 incomer that AC is each engine's own output, so this is right rather than double-counted.
 
-It is a **static** pill here, not a link, and that is a markup constraint rather than a
-choice: a device node is a `<button>`, and an anchor inside one is invalid — the browser
-closes the button and the node stops selecting. Clicking the node opens the device's card
-beside the drawing, and that card's pill is the link.
+**The pill is a link** to that device's Alarms tab, and **double-clicking the box opens
+the device's own page** — the gesture a reader already expects from a box in a diagram. A
+single click still puts the device in the card beside the drawing. That is why a node is a
+`div` with the button role rather than a `<button>`: a button may not contain an anchor,
+and the browser closes it at the `<a>` if you try. Enter and Space still select; the
+double-click is mouse-only, and the card it opens carries the same link.
+
+**The plant view carries all of it too.** The two projections of this band are one control
+with two drawings, so a gutter card in the 3D scene has the pill under its three lines,
+the same link, and the same single-click-selects / double-click-opens pair. Both read the
+same `alarms` map, handed down by `SiteCircuit`. A card is 118px wide against the box's
+88, so the 80px pill fits either way up; what it cost was the scene's label pitch, which
+went from 76px to 100px to clear the taller card.
 
 Pills are drawn on **every** device node, a quiet one included, so their absence never
 becomes the signal — and a severity with nothing standing draws a dash rather than a `0`.

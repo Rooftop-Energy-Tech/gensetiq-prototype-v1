@@ -1,5 +1,8 @@
 import {useRef, useState} from 'react';
+import {useNavigate} from '@tanstack/react-router';
 
+import {AlarmBadge} from '@/components/global/AlarmCounts';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
@@ -9,10 +12,12 @@ import type {SiteSummary} from '../data/sites';
 import {EQUIPMENT, byDepth, isoX, isoY, placementBox, plantScene} from '../data/plantScene';
 import type {Ground, ScenePlacement} from '../data/plantScene';
 import type {SiteDeviceKey} from '../types/device.type';
+import {fromSite} from '../types/fromSearch.type';
 import type {SitePowerRole} from '../types/site.type';
 import {
   cabinetPowerLabel,
   deviceOfSource,
+  deviceRoutes,
   sourcesOf,
   type SiteDiagramSelection,
 } from './SiteDiagram';
@@ -100,16 +105,22 @@ const LABEL_INSET = 12;
  * Vertical room a stacked label needs before the next one starts.
  *
  * It has to clear the **box**, not the text: three lines at 11px and 13px, plus 16px of
- * padding, 4px of internal gaps and the border, come to about 60px. At 52 the stacker was
- * pitching them tighter than they are tall, so a run of labels in one gutter arrived as a
- * single block with hairlines through it.
+ * padding, 4px of internal gaps and the border, come to about 60px — and a device's card
+ * now carries the alarm pill as well, which is another 24px and a gap, so the tallest
+ * card is about 86px. At 52 the stacker was pitching them tighter than they are tall, so
+ * a run of labels in one gutter arrived as a single block with hairlines through it.
  *
- * 76 is above that floor on purpose rather than just clear of it. The pitch is also what
- * sets the **angle between two leaders** leaving objects that stand a few centimetres
- * apart: the cabinet run's anchors are within a couple of pixels of each other, so how far
- * apart their labels sit is the only thing separating the two lines pointing at them.
+ * 100 is above that floor on purpose rather than just clear of it — it was 76 against the
+ * old 60px card and keeps the same air. The pitch is also what sets the **angle between
+ * two leaders** leaving objects that stand a few centimetres apart: the cabinet run's
+ * anchors are within a couple of pixels of each other, so how far apart their labels sit
+ * is the only thing separating the two lines pointing at them.
+ *
+ * It is a **minimum**, applied only where two labels would otherwise collide, so the load
+ * and the mains — which carry no pill and are still 60px — are not pushed apart by a
+ * height they do not have.
  */
-const LABEL_PITCH = 76;
+const LABEL_PITCH = 100;
 
 /** Breathing room above and below the plant. */
 const PAD_Y = 20;
@@ -330,13 +341,25 @@ const Label = ({
   node,
   side,
   selected,
+  counts,
+  siteId,
   onSelect,
+  onOpen,
   onHover,
 }: {
   node: SceneNode;
   side: 'left' | 'right';
   selected: boolean;
+  /**
+   * What is standing on this device — the card's alarm pill, the same one the
+   * schematic draws under a box's name. `undefined` on the load and the mains, which
+   * are not devices, and on a scene rendered without counts.
+   */
+  counts: Record<AlertSeverity, number> | undefined;
+  siteId: string;
   onSelect: (() => void) | undefined;
+  /** What a double-click opens — this device's own page. */
+  onOpen: (() => void) | undefined;
   onHover: (key: string | undefined) => void;
 }) => {
   const body = (
@@ -358,6 +381,26 @@ const Label = ({
       >
         {node.power}
       </span>
+
+      {/* The pill, under the card's three lines — the schematic's arrangement, where it
+          sits under the box's name. A gutter card is 136px wide against the box's 88, so
+          there is room for the 80px pill either way up, and drawing it here keeps the two
+          projections of this band saying the same thing in the same shape.
+
+          Drawn on every device card, a quiet one included, so its absence never becomes
+          the signal; a severity with nothing standing draws a dash. `stopPropagation` for
+          the reason every table in this app gives — opening the queue must not also move
+          the selection on a drawing we are leaving. */}
+      {counts !== undefined && node.device !== undefined && (
+        <span className="mt-0.5 inline-flex" onClick={(event) => event.stopPropagation()}>
+          <AlarmBadge
+            counts={counts}
+            to={deviceRoutes(node.device, siteId).alarms}
+            params={deviceRoutes(node.device, siteId).params}
+            search={fromSite(siteId)}
+          />
+        </span>
+      )}
     </>
   );
 
@@ -373,21 +416,49 @@ const Label = ({
   }
 
   return (
-    <button
-      type="button"
+    /**
+     * A `div` with the button role, not a `<button>` — the same change the schematic's
+     * node made and for the same reason: the alarm pill inside it is an anchor, and a
+     * button may not contain one. The browser closes the button at the `<a>`, and the
+     * rest of the card stops selecting.
+     *
+     * One click selects into the card beside the drawing; a **double-click opens the
+     * device's own page**, which is what a box in the schematic does. The two
+     * projections of this band are one control with two drawings, so a reader who
+     * learned the gesture on one must find it on the other.
+     */
+    <div
+      role="button"
+      tabIndex={0}
       onClick={(event) => {
         // The block behind this clears the selection; a click on a label is a selection.
         event.stopPropagation();
         onSelect();
       }}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        onOpen?.();
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        // Space scrolls the page under the scene otherwise.
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect();
+      }}
+      aria-pressed={selected}
       onMouseEnter={() => onHover(node.key)}
       onMouseLeave={() => onHover(undefined)}
       onFocus={() => onHover(node.key)}
       onBlur={() => onHover(undefined)}
-      className={cn(shell, 'cursor-pointer transition-colors hover:bg-highlight')}
+      className={cn(
+        shell,
+        'cursor-pointer transition-colors select-none hover:bg-highlight',
+        'outline-none focus-visible:ring-2 focus-visible:ring-outline',
+      )}
     >
       {body}
-    </button>
+    </div>
   );
 };
 
@@ -396,12 +467,19 @@ export const SitePlantScene = ({
   dutyId,
   role,
   selection,
+  alarms,
   onClear,
 }: {
   summary: SiteSummary;
   dutyId: string | undefined;
   role: SitePowerRole;
   selection?: SiteDiagramSelection;
+  /**
+   * What is standing on each device, keyed the way `selection` picks — the same map
+   * `SiteDiagram` takes, handed down by `SiteCircuit` so the two projections of this
+   * band draw one set of figures. Omitted leaves every card without a pill.
+   */
+  alarms?: Partial<Record<SiteDeviceKey, Record<AlertSeverity, number>>>;
   /**
    * Clicking the yard rather than a thing standing in it.
    *
@@ -411,6 +489,9 @@ export const SitePlantScene = ({
    */
   onClear?: () => void;
 }) => {
+  // What a double-click on a card opens — see the note on the card element.
+  const navigate = useNavigate();
+
   const track = useRef<HTMLDivElement>(null);
   const {width} = useElementSize(track);
   const [hovered, setHovered] = useState<string | undefined>(undefined);
@@ -697,7 +778,17 @@ export const SitePlantScene = ({
                 node={node}
                 side={side}
                 selected={device !== undefined && device === selection?.selected}
+                counts={device === undefined ? undefined : alarms?.[device]}
+                siteId={summary.site.id}
                 onSelect={onSelect}
+                onOpen={
+                  device === undefined || selection === undefined
+                    ? undefined
+                    : () => {
+                        const {page, params} = deviceRoutes(device, summary.site.id);
+                        void navigate({to: page, params, search: fromSite(summary.site.id)});
+                      }
+                }
                 onHover={setHovered}
               />
             </div>
