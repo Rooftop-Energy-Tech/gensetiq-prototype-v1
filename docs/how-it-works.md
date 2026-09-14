@@ -1556,17 +1556,31 @@ and ATS fitted, and the service schedule. It is named `Devices` in the rail and
 
 Four bands, and this is the page the shared grammar was drawn against.
 
-**Band 1 — the strip.** Two figures and the alarm count, and the two are **chosen
-rather than fixed**. The design draws `Generation today` and `Fuel level`, which are
-the right two for the site it draws — a solar hybrid with a genset — and neither
-exists everywhere: a diesel-prime yard has no array, and a grid-backed site with no
-set fitted has no tank. So the pair is drawn from what is actually fitted, in the
-design's own order of preference, with generation leading wherever a site generates
-because it is the number the whole hybrid was bought for.
+**Band 1 — the strip.** `Supply`, the plant figures, `Site draw`, `Alarm`. Supply
+leads because what is feeding the yard is the fact every other figure on the page is
+conditional on, and it is the one column every site can fill — including a site being
+fed by nothing. Site draw closes the readings: the only figure about *the tower*
+rather than about the plant standing beside it, and where the DC bus reading hangs,
+as `4 kW (53.4 V · 75 A)`.
 
-The strip has room for more than three at this width and is held to three
-deliberately. A strip that grew a column at hybrid sites and lost one at grid-backed
-sites would stop being a fixed reference line across the estate.
+**The plant figures are drawn, not chosen.** The design names `Generation today` and
+`Fuel level` and the strip now carries both, which it did not until 2026-09-14 — it
+picked one of them. What has not changed is the rule underneath: neither figure
+exists everywhere. A diesel-prime yard has no array to have generated anything, and a
+grid-backed site with no set fitted has no tank, so each is drawn only where the plant
+behind it is fitted. A site with neither runs three columns, and falls back to
+`Battery left` where a bank is the only thing standing.
+
+So the strip is **three columns wide to five**, against a fixed three everywhere
+else. That is the cost of the design's pair and it is paid on this page only: the
+asset strips — a system's, a bank's, a cabinet's, a set's — still run two readings and
+the pill.
+
+**The alarm pill closes the strip** rather than holding the third column. It was
+pinned third so a reader moving site → solar → battery would find it in one place;
+that rule held while every strip had two readings and stopped holding when this one
+grew to four. Last is the rule that survives a strip growing. On the asset strips
+nothing moved, because with two readings last *is* third.
 
 **Band 2 — the circuit, and the device it is pointing at.** The single-line diagram on
 the left, and beside it one card: the detail of whichever piece of plant the reader has
@@ -1602,10 +1616,17 @@ and 355 for its card. One step down it is 645px, and there is no honest way to s
 that.
 
 **Band 3 — the details.** What the site *is*, in the shared `DetailBand`: its name,
-where it stands, its region, its programme, how it is fed, what it draws. Every row is
-a field the Settings section edits, in the order that section presents them — including
-the site's own name, which looks redundant under its own header and is not: a reader who
-has just renamed a site should see the new name land somewhere that isn't chrome.
+where it stands, its region, its programme, how it is fed and what is installed. Every
+row is a field the Settings section edits, in the order that section presents them —
+including the site's own name, which looks redundant under its own header and is not: a
+reader who has just renamed a site should see the new name land somewhere that isn't
+chrome.
+
+A `Load` row naming what the installation is *for* — `Macro base station` — stood at
+the foot of the band until 2026-09-14. It was the one row the design did not draw, and
+it was the site's **kind**: fixed for the life of the site, the same at most of the
+estate, and already the second line of the site's own row on the list that opened this
+page. It is out, and the band is back to the fields Settings edits.
 
 They sat beside the diagram until the design moved them underneath it, and the move is
 right. The strip carries the figures that change and a reader checks those to decide
@@ -1789,9 +1810,23 @@ a site has an SLA.
 ### The solar register, and a system's pages
 
 `/solar` is a row per [system](#solar-system), the way `/gensets` is a row per
-machine: system, state, output, capacity, strings, health. It was a scaffold of six
-empty tabs before it was a table, and the six moved down onto a system, which is the
-shape `/gensets` has always had.
+machine: system, state, output, capacity, health. It was a scaffold of six empty tabs
+before it was a table, and the six moved down onto a system, which is the shape
+`/gensets` has always had.
+
+There was a sixth column, `Strings`, carrying a count with `N dark` under it, and a
+fourth summary card totalling the dark ones across the estate. Both went on
+2026-09-14. A string is a wiring detail of one array: this register's job is to say
+*which system needs someone*, and `Health` already says that for a system whose
+strings have stopped delivering — a dark string is not `OPTIMUM`, so the system is
+inside `Attention` on the strip either way. The count is still on the system's own
+page, box by box, where a reader who has decided to look at one array can act on it.
+
+`Health` is drawn as a pill, the treatment the sites list gives `Condition` — the same
+verdict about the same kind of thing. It carried a second line under the verdict
+(`Strings offline`, `Wash overdue`) and does not now: that is a sentence in a column
+answering a one-word question, and the system's own `Health` section is where it
+belongs.
 
 **A system's home page is four bands**, the shared grammar over an array: the strip
 (capacity, generated today, alarms); what it is putting out now, broken out a junction

@@ -133,9 +133,6 @@ export type SolarSummary = {
   /** Systems whose condition is not `OPTIMUM`, and the worse half of those. */
   attention: number;
   critical: number;
-  /** Dark strings estate-wide, and how many systems they are spread across. */
-  darkStrings: number;
-  darkSystems: number;
   /**
    * Regions with a system in them, in roster order — the toolbar's dropdown.
    *
@@ -162,8 +159,6 @@ export const solarSummary = (rows: Array<SolarRow>): SolarSummary => {
   let reporting = 0;
   let attention = 0;
   let critical = 0;
-  let darkStrings = 0;
-  let darkSystems = 0;
 
   for (const {system, condition} of rows) {
     counts.set(system.customer, (counts.get(system.customer) ?? 0) + 1);
@@ -172,10 +167,6 @@ export const solarSummary = (rows: Array<SolarRow>): SolarSummary => {
     if (system.state !== 'OFFLINE') reporting += 1;
     if (condition !== 'OPTIMUM') attention += 1;
     if (condition === 'CRITICAL') critical += 1;
-    if (system.downStrings > 0) {
-      darkStrings += system.downStrings;
-      darkSystems += 1;
-    }
   }
 
   return {
@@ -186,8 +177,6 @@ export const solarSummary = (rows: Array<SolarRow>): SolarSummary => {
     offline: rows.length - reporting,
     attention,
     critical,
-    darkStrings,
-    darkSystems,
     byCustomer: CUSTOMERS.map((entry) => ({
       key: entry.id,
       label: entry.shortName,

@@ -67,22 +67,28 @@ type SolarTableProps = {
  * of the preview panel a reader has open beside the map anyway. Every other column is
  * either the row's identity or something that moved today.
  *
- * The alternative was six columns in a ~517px list, which is 62–110px each: the state
- * badge truncated to `Generat…`, and `1 dark` under the string count wrapped. A column
- * dropped is a fact a reader can still get to; a column mangled is one they cannot
- * read at all. The five that stay share the width it gives up — hence two widths per
- * column.
+ * ## `Strings` came out
+ *
+ * There were six columns, and `Strings` — a count with `N dark` under it — was one of
+ * them. It went on 2026-09-14 at the owner's word, with the `Dark strings` summary
+ * card it fed. A string is a wiring detail of one array: the register's job is to say
+ * *which system needs someone*, and `Health` already says that for a system whose
+ * strings have stopped delivering. The count is still on the system's own page, box by
+ * box, where a reader who has decided to look at one array can act on it.
+ *
+ * The five that remain share the width it gave up. `System` takes most of it — it is
+ * the column that truncates, carrying a name over a place name — and `Health` takes
+ * the rest, which it needs now that it draws a pill rather than two lines of text.
  */
 const COLUMNS = [
-  {label: 'System', wide: '24%', dense: '24%', nameplate: false},
+  {label: 'System', wide: '32%', dense: '32%', nameplate: false},
   // The dense share is the one measured rather than apportioned: `Generating` plus
   // its glyph is a 95px pill, and anything under 23% of a ~517px list truncates the
   // longest state to `Genera…` — which is the one word in it that carries meaning.
-  {label: 'State', wide: '18%', dense: '23%', nameplate: false},
-  {label: 'Output', wide: '11%', dense: '13%', nameplate: false},
-  {label: 'Capacity', wide: '12%', dense: '0%', nameplate: true},
-  {label: 'Strings', wide: '13%', dense: '15%', nameplate: false},
-  {label: 'Health', wide: '22%', dense: '25%', nameplate: false},
+  {label: 'State', wide: '20%', dense: '23%', nameplate: false},
+  {label: 'Output', wide: '13%', dense: '15%', nameplate: false},
+  {label: 'Capacity', wide: '15%', dense: '0%', nameplate: true},
+  {label: 'Health', wide: '20%', dense: '30%', nameplate: false},
   // Wide adds up to 100 and is measured against the 780px floor below, not against a
   // desktop: at phone width the table is held at that floor and scrolls, so `State`
   // has to clear its 95px pill there — 15% of 780 did not, and `Generating` arrived as
@@ -136,14 +142,14 @@ export const SolarTable = ({
   return (
     <div ref={scrollRef} className="h-full overflow-auto">
       {/* `min-w` below `md` only. A phone keeps the horizontal scroll this table has
-          always had — six columns at 375px is 62px each, which clips the state badge —
+          always had — five columns at 375px is 75px each, which clips the state badge —
           while on a desktop the columns have to compress to fit the split view's list
           column, which is ~517px at 1280. `GensetsTable` needs no min-width because its
           phone form is a card list; these registers keep the table at every width. */}
       <table className="w-full min-w-[780px] table-fixed border-separate border-spacing-0 text-sm md:min-w-0">
         <caption className="sr-only">
           Every solar system on the estate — where it is, what it is rated at, what it is
-          doing now and what is wrong with it
+          doing now and what its condition is
         </caption>
         <colgroup>
           {columns.map((column) => (
@@ -222,26 +228,22 @@ export const SolarTable = ({
                   </td>
                 )}
 
-                {/* Strings rather than boxes, which is what this column used to
-                    count. A dark string is the one fault this register can state
-                    without opening the row, so the count carries it. */}
-                <td className="h-13 truncate border-b border-subtle p-2 text-secondary tabular-nums">
-                  {system.strings.toLocaleString('en-MY')}
-                  {system.downStrings > 0 && (
-                    <span className="block truncate text-xs text-severity-warning">
-                      {system.downStrings} dark
-                    </span>
-                  )}
-                </td>
+                {/* A pill, as `SitesTable` draws `Condition` — the same verdict about
+                    the same kind of thing, so it is drawn the same way and a reader
+                    crossing from the sites list to this one recognises it without
+                    reading it. It was an icon, a label and a `headline` line under
+                    them — `Strings offline`, `Wash overdue` — which is a second
+                    sentence in a column that answers a one-word question, and the
+                    system's own Health tab is where that sentence belongs.
 
-                <td className="h-13 truncate border-b border-subtle p-2">
-                  <span className={cn('flex items-center gap-1.5', meta.textClassName)}>
-                    <meta.icon className="size-4 shrink-0" aria-hidden="true" />
-                    {meta.label}
-                  </span>
-                  {row.headline !== undefined && (
-                    <span className="block truncate text-xs text-tertiary">{row.headline}</span>
-                  )}
+                    `overflow-hidden` and `max-w-full` for the reason the state cell
+                    above gives: a `Badge` is `w-fit shrink-0` and a table cell does
+                    not clip. */}
+                <td className="h-13 overflow-hidden border-b border-subtle p-2">
+                  <Badge variant="secondary" className="max-w-full">
+                    <meta.icon className={meta.textClassName} aria-hidden="true" />
+                    <span className="min-w-0 truncate">{meta.label}</span>
+                  </Badge>
                 </td>
               </tr>
             );

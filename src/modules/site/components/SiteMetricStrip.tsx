@@ -2,7 +2,7 @@ import type {ReactNode} from 'react';
 
 import {Badge} from '@/components/ui/badge';
 import {MetricStrip} from '@/components/global/MetricStrip';
-import {amount} from '@/lib/format';
+import {amount, fuelFraction} from '@/lib/format';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
@@ -21,39 +21,46 @@ import {supplyMeta} from './supplyMeta';
  * which figures it can answer for, what is feeding it, and how its alarms are
  * counted.
  *
- * ## The four columns, and which of them is contested
+ * ## The columns, in the order the design draws them
  *
- * Three are fixed, and the two that answer *what is happening at this tower right
- * now* lead. **Supply** is first — what is feeding the yard is the fact every other
- * figure on the page is conditional on, and it is the one column every site can
- * fill, including a site being fed by nothing. **Site draw** is second: the only
+ * `Supply`, the plant figures, `Site draw`, `Alarm`. **Supply** leads because what
+ * is feeding the yard is the fact every other figure on the page is conditional on,
+ * and it is the one column every site can fill, including a site being fed by
+ * nothing. The **plant figures** follow — `Generation today` and `Fuel level`, the
+ * two the design names. **Site draw** then closes the readings: it is the only
  * figure about *the tower* rather than about the plant standing beside it, and
- * where the DC bus reading hangs (see below). **Alarm** holds the third column at
- * every site, because every site can have one — and it counts what the site's
- * Alarms tab lists, not just the gensets'. See below.
+ * where the DC bus reading hangs (see below). **Alarm** is last, and it counts what
+ * the site's Alarms tab lists rather than just the gensets'. See below.
  *
- * That leaves one slot, and it is contested. The design draws `Generation today`
- * and `Fuel level`, which are the right two **for the site it draws** — a solar
- * hybrid with a genset. Neither exists everywhere: a diesel-prime yard has no array
- * to have generated anything, and a grid-backed site with no set fitted has no
- * tank. Fixing either would mean printing `0 kWh` under `Generation today` at every
- * site without a panel on it, which reads as an array that made nothing rather than
- * as a site that has none. So the slot is filled from what is actually fitted, in
- * the design's own order of preference, it takes the column past the alarms, and a
- * site with nothing fitted simply runs three columns.
+ * ## Both plant figures, not one of them, and still only where fitted
  *
- * ## Why the plant figure moved to the end rather than the supply badge to the
- * front of the queue
+ * The strip carried a single contested slot until 2026-09-14 and now draws the pair
+ * the design draws. What has not changed is the rule underneath: **neither figure
+ * exists everywhere.** A diesel-prime yard has no array to have generated anything,
+ * and a grid-backed site with no set fitted has no tank. Printing `0 kWh` under
+ * `Generation today` at a site with no panel on it reads as an array that made
+ * nothing rather than as a site that has none, so each figure is drawn only where
+ * the plant behind it is fitted and the strip is three columns wide at a site with
+ * neither.
  *
- * Because the alarm pill is the third column on **every** strip in the app — a
- * system's, a bank's, a cabinet's, a set's — and a reader moving between them
- * knows where the pill is before they have read a label. Leading with supply and
- * draw without moving it costs one thing only: the contested slot goes last. That
- * slot is the one column that already changes its own name between sites, so it is
- * the one a reader is reading rather than locating.
+ * `Battery left` is the fallback for the site that has neither — a bank-only yard
+ * would otherwise run a strip with no plant figure at all. It is hours rather than
+ * percent: the slot is narrow and a figure whose denominator is off screen — this
+ * estate's banks run 38 to 93 kWh, at 78 to 98% health — is the weakest thing that
+ * could hold it. The diagram below still carries the percentage, where a level
+ * drawn as a level belongs.
  *
- * The strip is held there. A column that moves between pages costs a reader the
- * one thing a strip is for — knowing where to look before reading the labels.
+ * ## Why the alarm column is last here and third elsewhere
+ *
+ * It was pinned third on every strip in the app so a reader moving site → solar →
+ * battery would find the pill in one place. The design overrules that for the site
+ * page: the readings run left to right in the order a reader asks for them, and the
+ * pill closes the strip. A site strip is the widest one drawn — five columns
+ * against three — and it is the one page a reader arrives at rather than moves
+ * between, which is what makes the cost affordable here and nowhere else.
+ *
+ * The asset strips are untouched: with two readings and no plant figure, last and
+ * third are the same column.
  *
  * ## Why the draw carries a bracket
  *
@@ -69,44 +76,63 @@ import {supplyMeta} from './supplyMeta';
 type StripMetric = {label: string; value: ReactNode};
 
 /**
- * The contested slot, filled from what is actually fitted — see the note above.
+ * The plant figures this site can actually answer for — see the note above.
  *
- * One entry, not two: the second of the old pair is now `Site draw`, which is
- * pinned. `undefined` rather than an empty list so a site with nothing fitted drops
- * the column instead of drawing an empty one.
+ * A list rather than one entry, and it is allowed to be empty: a site with neither
+ * an array nor a set drops both columns instead of drawing them blank. Order is the
+ * design's, and generation leads at a site that generates because it is the number
+ * the whole hybrid was bought for.
  */
-const fittedPlantMetric = (
+const fittedPlantMetrics = (
   summary: SiteSummary,
   role: SitePowerRole,
   now: number,
-): StripMetric | undefined => {
+): Array<StripMetric> => {
   const seed = siteSeed(summary.site.id);
+  const metrics: Array<StripMetric> = [];
 
-  // The design's own order. Generation leads at a site that generates, because it
-  // is the number the whole hybrid was bought for.
   if (seed !== undefined && hasSolar(role) && hybridPlant(seed, role).solarKwp > 0) {
-    return {
+    metrics.push({
       label: 'Generation today',
       value: amount(Math.round(todaySoFarKwh(seed, role, now)), 'kWh'),
-    };
+    });
   }
 
   if (summary.gensets.length > 0) {
-    return {label: 'Fuel level', value: amount(summary.fuelLitres, 'L')};
+    // Litres with the percentage behind them, as the design writes it. The litres
+    // are what a reader orders a tanker against and the percentage is what tells
+    // them whether it is urgent — a tank is the one figure on this strip whose
+    // denominator differs between sites, so stating it is what makes the litres
+    // comparable across the estate. `fuelFraction` rather than the division, so
+    // this and the bar on the genset page round the same way.
+    const percent = Math.round(
+      fuelFraction(summary.fuelLitres, summary.fuelCapacityLitres) * 100,
+    );
+    metrics.push({
+      label: 'Fuel level',
+      value:
+        summary.fuelCapacityLitres > 0
+          ? `${amount(summary.fuelLitres, 'L')} (${amount(percent, '%')})`
+          : amount(summary.fuelLitres, 'L'),
+    });
   }
 
-  // Hours, not percent. The slot is contested; a figure whose denominator is off
-  // screen — this estate's banks run 38 to 93 kWh, at 78 to 98% health — is the
-  // weakest thing that could hold it. The diagram below still carries the
-  // percentage, where a level drawn as a level belongs.
-  if (seed !== undefined && hasBattery(role) && hybridPlant(seed, role).batteryKwh > 0) {
-    return {
+  // Only where neither of the pair is fitted — a bank-only yard would otherwise run
+  // a strip with no plant figure at all. Hours rather than percent, for the reason
+  // the note above gives.
+  if (
+    metrics.length === 0 &&
+    seed !== undefined &&
+    hasBattery(role) &&
+    hybridPlant(seed, role).batteryKwh > 0
+  ) {
+    metrics.push({
       label: 'Battery left',
       value: amount(hybridState(seed, role, now).hoursLeft, 'h', 1),
-    };
+    });
   }
 
-  return undefined;
+  return metrics;
 };
 
 /**
@@ -187,11 +213,14 @@ export const SiteMetricStrip = ({
   role: SitePowerRole;
   now: number;
 }) => {
-  // Supply, then draw — see the note at the top of the file. The plant figure the
-  // site happens to be able to answer for takes the column past the alarms, and a
-  // site with nothing fitted runs three columns.
-  const metrics = [supplyColumn(summary, role), drawMetric(summary, role, now)];
-  const fitted = fittedPlantMetric(summary, role, now);
+  // Supply, the plant figures this site can answer for, then draw — see the note at
+  // the top of the file. The alarm column `MetricStrip` draws for itself closes the
+  // strip, and a site with no array and no set simply runs three columns.
+  const metrics = [
+    supplyColumn(summary, role),
+    ...fittedPlantMetrics(summary, role, now),
+    drawMetric(summary, role, now),
+  ];
 
   /**
    * Everything standing on the yard — **the same list the Alarms tab shows**.
@@ -218,7 +247,6 @@ export const SiteMetricStrip = ({
          crumb back to the site that opened it, and this *is* that site — its own pages
          are the end of that trail rather than a step along it. */
       alarmLink={{to: '/sites/$siteId/alarms', params: {siteId: summary.site.id}}}
-      trailing={fitted}
       ariaLabel="Site summary"
     />
   );

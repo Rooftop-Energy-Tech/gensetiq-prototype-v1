@@ -197,13 +197,13 @@ export const GlobalsSection = () => {
               {label: 'Load', value: '18.4 kW'},
               {label: 'Solar', value: '6.2 kW'},
               {label: 'Battery', value: '82%'},
+              {label: 'Fuel', value: '61%'},
             ]}
             counts={COUNTS.critical}
             alarmLink={{to: HERE}}
-            trailing={{label: 'Fuel', value: '61%'}}
           />
           <MetricStrip
-            ariaLabel="Site summary, no trailing"
+            ariaLabel="Site summary, two readings"
             metrics={[
               {label: 'Load', value: '11.0 kW'},
               {label: 'Rectifiers', value: '4 of 4'},

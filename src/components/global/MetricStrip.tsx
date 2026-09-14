@@ -5,18 +5,18 @@ import {AlarmBadge} from '@/components/global/AlarmCounts';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 
 /**
- * The strip across the top of a site, a system or a bank: the two or three figures
- * that move, then the alarm counts.
+ * The strip across the top of a site, a system or a bank: the figures that move,
+ * then the alarm counts.
  *
  * ## Why one component for three pages
  *
  * Because the design draws one. The site frame, the solar frame and the battery
- * frame all open on the same rule — three equal columns, a label over a figure
- * twice, and the severity pill third — and the only thing that differs is which
- * two figures. That is the caller's business and nothing else here is.
+ * frame all open on the same rule — equal columns, a label over a figure, and the
+ * severity pill last — and the only thing that differs is which figures. That is
+ * the caller's business and nothing else here is.
  *
- * Equal thirds rather than content-width columns, so the strip reads as a rule
- * across the page and the eye can drop to any of the three without hunting.
+ * Equal shares rather than content-width columns, so the strip reads as a rule
+ * across the page and the eye can drop to any of them without hunting.
  * Content-width columns would bunch every page's figures at the left and leave the
  * rest of a 1,530px band empty.
  *
@@ -29,36 +29,34 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
  * this strip and the site panel's device cards came to disagree in the first place. See
  * `AlarmBadge`, which is the element and carries the argument for dropping the tooltip.
  *
- * ## Why the third column is always the alarms
+ * ## Why the alarms close the strip
  *
- * Because it is the one column every page can fill. Generation exists at a system,
- * fuel at a genset, charge at a bank — and none of them anywhere else. Alarms are
- * the one quantity all three plant types raise, so pinning them to a fixed column
- * is what lets a reader moving between the three know where to look without
- * reading the labels first.
+ * Because they are the one column every page can fill, and because the readings
+ * before them are what a reader is scanning. Generation exists at a system, fuel at
+ * a genset, charge at a bank — and none of them anywhere else. Alarms are the one
+ * quantity all three plant types raise, so ending on them is what lets a reader
+ * moving between the three know where to look without reading the labels first.
  *
- * ## Why `trailing` comes *after* the alarms rather than before them
- *
- * The site page carries a fourth column the other two have nothing to put in — the
- * plant figure that site can answer for, which is `Generation today` at one yard
- * and `Fuel level` at the next. Slotting it third would push the alarms to fourth
- * **on that page only**, and the paragraph above is the whole reason not to: a
- * reader moving site → solar → battery would find the pill in a different place on
- * the first of them. So the strip grows on the right, and the alarm column stays
- * the third one everywhere it is drawn.
+ * The pill was pinned to the **third** column until 2026-09-14, which held while
+ * every strip had two readings. The site strip now draws four — supply, the plant
+ * figures it can answer for, and the draw — so third would have put the pill in the
+ * middle of the readings there. Last is the rule that survives a strip growing;
+ * third was the rule that only held while none of them did. On the three asset
+ * strips nothing moved: with two readings, last *is* third.
  */
 export const MetricStrip = ({
   metrics,
   counts,
   alarmLink,
-  trailing,
   ariaLabel,
 }: {
   /**
    * Two in the design, three where a page has a third question of the same kind —
-   * the genset's tank, its runway and its service counter. Not a licence to keep
-   * adding: the strip's value is that a reader knows where to look before they
-   * read the labels, and a column that moves between pages costs exactly that.
+   * the genset's tank, its runway and its service counter — and four on a site,
+   * which is the only page that can answer for the plant standing beside the tower
+   * as well as the tower. Not a licence to keep adding: the strip's value is that a
+   * reader knows where to look before they read the labels, and every column added
+   * spends a little of it.
    */
   metrics: ReadonlyArray<{label: string; value: ReactNode}>;
   counts: Record<AlertSeverity, number>;
@@ -76,27 +74,20 @@ export const MetricStrip = ({
     params?: LinkProps['params'];
     search?: LinkProps['search'];
   };
-  /**
-   * An extra column past the alarms, label and all — the site page's fitted-plant
-   * figure and nothing else so far. The caller supplies the value because what goes
-   * in it is its own business; the column shell is here so the fourth column is
-   * measured, spaced and labelled exactly like the three beside it, and typeset
-   * like them too: a figure in the fourth column is still a figure.
-   */
-  trailing?: {label: string; value: ReactNode};
   ariaLabel: string;
 }) => (
   // A **container** query, not a breakpoint, and for the reason `DetailBand` gives:
   // these strips sit inside two rails that take up to 480px between them, so the
   // viewport says nothing useful about how much room the columns have. The old
   // `sm:` turned the strip into a row at a 640px *viewport*, which on a tablet is a
-  // ~440px strip — four columns of 100px, narrow enough to break a figure across
+  // ~440px strip — five columns of 88px, narrow enough to break a figure across
   // two lines mid-bracket. This measures the strip itself.
   <div className="@container">
     <section
       aria-label={ariaLabel}
-      // A column until the columns fit: four equal shares of 672px is 168px each,
-      // which is what the widest of them — a draw with its bus reading — needs.
+      // A column until the columns fit: five equal shares of 672px is 134px each,
+      // which the widest of them — a draw with its bus reading — meets by dropping
+      // the bracket to its own line rather than truncating it. See `SiteMetricStrip`.
       className="flex flex-col gap-4 rounded-md border border-subtle bg-element px-5 py-4 @2xl:flex-row @2xl:gap-3"
     >
       {metrics.map((metric) => (
@@ -129,17 +120,6 @@ export const MetricStrip = ({
           search={alarmLink.search}
         />
       </div>
-
-      {trailing !== undefined && (
-        <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-          <span className="truncate text-sm font-medium text-secondary">
-            {trailing.label}
-          </span>
-          <span className="text-base font-semibold text-primary tabular-nums">
-            {trailing.value}
-          </span>
-        </div>
-      )}
     </section>
   </div>
 );

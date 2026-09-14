@@ -1,7 +1,6 @@
 import {amount} from '@/lib/format';
 import {DetailBand} from '@/components/global/DetailBand';
 import type {DetailRow} from '@/components/global/DetailBand';
-import {SITE_KIND_LABEL} from '../data/sites';
 import {customerShortName} from '../data/customers';
 import {HAS_PROGRAMS, programShortName} from '../data/programs';
 import type {SitePowerRole} from '../types/site.type';
@@ -54,10 +53,12 @@ const coordinate = (value: number, positive: string, negative: string): string =
  * empty roster means the grouping does not exist here, and a row reading "Unassigned"
  * at every site would be a column of nothing pretending to be data.
  *
- * `Load` is added to the design's two. The frame states how the site is fed and how
- * much is installed but never what the installation is *for*, and the load's
- * tolerance for an outage is what makes everything else on this page urgent or
- * routine.
+ * A `Load` row naming what the installation is *for* — `Macro base station` — stood
+ * here until 2026-09-14 and has been taken out at the owner's word. It was the one
+ * row the design did not draw, and it was the site's **kind** rather than a reading:
+ * fixed for the life of the site, identical at most of the estate, and already the
+ * second line of the site's own row on the list that opened this page. The band is
+ * back to the fields the Settings tab edits.
  */
 export const SiteDetails = ({
   summary,
@@ -77,7 +78,6 @@ export const SiteDetails = ({
     {label: 'Latitude', value: coordinate(summary.site.latitude, 'N', 'S')},
     {label: 'Longitude', value: coordinate(summary.site.longitude, 'E', 'W')},
     {label: 'Installed capacity', value: amount(summary.ratedKw, 'kW')},
-    {label: 'Load', value: SITE_KIND_LABEL[summary.site.kind]},
   ];
 
   return <DetailBand ariaLabel="Site details" rows={rows} />;

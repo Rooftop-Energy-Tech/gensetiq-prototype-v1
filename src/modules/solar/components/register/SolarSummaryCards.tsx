@@ -16,17 +16,24 @@ import type {SolarSummary} from '../../data/register';
  *
  * ## These are placeholders, and here is what that means
  *
- * Four cards that **read** and do not **act**. The fleet strip's four are
+ * Three cards that **read** and do not **act**. The fleet strip's four are
  * `FilterCard`s — click "Tank empty" and the list and the map narrow to it — and
  * these deliberately are not, because a filter needs a bucket in the URL to carry it
  * and this register's schema has one dimension in it so far: region. Adding
  * `?condition=critical` is the obvious next move and is a change to
  * `register.type.ts` plus one prop here, not a redesign.
  *
+ * There were four. `Dark strings` came out on 2026-09-14 with the table's `Strings`
+ * column, at the owner's word — a string is a wiring detail of one array, and the
+ * estate-wide sum of them was a headline figure nobody could act on without opening
+ * a system anyway. The fault it stood for still reaches this page: a system with a
+ * dark string is not `OPTIMUM`, so it is already inside `Attention`, and the array's
+ * own page draws the strings box by box.
+ *
  * What they are *not* is invented. Every figure is read off the same rows the table
  * below is drawing — see `solarSummary` — so a placeholder card cannot claim a total
  * the list does not contain. The estate's own arithmetic is the cheap part; the
- * expensive part was deciding which four questions deserve the width, and that is the
+ * expensive part was deciding which three questions deserve the width, and that is the
  * part left open.
  *
  * ## Counted over the whole register
@@ -60,9 +67,10 @@ export const SolarSummaryCards = ({summary, showing}: SolarSummaryCardsProps) =>
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Four narrow cards sharing the row evenly — none of them is the wrapping kind
-          that turns extra width into fewer lines, so none of them wants the slack. */}
-      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={4}>
+      {/* Three narrow cards sharing the row evenly — none of them is the wrapping
+          kind that turns extra width into fewer lines, so none of them wants the
+          slack. */}
+      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={3}>
         <SummaryCard label="Solar">
           <Headline
             value={summary.total}
@@ -98,18 +106,6 @@ export const SolarSummaryCards = ({summary, showing}: SolarSummaryCardsProps) =>
               summary.critical === 0
                 ? 'Nothing critical'
                 : `${summary.critical} critical`
-            }
-          />
-        </SummaryCard>
-
-        <SummaryCard label="Dark strings">
-          <Headline
-            value={summary.darkStrings}
-            unit={summary.darkStrings === 1 ? 'string' : 'strings'}
-            detail={
-              summary.darkSystems === 0
-                ? 'Every string live'
-                : `Across ${summary.darkSystems} ${summary.darkSystems === 1 ? 'system' : 'systems'}`
             }
           />
         </SummaryCard>
