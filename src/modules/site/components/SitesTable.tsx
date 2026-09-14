@@ -166,11 +166,7 @@ export const SitesTable = ({
             // The panel's own reading of who has the load, off `defaultDutyId` —
             // the set the changeover starts on — so a row and the preview it opens
             // cannot name two different sources. See `SiteDetailPanel`.
-            const supply = supplyMeta(
-              siteFeed(summary, summary.defaultDutyId, role),
-              role,
-              summary.gensets.length,
-            );
+            const supply = supplyMeta(siteFeed(summary, summary.defaultDutyId, role), role);
             const SupplyIcon = supply.icon;
 
             return (
@@ -213,13 +209,13 @@ export const SitesTable = ({
                     {condition.label}
                   </Badge>
                 </td>
-                {/* Two lines, the shape the Site cell already uses: who has the
-                    load on top, and how many sets are turning under it. The count
-                    stays because it is not implied by the line above it — a site
-                    reading `On mains` with a set turning is a test run, and one
-                    reading it with none is an ordinary day. Icon rather than the
-                    strip's badge: `Condition` is already a pill in the next column
-                    over, and two pills a row reads as a row of chips. */}
+                {/* One line: who has the load. It carried a `N running` count
+                    underneath, which was a second fact in a column asked for one —
+                    the reader is scanning for the source, and a set turning off-load
+                    is a genset-screen detail rather than a qualifier on it. Icon
+                    rather than the strip's badge: `Condition` is already a pill in
+                    the next column over, and two pills a row reads as a row of
+                    chips. */}
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
                   <span className="flex items-center gap-1.5 truncate">
                     <SupplyIcon
@@ -230,14 +226,6 @@ export const SitesTable = ({
                       aria-hidden="true"
                     />
                     <span className="truncate">{supply.label}</span>
-                  </span>
-                  <span
-                    className={cn(
-                      'block truncate text-xs',
-                      summary.runningCount === 0 ? 'text-tertiary' : 'text-secondary',
-                    )}
-                  >
-                    {summary.runningCount} running
                   </span>
                 </td>
                 {showFuel && (

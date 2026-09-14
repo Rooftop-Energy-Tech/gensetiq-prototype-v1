@@ -183,11 +183,7 @@ const drawMetric = (
  * silhouette, and it is the treatment the alarm pill beside it already uses.
  */
 const supplyColumn = (summary: SiteSummary, role: SitePowerRole): StripMetric => {
-  const supply = supplyMeta(
-    siteFeed(summary, summary.defaultDutyId, role),
-    role,
-    summary.gensets.length,
-  );
+  const supply = supplyMeta(siteFeed(summary, summary.defaultDutyId, role), role);
   const SupplyIcon = supply.icon;
 
   return {

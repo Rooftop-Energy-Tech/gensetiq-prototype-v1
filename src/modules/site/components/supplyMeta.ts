@@ -6,27 +6,29 @@ import {hasBattery, hasMains, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 
 /**
- * The supply badge, in one place because two screens draw it.
+ * The supply badge, in one place because three screens draw it.
  *
- * The list's preview panel and the site page's own header both answer "what has
- * the load right now", and they answered it in two copies that had already begun
- * to differ — one of them said `1 of 2 feeding` at a prime site and the other did
+ * The list, its preview panel and the site page's own header all answer "what has
+ * the load right now", and they answered it in copies that had already begun to
+ * differ — one of them said `1 of 2 feeding` at a prime site and the other did
  * not. Two readings of one fact is the bug this file exists to make impossible.
  *
- * ## Why the wording changes with the configuration
+ * ## Why the badge names the source and nothing else
  *
- * Because the question does. At a diesel-prime site the gensets *are* the supply,
- * so **"1 of 2 feeding"** is the useful fact — and it is deliberately not "1 of 2
- * running": at most one set feeds the load, because there is one changeover, so a
- * second turning set is off-load and does not count.
+ * Because that is the question. The badge used to count sets at a diesel-prime
+ * site — `1 of 2 feeding` — which answers *how the plant is arranged* rather than
+ * *what is carrying the load*, and it made one column say two things in two
+ * grammars: the other configurations named a source and this one reported a
+ * fraction. A reader scanning the column for "who has it" had to parse a ratio to
+ * find out it meant `On generator`.
  *
- * At a grid-backed site that count answers the wrong question. A healthy one has
- * **zero** sets feeding, and a badge reading "0 of 2 feeding" over a site running
- * perfectly well on the grid is alarm-shaped where no alarm exists.
+ * How many sets are fitted and how many are turning are real facts, and they are
+ * the genset screens' — where a set is the object being looked at, not a
+ * qualifier on a site's supply.
  *
- * At a hybrid, a running genset is not the ordinary state either — it is the
- * backstop having been called on, which is worth its own word rather than the
- * neutral "on generator" a grid-backed site gets.
+ * At a hybrid a running genset is still worth its own word rather than the neutral
+ * `On generator` a grid-backed site gets: there the backstop has been called on,
+ * which is an event, not a configuration.
  */
 export type SupplyMeta = {
   label: string;
@@ -35,11 +37,7 @@ export type SupplyMeta = {
   live: boolean;
 };
 
-export const supplyMeta = (
-  feed: SiteFeed,
-  role: SitePowerRole,
-  gensetCount: number,
-): SupplyMeta => {
+export const supplyMeta = (feed: SiteFeed, role: SitePowerRole): SupplyMeta => {
   switch (feed.source) {
     case 'MAINS':
       return {label: 'On mains', icon: UtilityPoleIcon, live: true};
@@ -49,11 +47,7 @@ export const supplyMeta = (
       return {label: 'On battery', icon: BatteryChargingIcon, live: true};
     case 'GENSET':
       return {
-        label: hasBattery(role)
-          ? 'Genset carrying'
-          : role === 'DIESEL_PRIME'
-            ? `1 of ${gensetCount} feeding`
-            : 'On generator',
+        label: hasBattery(role) ? 'Genset carrying' : 'On generator',
         icon: PlugZapIcon,
         live: true,
       };

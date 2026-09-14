@@ -48,7 +48,7 @@ const SupplyBadge = ({summary}: {summary: SiteSummary}) => {
   const role = useSitePowerRole(summary.site.id);
   const feed = siteFeed(summary, summary.defaultDutyId, role);
 
-  const supply = supplyMeta(feed, role, summary.gensets.length);
+  const supply = supplyMeta(feed, role);
 
   const SupplyIcon = supply.icon;
 

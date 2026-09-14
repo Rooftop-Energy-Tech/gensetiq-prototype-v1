@@ -1080,8 +1080,11 @@ Five things worth knowing, in order of how much they matter.
    node now reads `not served` only when *nothing* is feeding. On a standby site with
    the grid up, the site's draw is the incomer's figure. Reading "0 of 2 feeding" over a
    site running perfectly well on the grid was alarm-shaped where no alarm existed, so
-   the badge reads `On mains` / `On generator` there, and keeps `1 of 2 feeding` at a
-   prime site, where counting the sets is the useful fact.
+   the badge names the source everywhere: `On mains`, `On generator`, `Genset carrying`
+   at a hybrid, `Not served` when nothing has the load. It briefly counted sets at a
+   prime site — `1 of 2 feeding` — which answered how the plant is arranged rather than
+   what is carrying it, and made one column speak in two grammars. How many sets are
+   fitted and turning belongs to the genset screens.
 
 4. **Conductors are painted dead-first.** Every source elbows onto the bus riser and
    runs along it to the tap, so with three or more sources those segments overlap — and
