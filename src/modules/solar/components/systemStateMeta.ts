@@ -7,19 +7,26 @@ import type {SystemState} from '../types/system.type';
 /**
  * How a system's state is written and coloured in a badge, and on a pin.
  *
- * `RUN_STATE_META`'s pattern exactly — the surface stays neutral and only the
- * glyph carries state, so a column of mixed badges reads as one family rather
- * than a traffic light — and the same three tokens, because an operator reading a
- * genset row and a solar row on adjacent screens should not have to learn two
- * palettes for `Offline`.
+ * `RUN_STATE_META`'s pattern — the surface stays neutral and only the glyph
+ * carries state, so a column of mixed badges reads as one family rather than a
+ * traffic light. `IDLE` and `OFFLINE` keep the fleet's own tokens too, because an
+ * operator reading a genset row and a solar row on adjacent screens should not
+ * have to learn two palettes for `Offline`.
  *
- * **The pair is a sun and a moon**, which is the one thing on this record that is
- * not `RUN_STATE_META`'s. `GENERATING` took the genset's filled circle until
- * 2026-09-14 and takes `SunMediumIcon` now — the glyph this app already spends on
- * solar everywhere else: the rail's `Solar`, the site strip's `On solar` badge, an
- * SSU in the cabinet, the array in a site's settings. A circle said *this row is
- * live*, which is true of a running engine too; the sun says what is making the
- * power, which is the only thing a solar register is about.
+ * **`GENERATING` is the one that departs, in both glyph and colour**, and it went
+ * on 2026-09-14. It drew `CircleIcon` in `text-status-running` — the blue dot the
+ * fleet list gives a running engine. It now draws `SunMediumIcon` in `text-solar`,
+ * the deep amber this app already spends on solar everywhere else: the rail's
+ * `Solar`, the site strip's `On solar` badge, an SSU in the cabinet, the array in a
+ * site's settings, the solar band in every chart.
+ *
+ * The reasoning is the same for both halves. A blue circle said *this row is live*,
+ * which is equally true of a turning diesel engine; a sun in the colour this app
+ * has already taught the reader to mean *solar* says what is making the power,
+ * which is the only thing a solar register is about. The shared palette was worth
+ * keeping for the two states that mean **a system is not working** — those a reader
+ * really does cross between screens to compare — and worth spending for the one
+ * that means it is.
  *
  * `IDLE`'s moon was already there, and it reads as the sun's other half now rather
  * than as an exception. It is a moon rather than the genset's pause bars because a
@@ -51,10 +58,13 @@ export const SYSTEM_STATE_META: Record<
   {label: string; icon: LucideIcon; iconClassName: string; mapColor: string}
 > = {
   GENERATING: {
+    // `mapColor` moves with `iconClassName`, which is the whole reason the two sit
+    // on one record — see the note above. A pin left on `status-running` while the
+    // badge went amber is exactly the disagreement this record exists to prevent.
     label: 'Generating',
     icon: SunMediumIcon,
-    iconClassName: 'text-status-running',
-    mapColor: lightToken['status-running'],
+    iconClassName: 'text-solar',
+    mapColor: lightToken.solar,
   },
   IDLE: {
     label: 'Idle',
