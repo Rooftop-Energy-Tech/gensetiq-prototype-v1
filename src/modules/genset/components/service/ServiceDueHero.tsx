@@ -145,25 +145,26 @@ const CounterDonut = ({counter, binding}: {counter: ServiceCounter; binding: boo
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-0.5">
-        <span
-          className={cn('text-center text-sm', binding ? 'text-primary' : 'text-secondary')}
-        >
-          {meta.label}
-        </span>
-        {binding && (
-          <span className={cn('text-xs font-medium', severity.textClassName)}>
-            {severity.label}
-          </span>
-        )}
-      </div>
+      {/* The counter's name, and nothing under it. The binding counter used to
+          carry the severity label here — `In service`, `Due soon`, `Overdue` — and
+          it was the same word the verdict column is already printing 113px to the
+          left, in every state: `status.severity` *is* the binding counter's
+          severity, by the definition of `binding` in `service.type.ts`. Two
+          printings of one word, one of them under a ring already drawn in that
+          severity's colour. Removed 2026-09-14 (Tristan).
+
+          `binding` still decides this line's *weight*, which is the distinction
+          that was doing work: which of the two counters the verdict is about. */}
+      <span className={cn('text-center text-sm', binding ? 'text-primary' : 'text-secondary')}>
+        {meta.label}
+      </span>
     </div>
   );
 };
 
 /**
- * The head of the Service tab: both counters, and one sentence saying where the
- * unit stands.
+ * The head of the Service tab: both counters, and — when there is something to
+ * say — one sentence saying where the unit stands.
  *
  * Both are always shown, at the same size, side by side. That is the whole
  * argument of the feature made visible — a genset is due on whichever comes
@@ -173,9 +174,18 @@ const CounterDonut = ({counter, binding}: {counter: ServiceCounter; binding: boo
  * obvious thing to do with two rings and it would silently make one of the
  * counters the outer, larger, first-read one.
  *
- * Only the *emphasis* moves: the binding counter gets the verdict label under it,
- * because "which of these two is the problem" is a different question from "which
- * of these two matters".
+ * Only the *emphasis* moves: the binding counter's name is set in the primary ink
+ * and the other's in the secondary, because "which of these two is the problem" is
+ * a different question from "which of these two matters".
+ *
+ * ## The band says each thing once
+ *
+ * Two labels came off it on 2026-09-14. The binding counter carried the severity
+ * **word** under its ring, which the verdict column beside it was already printing;
+ * and a healthy set carried the sentence *"Neither counter is near its interval."*,
+ * which two green part-filled rings had already said. Both are noted where they
+ * stood. What is left is: the glyph and the word on the left, the figures that are
+ * only stated here in the middle, and the rings.
  */
 export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
   if (status.kind === 'never-serviced') {
@@ -205,12 +215,20 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
   const dueDate = calendarDueDate(status.lastService, status.schedule);
 
   /**
-   * The sentence under the glyph.
+   * The sentence under the glyph — **when there is one**.
    *
    * It names the counter, because "overdue" on its own sends somebody to look at
    * the wrong number — and on a set overdue by run hours, the calendar counter
    * sitting at two of six months is exactly the reassuring figure that would
    * make them close the page.
+   *
+   * `undefined` at `OK`, where it used to read *"Neither counter is near its
+   * interval."* (removed 2026-09-14, Tristan). That sentence was the one state in
+   * which the line carried nothing: two rings drawn a fifth of the way round, in
+   * green, under a heading that already says `In service`, do not need a sentence
+   * to say they are not nearly full. The other two states are the opposite — the
+   * overshoot and the due date are quantities nothing else on this page states —
+   * so they keep the line.
    */
   const verdict =
     status.severity === 'OVERDUE'
@@ -221,7 +239,7 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
         ? status.binding === 'hours'
           ? `Due in ${Math.round(-overshoot).toLocaleString('en-MY')} run hours.`
           : `Due ${stampDate(dueDate.toISOString())}.`
-        : 'Neither counter is near its interval.';
+        : undefined;
 
   return (
     <section
@@ -239,7 +257,7 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <p className="text-sm text-secondary">{verdict}</p>
+        {verdict !== undefined && <p className="text-sm text-secondary">{verdict}</p>}
 
         <div className="flex flex-wrap gap-x-6 gap-y-5">
           <CounterDonut counter={status.hours} binding={status.binding === 'hours'} />
