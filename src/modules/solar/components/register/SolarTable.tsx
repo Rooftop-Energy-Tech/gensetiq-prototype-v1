@@ -229,23 +229,28 @@ export const SolarTable = ({
                   </td>
                 )}
 
-                {/* The pill every strip and device card in the app draws, and a link
-                    to this system's Alarms tab — see `AlarmBadge` for why a count is
-                    a door rather than a figure. No `keepFrom`: this register *is*
-                    where the trail starts, so there is nothing to crumb back to.
+                <td className="h-13 overflow-hidden border-b border-subtle p-2">
+                  {/* The pill every strip and device card in the app draws, and a
+                      link to this system's Alarms tab — see `AlarmBadge` for why a
+                      count is a door rather than a figure. No `keepFrom`: this
+                      register *is* where the trail starts, so there is nothing to
+                      crumb back to.
 
-                    `stopPropagation` so following it does not also fire the row's
-                    select on a screen we are in the middle of leaving — the name
-                    cell's rule. */}
-                <td
-                  className="h-13 overflow-hidden border-b border-subtle p-2"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <AlarmBadge
-                    counts={row.counts}
-                    to="/solar/$systemId/alarms"
-                    params={{systemId: system.id}}
-                  />
+                      ⚠️ `stopPropagation` goes on **this span and not the cell**,
+                      which is `SitesTable`'s wiring and was worth copying exactly.
+                      On the cell it makes the whole column dead to the row's select
+                      — 177px of every row where clicking does nothing at all —
+                      because a cell is mostly padding and the pill is only the part
+                      of it that navigates. Here the padding still selects the row
+                      and only the pill is exempt, which is the split the name cell
+                      above already makes. */}
+                  <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
+                    <AlarmBadge
+                      counts={row.counts}
+                      to="/solar/$systemId/alarms"
+                      params={{systemId: system.id}}
+                    />
+                  </span>
                 </td>
               </tr>
             );
