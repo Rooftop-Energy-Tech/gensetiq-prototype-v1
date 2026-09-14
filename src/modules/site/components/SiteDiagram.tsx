@@ -1,4 +1,6 @@
 import {useRef} from 'react';
+import {useNavigate} from '@tanstack/react-router';
+import type {LinkProps} from '@tanstack/react-router';
 import {
   BatteryChargingIcon,
   BoomBoxIcon,
@@ -11,13 +13,14 @@ import type {LucideIcon} from 'lucide-react';
 
 import type {RunState} from '@/modules/genset/types/genset.type';
 
-import {StaticAlarmBadge} from '@/components/global/AlarmCounts';
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
-import {gensetDeviceKey} from '../types/device.type';
+import {deviceGensetId, gensetDeviceKey} from '../types/device.type';
 import type {SiteDeviceKey} from '../types/device.type';
+import {fromSite} from '../types/fromSearch.type';
 import {hasBattery, hasMains, hasSolar, isolatorStateOf, mainsContactorStateOf} from '../types/site.type';
 import type {MainsSupply, SitePowerRole, SwitchState} from '../types/site.type';
 import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
@@ -458,6 +461,34 @@ const Isolator = ({y, closed, live}: {y: number; closed: boolean; live: boolean}
   );
 };
 
+/**
+ * Where a device box goes when it is opened, and where its pill goes.
+ *
+ * The four pairs `SiteDevicePanel` already links to, written once here so the drawing
+ * and the card it opens cannot send a reader to two different places. Every asset but
+ * the genset is keyed by its **site's** id — a site has one array, one bank and one
+ * cabinet, so they share its id; see `device.type.ts`.
+ *
+ * `fromSite` on both, so a page opened from this drawing crumbs back to this site
+ * rather than springing to that asset's own register.
+ */
+const deviceRoutes = (
+  device: SiteDeviceKey,
+  siteId: string,
+): {page: LinkProps['to']; alarms: LinkProps['to']; params: LinkProps['params']} => {
+  const gensetId = deviceGensetId(device);
+  if (gensetId !== undefined) {
+    return {page: '/gensets/$gensetId', alarms: '/gensets/$gensetId/alarms', params: {gensetId}};
+  }
+  if (device === 'solar') {
+    return {page: '/solar/$systemId', alarms: '/solar/$systemId/alarms', params: {systemId: siteId}};
+  }
+  if (device === 'battery') {
+    return {page: '/battery/$bankId', alarms: '/battery/$bankId/alarms', params: {bankId: siteId}};
+  }
+  return {page: '/cabinet/$cabinetId', alarms: '/cabinet/$cabinetId/alarms', params: {cabinetId: siteId}};
+};
+
 // ─── Nodes ───────────────────────────────────────────────────────────────────
 
 /**
@@ -476,12 +507,16 @@ const Node = ({
    * — or `undefined` for a node that is not a device, and for the whole drawing when
    * it is rendered without counts.
    *
-   * `StaticAlarmBadge` rather than `AlarmBadge`: a device node **is** a `<button>`,
-   * and an anchor inside a button is invalid markup — the browser closes the button
-   * and the node stops selecting. Nothing is lost, because a click on the node already
-   * opens that device's card beside the drawing and the card's own pill is the link.
+   * The pill is a **link to that device's own Alarms tab** (Tristan, 2026-09-14),
+   * which is why the node below is a `<div role="button">` and no longer a `<button>`:
+   * an anchor inside a button is invalid markup — the browser closes the button, and
+   * the node stops selecting. A div is not interactive content, so it may hold one.
    */
   counts,
+  /** Where that pill goes. Absent with `counts`, present with it. */
+  alarmsLink,
+  /** What a double-click opens — this device's own page. Inert without a selection. */
+  onOpen,
   /** The power line under the caption — a kW figure, or why there isn't one. */
   power,
   /** `false` dims the power line: it is a word about state, not a measurement. */
@@ -501,6 +536,8 @@ const Node = ({
   label: string;
   caption: string;
   counts?: Record<AlertSeverity, number>;
+  alarmsLink?: {to: LinkProps['to']; params: LinkProps['params']; search: LinkProps['search']};
+  onOpen?: () => void;
   power: string;
   powered: boolean;
   /** `undefined` for the load — nothing reports its state, so it gets no dot. */
@@ -585,9 +622,21 @@ const Node = ({
             padding over a 24px pill. Drawn on every device node including a quiet one, so
             its *absence* never becomes the signal; a severity with nothing standing draws
             a dash rather than a `0`. See `PILL_ROOM` and `AlarmCounts`. */}
-        {counts !== undefined && (
+        {/* Both or neither: the caller looks the counts up and builds the link off the
+            same device key, so a pill with nowhere to go cannot arise. */}
+        {counts !== undefined && alarmsLink !== undefined && (
           <div className="relative flex h-[28px] w-full shrink-0 items-start justify-center pt-1">
-            <StaticAlarmBadge counts={counts} />
+            {/* `stopPropagation` so opening the queue does not also move the selection
+                onto a device on a drawing we are in the middle of leaving — the split
+                every table in this app makes between its row and its pill. */}
+            <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
+              <AlarmBadge
+                counts={counts}
+                to={alarmsLink.to}
+                params={alarmsLink.params}
+                search={alarmsLink.search}
+              />
+            </span>
           </div>
         )}
 
@@ -633,9 +682,40 @@ const Node = ({
   }
 
   return (
-    <button
-      type="button"
+    /**
+     * A `div` with the button role, not a `<button>`.
+     *
+     * It was a real button until the alarm pill became a link (2026-09-14), and a
+     * `<button>` may not contain an anchor — the browser closes the button at the `<a>`
+     * and the rest of the node stops being clickable. A `div` is not interactive
+     * content, so it may hold one, and the role and the key handling put back what the
+     * element gave away for free.
+     *
+     * ## One click selects, two opens
+     *
+     * A single click puts this device in the card beside the drawing — the drawing's
+     * original job as the page's picker. A **double-click opens the device's own page**,
+     * which is the gesture a reader already expects from a box in a diagram and which
+     * the drawing had no way to offer. The double-click fires the select twice on its
+     * way through, which costs nothing: selecting the same device twice is selecting it.
+     *
+     * ⚠️ Double-click is a mouse gesture and has no keyboard equivalent here. Enter and
+     * Space still select, which is what they did as a button, and the card they open
+     * carries a link to the device's page — so the keyboard route to it is one element
+     * further on rather than missing. The pill is separately focusable and is a real
+     * link.
+     */
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onDoubleClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        // Space scrolls the page under the drawing otherwise.
+        event.preventDefault();
+        onSelect();
+      }}
       // `aria-pressed` rather than a tablist: the boxes are laid out at measured
       // coordinates across two columns, and a tablist promises an order to arrow
       // through that this drawing does not have. A pressed toggle is the honest
@@ -643,13 +723,13 @@ const Node = ({
       aria-pressed={selected}
       // The caption lines are inside the target, not just the box: they are what
       // says *which* genset, so they are part of the thing being picked, and the
-      // 88 × 104 that gets is a comfortable hit area at the scales this drawing
-      // shrinks to.
-      className="group absolute cursor-pointer rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-outline"
+      // 88 × 134 that gets is a comfortable hit area at the scales this drawing
+      // shrinks to. `select-none` so a double-click highlights nothing.
+      className="group absolute cursor-pointer rounded-lg outline-none select-none focus-visible:ring-2 focus-visible:ring-outline"
       style={{left: x, top: y, width: NODE_W}}
     >
       {body}
-    </button>
+    </div>
   );
 };
 
@@ -1055,6 +1135,17 @@ export const SiteDiagram = ({
   selection?: SiteDiagramSelection;
   alarms?: Partial<Record<SiteDeviceKey, Record<AlertSeverity, number>>>;
 }) => {
+  /**
+   * What a double-click on a device box does — see the note on the node element.
+   *
+   * A hook rather than a prop, and it does not cost this component its purity in the
+   * sense that matters: `useNavigate` is the router's, not this site's, so the drawing
+   * is still a pure function of `(summary, dutyId, role)` for everything it *draws*.
+   * The settings page's preview passes no `selection`, and a box with nothing to select
+   * gets nothing to open either.
+   */
+  const navigate = useNavigate();
+
   const sources = sourcesOf(summary, dutyId, role);
   const count = Math.max(1, sources.length);
   const feed = siteFeed(summary, dutyId, role);
@@ -1081,6 +1172,23 @@ export const SiteDiagram = ({
   const pitch = PITCH + pillRoom;
   /** How tall a box carrying a pill stands — what the tie and the canvas measure from. */
   const boxH = NODE_H + pillRoom;
+
+  /**
+   * The two ways out of a device box: double-click for its page, the pill for its
+   * alarms. `undefined` for a node that is not a device, and for the whole drawing
+   * when there is no selection to make — a preview must not navigate.
+   */
+  const opener = (device: SiteDeviceKey | undefined) => {
+    if (device === undefined || selection === undefined) return undefined;
+    const {page, params} = deviceRoutes(device, summary.site.id);
+    return () => void navigate({to: page, params, search: fromSite(summary.site.id)});
+  };
+
+  const alarmsLinkFor = (device: SiteDeviceKey | undefined) => {
+    if (device === undefined) return undefined;
+    const {alarms, params} = deviceRoutes(device, summary.site.id);
+    return {to: alarms, params, search: fromSite(summary.site.id)};
+  };
 
   /** Where source `index`'s conductor leaves its box — see `ATTACH`. */
   const centreline = (index: number) => index * pitch + ATTACH;
@@ -1328,6 +1436,8 @@ export const SiteDiagram = ({
             label={source.label}
             caption={source.caption}
             counts={device === undefined ? undefined : alarms?.[device]}
+            alarmsLink={alarmsLinkFor(device)}
+            onOpen={opener(device)}
             power={source.power}
             powered={source.switchState.live}
             live={source.switchState.live}
@@ -1348,6 +1458,8 @@ export const SiteDiagram = ({
           label="CABINET"
           caption="DC plant"
           counts={alarms?.cabinet}
+          alarmsLink={alarmsLinkFor('cabinet')}
+          onOpen={opener('cabinet')}
           power={cabinetPowerLabel(feed.source)}
           // Dimmed unless the box is actually converting. `bank carrying` and `not
           // served` are both words about a shelf doing nothing, and the power line's
