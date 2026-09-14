@@ -5,21 +5,68 @@ import {stampDate} from '@/lib/format';
 import {COUNTER_META, SERVICE_SEVERITY_META} from './serviceMeta';
 
 /**
- * One counter, drawn as a bar with its own scale.
+ * Ring geometry, in viewBox units that happen to be the rendered pixels.
  *
- * Each bar is filled against **its own interval**, which is what lets two
+ * The inner hole is `2 × (RADIUS − STROKE / 2)` = 84px, which is what sizes the
+ * whole thing: the figure and its `of 250 h` have to sit inside it at a legible
+ * size, and a ring drawn small enough to need the number outside it has given
+ * away the only thing a donut has over the bar it replaced.
+ */
+const SIZE = 112;
+const CENTRE = SIZE / 2;
+const RADIUS = 47;
+const STROKE = 10;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+/**
+ * The lap ring: thinner, inset, concentric — see `CounterDonut` for why it exists.
+ */
+const LAP_RADIUS = 35;
+const LAP_STROKE = 5;
+const LAP_CIRCUMFERENCE = 2 * Math.PI * LAP_RADIUS;
+
+/**
+ * One counter, drawn as a ring filled against its own interval.
+ *
+ * Each ring is filled against **its own interval**, which is what lets two
  * quantities that share no unit sit side by side and still be compared at a
- * glance: 90% of 250 hours and 90% of six months are the same distance along,
+ * glance: 90% of 250 hours and 90% of six months are the same distance round,
  * because both are 90% of the way to a service.
  *
- * The bar is capped at full while the figure above it is not. An overdue counter
- * reading `291 h` over a bar pinned at the end says "past it, by this much"; a
- * bar allowed to overflow its track would just look like a rendering bug.
+ * ## Why a ring rather than the bar this replaced
+ *
+ * The bar spent its width on a quantity that is never more than a fraction and
+ * left the figure stranded above it, so each counter needed 240px and the pair
+ * ran the width of the band. A ring closes the same fraction into a shape whose
+ * middle is empty, and the figure goes in the middle — one puck per counter,
+ * self-contained, and the two sit together at a size where the *shapes* can be
+ * compared before either number is read. Which is the question the tab opens
+ * with: not "what are these two numbers" but "is either of them nearly round".
+ *
+ * ## The lap
+ *
+ * A bar past its interval can be pinned at the end and read as "past it". A ring
+ * cannot: a full circle is a full circle, and a set 1% over would draw exactly
+ * what a set 60% over draws. So the overshoot **goes round again** — a second,
+ * thinner arc inside the first, starting from twelve o'clock, filled with
+ * whatever is past the interval.
+ *
+ * That is not a decoration standing in for the overflow; on the hours counter it
+ * is literally what happened. A set at 291 of 250 hours has run its interval and
+ * started into the next one, and the inner arc is how far into it. The figure in
+ * the middle still reads `291`, uncapped, because the ring says *past* and only
+ * the number says *by how much*.
+ *
+ * A second lap is not drawn. A set two intervals overdue is a different
+ * conversation from a screen, and drawing a third ring would be building for a
+ * fleet nobody should be running.
  */
-const CounterBar = ({counter, binding}: {counter: ServiceCounter; binding: boolean}) => {
+const CounterDonut = ({counter, binding}: {counter: ServiceCounter; binding: boolean}) => {
   const meta = COUNTER_META[counter.kind];
   const severity = SERVICE_SEVERITY_META[counter.severity];
-  const fraction = counter.interval > 0 ? Math.min(1, counter.elapsed / counter.interval) : 0;
+  const fraction = counter.interval > 0 ? counter.elapsed / counter.interval : 0;
+  const filled = Math.min(1, Math.max(0, fraction));
+  const lapped = Math.min(1, Math.max(0, fraction - 1));
 
   // Hours are whole; months carry one decimal. A run-hour meter reading "232.4 h"
   // implies a precision the counter does not have, and "5 months" hides the
@@ -29,10 +76,79 @@ const CounterBar = ({counter, binding}: {counter: ServiceCounter; binding: boole
       ? Math.round(counter.elapsed).toLocaleString('en-MY')
       : counter.elapsed.toFixed(1);
 
+  const scale = `${counter.interval.toLocaleString('en-MY')} ${meta.unit}`;
+
   return (
-    <div className="flex min-w-[240px] flex-1 flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className={cn('text-sm', binding ? 'text-primary' : 'text-secondary')}>
+    <div className="flex w-[152px] flex-col items-center gap-2.5">
+      <div className="relative size-28 shrink-0">
+        <svg
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          className="block size-full"
+          role="img"
+          aria-label={`${meta.label}: ${elapsed} of ${scale} — ${severity.label.toLowerCase()}`}
+        >
+          {/* Rotated so the fill starts at twelve o'clock and runs clockwise,
+              which is the direction a reader already expects a dial to fill. */}
+          <g transform={`rotate(-90 ${CENTRE} ${CENTRE})`}>
+            <circle
+              cx={CENTRE}
+              cy={CENTRE}
+              r={RADIUS}
+              fill="none"
+              strokeWidth={STROKE}
+              stroke="currentColor"
+              className="text-element"
+            />
+
+            <circle
+              cx={CENTRE}
+              cy={CENTRE}
+              r={RADIUS}
+              fill="none"
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+              strokeDasharray={`${CIRCUMFERENCE * filled} ${CIRCUMFERENCE}`}
+              stroke="currentColor"
+              className={severity.textClassName}
+            />
+
+            {lapped > 0 && (
+              <circle
+                cx={CENTRE}
+                cy={CENTRE}
+                r={LAP_RADIUS}
+                fill="none"
+                strokeWidth={LAP_STROKE}
+                strokeLinecap="round"
+                strokeDasharray={`${LAP_CIRCUMFERENCE * lapped} ${LAP_CIRCUMFERENCE}`}
+                stroke="currentColor"
+                className={severity.textClassName}
+              />
+            )}
+          </g>
+        </svg>
+
+        {/* Absolutely centred rather than SVG `<text>`, the way `TickGauge` puts
+            its reading inside the dial: the type tokens are Tailwind's, and a
+            number drawn in SVG would be the one figure on the page that does not
+            get them. */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+          <span
+            className={cn(
+              'text-2xl leading-none font-medium tabular-nums',
+              counter.severity === 'OK' ? 'text-primary' : severity.textClassName,
+            )}
+          >
+            {elapsed}
+          </span>
+          <span className="text-[11px] text-secondary tabular-nums">of {scale}</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-0.5">
+        <span
+          className={cn('text-center text-sm', binding ? 'text-primary' : 'text-secondary')}
+        >
           {meta.label}
         </span>
         {binding && (
@@ -40,34 +156,6 @@ const CounterBar = ({counter, binding}: {counter: ServiceCounter; binding: boole
             {severity.label}
           </span>
         )}
-      </div>
-
-      <div className="flex items-baseline gap-1.5">
-        <span
-          className={cn(
-            'text-2xl font-medium tabular-nums',
-            counter.severity === 'OK' ? 'text-primary' : severity.textClassName,
-          )}
-        >
-          {elapsed}
-        </span>
-        <span className="text-sm text-secondary tabular-nums">
-          of {counter.interval.toLocaleString('en-MY')} {meta.unit}
-        </span>
-      </div>
-
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-element">
-        <div
-          className={cn(
-            'h-full rounded-full',
-            counter.severity === 'OVERDUE'
-              ? 'bg-severity-critical'
-              : counter.severity === 'DUE_SOON'
-                ? 'bg-severity-warning'
-                : 'bg-severity-ok',
-          )}
-          style={{width: `${fraction * 100}%`}}
-        />
       </div>
     </div>
   );
@@ -80,10 +168,14 @@ const CounterBar = ({counter, binding}: {counter: ServiceCounter; binding: boole
  * Both are always shown, at the same size, side by side. That is the whole
  * argument of the feature made visible — a genset is due on whichever comes
  * first, so a layout that promoted one counter and tucked the other underneath
- * would be drawing a policy the fleet does not run on. Only the *emphasis*
- * moves: the binding counter gets the verdict label beside it, because "which of
- * these two is the problem" is a different question from "which of these two
- * matters".
+ * would be drawing a policy the fleet does not run on. Which is also why the two
+ * rings are separate and equal rather than concentric: nesting them is the
+ * obvious thing to do with two rings and it would silently make one of the
+ * counters the outer, larger, first-read one.
+ *
+ * Only the *emphasis* moves: the binding counter gets the verdict label under it,
+ * because "which of these two is the problem" is a different question from "which
+ * of these two matters".
  */
 export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
   if (status.kind === 'never-serviced') {
@@ -149,9 +241,9 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <p className="text-sm text-secondary">{verdict}</p>
 
-        <div className="flex flex-wrap gap-x-10 gap-y-5">
-          <CounterBar counter={status.hours} binding={status.binding === 'hours'} />
-          <CounterBar counter={status.calendar} binding={status.binding === 'calendar'} />
+        <div className="flex flex-wrap gap-x-6 gap-y-5">
+          <CounterDonut counter={status.hours} binding={status.binding === 'hours'} />
+          <CounterDonut counter={status.calendar} binding={status.binding === 'calendar'} />
         </div>
       </div>
     </section>
