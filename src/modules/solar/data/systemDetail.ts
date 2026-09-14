@@ -52,8 +52,9 @@ export type SystemDetail = {
    * When this system's output stepped down and stayed down.
    *
    * `undefined` on a system that never stepped. Both halves come from
-   * `solarStep`, so the date the health band prints, the count of dark strings
-   * and the drop a reader can see in the chart are three readings of one event.
+   * `solarStep`, so the date the `Strings offline` row prints on the Alarms tab, the
+   * count of dark strings and the drop a reader can see in the chart are three
+   * readings of one event.
    */
   stepAt: string | undefined;
   stepLabel: string | undefined;

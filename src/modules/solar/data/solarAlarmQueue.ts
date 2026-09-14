@@ -19,9 +19,9 @@ import {systemAlerts} from './systemHealth';
  * wrong about its own source. A reader has no way to know that, and a summary that
  * disagrees with the page it summarises trains people to ignore both.
  *
- * So the union is computed **once, here**, and the strip, the health band and the
- * two tables are four readings of one list. `plantAlarmQueue` is the same pattern
- * for the bank; this is that plus the derived rules, which only the array has.
+ * So the union is computed **once, here**, and the strip, the register's row and the
+ * two tables are readings of one list. `plantAlarmQueue` is the same pattern for the
+ * bank; this is that plus the derived rules, which only the array has.
  *
  * ## The two sources, and why they still read apart on the row
  *

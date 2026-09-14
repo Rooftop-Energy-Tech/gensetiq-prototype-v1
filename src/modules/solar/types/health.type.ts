@@ -13,7 +13,8 @@ import type {AlertSeverity, GensetCondition} from '@/modules/genset/types/alert.
  * generation model — nobody's box raises "output stepped down in March", because
  * nothing on the roof can see the months either side of it.
  *
- * `AlertsSection` established the rule that matters: a reader has to be able to
+ * The genset's alerts band — deleted 2026-09-14, along with this module's own health
+ * band — established the rule that matters: a reader has to be able to
  * tell at a glance which rows are the plant talking and which are the app's own
  * reasoning, and the register line is what they use to do it. With no register to
  * print, `source` does that job and every card prints it.
@@ -67,7 +68,10 @@ export type SystemAlert = {
 };
 
 /**
- * The verdict over the health band.
+ * The verdict over an array's derived rules.
+ *
+ * It headed a **health band** on the Alarms tab until 2026-09-14; the band is gone and
+ * this is now read by the register's row ordering alone. See `SystemAlarms`.
  *
  * The genset's own three words, and the same derivation: worst severity wins and
  * a `NEUTRAL` does not spoil it. Aliased rather than redeclared so the two pages

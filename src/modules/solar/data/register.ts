@@ -80,7 +80,7 @@ export const solarRows = (
         system,
         condition,
         // The worst one only. A register cell listing three faults would be a page of
-        // its own squeezed into a sixth of a row; the system's own health band is one
+        // its own squeezed into a sixth of a row; the system's own Alarms tab is one
         // click away and lists them all.
         headline: alerts[0]?.name,
         counts: countBySeverity(solarAlarmQueue(system, detail, now, handling).standing),

@@ -1,42 +1,38 @@
-import {useState} from 'react';
-
 import {useSession} from '@/modules/auth/session';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {ALERT_SEVERITIES} from '../../types/alert.type';
 import {byUrgency, isStanding} from '../../types/alarmState.type';
 import type {AlarmView} from '../../types/alarmView.type';
-import type {AlertFocus} from '../../types/detailView.type';
 import {assertedPlantAlarms, plantAlarmsWatched} from '../../data/assertedAlarms';
 import {controllerAlarms} from '../../data/alarmViews';
-import {standingAlarms, useAlarmHandling} from '../../data/alarms';
-import type {GensetDetail} from '../../data/detail';
-import {gensetCondition, useFuelIntegrity} from '../../data/fuelIntegrity';
-import {useServiceStatus} from '../../data/services';
-import {fuelLeakNotice} from '../../types/fuelIntegrity.type';
-import {fuelLevelNotice} from '../../types/fuelLevel.type';
-import {serviceNotice} from '../../types/service.type';
+import {useAlarmHandling} from '../../data/alarms';
 import type {Genset} from '../../types/genset.type';
-import {AlertsSection} from '../detail/AlertsSection';
 import {AlarmLists} from './AlarmLists';
 
 /**
  * The Alarms tab — every alarm this genset is carrying, and what has been done
  * about each one.
  *
- * ## Two readings of one list, on one page
+ * ## The tables are the whole tab
  *
- * The alerts band used to close the genset's home page, and it is the first thing
- * here now. It answers *is anything wrong right now* — the register map's alarms
- * mixed with the app's own rows, a leak, a low tank, a service falling due, filed
- * under the operator's tags and each card drawn against the reading and the line it
- * crossed. The tables under it answer *what is the state of the alarm list*, and
- * are the only place an alarm can be acted on.
+ * There was a second band above them — the **alerts section**, the one that used to
+ * close the genset's home page: the register map's alarms mixed with the app's own
+ * rows, a leak, a low tank, a service falling due, each drawn as a card against the
+ * reading and the line it crossed, under a row of category chips that filtered it.
+ * It came off on 2026-09-14 (Tristan), and the tables below are what this tab is now.
  *
- * They were a page apart and they read from one store, so they could never
- * disagree — but a reader who had just read the band still had to walk to this tab
- * to do anything about it, and the home page was spending its last screen restating
- * a count its own strip had already given at the top. Together, the diagnosis is
- * directly above the log it is a diagnosis of.
+ * It was a **second rendering of the same list** — the band and the tables read one
+ * store, so they could never disagree about the facts, and a reader arriving here met
+ * the same alarms twice in two shapes, the upper of which could not be acted on. The
+ * tables can: acknowledging and clearing live there, they carry the provenance and
+ * the class, and they hold the cleared log as well as what is standing. A diagnosis
+ * you cannot act on, printed above the thing you act on, is a screen's worth of
+ * scrolling between a reader and the control.
+ *
+ * The band's category chips went with it. The tables have their own filters — by
+ * severity and by asset — which is the filtering this tab actually needed, and the
+ * search parameter that carried the band's chip selection went too: a URL that names
+ * a filter nothing applies is worse than no URL state.
  *
  * ## Two devices, one list
  *
@@ -63,25 +59,11 @@ import {AlarmLists} from './AlarmLists';
  * acknowledgement, and they need a decision about who gets told and how before they
  * are worth drawing.
  */
-export const GensetAlarms = ({
-  genset,
-  detail,
-  focus,
-  onFocusChange,
-}: {
-  genset: Genset;
-  detail: GensetDetail;
-  focus: AlertFocus;
-  onFocusChange: (focus: AlertFocus) => void;
-}) => {
-  // Live, so a click on either button redraws this page — the band above the
-  // tables, the home page's alarm counts and the fleet's with it.
+export const GensetAlarms = ({genset}: {genset: Genset}) => {
+  // Live, so a click on either button redraws this page — these tables, the home
+  // page's alarm counts and the fleet's with it.
   const handling = useAlarmHandling();
 
-  // One clock reading for the page, so the band's ages and the tables' cannot land
-  // either side of a minute boundary. Every screen in this app that shows a
-  // relative time does this.
-  const [now] = useState(() => Date.now());
   const session = useSession();
   const by = session?.email ?? 'operator';
 
@@ -116,38 +98,8 @@ export const GensetAlarms = ({
   // Nine at a site with a unit and no incomer, and zero everywhere else.
   const watched = plantAlarmsWatched(siteId, role, 'GENSET');
 
-  // Live for the reason the store above is: a service logged on the Service tab has
-  // to clear the overdue notice in the band without a reload, and switching the leak
-  // alarm off on Settings has to move the verdict beside it.
-  const service = useServiceStatus(genset.id, now);
-  const integrity = useFuelIntegrity(genset.id, now);
-
   return (
     <div className="flex flex-col gap-6 px-4 pt-2 pb-8">
-      {/* The band the home page used to close on — thresholds and the numbers
-          behind them.
-
-          Above the tables rather than below them. It is the shorter read and the
-          one that says whether anything needs doing; the tables are what a reader
-          turns to having decided that something does. It is deliberately **not**
-          given the monitoring unit's AC rows: every card in it prints the register,
-          the reading and the line the reading crossed, and this prototype has read
-          none of those registers — so there is no reading to draw. They are in the
-          tables below, which is what the note at the foot of this page says. */}
-      <AlertsSection
-        detail={detail}
-        alerts={standingAlarms(genset.id, handling)}
-        service={service}
-        notice={serviceNotice(genset.id, service)}
-        leak={fuelLeakNotice(genset.id, integrity)}
-        fuelLevel={fuelLevelNotice(genset)}
-        condition={gensetCondition(genset.id, now)}
-        focus={focus}
-        onFocusChange={onFocusChange}
-      />
-
-      <hr className="border-subtle" />
-
       <AlarmLists
         standing={standing}
         cleared={cleared}

@@ -1229,7 +1229,7 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
   // so this and the Service tab are two views of one fact.
   //
   // This is the *seeded* value. A service logged in the browser moves it, and the
-  // alerts section takes the live figure from the store — see `AlertsSection`.
+  // reading is taken live from the store rather than from this snapshot.
   readings['hours-since-service'] = {
     ...readings['hours-since-service'],
     value: seededHoursSinceService(genset.id),

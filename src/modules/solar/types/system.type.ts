@@ -26,8 +26,8 @@ import type {SitePowerRole} from '@/modules/site/types/site.type';
  * A system with a string down is still generating, at three-quarters of what it
  * should. Folding that into the state would either hide it — `GENERATING`, as
  * though nothing were wrong — or overstate it, `FAULT` on a plant making most of
- * its number. It belongs in the health band, where it can carry the date it
- * started and the energy it has cost since.
+ * its number. It belongs in the alarm queue, as the derived `Strings offline` row,
+ * where it can carry the date it started and the energy it has cost since.
  */
 export const SYSTEM_STATES = ['GENERATING', 'IDLE', 'OFFLINE'] as const;
 

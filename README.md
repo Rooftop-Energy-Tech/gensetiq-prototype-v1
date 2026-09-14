@@ -217,7 +217,7 @@ that has been flat all year is one thing; one that ran at a level until March an
 has been a fifth below it since is a **step** — a fault with a date on it, and
 somebody can go and look at what happened that month. Most solar sites on both
 estates carry one, and `solarStep` is what the rest of the app reads: the count of
-dark strings is computed from the depth of the step, the health band dates its
+dark strings is computed from the depth of the step, the `Strings offline` row dates its
 string alert from the month, and the analysis tab names it in the hand-off line.
 One event, three readings of it.
 
@@ -443,7 +443,7 @@ behind the code is worse than no bench, because a reader trusts it.
 | System home | `/solar/<id>` | The system's own page in the four bands: the strip, what the array is putting out now a junction box at a time, generation over time, and what the system is. Every solar site has one. |
 | System analysis | `/solar/<id>/analysis` | Generation over a chosen window, a bar per bucket, with the window in the URL. |
 | System devices | `/solar/<id>/equipment` | The array: its capacity, its modules and their rating, how many strings it is wired in and how many of those are dark. A description, not a list — see [below](#a-row-is-a-system-and-there-is-nothing-under-it). |
-| System alarms | `/solar/<id>/alarms` | Every alarm the array carries, from both sources, over the health band that used to close the home page. |
+| System alarms | `/solar/<id>/alarms` | Every alarm the array carries, from both sources, in one standing table with a cleared log under it. |
 | System service / settings | `/solar/<id>/service`, … | The tabs in the strip that are not drawn yet — labelled placeholders, same treatment as a genset's. |
 
 Getting from the fleet into a genset: click its **name** in the list, or the `→`
@@ -587,7 +587,7 @@ The part worth checking. An underperforming system gets a *step*: output drops i
 one month and stays down. A step of that shape has one obvious cause on a PV
 plant — strings have gone — and the arithmetic agrees, so the number of dark
 strings is **computed from the size of the step**. That is what keeps the count,
-the month the health band prints and the drop a reader can see in the chart three
+the month the `Strings offline` row prints and the drop a reader can see in the chart three
 readings of one event rather than three claims that happen to agree.
 
 Never the whole array. Every string dark is a dead plant, a different fault with a
@@ -705,10 +705,11 @@ What changes below `md`:
   the map on a desktop and the list on a phone.
 - **the home pages stack.** Both needed no rewrite, because their reading order is
   already vertical: the genset's three bands and the site's diagram-then-rows are
-  asked in sequence, so each band's row becomes a column. The alerts band turns too
-  — its 113px condition rail would take a third of the screen, so the verdict reads
-  across the top instead — and it does that on the `Alarms` tab, which is where it
-  now lives on both the genset and the array.
+  asked in sequence, so each band's row becomes a column. The alerts band on the genset
+  and the health band on the array used to turn the same way — their 113px condition
+  rails would have taken a third of a phone screen — and both were removed on
+  2026-09-14, leaving the standing and cleared tables as the whole of each `Alarms`
+  tab.
 - **the two fixed-geometry drawings never reflow**, because their conductors land on
   the boxes at measured coordinates and a reflow leaves a wire ending in mid-air.
   They answer the narrow screen differently, and the difference is which failure is

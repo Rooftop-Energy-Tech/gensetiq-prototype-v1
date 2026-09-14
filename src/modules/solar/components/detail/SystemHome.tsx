@@ -103,10 +103,9 @@ export const SystemHome = ({
    * Without it this is the most misread thing on the page. At nine in the evening every
    * figure in the band reads 0 kW and the state rolls up to `Idle`, which is
    * pixel-for-pixel what a plant that has tripped in the middle of the afternoon looks
-   * like — and the health band on the Alarms tab raises nothing, because nothing is
-   * wrong. A reader
-   * who has learned to check this page in a hurry would be checking it at exactly the
-   * hour it cannot answer.
+   * like — and the Alarms tab is empty, because nothing is wrong. A reader who has
+   * learned to check this page in a hurry would be checking it at exactly the hour it
+   * cannot answer.
    *
    * The bank page puts its flow direction beside its glyph for the same reason: the fact
    * that makes a reading legible belongs beside the reading and not two bands away.

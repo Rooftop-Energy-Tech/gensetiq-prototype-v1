@@ -357,7 +357,7 @@ const BATTERY: ColorMap = {
 /**
  * Alert severities — `text-severity-critical`, `text-severity-ok`, …
  *
- * Pinned by the design: the bell and gauge glyphs in the alerts section are
+ * Pinned by the design: the bell and gauge glyphs the alarm rows and pills carry are
  * exported at exactly these values (`red/500`, `amber/500`, `green/500`). All
  * primitives, so `figma` is `''` throughout.
  *

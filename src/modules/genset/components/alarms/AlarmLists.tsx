@@ -414,8 +414,9 @@ export const AlarmLists = ({
           );
         }
 
-        // And a control, on the one that does. Same chip, same weights as the
-        // filter row `AlertsSection` puts above this table on a genset's own tab.
+        // And a control, on the one that does. These chips are the whole of this
+        // tab's filtering now: the alerts band above them, which had a category row
+        // of its own, came off on 2026-09-14 — see `GensetAlarms`.
         const isOn = severityFilter.selected.has(severity);
 
         return (

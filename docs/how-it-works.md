@@ -358,7 +358,8 @@ Two states were drafted and cut, and both for the same reason:
 - **`FAULT`.** A system with a string down is still generating, at three-quarters of
   what it should. Folding that into the state would either hide it — `GENERATING`,
   as though nothing were wrong — or overstate it, `FAULT` on a plant making most of
-  its number. It belongs in the health band, where it can carry the date it started
+  its number. It belongs in the alarm queue, as the derived `Strings offline` row,
+  where it can carry the date it started
   and the energy it has cost since.
 
 → `src/modules/solar/types/system.type.ts`
@@ -632,9 +633,9 @@ there is more than one name on the rota — and the second is the whole reason t
 record one at all. The stamp costs nothing and the boolean is one `!== null` away.
 
 Handling is the app's record, not the panel's, and it lives in `localStorage` for
-the same reason every other choice does. It is also **live**: clearing an alarm
-empties it out of the alerts band at the top of the same tab, drops it from the
-genset home page's counts, and moves the fleet buckets, without a reload.
+the same reason every other choice does. It is also **live**: clearing an alarm drops
+it from the standing table, from the genset home page's counts, and from the fleet
+buckets, without a reload.
 
 → `src/modules/genset/types/alarmState.type.ts`, `src/modules/genset/data/alarms.ts`
 
@@ -647,10 +648,6 @@ group it differently depending on what they get called out for, so a tag is a
 list and nothing more. A reading can sit under several — starter battery voltage
 matters to both `Battery & charging` and `Starting` — which is the point of tags
 being lists rather than a partition.
-
-Selecting a tag narrows the alerts section from "everything this machine reports"
-to "the handful of numbers I care about right now", and pulls in each reading's
-alarms with it.
 
 The ten tags are **grouped around the alarm map**, which is a change from the first
 version. That one was drawn against an invented alarm pool and grouped the real one
@@ -1938,11 +1935,11 @@ and the page does not hold either up against a target — there is no design fig
 anywhere in this app to hold them against. A design benchmark was built and taken
 out again; what is left compares the system against **itself**, which is the only
 comparison the model can support: the chart's day view carries the array's own
-recent normal, and the health band's string rule fires on a step in its own series.
+recent normal, and the derived string rule fires on a step in its own series.
 
 **Three health rules, and every one is checkable on the page it appears on.** That
-page is the `Alarms` section, where the band draws each rule against the reading
-behind it and the tables carry the device's own registers beside them. A
+page is the `Alarms` section, where each rule is a row marked `Derived` beside the
+device's own registers, naming the rule that fired. A
 genset's alerts are a register map's bits, so the app can print the coordinates and a
 reader can go and check. A PV system has no such map, so each rule here had to earn
 its place a different way — by being derivable from something else drawn on the same
@@ -1975,8 +1972,8 @@ drawn next to the bars once there was no design figure to hold the series agains
 pinned to a cause, and the model cannot separate a soiled array from a shaded one.
 
 `Devices` holds the array — the glass, the strings, and how many of them are dark.
-`Alarms` carries the health band over both sources' rows — the derived rules and, where
-a monitoring unit is fitted, its four `PV N Array Fault` registers. `Service` and
+`Alarms` carries both sources' rows in one table — the derived rules and, where a
+monitoring unit is fitted, its four `PV N Array Fault` registers. `Service` and
 `Settings` are named and not drawn.
 
 ### The battery register, and a bank's pages
@@ -2152,7 +2149,6 @@ src/modules/genset/
 │   ├── fuelLevel.type.ts    the reserve and empty lines
 │   ├── series.type.ts       Sample, ReadingSeries — a reading over time
 │   ├── view.type.ts         the fleet register's URL state — views and filters
-│   ├── detailView.type.ts   the alerts band's URL state, on the Alarms section
 │   ├── analysisView.type.ts the analysis section's URL state
 │   └── runsView.type.ts     the runs section's URL state, window rules and totals
 ├── data/
@@ -2171,10 +2167,10 @@ src/modules/genset/
 │   └── runsCsv.ts           the run log as a file somebody bills against
 └── components/
     ├── …                    the register, incl. GensetsCards for phone width
-    ├── detail/              the five bands, AlertsSection, and StandbyPanel for a stopped set
+    ├── detail/              the five bands, and StandbyPanel for a stopped set
     │   └── analysis/        the analysis section: picker, range, calendar, chart
     ├── runs/                strip, totals, log, installation picker — shared with sites
-    ├── alarms/              the alerts band over the standing and cleared tables
+    ├── alarms/              the standing and cleared tables
     └── service/             the two counters, the schedule, the log, the dialog
 
 src/modules/site/

@@ -138,7 +138,7 @@ const arrayBuild = (
 
   const stringWatts = SURVEYED_MODULE_WATTS * PANELS_PER_STRING;
   // Two at minimum, for `stringsOn`'s reason: a one-string array cannot lose a string
-  // and stay up, and the health band exists to say how many went.
+  // and stay up, and the `Strings offline` rule exists to say how many went.
   const strings = Math.max(2, Math.round((kwp * 1000) / stringWatts));
 
   return {

@@ -88,7 +88,7 @@ export const ArrayEquipment = ({system}: {system: SolarSystem}) => (
               {label: 'Boxes feed', value: system.wiring.feedsInto},
             ]),
         {
-          /* An em dash rather than `0`, the rule the health band's readings follow:
+          /* An em dash rather than `0`, the rule every reading in this app follows:
              a system with nothing dark has no count to give, and a zero in a column
              of counts reads as a measurement that came back empty. */
           label: 'Strings not delivering',
