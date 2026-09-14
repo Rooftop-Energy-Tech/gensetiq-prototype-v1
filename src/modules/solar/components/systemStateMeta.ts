@@ -1,4 +1,4 @@
-import {CircleIcon, MoonIcon, PowerOffIcon} from 'lucide-react';
+import {MoonIcon, PowerOffIcon, SunMediumIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {lightToken} from '@/styles/colors';
@@ -13,10 +13,19 @@ import type {SystemState} from '../types/system.type';
  * genset row and a solar row on adjacent screens should not have to learn two
  * palettes for `Offline`.
  *
- * `IDLE` takes a moon rather than the genset's pause bars. A paused genset is a
- * machine somebody has not started; an idle solar system is a working system at
- * ten at night, and drawing the two the same way would put a fault glyph on every
- * solar row on the estate for half of every day.
+ * **The pair is a sun and a moon**, which is the one thing on this record that is
+ * not `RUN_STATE_META`'s. `GENERATING` took the genset's filled circle until
+ * 2026-09-14 and takes `SunMediumIcon` now — the glyph this app already spends on
+ * solar everywhere else: the rail's `Solar`, the site strip's `On solar` badge, an
+ * SSU in the cabinet, the array in a site's settings. A circle said *this row is
+ * live*, which is true of a running engine too; the sun says what is making the
+ * power, which is the only thing a solar register is about.
+ *
+ * `IDLE`'s moon was already there, and it reads as the sun's other half now rather
+ * than as an exception. It is a moon rather than the genset's pause bars because a
+ * paused genset is a machine somebody has not started, while an idle solar system
+ * is a working system at ten at night — drawing the two the same way would put a
+ * fault glyph on every solar row on the estate for half of every day.
  *
  * ## `mapColor`, which this record used to argue against
  *
@@ -43,7 +52,7 @@ export const SYSTEM_STATE_META: Record<
 > = {
   GENERATING: {
     label: 'Generating',
-    icon: CircleIcon,
+    icon: SunMediumIcon,
     iconClassName: 'text-status-running',
     mapColor: lightToken['status-running'],
   },
