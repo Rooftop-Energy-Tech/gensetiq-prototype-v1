@@ -1063,6 +1063,25 @@ through it:
 /sites?view=split&program=jendela-swk
 ```
 
+**Assets name themselves by their site, and the prefix is no longer uniform.** A bank
+reads `SBH-1495`, an array `Solar | SWK-0559`, a set `Genset | WPKL-0207`. The four
+shared one shape — asset, then code — until 2026-09-14, when the battery's prefix came
+off: every place the name is drawn already says `Battery` louder than the word did —
+the rail item is lit, the breadcrumb reads `Battery ▸ …`, the register's column is
+headed `Bank` — and on the register it cost the column its left third.
+
+⚠️ **A set is named by its site, which five sites cannot answer uniquely.** The genset
+tag — `BRF9540` — is fixture data rather than a recorded name, so the label falls back
+to where the machine stands. Five sites on this estate hold two sets, so five pairs of
+rows read alike. The rows are still distinct objects, keyed and linked by `genset.id`,
+and the tag is still what the search box matches; `gensetName` is one line and carries
+the note.
+
+**The fleet list drops two columns beside the map.** `Location` and `Last updated`
+are drawn on the full-width list and dropped on the split view, where both truncated
+to the half that carries no meaning — `Bangsar S…`, `1 hour …`. The solar register
+drops `Capacity` and the estate list drops `Fuel on site` the same way.
+
 **The estate list is worst standing alarm first, then by name.** Its second column is
 the **alarm pill** — `Critical · Warning · Neutral`, the same three figures every metric
 strip and device card in the app draws — and the ranking is that pill: worst severity

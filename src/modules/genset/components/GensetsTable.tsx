@@ -2,18 +2,22 @@ import {Link} from '@tanstack/react-router';
 import {useEffect} from 'react';
 import type {KeyboardEvent, RefObject} from 'react';
 
-import {Badge} from '@/components/ui/badge';
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {cn} from '@/lib/utils';
 import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
-import {CONDITION_META} from './detail/severityMeta';
-import {gensetDetail} from '../data/detail';
-import {gensetCondition} from '../data/fuelIntegrity';
+import {useFleetAlarmCounts} from '../data/alarmViews';
+import type {AlertSeverity} from '../types/alert.type';
 import {gensetName} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
 type GensetsTableProps = {
   gensets: Array<Genset>;
+  /**
+   * The table has the screen to itself — `SolarTable`'s `wide`, for its reasons.
+   * `false` beside the map, where `Location` and `Last updated` come out.
+   */
+  wide: boolean;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
   /**
@@ -39,27 +43,46 @@ type GensetsTableProps = {
  * evenly that truncates `BRF9540 | Cummins 1000 kVa` in every row. The name
  * gets the slack; the fixed-shape columns (a badge, a litre figure) give it up.
  */
+/** A set the counts pass has not reached — `SitesTable`'s constant, for its reason. */
+const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
+
 const COLUMNS = [
-  {label: 'Genset name', width: '27%'},
-  // Health sits next to run state because the two together are the row's verdict:
-  // what the machine is doing, and whether it is doing it well. It is the same
-  // `GensetCondition` the detail page prints above its alerts and the sites list
-  // rolls up per yard — derived from the alerts, so a row cannot claim `Optimum`
-  // over a set whose page shows two shutdown alarms.
-  {label: 'Run state', width: '13%'},
-  {label: 'Health', width: '14%'},
-  {label: 'Fuel level', width: '14%'},
-  {label: 'Location', width: '18%'},
-  {label: 'Last updated', width: '14%'},
+  {label: 'Genset name', width: '27%', dense: '38%', beside: true},
+  // `Alarm` sits next to run state because the two together are the row's verdict:
+  // what the machine is doing, and what is standing against it. It read `Health` —
+  // the `GensetCondition` verdict — until 2026-09-14 and now draws the counts, for
+  // the reasons `SitesTable` and `SolarTable` give: the verdict is this app's
+  // summary over the rows, and a register is read to find work, so it shows the
+  // rows. The pill is a link to the set's own Alarms tab.
+  {label: 'Run state', width: '13%', dense: '20%', beside: true},
+  {label: 'Alarm', width: '14%', dense: '20%', beside: true},
+  {label: 'Fuel level', width: '14%', dense: '22%', beside: true},
+  // `beside: false` — dropped in the split view, kept on the full-width list. Both
+  // truncated to nothing useful beside the map: `Bangsar S…` and `1 hour …` are the
+  // halves of each that carry no meaning. `SolarTable` drops `Capacity` and
+  // `SitesTable` drops `Fuel on site` the same way and for the same reason — a
+  // column dropped is a fact a reader can still get to, a column mangled is one
+  // they cannot read at all.
+  {label: 'Location', width: '18%', dense: '0%', beside: false},
+  {label: 'Last updated', width: '14%', dense: '0%', beside: false},
 ] as const;
 
 export const GensetsTable = ({
   gensets,
+  wide,
   selectedId,
   onSelect,
   scrollRef,
   onBeforeAutoScroll,
 }: GensetsTableProps) => {
+  const columns = COLUMNS.filter((column) => wide || column.beside);
+
+  /**
+   * Every set's standing count, one pass for the list — see `useFleetAlarmCounts`.
+   * The map's own pins read the same fleet, so a row and a pin cannot disagree.
+   */
+  const counts = useFleetAlarmCounts(gensets);
+
   /**
    * Bring a selection made elsewhere into view.
    *
@@ -103,16 +126,16 @@ export const GensetsTable = ({
     <div ref={scrollRef} className="h-full overflow-auto">
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
-          Fleet gensets, with run state, health, fuel level, location and telemetry age
+          Fleet gensets, with run state, what is standing against each, fuel level, location and telemetry age
         </caption>
         <colgroup>
-          {COLUMNS.map((column) => (
-            <col key={column.label} style={{width: column.width}} />
+          {columns.map((column) => (
+            <col key={column.label} style={{width: wide ? column.width : column.dense}} />
           ))}
         </colgroup>
         <thead>
           <tr>
-            {COLUMNS.map((column) => (
+            {columns.map((column) => (
               <th
                 key={column.label}
                 scope="col"
@@ -132,11 +155,6 @@ export const GensetsTable = ({
             // `gensetCondition` rather than `detail.condition`: the latter is the
             // register map's verdict alone, and a set losing fuel carries an alarm
             // no register map has a bit for.
-            const condition =
-              gensetDetail(genset.id) === undefined ? undefined : gensetCondition(genset.id);
-            const conditionMeta = condition === undefined ? undefined : CONDITION_META[condition];
-            const ConditionIcon = conditionMeta?.icon;
-
             return (
               <tr
                 key={genset.id}
@@ -168,25 +186,32 @@ export const GensetsTable = ({
                 <td className="h-13 border-b border-subtle p-2">
                   <RunStateBadge runState={genset.runState} />
                 </td>
-                <td className="h-13 border-b border-subtle p-2">
-                  {conditionMeta === undefined || ConditionIcon === undefined ? (
-                    <span className="text-tertiary">—</span>
-                  ) : (
-                    <Badge variant="secondary">
-                      <ConditionIcon className={conditionMeta.textClassName} aria-hidden="true" />
-                      {conditionMeta.label}
-                    </Badge>
-                  )}
+                <td className="h-13 overflow-hidden border-b border-subtle p-2">
+                  {/* ⚠️ `stopPropagation` on this span and **not** the cell: on the
+                      cell it makes the whole column dead to the row's select, since
+                      a cell is mostly padding and only the pill navigates. Same
+                      wiring as `SitesTable` and `SolarTable`. */}
+                  <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
+                    <AlarmBadge
+                      counts={counts[genset.id] ?? EMPTY_COUNTS}
+                      to="/gensets/$gensetId/alarms"
+                      params={{gensetId: genset.id}}
+                    />
+                  </span>
                 </td>
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
                   {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
                 </td>
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {genset.locationLabel}
-                </td>
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {relativeTime(genset.lastUpdated)}
-                </td>
+                {wide && (
+                  <td className="h-13 truncate border-b border-subtle p-2 text-primary">
+                    {genset.locationLabel}
+                  </td>
+                )}
+                {wide && (
+                  <td className="h-13 truncate border-b border-subtle p-2 text-primary">
+                    {relativeTime(genset.lastUpdated)}
+                  </td>
+                )}
               </tr>
             );
           })}

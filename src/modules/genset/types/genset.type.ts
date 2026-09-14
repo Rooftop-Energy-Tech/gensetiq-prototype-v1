@@ -1,3 +1,5 @@
+import {siteLabel} from '@/modules/site/data/siteSeed';
+
 /**
  * The three states a genset reports. Ordered by how much they want attention —
  * `RUN_STATES` is the sort key used by the "state" column, so a working unit
@@ -102,13 +104,20 @@ export type Genset = {
 };
 
 /**
- * `Genset | BRF9540` — the label the design uses everywhere.
+ * `Genset | WPKL-0207` — the asset, then the site it stands at.
  *
- * The asset first, then the code that identifies it, which is the shape all four
- * assets now share — `bank.type.ts` argues why. **A genset's code is its own tag,
- * not its site's**, and it is the one asset here where those differ: four sites on
- * this estate hold a pair, so `Genset | WPKL-0207` would name two machines. The
- * bank, the array and the cabinet are one-per-site and take the site code.
+ * It read `Genset | BRF9540` until 2026-09-14, naming the machine by its own tag.
+ * The tag is a placeholder: this estate has no genset names recorded yet, and a
+ * fixture tag is not one — so the name falls back to the fact the prototype can
+ * actually answer for, which is where the set is. The bank, the array and the
+ * cabinet already name their site, so this is the shape the other three use.
+ *
+ * ⚠️ **Five sites on this estate hold two sets, so five pairs of rows now carry the
+ * same name.** That is the cost of the fallback and it is not a rendering fault:
+ * the register still keys, selects and links by `genset.id`, so the rows are
+ * distinct objects that happen to read alike. The tag has not gone anywhere — it is
+ * still on the `Genset` record and still what the search box matches — so restoring
+ * it, or appending it where a site holds a pair, is a change to this one line.
  *
  * The model this used to carry is in the rail's info glyph, one row under the asset
  * tag. It was the right second half when the first half was already a machine's tag
@@ -116,4 +125,5 @@ export type Genset = {
  * identifies a set, and the name's job here is to say *what kind of thing* the page
  * is about before saying which one.
  */
-export const gensetName = (genset: Genset): string => `Genset | ${genset.tag}`;
+export const gensetName = (genset: Genset): string =>
+  `Genset | ${genset.siteId === null ? genset.tag : siteLabel(genset.siteId)}`;

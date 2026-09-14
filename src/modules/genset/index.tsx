@@ -182,6 +182,9 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
               ) : (
                 <GensetsTable
                   gensets={gensets}
+                  // Full width means every column; beside the map `Location` and
+                  // `Last updated` come out. See `GensetsTable`'s `COLUMNS`.
+                  wide={!split}
                   selectedId={id}
                   onSelect={selectGenset}
                   scrollRef={listRef}

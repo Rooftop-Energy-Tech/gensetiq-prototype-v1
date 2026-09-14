@@ -122,22 +122,24 @@ export const BANK_FLOW_LABEL: Record<BankFlow, string> = {
 };
 
 /**
- * `Battery | SBH-1495` — what the rail, the breadcrumb and the register all print.
+ * `SBH-1495` — what the rail, the breadcrumb and the register all print.
  *
- * ## The asset first, its site second
+ * ## The prefix came off
  *
- * This used to read `SBH-1495 | 96 kWh`, and every asset in the app was named the
- * same way: the site code, then how big the thing is. The trouble is that a bank's
- * id *is* its site's, so `SBH-1495` was the whole of what identified it — and a
- * heading that opens on a site code, in an app whose first screen is a list of site
- * codes, reads as a site. Readers arriving from the sites list at `SBH-1495 | 96
- * kWh` took it for the site page with a figure appended.
+ * It read `Battery | SBH-1495` until 2026-09-14, on the argument that a heading
+ * opening with a bare site code, in an app whose first screen is a list of site
+ * codes, reads as a site — so the type of the thing led and the code identified it.
  *
- * So the type of the thing leads and the site code identifies it. `Battery |
- * SBH-1495` says both facts in the order a reader needs them — *what am I looking
- * at*, then *whose* — and it is the same shape on all four assets, so a breadcrumb
- * that reads `Battery ▸ Battery | SBH-1495` is a register and one of its rows
- * rather than two unrelated labels.
+ * That argument was answered by where the name is actually drawn. Every one of
+ * these places already says `Battery` louder than the prefix did: the rail item is
+ * lit, the breadcrumb reads `Battery ▸ …`, and the register's own column is headed
+ * `Bank`. The prefix was the word the reader had just read, repeated once per row —
+ * and on the register it cost the column its left third, which is the part carrying
+ * the code a reader is actually scanning for.
+ *
+ * ⚠️ The other assets keep theirs — `Solar | SWK-0559`, `Genset | …`. The shape is
+ * no longer uniform across the four, which was half the old argument; the owner's
+ * call is that the repetition cost more than the symmetry bought.
  *
  * ## Where the capacity went
  *
@@ -146,7 +148,7 @@ export const BANK_FLOW_LABEL: Record<BankFlow, string> = {
  * module count and the converter rating beside it. A name is for telling two things
  * apart, and no two banks on this estate are told apart by their kWh.
  */
-export const bankName = (bank: BatteryBank): string => `Battery | ${bank.siteName}`;
+export const bankName = (bank: BatteryBank): string => bank.siteName;
 
 /**
  * `Reserve left at this load` — the label on `hoursLeft`, wherever it is printed.

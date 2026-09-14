@@ -1,7 +1,14 @@
+import {useMemo} from 'react';
+
+import {FALLBACK_POWER_ROLE, useSitePowerRoles} from '@/modules/site/data/siteConfig';
+import {countBySeverity} from '../types/alert.type';
+import type {AlertSeverity} from '../types/alert.type';
+import type {Genset} from '../types/genset.type';
 import type {AlarmHandling} from '../types/alarmState.type';
 import type {TrackedAlarm} from '../types/alarmState.type';
 import type {AlarmView} from '../types/alarmView.type';
-import {trackedAlarms} from './alarms';
+import {standingAlarms, trackedAlarms, useAlarmHandling} from './alarms';
+import {plantAlarmQueue} from './assertedAlarms';
 
 /**
  * A controller bit as a table row.
@@ -42,3 +49,49 @@ export const controllerAlarms = (
   gensetId: string,
   handling: Record<string, AlarmHandling>,
 ): Array<AlarmView> => trackedAlarms(gensetId, handling).map(controllerView);
+
+/**
+ * Every set's standing count, by severity — one pass over the fleet.
+ *
+ * `useEstateAlarmCounts`' shape, over machines rather than yards, and for its
+ * reasons: the register draws one pill per row, and a hook per row would be three
+ * subscriptions apiece over a thirty-machine fleet, each free to be counting a
+ * different moment from the row above it.
+ *
+ * **What it counts is what the set's own Alarms tab lists**, which is the whole
+ * point of it existing: the controller's own bits *plus* the site monitoring unit's
+ * rows filed against this set. `GensetHome` records what counting one of them
+ * alone did — a strip reading `2` beside a tab listing `4` — and a register column
+ * is the same promise made thirty times over.
+ *
+ * A set with no site sorts to an empty count rather than being dropped: `siteId` is
+ * nullable because a machine can sit in the yard unassigned, and it still has a
+ * controller that can be asserting something.
+ */
+export const useFleetAlarmCounts = (
+  gensets: ReadonlyArray<Genset>,
+): Record<string, Record<AlertSeverity, number>> => {
+  const handling = useAlarmHandling();
+  const roles = useSitePowerRoles();
+
+  return useMemo(
+    () =>
+      Object.fromEntries(
+        gensets.map((genset) => {
+          const controller = standingAlarms(genset.id, handling);
+          const plant =
+            genset.siteId === null
+              ? []
+              : plantAlarmQueue(
+                  genset.siteId,
+                  roles[genset.siteId] ?? FALLBACK_POWER_ROLE,
+                  'GENSET',
+                  handling,
+                ).standing;
+
+          return [genset.id, countBySeverity([...controller, ...plant])];
+        }),
+      ),
+    [gensets, handling, roles],
+  );
+};

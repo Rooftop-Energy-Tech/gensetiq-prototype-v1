@@ -424,7 +424,7 @@ behind the code is worse than no bench, because a reader trusts it.
 | Screen | Route | Notes |
 | --- | --- | --- |
 | Login | `/login` | Wordmark, email + password, teal CTA. Matches the Figma frame. |
-| Gensets — list | `/gensets?view=list` | 24 units, sortable by attention (faults first). |
+| Gensets — list | `/gensets?view=list` | 24 units, sortable by attention (faults first): name, run state, alarm counts, fuel level, and — on the full-width list only — location and telemetry age. |
 | Gensets — map | `/gensets?view=map` | Real MapLibre map with live clustering. |
 | Genset home | `/gensets/<id>` | The genset's own page: tank + runway + service, controls + live gauges, this run beside today, what it is, alerts. All 24 units have one. |
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
