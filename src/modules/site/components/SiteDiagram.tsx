@@ -148,19 +148,42 @@ const TAP = 67;
 const CAPTION = 30;
 
 /**
- * What an alarm pill adds under a node, when the drawing is given counts to draw.
+ * The band the alarm pill occupies **inside** a device's box — 24px of pill under 4px
+ * of padding, straight off the design (node `3890:5629`, container at y=65, h=28).
  *
- * The pill is `h-6` on the badge scale — 24px — plus the 4px that keeps it off the
- * power line above it. Both the pitch and the bottom margin take it, so the gap
- * between one node's last line and the next node's box is the one the design drew,
- * whether or not there is a pill in between.
+ * The first cut of this hung the pill *below* the two caption lines, outside the box.
+ * The design puts it inside, directly under the label, and it is the better drawing for
+ * a reason worth writing down: the box is the device, and the captions are a note about
+ * it set on the canvas behind. A pill floating under the captions belonged to neither —
+ * at a solar hybrid it sat in the 64px channel the DC tie runs down, so the one mark
+ * that says *this array charges this bank* had a chip parked on it.
  *
- * Reserved only when `alarms` is passed. The settings page renders this drawing twice
- * as a preview of a power role, with no counts and nothing to say about alarms; making
- * it carry 28px of empty band per row for a pill it will not draw would stretch a
- * preview to buy nothing.
+ * A box carrying one therefore stands 102px rather than 74px, which is the design's own
+ * pair of heights.
+ *
+ * Reserved only when `alarms` is passed. The settings page renders this drawing twice as
+ * a preview of a power role, with no counts and nothing to say about alarms; making it
+ * carry 28px of empty box per row for a pill it will not draw would stretch a preview to
+ * buy nothing.
  */
 const PILL_ROOM = 28;
+
+/**
+ * Where a conductor meets a box, measured from the box's top — and **not** half its
+ * height, which is what it used to be.
+ *
+ * The two stopped being the same thing when a box grew to hold a pill. The mains and
+ * the load carry none and stay 74px; the array, the bank, the cabinet and every set
+ * stand 102px. Attaching at each box's own centre would step the bus down 14px as it
+ * passed a device, which is a drawing with a kink in it for a reason no reader could
+ * name.
+ *
+ * So it is a constant: half the box a node has *always* been, which is the height of
+ * the part every node still shares — the icon tile and the label. The conductor arrives
+ * beside the glyph, the pill hangs under it inside the same box, and boxes of two
+ * heights still line up on the one line that matters.
+ */
+const ATTACH = NODE_H / 2;
 
 const SWITCH_X = NODE_W + LEAD;
 const BUS_X = SWITCH_X + SWITCH_W + ELBOW;
@@ -495,7 +518,11 @@ const Node = ({
           // `bg-element` is unconditional, and that is the fix rather than a tidy-up:
           // this surface is what hides the conductors that run *underneath* a box. See
           // the hover/selection layer below.
-          'relative flex h-[74px] w-[88px] flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border bg-element pt-2.5 pb-2',
+          // `pb-2` on the box rather than on the block below, so it is the *last* thing
+          // in the box that clears the edge — the label where there is no pill, the pill
+          // where there is. That is the design's pair of heights: 66 + 8 = 74 bare, and
+          // 66 + 28 + 8 = 102 with a band.
+          'relative flex w-[88px] flex-col items-center overflow-hidden rounded-lg border bg-element pb-2',
           // The border says whether the thing is *live*, so selection cannot use it
           // — a picked dead genset and a live one have to stay tellable apart. A ring
           // sits outside the border and is the one affordance orthogonal to it.
@@ -532,20 +559,38 @@ const Node = ({
           />
         )}
 
-        <span
-          className={cn(
-            'relative flex size-8 items-center justify-center rounded-md',
-            live === true ? 'bg-teal/16' : 'bg-highlight',
-          )}
-        >
-          <Icon
-            className={cn('size-[18px]', live === true ? 'text-teal' : 'text-primary')}
-            aria-hidden="true"
-          />
-        </span>
-        <p className="relative text-xs font-semibold whitespace-nowrap text-primary">
-          {label}
-        </p>
+        {/* The glyph and the name, in the 74px every box has always been — held at that
+            height whether or not a pill hangs under it, so a node that carries one and a
+            node that does not still line their labels up. 66px and not 74: the box's own
+            `pb-2` is the eighth of those pixels, and it has to come *after* whatever is
+            last in the box. `ATTACH` is measured against the box, not against this. */}
+        <div className="flex h-[66px] shrink-0 flex-col items-center justify-center gap-2 pt-2.5">
+          <span
+            className={cn(
+              'relative flex size-8 items-center justify-center rounded-md',
+              live === true ? 'bg-teal/16' : 'bg-highlight',
+            )}
+          >
+            <Icon
+              className={cn('size-[18px]', live === true ? 'text-teal' : 'text-primary')}
+              aria-hidden="true"
+            />
+          </span>
+          <p className="relative text-xs font-semibold whitespace-nowrap text-primary">
+            {label}
+          </p>
+        </div>
+
+        {/* The pill, inside the box and under the name — the design's 28px band, 4px of
+            padding over a 24px pill. Drawn on every device node including a quiet one, so
+            its *absence* never becomes the signal; a severity with nothing standing draws
+            a dash rather than a `0`. See `PILL_ROOM` and `AlarmCounts`. */}
+        {counts !== undefined && (
+          <div className="relative flex h-[28px] w-full shrink-0 items-start justify-center pt-1">
+            <StaticAlarmBadge counts={counts} />
+          </div>
+        )}
+
         {live !== undefined && (
           <span
             className={cn(
@@ -576,19 +621,6 @@ const Node = ({
           {power}
         </p>
       </div>
-
-      {/* Outside the caption's `bg-canvas` band and centred on the box rather than on
-          the text, so the four pills down a drawing line up with each other and can be
-          read as a column. Drawn on every device node including a quiet one — a pill
-          that appeared only where something was wrong would make its *absence* the
-          signal, and an absence is what a node with no plant behind it looks like too.
-          A severity with nothing standing draws a dash, so a healthy node is three
-          quiet marks rather than three zeros. See `AlarmCounts`. */}
-      {counts !== undefined && (
-        <div className="mt-1 flex justify-center">
-          <StaticAlarmBadge counts={counts} />
-        </div>
-      )}
     </>
   );
 
@@ -1040,18 +1072,20 @@ export const SiteDiagram = ({
   // `siteLoadKw`. `null` here means nothing is feeding the load at all.
   const loadKw = siteLoadKw(summary, dutyId, role);
 
-  // The pitch and the bottom margin both open up by one pill's height when there are
-  // pills to draw, so the drawing keeps the design's gap between a node's last line and
-  // the next node's box either way. Every conductor in the drawing is derived from
-  // these two, so nothing else has to know. See `PILL_ROOM`.
+  // A device's box grows by the pill's band, and the pitch grows with it so the gap
+  // between one node's captions and the next node's box is the one the design drew
+  // either way. The bottom margin is unchanged — the captions are the same two lines,
+  // and the pill is now inside the box above them. Every conductor is derived from
+  // these, so nothing else has to know. See `PILL_ROOM`.
   const pillRoom = alarms === undefined ? 0 : PILL_ROOM;
   const pitch = PITCH + pillRoom;
-  const caption = CAPTION + pillRoom;
+  /** How tall a box carrying a pill stands — what the tie and the canvas measure from. */
+  const boxH = NODE_H + pillRoom;
 
-  /** Centreline of source `index` — where its conductor leaves the box. */
-  const centreline = (index: number) => index * pitch + NODE_H / 2;
+  /** Where source `index`'s conductor leaves its box — see `ATTACH`. */
+  const centreline = (index: number) => index * pitch + ATTACH;
 
-  const height = (count - 1) * pitch + NODE_H + caption;
+  const height = (count - 1) * pitch + boxH + CAPTION;
   // The point every source's run meets at: the cabinet's centre where there is one,
   // and the bare drawing's own elbow line where there is not. See `CABINET_X`.
   const junctionX = hasCabinet ? JUNCTION_X_CABINET : JUNCTION_X_BARE;
@@ -1211,7 +1245,7 @@ export const SiteDiagram = ({
             <Conductor
               key={`tie-${source.key}`}
               points={[
-                [TIE_X, index * pitch + NODE_H],
+                [TIE_X, index * pitch + boxH],
                 [TIE_X, (index + 1) * pitch],
               ]}
               live={tieLive(index)}
@@ -1324,7 +1358,7 @@ export const SiteDiagram = ({
           // from whether the *converters* are working, which the caption answers.
           live={anyLive}
           x={CABINET_X}
-          y={busY - NODE_H / 2}
+          y={busY - ATTACH}
           onSelect={selectHandler(selection, 'cabinet')}
           selected={selection?.selected === 'cabinet'}
         />
@@ -1340,7 +1374,7 @@ export const SiteDiagram = ({
         power={loadKw === null ? 'not served' : amount(loadKw, 'kW')}
         powered={anyLive}
         x={loadX}
-        y={busY - NODE_H / 2}
+        y={busY - ATTACH}
       />
       </div>
     </div>
