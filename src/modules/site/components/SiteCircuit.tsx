@@ -181,11 +181,23 @@ export const SiteCircuit = ({
           gridTemplateColumns: 'minmax(34rem, 2.4fr) minmax(18rem, 1fr)',
         }}
       >
-        {/* Centred while the band is a column, as the frame centres it, and left in
-            its track once it is a row. Handed the width directly rather than sized
-            to the drawing: the diagram measures what it is given and scales itself,
-            so a wrapper that hugged it would make that circular. */}
-        <div className="flex min-w-0 justify-center py-2 xl:justify-start">
+        {/* Centred in its track at every width. Handed the width directly rather than
+            sized to the drawing: the diagram measures what it is given and scales
+            itself, so a wrapper that hugged it would make that circular.
+
+            It used to go `xl:justify-start`, on the argument that the schematic is a
+            fixed canvas and sitting at the left of the wider track "costs it nothing:
+            it was never going to use the space". That is true of the *drawing* and
+            wrong about the *band*: the track is 2.4fr and the canvas is 398px, so at
+            a desktop width the schematic sat hard left with a couple of hundred pixels
+            of nothing between it and the card, which reads as a drawing that failed to
+            load the rest of itself rather than as one that is simply narrower than its
+            column. Centred, the gap falls either side and the whole band is one
+            object. Tristan's call, 2026-09-14.
+
+            The plant view is unaffected either way — it scales the compound to whatever
+            width it is given, so it fills the track and has no slack to centre. */}
+        <div className="flex min-w-0 justify-center py-2">
           {view === 'schematic' ? (
             <SiteDiagram
               summary={summary}
