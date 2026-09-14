@@ -3,9 +3,11 @@ import {BatteryChargingIcon} from 'lucide-react';
 import {useEffect} from 'react';
 import type {KeyboardEvent, RefObject} from 'react';
 
+import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {Badge} from '@/components/ui/badge';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {SITE_POWER_ROLE_LABEL} from '@/modules/site/types/site.type';
 import {BANK_RUNTIME_META, bankRuntime} from '../runtimeMeta';
 import {BANK_FLOW_LABEL, bankFlow, bankName} from '../../types/bank.type';
@@ -17,13 +19,21 @@ import type {BatteryBank} from '../../types/bank.type';
  * The sort is `sortBanks`' and is not a column header; see there for why it is hours
  * left rather than charge, and why health deliberately does not drive it.
  *
- * ## Why health is not next to charge
+ * ## The fifth column is the alarm pill, and it used to be health
  *
- * Two percentage columns touching read as one quantity printed twice, and the
- * misreading they invite is the expensive one — 81% health taken for a worse 81%
- * charge. So health sits at the far end, next to `Autonomy`, where it is beside the
- * figure it actually erodes: the hours in that column are the specification, and
- * health is how much of the specification is still in the cabinet.
+ * `Health` — one percentage per row — came off on 2026-09-14 and the pill every other
+ * register carries took the slot, so `/battery` answers *what is wrong here* in the
+ * same place and the same shape as `/solar`, `/gensets` and `/sites`. The argument is
+ * in `useBankAlarmCounts`; the short version is that health is the one reading in this
+ * table that cannot change between two visits, which is a poor use of a column on a
+ * screen read to find work. Health is still a row in the preview panel beside the
+ * list, and the strip still counts the estate's tired banks.
+ *
+ * It also settles an old worry, recorded here because the geometry it argued about is
+ * gone: health had to sit at the far end rather than beside `Charge`, because two
+ * percentage columns touching read as one quantity printed twice and `81%` health
+ * taken for a worse `81%` charge is the expensive misreading. There is now one
+ * percentage in the table.
  *
  * ## Rows select, names navigate
  *
@@ -65,12 +75,26 @@ const COLUMNS = [
   // so anything under a third of a ~517px list loses the unit off the end of it.
   {label: 'Flow', wide: '22%', dense: '34%', nameplate: false},
   {label: 'Autonomy', wide: '14%', dense: '0%', nameplate: true},
-  {label: 'Health', wide: '12%', dense: '20%', nameplate: false},
-  {label: 'Configuration', wide: '18%', dense: '0%', nameplate: true},
+  // 14% rather than the 12% `Health` held: the pill is a fixed 80px object — a bell and
+  // three 20px cells — so a percentage column can be given less than its contents, and
+  // in a `table-fixed` layout the overflow lands on the next column. 14% of the 800px
+  // floor is 112px, which clears the pill and its cell padding. `SitesTable` carries
+  // the same note at more length.
+  {label: 'Alarm', wide: '14%', dense: '20%', nameplate: false},
+  {label: 'Configuration', wide: '16%', dense: '0%', nameplate: true},
 ] as const;
+
+/** A guard, not a state anybody meets: the counts are built over the same banks. */
+const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
 
 type BatteryTableProps = {
   banks: Array<BatteryBank>;
+  /**
+   * What is standing on each bank, keyed by bank id — from `useBankAlarmCounts`, one
+   * pass over the register rather than a subscription per row, so every pill in the
+   * table reads one moment. `SitesTable` and the solar register take the same shape.
+   */
+  counts: Record<string, Record<AlertSeverity, number>>;
   /**
    * Draw the two nameplate columns. `false` beside the map — see the note on `COLUMNS`.
    */
@@ -85,6 +109,7 @@ type BatteryTableProps = {
 
 export const BatteryTable = ({
   banks,
+  counts,
   wide,
   selectedId,
   onSelect,
@@ -128,7 +153,7 @@ export const BatteryTable = ({
       <table className="w-full min-w-[800px] table-fixed border-separate border-spacing-0 text-sm md:min-w-0">
         <caption className="sr-only">
           Battery banks, worst runtime first, with charge and hours left, flow, autonomy,
-          state of health and the configuration each was specified for
+          what is standing against each and the configuration each was specified for
         </caption>
         <colgroup>
           {columns.map((column) => (
@@ -230,8 +255,20 @@ export const BatteryTable = ({
                   </td>
                 )}
 
-                <td className="h-13 border-b border-subtle p-2 text-primary tabular-nums">
-                  {Math.round(bank.soh * 100)}%
+                <td className="h-13 overflow-hidden border-b border-subtle p-2">
+                  {/* ⚠️ `stopPropagation` on this span and **not** the cell: on the cell
+                      it makes the whole column dead to the row's select, since a cell is
+                      mostly padding and only the pill navigates. Same wiring as
+                      `SitesTable`, `GensetsTable` and `SolarTable`.
+
+                      No `keepFrom`: this register is where the trail starts. */}
+                  <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
+                    <AlarmBadge
+                      counts={counts[bank.id] ?? EMPTY_COUNTS}
+                      to="/battery/$bankId/alarms"
+                      params={{bankId: bank.id}}
+                    />
+                  </span>
                 </td>
 
                 {wide && (

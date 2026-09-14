@@ -5,7 +5,13 @@ import {PlantToolbar} from '@/components/global/PlantToolbar';
 import {useIsCompact} from '@/lib/useIsCompact';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
 import {CUSTOMER_TERM} from '@/modules/site/data/customers';
-import {batterySummary, filterBanks, searchBanks, sortBanks} from '../../data/register';
+import {
+  batterySummary,
+  filterBanks,
+  searchBanks,
+  sortBanks,
+  useBankAlarmCounts,
+} from '../../data/register';
 import {useBatteryBanks} from '../../data/banks';
 import {BankPreviewPanel} from './BankPreviewPanel';
 import {BatterySummaryCards} from './BatterySummaryCards';
@@ -101,6 +107,14 @@ export const BatteryRegister = ({
   // panel should say so rather than describing a row the reader can no longer see.
   const selected = useMemo(() => banks.find((bank) => bank.id === id), [banks, id]);
 
+  /**
+   * What is standing on every bank, over the **whole** register rather than the
+   * filtered view — one pass, so the table's nineteen pills read one moment. Live: a
+   * row cleared on a bank's own Alarms tab drops its count here on the way back. See
+   * `useBankAlarmCounts`.
+   */
+  const alarmCounts = useBankAlarmCounts(now);
+
   const showMap = (view === 'map' || view === 'split') && !compact;
   const showList = view !== 'map' || compact;
   const split = showMap && showList;
@@ -173,6 +187,7 @@ export const BatteryRegister = ({
             <div className="min-h-0 min-w-0 flex-1">
               <BatteryTable
                 banks={banks}
+                counts={alarmCounts}
                 // Full width means every column; beside the map the two nameplate ones
                 // are dropped rather than squeezed. See `BatteryTable`'s `COLUMNS`.
                 wide={!split}

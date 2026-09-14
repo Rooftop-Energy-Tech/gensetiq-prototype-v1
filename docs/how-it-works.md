@@ -1954,18 +1954,42 @@ a monitoring unit is fitted, its four `PV N Array Fault` registers. `Service` an
 
 ### The battery register, and a bank's pages
 
-`/battery` is a row per [bank](#battery-bank): bank, charge, flow, autonomy, health,
+`/battery` is a row per [bank](#battery-bank): bank, charge, flow, autonomy, alarm,
 configuration. It was the same six-tab scaffold `/solar` was, and its own note said what
 the fix would be; this table is that, column for column.
 
-**A bank's home page is four bands**, not five, and the missing one is missing because
-the *model* is: the strip, one dial for where the charge stands, the details, and the
-chart. **Nothing in this app raises a battery alarm** — no cell imbalance, no
-over-temperature, no low-charge rule, no BMS fault — and the `Alarms` section says so
-in as many words. The strip keeps its alarm column because it is the design's fixed
-third and because a reader moving between a genset, an array and a bank should find it
-in the same place on all three; what it must not do is invent a count. **Zeros there
-mean no rule has ever been written.**
+**The fifth column is `Alarm`, and it was `Health`** — the last of the four registers to
+make that swap, on 2026-09-14, so `/battery` now answers *what is wrong here* in the same
+place and the same shape as `/sites`, `/gensets` and `/solar`. Health is the one reading
+in this table that cannot change between two visits: state of health moves over years,
+so the column handed back the same numbers every morning, which is why it was already
+kept out of the sort. It has not left the screen — it is a row in the preview panel
+beside the list, and the strip still counts the estate's banks under 85%. The counts come
+off `plantAlarmQueue`, the same call the bank's own strip and its Alarms tab make.
+
+⚠️ **A bank with no monitoring unit and a bank whose unit is reporting nothing draw the
+same empty pill**, and this column cannot tell them apart — only the bank's own Alarms
+tab says which, and the pill links to it. `plantAlarmsWatched` is the predicate if the
+column should ever say so itself.
+
+**The sort is still runtime, not the queue**, which is where the other three registers
+rank from. Most of this estate's banks have nothing watching them, so an alarm sort would
+rank a handful of rows and leave the rest tied on nothing; hours left is a reading every
+bank has. The day the units are fitted more widely, `alarmRank` is the shape the answer
+wants.
+
+**A bank's home page is four bands**, not five: the strip, one dial for where the charge
+stands, the details, and the chart.
+
+⚠️ **The paragraph that stood here said "nothing in this app raises a battery alarm"** —
+no cell imbalance, no over-temperature, no low-charge rule, no BMS fault — and that the
+strip's zeros therefore meant *no rule has ever been written*. That was true when it was
+written and is not any more: a site with a **monitoring unit** on its DC plant has
+twenty-eight of that unit's registers pointed at the battery, and the bank's `Alarms` tab
+lists the ones it is asserting. The strip and now the register both read that queue. What
+survives of the old rule is the part that was always the point — a count here must never
+be invented — and the shape the answer takes is in `battery_.$bankId.alarms.tsx`:
+*nothing standing* where a unit is watching, *nothing watching* where none is.
 
 The gauge is **charge, not power**. A system's dial is generation because what an array
 is *doing* is the question; a bank's is state of charge because what a bank is
