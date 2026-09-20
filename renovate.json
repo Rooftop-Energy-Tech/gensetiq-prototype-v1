@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "mode": "full",
+  "git-submodules": {
+    "description": "Both are required: enabledManagers filters the manager name list, while the enabled flag is a separate gate read from the manager's own defaultConfig, where git-submodules ships as enabled:false.",
+    "enabled": true
+  },
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 4,
+  "packageRules": [
+    {
+      "description": "The shared-configuration mounts, grouped into one proposal so a config advance carrying many skill changes never produces more than one PR here. No schedule: the pointer advances as soon as the config repo moves. Rate is bounded by prConcurrentLimit/prHourlyLimit rather than by a delay.",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "matchDepNames": [
+        ".claude",
+        ".agents"
+      ],
+      "groupName": "agent config mounts",
+      "groupSlug": "agent-config-mounts",
+      "automerge": true,
+      "platformAutomerge": false,
+      "labels": [
+        "dependencies",
+        "agent-config"
+      ]
+    },
+    {
+      "description": "Every other submodule in this repo stays manual. Enabling the git-submodules manager must not silently start advancing pointers this change never considered, such as documentation mounts under product-docs/.",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "excludeDepNames": [
+        ".claude",
+        ".agents"
+      ],
+      "enabled": false
+    }
+  ]
+}
