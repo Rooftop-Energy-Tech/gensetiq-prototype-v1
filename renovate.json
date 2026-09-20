@@ -12,7 +12,7 @@
   "prHourlyLimit": 4,
   "packageRules": [
     {
-      "description": "The shared-configuration mounts, grouped into one proposal so a config advance carrying many skill changes never produces more than one PR here. No schedule: the pointer advances as soon as the config repo moves. Rate is bounded by prConcurrentLimit/prHourlyLimit rather than by a delay. branchConcurrentLimit and prHourlyLimit are 0 (unlimited) for this group only. branchConcurrentLimit silently INHERITS prConcurrentLimit when unset, so a repo limit of 5 against the 5 to 10 renovate branches these repos already carry produced 'Reached branch limit - skipping branch creation' and the pointer never moved. Repo-level limits still govern ordinary dependency updates; this one grouped branch is exempt so it cannot queue behind a backlog.",
+      "description": "The shared-configuration mounts, grouped into one proposal so a config advance carrying many skill changes never produces more than one PR here. No schedule: the pointer advances as soon as the config repo moves. Rate is bounded by prConcurrentLimit/prHourlyLimit rather than by a delay. branchConcurrentLimit and prHourlyLimit are 0 (unlimited) for this group only. branchConcurrentLimit silently INHERITS prConcurrentLimit when unset, so a repo limit of 5 against the 5 to 10 renovate branches these repos already carry produced 'Reached branch limit - skipping branch creation' and the pointer never moved. Repo-level limits still govern ordinary dependency updates; this one grouped branch is exempt so it cannot queue behind a backlog. ignoreTests is true because this repository has no workflows at all. With tests expected and none reporting, Renovate holds the branch status at yellow and automerge never fires, so the pointer sits behind while the config looks correct. Verified on Office-Infra, where adding this line was the difference between a PR sitting open and renovate[bot] merging it unaided two minutes later. Drop this line if the repository gains CI.",
       "matchManagers": [
         "git-submodules"
       ],
@@ -29,7 +29,8 @@
         "agent-config"
       ],
       "branchConcurrentLimit": 0,
-      "prHourlyLimit": 0
+      "prHourlyLimit": 0,
+      "ignoreTests": true
     },
     {
       "description": "Every other submodule in this repo stays manual. Enabling the git-submodules manager must not silently start advancing pointers this change never considered, such as documentation mounts under product-docs/.",
