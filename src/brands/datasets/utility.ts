@@ -230,10 +230,18 @@ const GENSETS = [
   //
   // **It stands at no yard.** Its last posting closed on 16 September and it has not
   // been sent out since, which is what `siteId: undefined` means — the machine is
-  // back in the workshop, and it is the only row here in that state. Its
-  // `fuelLitres` is a real gauge reading rather than a chosen number: 1,428 L, the
-  // level when it came off PE Alam Perdana No 3.
-  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 1428, fuelCapacityLitres: 2450, staleMinutes: 7_400, plateNumber: 'BRF 9540'},
+  // back in the workshop, and it is the only row here in that state.
+  //
+  // **Both fuel figures are measured.** `fuelLitres` is the gauge at 1,428 L, the
+  // level when the machine came off its last posting. `fuelCapacityLitres` is 2,350
+  // — not the 2,450 the other Cummins 1000 kVA rows carry, which is a fixture
+  // number. It is read off `RIQFL001 | Fuel Level (derived) [L]`, whose calibration
+  // holds across the whole export at about `2.683 L/mm − 106 L`: two separate fills
+  // topped out at 2,300 L (26 Aug) and 2,354 L at 917 mm (12 Sep), the highest the
+  // sensor ever saw, and no posting on the job sheet starts above 2,300. The tank
+  // may be built larger than that — a float cannot see the air above it — but 2,350
+  // is what this machine has been shown to hold.
+  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 1428, fuelCapacityLitres: 2350, staleMinutes: 7_400, plateNumber: 'BRF 9540'},
 ] as const;
 
 export const UTILITY_DATASET: BrandDataset = {
