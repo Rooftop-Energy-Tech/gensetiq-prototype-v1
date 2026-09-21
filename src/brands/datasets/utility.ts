@@ -232,16 +232,17 @@ const GENSETS = [
   // been sent out since, which is what `siteId: undefined` means — the machine is
   // back in the workshop, and it is the only row here in that state.
   //
-  // **Both fuel figures are measured.** `fuelLitres` is the gauge at 1,428 L, the
-  // level when the machine came off its last posting. `fuelCapacityLitres` is 2,350
+  // **Both fuel figures are measured.** `fuelLitres` is 2,136 L — the last reading
+  // `RIQFL001` ever sent, at 16 September 11:39 UTC. It is *not* the 1,428 L the job
+  // sheet closes posting 8 with; the sheet and the sensor disagree by 708 L on that
+  // job, and the sensor is the one with an instrument behind it.
+  // `fuelCapacityLitres` is 2,354
   // — not the 2,450 the other Cummins 1000 kVA rows carry, which is a fixture
-  // number. It is read off `RIQFL001 | Fuel Level (derived) [L]`, whose calibration
-  // holds across the whole export at about `2.683 L/mm − 106 L`: two separate fills
-  // topped out at 2,300 L (26 Aug) and 2,354 L at 917 mm (12 Sep), the highest the
-  // sensor ever saw, and no posting on the job sheet starts above 2,300. The tank
-  // may be built larger than that — a float cannot see the air above it — but 2,350
-  // is what this machine has been shown to hold.
-  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 1428, fuelCapacityLitres: 2350, staleMinutes: 7_400, plateNumber: 'BRF 9540'},
+  // number. It is the single highest reading the float ever returned, off
+  // `RIQFL001 | Fuel Level (derived) [L]`: 917 mm on 12 September, against a
+  // calibration that holds across the whole export at about `2.683 L/mm − 106 L`.
+  // A tank read at its own high-water mark — Afifah's call, 2026-09-21.
+  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 2136, fuelCapacityLitres: 2354, staleMinutes: 7_400, plateNumber: 'BRF 9540'},
 ] as const;
 
 export const UTILITY_DATASET: BrandDataset = {

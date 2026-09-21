@@ -18,15 +18,19 @@ import type {Deployment, DeploymentMembership} from '../types/deployment.type';
  * saying so rather than the app inventing a yard. The **lorry plates are absent**
  * for the same reason: the export knows what the machine did, not what carried it.
  *
- * ## The two long jobs do not reconcile, and that is the data
+ * ## The tank figures are two different kinds of fact
  *
- * Jobs 2 and 7 burn 0.12 L/kWh against a diesel set's ordinary 0.25–0.30. Job 2
- * produced 11,603 kWh and the tank fell 1,348 L; at a credible SFC it should have
- * taken nearer 3,000. The likeliest reading is a **refuel inside the window that the
- * start→last pair hides** — a tank filled mid-job shows only its endpoints. Left as
- * recorded rather than corrected, because inventing the missing fill would be the
- * prototype asserting a delivery nobody logged. ⚠️ Do not quote these two jobs' fuel
- * efficiency as a benchmark.
+ * `RIQFL001` produced nothing before **18 August**, so only jobs 7 and 8 can have
+ * their litres read off the instrument at the window's own edges. The first six
+ * carry what Express Mission wrote on the job sheet, and `fuelFrom` says which is
+ * which on every row.
+ *
+ * Where both exist they disagree, and not slightly: job 8's sheet says 2,300 → 1,428
+ * where the sensor says **2,316 → 2,136**, a 708 L gap in the closing figure alone.
+ * The sheet is nearer the truth on burn rate — 1,348 L against 11,603 kWh on job 2
+ * is 0.12 L/kWh, where a diesel set runs 0.25–0.30 — so neither source is reliably
+ * the better one. ⚠️ Do not quote any of these jobs' fuel efficiency as a benchmark
+ * until the two records are reconciled against delivery dockets.
  */
 export const REAL_GENSET_ID = 'brf9540';
 
@@ -39,9 +43,22 @@ type RealJob = {
   /** ISO 8601, UTC — the posting's own window, not the engine's. */
   startsAt: string;
   endsAt: string;
-  /** Tank level at the posting's edges, litres, as recorded. */
+  /** Tank level at the posting's edges, litres. */
   startFuelLitres: number;
   endFuelLitres: number;
+  /**
+   * Where those two litre figures come from, and it is not the same for every job.
+   *
+   * `telemetry` is the level sensor read at the window's own edges — the truth, and
+   * available only for jobs 7 and 8, because `RIQFL001` produced nothing before
+   * **18 August**. The first six jobs are `job sheet`: the figures Express Mission
+   * wrote down, with no gauge behind them to check against.
+   *
+   * Kept on the record rather than resolved away, because a reader comparing job 5's
+   * "2,100 → 20" against job 8's "2,316 → 2,136" is comparing a written note with an
+   * instrument, and nothing else on the page would say so.
+   */
+  fuelFrom: 'telemetry' | 'job sheet';
   /**
    * When the posting was filed, ISO 8601. Kept because the first four were all
    * entered on 19 June — a fortnight of jobs written up in one sitting — which is
@@ -56,56 +73,87 @@ type RealJob = {
   /** Mean and peak load the set carried, kW. */
   meanLoadKw: number;
   peakLoadKw: number;
+  /**
+   * The controller's own instruments, median across the window.
+   *
+   * ⚠️ `oilPressureBar` and `batteryVolts` are **divided by ten for every job but
+   * the first**. The raw export reads 44 and 294 there; May's rows read 4.0 and 29
+   * for the same physical quantities, so a ×10 scale arrived with a firmware change
+   * between 20 May and 3 June. Coolant did not move, which is why it is not scaled
+   * here. Confirmed with Afifah 2026-09-21 — the battery reads 26–30 V, not 260–300.
+   */
+  oilPressureBar: number;
+  coolantCelsius: number;
+  batteryVolts: number;
+  /** L1–L2, volts, and the three phase currents in amps. */
+  lineVoltage: number;
+  phaseCurrentAmps: [number, number, number];
 };
 
 const JOBS: ReadonlyArray<RealJob> = [
   {index: 1, siteId: 'pe-026', locationLabel: 'PE Kapar L. Ind Park',
-   startsAt: '2026-05-23T02:00:00.000Z', endsAt: '2026-05-23T10:00:00.000Z',
-   startFuelLitres: 1970, endFuelLitres: 1848, enteredAt: '2026-06-19T00:00:00.000Z',
-   engineStartedAt: '2026-05-23T02:49:00.000Z', engineEndedAt: '2026-05-23T09:25:00.000Z',
-   energyKwh: 298, meanLoadKw: 44, peakLoadKw: 58},
+   startsAt: '2026-05-23T02:00:00.000Z', endsAt: '2026-05-23T10:00:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
+   startFuelLitres: 1970, endFuelLitres: 1848, fuelFrom: 'job sheet',
+   engineStartedAt: '2026-05-23T02:49:09.000Z', engineEndedAt: '2026-05-23T09:25:41.000Z',
+   energyKwh: 298, meanLoadKw: 44, peakLoadKw: 58,
+   oilPressureBar: 4.4, coolantCelsius: 68, batteryVolts: 28.9,
+   lineVoltage: 416, phaseCurrentAmps: [57, 68, 62]},
 
   {index: 2, siteId: 'pe-027', locationLabel: 'PE Sek Men Vokasional Sg. Buloh',
-   startsAt: '2026-06-03T10:00:00.000Z', endsAt: '2026-06-06T04:00:00.000Z',
-   startFuelLitres: 1850, endFuelLitres: 502, enteredAt: '2026-06-19T00:00:00.000Z',
-   engineStartedAt: '2026-06-03T10:48:00.000Z', engineEndedAt: '2026-06-06T03:19:00.000Z',
-   energyKwh: 11_603, meanLoadKw: 180, peakLoadKw: 232},
+   startsAt: '2026-06-03T10:00:00.000Z', endsAt: '2026-06-06T04:00:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
+   startFuelLitres: 1850, endFuelLitres: 502, fuelFrom: 'job sheet',
+   engineStartedAt: '2026-06-03T10:48:25.000Z', engineEndedAt: '2026-06-06T03:19:42.000Z',
+   energyKwh: 11603, meanLoadKw: 179, peakLoadKw: 232,
+   oilPressureBar: 4.4, coolantCelsius: 69, batteryVolts: 29.0,
+   lineVoltage: 416, phaseCurrentAmps: [268, 294, 197]},
 
   {index: 3, siteId: 'pe-028', locationLabel: 'PE Taman Pantai Makmur 2',
-   startsAt: '2026-06-11T04:00:00.000Z', endsAt: '2026-06-11T15:50:00.000Z',
-   startFuelLitres: 2300, endFuelLitres: 1804, enteredAt: '2026-06-19T00:00:00.000Z',
-   engineStartedAt: '2026-06-11T04:33:00.000Z', engineEndedAt: '2026-06-11T15:38:00.000Z',
-   energyKwh: 1155, meanLoadKw: 104, peakLoadKw: 127},
+   startsAt: '2026-06-11T04:00:00.000Z', endsAt: '2026-06-11T15:50:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
+   startFuelLitres: 2300, endFuelLitres: 1804, fuelFrom: 'job sheet',
+   engineStartedAt: '2026-06-11T04:33:27.000Z', engineEndedAt: '2026-06-11T15:38:36.000Z',
+   energyKwh: 1155, meanLoadKw: 104, peakLoadKw: 127,
+   oilPressureBar: 4.5, coolantCelsius: 68, batteryVolts: 29.4,
+   lineVoltage: 416, phaseCurrentAmps: [156, 137, 174]},
 
   {index: 4, siteId: null, locationLabel: 'Location not recorded',
-   startsAt: '2026-06-18T07:30:00.000Z', endsAt: '2026-06-18T12:00:00.000Z',
-   startFuelLitres: 1800, endFuelLitres: 1412, enteredAt: '2026-06-19T00:00:00.000Z',
-   engineStartedAt: '2026-06-18T07:44:00.000Z', engineEndedAt: '2026-06-18T11:31:00.000Z',
-   energyKwh: 1203, meanLoadKw: 317, peakLoadKw: 433},
+   startsAt: '2026-06-18T07:30:00.000Z', endsAt: '2026-06-18T12:00:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
+   startFuelLitres: 1800, endFuelLitres: 1412, fuelFrom: 'job sheet',
+   engineStartedAt: '2026-06-18T07:44:33.000Z', engineEndedAt: '2026-06-18T11:31:13.000Z',
+   energyKwh: 1203, meanLoadKw: 317, peakLoadKw: 433,
+   oilPressureBar: 4.2, coolantCelsius: 71, batteryVolts: 29.2,
+   lineVoltage: 415, phaseCurrentAmps: [506, 400, 416]},
 
   {index: 5, siteId: 'pe-029', locationLabel: 'PE Tmn Sementa Jaya',
-   startsAt: '2026-06-24T08:10:00.000Z', endsAt: '2026-06-25T14:30:00.000Z',
-   startFuelLitres: 2100, endFuelLitres: 20, enteredAt: '2026-06-25T00:00:00.000Z',
-   engineStartedAt: '2026-06-24T08:17:00.000Z', engineEndedAt: '2026-06-25T13:15:00.000Z',
-   energyKwh: 4352, meanLoadKw: 347, peakLoadKw: 486},
+   startsAt: '2026-06-24T08:10:00.000Z', endsAt: '2026-06-25T14:30:00.000Z', enteredAt: '2026-06-25T00:00:00.000Z',
+   startFuelLitres: 2100, endFuelLitres: 20, fuelFrom: 'job sheet',
+   engineStartedAt: '2026-06-24T08:17:58.000Z', engineEndedAt: '2026-06-25T13:15:46.000Z',
+   energyKwh: 4352, meanLoadKw: 347, peakLoadKw: 486,
+   oilPressureBar: 4.3, coolantCelsius: 70, batteryVolts: 29.5,
+   lineVoltage: 417, phaseCurrentAmps: [472, 506, 493]},
 
   {index: 6, siteId: 'pe-030', locationLabel: 'PE Pusat Ternakan Itik',
-   startsAt: '2026-06-27T20:35:00.000Z', endsAt: '2026-06-29T14:30:00.000Z',
-   startFuelLitres: 2200, endFuelLitres: 1623, enteredAt: '2026-07-01T00:00:00.000Z',
-   engineStartedAt: '2026-06-28T15:39:00.000Z', engineEndedAt: '2026-06-29T14:03:00.000Z',
-   energyKwh: 483, meanLoadKw: 22, peakLoadKw: 75},
+   startsAt: '2026-06-27T20:35:00.000Z', endsAt: '2026-06-29T14:30:00.000Z', enteredAt: '2026-07-01T00:00:00.000Z',
+   startFuelLitres: 2200, endFuelLitres: 1623, fuelFrom: 'job sheet',
+   engineStartedAt: '2026-06-28T15:39:03.000Z', engineEndedAt: '2026-06-29T14:03:25.000Z',
+   energyKwh: 483, meanLoadKw: 41, peakLoadKw: 75,
+   oilPressureBar: 4.4, coolantCelsius: 67, batteryVolts: 29.4,
+   lineVoltage: 416, phaseCurrentAmps: [75, 76, 69]},
 
   {index: 7, siteId: 'pe-031', locationLabel: 'PE Alam Perdana No 3',
-   startsAt: '2026-09-10T06:40:00.000Z', endsAt: '2026-09-11T15:00:00.000Z',
-   startFuelLitres: 2200, endFuelLitres: 1520, enteredAt: '2026-09-14T00:00:00.000Z',
-   engineStartedAt: '2026-09-10T06:40:00.000Z', engineEndedAt: '2026-09-11T14:45:00.000Z',
-   energyKwh: 5540, meanLoadKw: 172, peakLoadKw: 274},
+   startsAt: '2026-09-10T06:40:00.000Z', endsAt: '2026-09-11T15:00:00.000Z', enteredAt: '2026-09-14T00:00:00.000Z',
+   startFuelLitres: 2271, endFuelLitres: 1584, fuelFrom: 'telemetry',
+   engineStartedAt: '2026-09-10T06:40:49.000Z', engineEndedAt: '2026-09-11T14:45:54.000Z',
+   energyKwh: 5540, meanLoadKw: 172, peakLoadKw: 274,
+   oilPressureBar: 4.2, coolantCelsius: 68, batteryVolts: 29.4,
+   lineVoltage: 416, phaseCurrentAmps: [256, 218, 238]},
 
   {index: 8, siteId: null, locationLabel: 'Location not recorded',
-   startsAt: '2026-09-15T07:10:00.000Z', endsAt: '2026-09-16T12:00:00.000Z',
-   startFuelLitres: 2300, endFuelLitres: 1428, enteredAt: '2026-09-21T00:00:00.000Z',
-   engineStartedAt: '2026-09-15T07:15:00.000Z', engineEndedAt: '2026-09-16T09:11:00.000Z',
-   energyKwh: 2546, meanLoadKw: 98, peakLoadKw: 169},
+   startsAt: '2026-09-15T07:10:00.000Z', endsAt: '2026-09-16T12:00:00.000Z', enteredAt: '2026-09-21T00:00:00.000Z',
+   startFuelLitres: 2316, endFuelLitres: 2136, fuelFrom: 'telemetry',
+   engineStartedAt: '2026-09-15T07:15:58.000Z', engineEndedAt: '2026-09-16T09:11:29.000Z',
+   energyKwh: 2546, meanLoadKw: 98, peakLoadKw: 169,
+   oilPressureBar: 4.4, coolantCelsius: 68, batteryVolts: 29.4,
+   lineVoltage: 417, phaseCurrentAmps: [102, 159, 135]},
 ];
 
 const id = (job: RealJob): string => `real-job-${job.index}`;
