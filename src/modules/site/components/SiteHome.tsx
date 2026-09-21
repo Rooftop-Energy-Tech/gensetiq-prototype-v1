@@ -45,21 +45,18 @@ import {SiteMetricStrip} from './SiteMetricStrip';
  * `summary.defaultDutyId` — the set carrying the load, or the one that would if the
  * grid dropped now — and this page reports it rather than offering to change it.
  * Transferring a site's load is an operation, and operations belong on the
- * machine's own page beside the interlocks that make them safe. The diagram still
- * draws every isolator's true position.
+ * machine's own page beside the interlocks that make them safe.
  *
  * ## At phone width
  *
- * The bands are already a column, and band 2 folds back into one: the drawing with
- * its device's card underneath. That is the old stack again, shortened to the one
- * card that was asked for. The **scene scales to the width it is given** rather than
- * reflowing: it is a fixed pixel canvas whose objects stand at measured ground
- * coordinates, so a reflow would put a cabinet through a fence. `SitePlantScene`
- * measures its own box and handles that itself.
+ * The bands are already a column, and band 2 is one at every width now that its
+ * drawing is gone: a picker over the card it selects. Nothing there is a fixed
+ * canvas any more, so nothing has to measure its own box — see `SiteCircuit` on what
+ * the two drawings were and why neither survived.
  */
 export const SiteHome = ({summary}: {summary: SiteSummary}) => {
-  // One clock reading for the whole page, so the strip's figures, the diagram's
-  // live nodes, the device card beside it and the chart's right-hand edge cannot
+  // One clock reading for the whole page, so the strip's figures, the device card
+  // under the picker and the chart's right-hand edge cannot
   // land either side of a minute boundary and disagree about what "now" was.
   const [now] = useState(() => Date.now());
 
