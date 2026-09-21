@@ -140,7 +140,7 @@ const SITES = [
   {id: 'pe-024', name: 'PE-024', kind: 'PE', locationLabel: 'Port Dickson, Negeri Sembilan',  latitude: 2.5228, longitude: 101.7960, loadKw: 109, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
   {id: 'pe-025', name: 'PE-025', kind: 'PE', locationLabel: 'Kuantan, Pahang',                latitude: 3.8077, longitude: 103.3260, loadKw: 187, customer: 'pahang',          powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
 
-  // — The six yards `BRF9540` actually stood at, May–September 2026. Named as the
+  // — The six yards `BRF 9540` actually stood at, May–September 2026. Named as the
   //   job sheet names them rather than `PE-0nn`: these came off Express Mission's
   //   own deployment record, and `PE Kapar L. Ind Park` is what the operations room
   //   says out loud. Their `loadKw` is the mean load the set carried there, read off
@@ -222,7 +222,8 @@ const GENSETS = [
 
   // — The one real machine on this estate. —
   //
-  // `BRF9540` is not dealt. Every figure on it is read off Express Mission's own
+  // `BRF 9540` — asset tag `BRF9540`, which is what its id and URL are built from —
+  // is not dealt. Every figure on it is read off Express Mission's own
   // gateway, `em-gw-001`, exported 2026-09-21: its eight postings, their windows and
   // their tank readings are in `deployment/data/realJobs.ts`, and its runs are the
   // engine actually turning, in `history.ts`. Nothing else in this file is measured.
@@ -232,7 +233,7 @@ const GENSETS = [
   // back in the workshop, and it is the only row here in that state. Its
   // `fuelLitres` is a real gauge reading rather than a chosen number: 1,428 L, the
   // level when it came off PE Alam Perdana No 3.
-  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 1428, fuelCapacityLitres: 2450, staleMinutes: 7_400, plateNumber: 'BRF9540'},
+  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 1428, fuelCapacityLitres: 2450, staleMinutes: 7_400, plateNumber: 'BRF 9540'},
 ] as const;
 
 export const UTILITY_DATASET: BrandDataset = {
