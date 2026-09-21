@@ -211,11 +211,10 @@ const GENSETS = [
 export const UTILITY_DATASET: BrandDataset = {
   id: 'utility',
   label: 'Utility distribution estate',
-  groupingLabel: 'By zone',
+  groupingLabel: 'By state',
   // A vendor's machines, posted to the operator's injection points for a job and
   // taken back. The rail drops Sites — see `PlantKind`.
   plant: 'mobile',
-  groupingLabel: 'By state',
   customers: CUSTOMERS,
   programs: PROGRAMS,
   siteKindLabels: SITE_KIND_LABELS,
