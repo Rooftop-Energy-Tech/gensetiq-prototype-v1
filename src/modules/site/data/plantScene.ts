@@ -12,13 +12,16 @@ import type {SitePowerRole} from '../types/site.type';
 import {hasMains} from '../types/site.type';
 
 /**
- * The site as **plant standing on the ground**, rather than as a circuit.
+ * The site as **plant standing on the ground**.
  *
- * The single-line diagram in `SiteDiagram` says what is connected to what. This says
- * what a technician would see walking through the gate: the pad, the cabinet line-up,
- * the set beside it, the array over the yard, the tower the whole compound exists to
- * keep up, and the jungle on the other side of the fence. Same nodes, same click, same
- * captions - a second projection of one site, not a second model of it.
+ * This says what a technician would see walking through the gate: the pad, the cabinet
+ * line-up, the set beside it, the tower the whole compound exists to keep up, and the
+ * jungle on the other side of the fence.
+ *
+ * It was one of two projections. The other was `SiteDiagram`, a single-line circuit
+ * saying what is connected to what, and it has been removed: a schematic of an incomer,
+ * a bus and a set is a telco DC plant drawing, and this product puts a genset in a
+ * yard. What a reader arriving at a site is asking is what is standing there.
  *
  * ## Where the drawings come from
  *

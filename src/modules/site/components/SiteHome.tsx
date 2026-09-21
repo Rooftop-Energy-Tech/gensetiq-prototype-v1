@@ -52,9 +52,9 @@ import {SiteMetricStrip} from './SiteMetricStrip';
  *
  * The bands are already a column, and band 2 folds back into one: the drawing with
  * its device's card underneath. That is the old stack again, shortened to the one
- * card that was asked for. The **diagram scales to the width it is given** rather
- * than reflowing: it is a fixed pixel canvas whose conductors land on the boxes at
- * measured coordinates, so a reflow would leave a wire in mid-air. `SiteDiagram`
+ * card that was asked for. The **scene scales to the width it is given** rather than
+ * reflowing: it is a fixed pixel canvas whose objects stand at measured ground
+ * coordinates, so a reflow would put a cabinet through a fence. `SitePlantScene`
  * measures its own box and handles that itself.
  */
 export const SiteHome = ({summary}: {summary: SiteSummary}) => {

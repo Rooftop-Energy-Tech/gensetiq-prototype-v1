@@ -143,10 +143,10 @@ export type Site = {
    * answerable without a machine having to carry an owner around with it.
    *
    * The **power role is deliberately not here.** Every other field on this object is
-   * something the page *reports*; the role selects which circuit the page **draws**,
-   * and the components that draw it take it as a prop so `SiteDiagram` can stay a
-   * pure function of `(summary, dutyId, role)` — which is what lets the settings tab
-   * render the same circuit twice, one role each, as a preview. It is read live
+   * something the page *reports*; the role selects what the page **draws**, and the
+   * components that draw it take it as a prop so `SitePlantScene` can stay a pure
+   * function of `(summary, dutyId, role)` — which is what lets the settings tab
+   * render the same yard twice, one role each, as a preview. It is read live
    * through `siteConfig.ts`. See `SitePowerRole`.
    */
   customer: CustomerId;
