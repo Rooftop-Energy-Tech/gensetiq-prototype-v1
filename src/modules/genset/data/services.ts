@@ -1,6 +1,5 @@
 import {useSyncExternalStore} from 'react';
 
-import type {Genset, GensetActivity} from '../types/genset.type';
 import {scheduleFor, serviceStatus} from '../types/service.type';
 import type {ServiceRecord, ServiceSchedule, ServiceStatus} from '../types/service.type';
 import {GENSETS} from './fleet';
@@ -265,33 +264,6 @@ export const setSchedule = (gensetId: string, schedule: ServiceSchedule) => {
     /* Private mode — the change just won't survive a reload. */
   }
   emit();
-};
-
-/**
- * A genset's activity feed with its services folded in, newest first.
- *
- * The feed used to carry a hardcoded "Scheduled 250-hour service completed" from
- * `fleet.ts`, on every unit, eight days ago. That line is gone: a service in the
- * feed is now the same service the log holds, so the two cannot say different
- * things about the same visit — and a service logged in this session appears in
- * the feed the moment it is saved, which a seeded string could never do.
- */
-export const withServiceActivity = (
-  genset: Genset,
-  records: Array<ServiceRecord>,
-): Array<GensetActivity> => {
-  const services: Array<GensetActivity> = records
-    .filter((record) => record.gensetId === genset.id)
-    .map((record) => ({
-      id: `${record.id}-activity`,
-      kind: 'SERVICE' as const,
-      message: `Service completed by ${record.technicianName}`,
-      at: record.performedAt,
-    }));
-
-  return [...genset.activity, ...services].sort(
-    (left, right) => new Date(right.at).getTime() - new Date(left.at).getTime(),
-  );
 };
 
 /** What the log-service form collects. The record's id and document are made here. */

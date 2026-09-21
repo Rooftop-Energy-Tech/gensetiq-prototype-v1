@@ -1,32 +1,63 @@
-import {useId, useState} from 'react';
+import {Link} from '@tanstack/react-router';
+import {ArrowUpRightIcon} from 'lucide-react';
 
-import {
-  CardNote,
-  CountChip,
-  Headline,
-  SummaryCard,
-  SummaryCardRow,
-  SummaryCollapseButton,
-} from '@/components/global/SummaryCards';
+import {cn} from '@/lib/utils';
+import {CountChip} from '@/components/global/SummaryCards';
 import {STATUS_META} from '@/modules/genset/data/fleetStatus';
+import {gensetSearch} from '@/modules/genset/types/view.type';
 import type {EstateSummary} from '../data/estateSummary';
 import type {SiteSearch} from '../types/view.type';
-import {CUSTOMER_GROUPING_LABEL} from '@/modules/site/data/customers';
 
 /**
- * The fleet screen's cards, counting yards instead of machines.
+ * The estate's summary: **one row, read left to right.**
  *
- * Same four questions in the same order, so somebody moving between the two
- * screens is reading one instrument at two scales rather than learning a second
- * layout. What changes is only what a number means: `Standby 14` here is fourteen
- * *sites* with a mains incomer, and the headline carries the genset count as its
- * second figure rather than its first.
+ * It was three cards in a grid — a figure, a stack of four status chips, and a
+ * link — which stood 146px tall above a list whose first row is the thing a reader
+ * came for. Tristan's call, 2026-09-21: reduce it to a single horizontal row.
+ *
+ * ## What that costs and what it buys
+ *
+ * A card gives each figure a box and a label above it, and boxes are what let a
+ * reader jump to one without reading the others. A row gives that up: everything is
+ * on one line and the eye reads across. The trade is worth it here because there
+ * are only three groups and the list underneath is the page — a summary that takes
+ * a fifth of the viewport is a summary competing with its own subject.
+ *
+ * The **groups are still separated**, by a rule rather than by a border, so the row
+ * reads as three answers and not as one long sentence. At narrow widths it wraps at
+ * those rules, which is why they are their own elements rather than `border-l` on
+ * the group: a wrapped group should not carry a rule into the start of a new line.
+ *
+ * ## The chips stayed chips
+ *
+ * `Status` lost its card and kept its four `CountChip`s, laid along the row instead
+ * of stacked. They are the one part of this strip that *does* something — click
+ * `Low fuel` and the list and the map both narrow — and the distribution across
+ * them is the estate's readiness, which is the question this screen exists to
+ * answer. Flattening them into a sentence would have made the row shorter and the
+ * screen worse.
+ *
+ * ## The collapse control went with the cards
+ *
+ * There was a `Hide summary` button, because four cards stacked two-up were most of
+ * a 375px viewport before the list started. One wrapped row is three or four lines
+ * there, which is not worth a control to put away — and a button to fold a summary
+ * this small would be more furniture than the thing it folds.
  */
 
 type SitesSummaryCardsProps = {
   summary: EstateSummary;
   /** Rows the list is showing, once search and chips are applied. */
   showing: number;
+  /**
+   * Machines past one of their two service intervals, and the yards they stand in.
+   *
+   * The headline is the **plant**, where every other card here counts sites, and the
+   * asymmetry is the point: a service is booked against a machine, on that machine's
+   * own hour meter and its own interval, so two sets due at one site is two jobs
+   * whoever happens to drive there. The site count moves to the detail line.
+   */
+  serviceDue: {gensetCount: number; siteCount: number};
   search: SiteSearch;
   onSearchChange: (next: Partial<SiteSearch>) => void;
 };
@@ -34,107 +65,85 @@ type SitesSummaryCardsProps = {
 export const SitesSummaryCards = ({
   summary,
   showing,
+  serviceDue,
   search,
   onSearchChange,
 }: SitesSummaryCardsProps) => {
   const filtered = showing !== summary.total;
 
-  /**
-   * Folded away, at phone width only — the fleet screen's control, for the same
-   * reason and on the same terms.
-   *
-   * Four cards stacked two-up are most of a 375px viewport before the list starts,
-   * and this screen's cards are the taller pair of the two: `Supply` and `Status`
-   * carry the same rows as the fleet's, over a longer headline. Local state rather
-   * than a search param, because the reader's device decides the presentation and a
-   * `?cards=closed` followed onto a desktop would name a state that width cannot
-   * undo — see `GensetsSummaryCards` for the argument in full.
-   */
-  const [collapsed, setCollapsed] = useState(false);
-
-  // The chips, and only them. `q` is the toolbar's search with its own visible field,
-  // so counting it here would report a filter this button does not fold away.
-  const activeCount = [search.role, search.status, search.customer].filter(
-    (value) => value !== undefined,
-  ).length;
-
-  // Generated rather than a written constant: `aria-controls` has to resolve to a
-  // unique node, and `SummaryCardRow` is shared with the fleet screen.
-  const cardsId = useId();
-
   return (
-    <div className="flex flex-col gap-3">
-      <SummaryCardRow id={cardsId} collapsed={collapsed}>
-        <SummaryCard label="Sites">
-          <Headline
-            value={summary.total}
-            unit={summary.total === 1 ? 'site' : 'sites'}
-            detail={
-              filtered
-                ? `Showing ${showing}`
-                : `${summary.gensetCount} ${summary.gensetCount === 1 ? 'genset' : 'gensets'} standing`
-            }
+    <section
+      aria-label="Estate summary"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-subtle bg-element px-3 py-2"
+    >
+      {/* What the estate is, before anything offers to narrow it. The genset count
+          rides behind the site count as a second clause rather than a second figure:
+          one is what the list has rows for and the other is what is standing on
+          them. */}
+      <p className="flex min-w-0 items-baseline gap-1.5">
+        <span className="text-lg leading-none font-semibold text-primary tabular-nums">
+          {summary.total}
+        </span>
+        <span className="truncate text-sm text-secondary">
+          {summary.total === 1 ? 'site' : 'sites'}
+          {' · '}
+          {summary.gensetCount} {summary.gensetCount === 1 ? 'genset' : 'gensets'} standing
+        </span>
+      </p>
+
+      {/* Only while a filter is actually on. A `Showing 25 of 25` that is true on
+          arrival is a line every reader has to read once to learn it says nothing. */}
+      {filtered && (
+        <span className="truncate text-sm text-tertiary">Showing {showing}</span>
+      )}
+
+      <Rule />
+
+      {/* Along the row rather than stacked — the four buckets, still filtering. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        {summary.byStatus.map((tally) => (
+          <CountChip
+            key={tally.key}
+            label={tally.label}
+            count={tally.count}
+            tone={STATUS_META[tally.key].tone}
+            active={search.status === tally.key}
+            onToggle={(next) => onSearchChange({status: next ? tally.key : undefined})}
+            title={STATUS_META[tally.key].detail}
           />
-          {filtered && <CardNote>{summary.gensetCount} gensets in total</CardNote>}
-        </SummaryCard>
+        ))}
+      </div>
 
-        <SummaryCard label="Supply">
-          {/* "Supply" rather than the fleet's "Duty": at a site the role says how the
-              yard is *fed*, which is a fact about the place. On a machine it says
-              what that machine is there to do. Same token, two readings, and the
-              labels should not pretend otherwise. */}
-          <div className="flex flex-col gap-0.5">
-            {summary.byRole.map((tally) => (
-              <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                active={search.role === tally.key}
-                onToggle={(next) => onSearchChange({role: next ? tally.key : undefined})}
-                block
-              />
-            ))}
-          </div>
-        </SummaryCard>
-
-        <SummaryCard label="Status">
-          <div className="flex flex-col gap-0.5">
-            {summary.byStatus.map((tally) => (
-              <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                tone={STATUS_META[tally.key].tone}
-                active={search.status === tally.key}
-                onToggle={(next) => onSearchChange({status: next ? tally.key : undefined})}
-                title={STATUS_META[tally.key].detail}
-                block
-              />
-            ))}
-          </div>
-        </SummaryCard>
-
-        <SummaryCard label={CUSTOMER_GROUPING_LABEL}>
-          <div className="flex flex-wrap gap-x-1 gap-y-0.5">
-            {summary.byCustomer.map((tally) => (
-              <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                active={search.customer === tally.key}
-                onToggle={(next) => onSearchChange({customer: next ? tally.key : undefined})}
-              />
-            ))}
-          </div>
-        </SummaryCard>
-      </SummaryCardRow>
-
-      <SummaryCollapseButton
-        collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
-        activeCount={activeCount}
-        controls={cardsId}
-      />
-    </div>
+      {/* Hard right on a wide row, and in reading order on a wrapped one. The one
+          item here that *leads somewhere else* rather than narrowing this list, so
+          it keeps the arrow every other way-out in this app carries. */}
+      <Link
+        to="/gensets"
+        search={gensetSearch({service: 'due'})}
+        className={cn(
+          'flex shrink-0 items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-sm',
+          'transition-colors outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline',
+          'xl:ml-auto',
+        )}
+      >
+        <span className="text-secondary">Due for service</span>
+        <span className="font-medium text-primary tabular-nums">{serviceDue.gensetCount}</span>
+        <span className="text-tertiary">
+          {serviceDue.gensetCount === 0
+            ? 'nothing booked in'
+            : `at ${serviceDue.siteCount} ${serviceDue.siteCount === 1 ? 'site' : 'sites'}`}
+        </span>
+        <ArrowUpRightIcon className="size-3 shrink-0 text-tertiary" aria-hidden="true" />
+      </Link>
+    </section>
   );
 };
+
+/**
+ * The separator between groups.
+ *
+ * Its own element rather than a `border-l` on the group after it, because the row
+ * wraps: a border travels with its group and would open a new line with a rule
+ * hanging off the left edge. A standalone rule simply wraps out of sight.
+ */
+const Rule = () => <span className="h-4 w-px shrink-0 bg-subtle" aria-hidden="true" />;

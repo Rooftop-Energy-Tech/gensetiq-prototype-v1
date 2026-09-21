@@ -11,8 +11,10 @@ import {GensetsCards} from './components/GensetsCards';
 import {GensetsSummaryCards} from './components/GensetsSummaryCards';
 import {GensetsTable} from './components/GensetsTable';
 import {GensetsToolbar} from './components/GensetsToolbar';
+import {useFleetAlarmCounts} from './data/alarmViews';
 import {filterGensets, searchGensets, sortGensets} from './utils/searchGensets';
-import type {GensetSearch} from './types/view.type';
+import {GENSET_SORT_DEFAULT_DIRECTION} from './types/view.type';
+import type {GensetSearch, GensetSort} from './types/view.type';
 
 /**
  * MapLibre is ~800 kB — three quarters of this route's bundle. It used to be
@@ -40,7 +42,11 @@ type GensetsPageProps = {
 };
 
 export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
-  const {view, q = '', id, panel, customer, role, status, service} = search;
+  const {view, q = '', id, panel, customer, role, status, service, sort, dir} = search;
+
+  // The key's own natural direction until a reader flips it — see
+  // `GENSET_SORT_DEFAULT_DIRECTION`, and `changeSort` below for what a click means.
+  const direction = dir ?? GENSET_SORT_DEFAULT_DIRECTION[sort];
 
   /**
    * At phone width this screen is the cards and the card list, and nothing else.
@@ -52,7 +58,8 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * that the app offers no control it cannot honour.
    *
    * The summary cards *are* kept, because they have a phone form: they stack two-up
-   * and their chips are the only filtering this width otherwise has.
+   * and each readiness bucket is still a filter at this width. Duty and region are
+   * in the toolbar, which every width gets.
    *
    * `view` in the URL is left exactly as it is. A phone reading a link to
    * `?view=split` shows the list and, followed on a desktop, that same link still
@@ -74,12 +81,46 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   // question.
   const summary = useMemo(() => fleetSummary(all, roles), [all, roles]);
 
+  // Over the **whole** fleet rather than the filtered list, so a set's rank is a
+  // fact about the set and not about what else is on screen — and so the table
+  // below, the map's pins and this ordering all read one pass. See
+  // `useFleetAlarmCounts`.
+  const alarmCounts = useFleetAlarmCounts(all);
+
+  /**
+   * A column header was clicked.
+   *
+   * A new column picks up its own natural direction, because that is the answer
+   * somebody clicking `Fuel level` came for and making them click twice to get it
+   * would be the control asking a question it already knows the answer to. The
+   * column that is already the order flips instead, which is the only way to reach
+   * the other end of it — and a header that did nothing on a second click reads as
+   * dead.
+   *
+   * `dir: undefined` rather than the key's default written out: the default belongs
+   * to the key, so storing it would put a redundant `dir` in every shared URL.
+   *
+   * The sites register's `changeSort` is this function over yards. The two are kept
+   * identical deliberately: a reader who learns the headers on one list has learnt
+   * them on the other.
+   */
+  const changeSort = (next: GensetSort) => {
+    if (next === sort) {
+      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc'});
+      return;
+    }
+    onSearchChange({sort: next, dir: undefined});
+  };
+
   const gensets = useMemo(
     () =>
       sortGensets(
         filterGensets(searchGensets(all, q), {customer, role, status, service}, roles),
+        sort,
+        direction,
+        alarmCounts,
       ),
-    [all, q, customer, role, status, service, roles],
+    [all, q, customer, role, status, service, roles, sort, direction, alarmCounts],
   );
 
   // Resolved against the *filtered* list, not the whole fleet: if a search hides
@@ -155,6 +196,9 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         panelOpen={panelOpen}
         onPanelOpenChange={(next) => onSearchChange({panel: next})}
         showViewControls={!compact}
+        summary={summary}
+        search={search}
+        onSearchChange={onSearchChange}
       />
 
       <GensetsSummaryCards
@@ -178,6 +222,12 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
               ) : (
                 <GensetsTable
                   gensets={gensets}
+                  // Full width means every column; beside the map `Location` and
+                  // `Last updated` come out. See `GensetsTable`'s `COLUMNS`.
+                  wide={!split}
+                  sort={sort}
+                  direction={direction}
+                  onSortChange={changeSort}
                   selectedId={id}
                   onSelect={selectGenset}
                   scrollRef={listRef}

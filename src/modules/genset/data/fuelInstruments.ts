@@ -6,7 +6,6 @@ import {
   thresholdFloorPercent,
 } from '../types/fuelIntegrity.type';
 import type {GensetFuelInstruments} from '../types/fuelIntegrity.type';
-import {GENSETS} from './fleet';
 
 /**
  * Which fuel instruments each genset carries, and how much diesel it is losing.
@@ -17,8 +16,7 @@ import {GENSETS} from './fleet';
  * and the second is an option most customers have never bought — so a fleet where
  * every unit could reconcile would be a fleet that never exercises the state this
  * feature spends most of its time in. Ten of the twenty-four carry both here, which
- * is roughly the proportion the metering estate shows for power meters and roughly
- * what a real fleet looks like.
+ * is roughly what a real fleet looks like.
  *
  * ## The loss rate is the only invented quantity
  *
@@ -42,8 +40,8 @@ import {GENSETS} from './fleet';
  *
  * | Unit | State | Why |
  * | --- | --- | --- |
- * | `BRF9540` | `ok` | Both instruments, nothing wrong — the design's own unit, so the panel is demonstrable without moving its pinned alarm counts |
- * | `PNG6015` | `ok` | A second healthy one, so `ok` does not read as a special case |
+ * | `BRF9540` | `warning` | The design's own unit, showing less fuel than expected — a loss that began this morning, over the line in the open window and clean in the one before, so the leak card is demonstrable on the unit people open first |
+ * | `PNG6015` | `ok` | Both instruments, nothing wrong — the fleet's healthy reconciliation |
  * | `TPG1188` | `warning` | A loss that started this morning — over the line in the open window, clean in the one before it |
  * | `KLC1027` | `critical` | A steady loss while the engine turns, escalated by **standing across two windows** rather than by size |
  * | `AMP8890` | `critical` | Escalated by **size** — past three times the threshold on its own — and stopped 31 minutes ago, so it is just outside blanking |
@@ -114,8 +112,20 @@ const GEAR = {model: 'Piusi K600 differential', accuracyOfReading: 0.01};
 
 const INSTRUMENT_SEED: Record<string, InstrumentSeed> = {
   // — Both instruments, reconciling cleanly.
-  brf9540: {levelSensor: REED_CHAIN, flowMeter: CORIOLIS},
   png6015: {levelSensor: REED_CHAIN, flowMeter: CORIOLIS},
+
+  // — The design's own unit, with less fuel than expected. 16 L/h since this
+  // morning is ~130 L unaccounted over the 24-hour window against a 49 L line
+  // on its 2,450 L tank: ~100 L confirmed once ~30 L of instrument tolerance is
+  // taken off, comfortably over the threshold and well short of the 147 L that
+  // would make it critical on size alone. It started ten hours ago, so the
+  // preceding window is clean and it stays a warning rather than escalating.
+  brf9540: {
+    levelSensor: REED_CHAIN,
+    flowMeter: CORIOLIS,
+    lossLitresPerHour: 16,
+    lossStartedHoursAgo: 10,
+  },
 
   // — Losing fuel.
   //
@@ -362,7 +372,3 @@ export const useLeakSettings = (
     floorPercent: thresholdFloorPercent(instrumentsOf(gensetId)),
   };
 };
-
-/** How many of the fleet can reconcile at all — the Settings tab's context line. */
-export const reconcilableCount = (): number =>
-  GENSETS.filter((genset) => canReconcile(instrumentsOf(genset.id))).length;

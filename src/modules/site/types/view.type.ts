@@ -8,15 +8,48 @@ export const SITE_VIEWS = ['split', 'list', 'map'] as const;
 export type SiteView = (typeof SITE_VIEWS)[number];
 
 /**
- * The estate cards' configuration filter. Four values, not the fleet's five: a
+ * The estate cards' configuration filter. Two values, not the fleet's three: a
  * *site* is always somewhere, so there is no workshop bucket to filter to.
  */
-export const SITE_ROLE_FILTERS = [
-  'GRID_BACKUP',
-  'DIESEL_PRIME',
-  'DIESEL_HYBRID',
-  'SOLAR_HYBRID',
-] as const;
+export const SITE_ROLE_FILTERS = ['GRID_BACKUP', 'DIESEL_PRIME'] as const;
+
+/**
+ * How the register is ordered. `alarms` is the default and the list's own ranking.
+ *
+ * Three, because three is what the columns can answer for: who the site is, what is
+ * standing against it, and whether it needs a tanker — and the control is those
+ * columns' own headers, so the set of keys and the set of sortable columns are the
+ * same set by construction.
+ *
+ * Each key has a natural direction and can be flipped from it — see
+ * `SITE_SORT_DEFAULT_DIRECTION`.
+ */
+export const SITE_SORTS = ['alarms', 'name', 'fuel'] as const;
+
+export type SiteSort = (typeof SITE_SORTS)[number];
+
+export const SITE_SORT_DIRECTIONS = ['asc', 'desc'] as const;
+
+export type SiteSortDirection = (typeof SITE_SORT_DIRECTIONS)[number];
+
+/**
+ * Which way each key runs when a reader first picks it.
+ *
+ * The directions the dropdown used to state in words — `Worst standing alarm first`,
+ * `Emptiest tank first`, `A to Z` — now that the column headers carry the control and
+ * have no room to say it. They are not the same direction in a row: the useful end of
+ * `alarms` is the top of the scale and the useful end of `fuel` is the bottom, so
+ * first click means *the answer you wanted*, not *ascending*.
+ *
+ * Clicking the column that is already sorted flips it from here. That is the only way
+ * to reach the other direction, and it is why the flip exists at all: a header that
+ * did nothing on a second click reads as a dead control.
+ */
+export const SITE_SORT_DEFAULT_DIRECTION: Record<SiteSort, SiteSortDirection> = {
+  alarms: 'desc',
+  fuel: 'asc',
+  name: 'asc',
+};
 
 /**
  * The `/sites` URL carries the whole view state — which view, what's typed in
@@ -40,10 +73,33 @@ export const SITE_ROLE_FILTERS = [
 export const siteSearchSchema = z.object({
   view: z.enum(SITE_VIEWS).default('split').catch('split'),
   q: z.string().optional().catch(undefined),
-  /** The card chips — see the fleet schema's note; same three, over yards. */
+  /** The card chips — see the fleet schema's note; the same buckets, over yards. */
   customer: z.string().optional().catch(undefined),
+  /**
+   * A rollout programme id, or `none` for the sites filed under none.
+   *
+   * A plain string like `customer` and for the same reason: the roster is the
+   * dataset's, so there is no enum to validate against here. `none` is the
+   * sentinel — see `NO_PROGRAM_FILTER`, which is where the word is defined and why
+   * it cannot collide with a real id.
+   */
+  program: z.string().optional().catch(undefined),
   role: z.enum(SITE_ROLE_FILTERS).optional().catch(undefined),
   status: z.enum(FLEET_STATUSES).optional().catch(undefined),
+  /**
+   * Ordering. Defaulted rather than optional: a list is always in some order, so
+   * there is no "unsorted" state for `undefined` to mean — and defaulting here is
+   * what keeps `sort` out of the URL until a reader actually changes it.
+   */
+  sort: z.enum(SITE_SORTS).default('alarms').catch('alarms'),
+  /**
+   * Which way that ordering runs. Optional rather than defaulted, because the
+   * default is a property of the *key* and not of the list — see
+   * `SITE_SORT_DEFAULT_DIRECTION`. Absent means "however this key naturally runs",
+   * which keeps `dir` out of the URL until a reader flips a header off its own
+   * grain.
+   */
+  dir: z.enum(SITE_SORT_DIRECTIONS).optional().catch(undefined),
   /** Selected site id. Absent = nothing selected. */
   id: z.string().optional().catch(undefined),
   /**
@@ -71,5 +127,6 @@ export type SiteSearch = z.infer<typeof siteSearchSchema>;
  */
 export const siteSearch = (overrides: Partial<SiteSearch> = {}): SiteSearch => ({
   view: 'split',
+  sort: 'alarms',
   ...overrides,
 });

@@ -1,3 +1,4 @@
+
 /**
  * The three states a genset reports. Ordered by how much they want attention —
  * `RUN_STATES` is the sort key used by the "state" column, so a working unit
@@ -35,7 +36,7 @@ export type GensetActivity = {
   at: string;
   /**
    * Where the entry came from — the controller's own event stream, the
-   * dispatch feed, a refuel order, the service log, or a person typing.
+   * dispatch feed, the service log, or a person typing.
    * Displayed beside the timestamp, because an audit trail whose entries
    * cannot say who put them there is a list rather than a log.
    */
@@ -44,7 +45,20 @@ export type GensetActivity = {
 
 export type Genset = {
   id: string;
-  /** Asset tag, e.g. `BRF9540`. Unique, and what the search box matches first. */
+  /**
+   * The machine's **serial number**, e.g. `CUM-739893` — its name everywhere in the
+   * app, and what the search box matches first.
+   *
+   * It was a placename-derived asset tag: `KPT8033` at Kapit, `BLG4884` at Belaga.
+   * That is a *stationary* convention and it breaks on the first lorry — a machine
+   * called `KPT8033` standing in Tawau is a register arguing with itself, and on a
+   * fleet whose whole subject is that machines move, it would be wrong more often
+   * than right. A serial belongs to the machine and travels with it.
+   *
+   * Prefixed by the maker — `CUM`, `CAT`, `PRK`, `DNY`, `FGW`, `KHL` — because the
+   * one thing a reader most often wants off a name in a list is what kind of set it
+   * is, and the model column is not always beside it.
+   */
   tag: string;
   /** e.g. `Cummins 1000 kVa`. */
   model: string;
@@ -57,6 +71,22 @@ export type Genset = {
    * case onto every reader for a fact that is never actually unknown.
    */
   startReason: StartReason;
+  /**
+   * The lorry or trailer plate this machine is registered under, or `null` when it
+   * has none — a set on a plinth is not a road vehicle.
+   *
+   * **Every machine on this estate has one**, because every machine on it moves:
+   * a set is dropped at a yard for a job measured in weeks and collected again, and
+   * the plate is how it is identified on the road and on a delivery order. It stays
+   * nullable rather than becoming required, for the reason `siteId` is: "this
+   * machine has no plate" is a fact the register must be able to hold the day a set
+   * is bolted down, and the details block already prints the row only when there is
+   * one.
+   *
+   * Not to be confused with `DeploymentSession.lorryPlate`, which is the lorry that
+   * *carried* the machine on one posting. This is the machine's own registration.
+   */
+  plateNumber: string | null;
   fuelLitres: number;
   fuelCapacityLitres: number;
   /**
@@ -91,5 +121,53 @@ export type Genset = {
   activity: Array<GensetActivity>;
 };
 
-/** `BRF9540 | Cummins 1000 kVa` — the label the design uses everywhere. */
-export const gensetName = (genset: Genset): string => `${genset.tag} | ${genset.model}`;
+/**
+ * `Genset | WPKL-0207` — the asset, then the site it stands at.
+ *
+ * It read `Genset | BRF9540` until 2026-09-14, naming the machine by its own tag.
+ * The tag is a placeholder: this estate has no genset names recorded yet, and a
+ * fixture tag is not one — so the name falls back to the fact the prototype can
+ * actually answer for, which is where the set is. The bank, the array and the
+ * cabinet already name their site, so this is the shape the other three use.
+ *
+ * ⚠️ **Five sites on this estate hold two sets, so five pairs of rows now carry the
+ * same name.** That is the cost of the fallback and it is not a rendering fault:
+ * the register still keys, selects and links by `genset.id`, so the rows are
+ * distinct objects that happen to read alike. The tag has not gone anywhere — it is
+ * still on the `Genset` record and still what the search box matches — so restoring
+ * it, or appending it where a site holds a pair, is a change to this one line.
+ *
+ * The model this used to carry is in the rail's info glyph, one row under the
+ * serial. It is not what identifies a set, and the name's job here is to say *what
+ * kind of thing* the page is about before saying which one.
+ */
+export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(genset)}`;
+
+/**
+ * What a machine is called — **its serial**, `CUM-739893`.
+ *
+ * ## It used to be the site's name
+ *
+ * `siteLabel(genset.siteId)`, falling back to the tag only for a set in the depot.
+ * That was defensible on a permanent estate, where a set is bolted beside one tower
+ * for its life and "the machine at PPU-022" identifies it as well as anything.
+ *
+ * On a mobile fleet it is wrong twice over. A machine posted to PPU-022 was *called*
+ * PPU-022 until the lorry came and then called something else — a name that changes
+ * when nothing about the object has — and **two sets standing in one yard had the
+ * same name**, which a register whose rows are machines cannot afford. It also made
+ * the fleet list a list of places: sort it by name and you were sorting by where
+ * things happened to be.
+ *
+ * The serial is the machine's own, it survives the drive, and it is unique by
+ * construction. Tristan's call, 2026-09-21.
+ *
+ * Where the machine *is* has not gone anywhere — it is the `Location` column beside
+ * this one on the register, and the deployment log's whole subject.
+ *
+ * **`gensetName` above is still the right one for a detail page**: a page titled
+ * `CUM-739893` alone does not say what kind of thing it is about, and the rail it
+ * sits in lists the site's other assets. A column header cannot be in two places at
+ * once; a page title has to carry its own.
+ */
+export const gensetLabel = (genset: Genset): string => genset.tag;

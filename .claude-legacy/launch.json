@@ -2,22 +2,40 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "gensetiq-celcomdigi",
+      "name": "telcoiq",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3100
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3400
     },
     {
-      "name": "gensetiq-sesb",
+      "name": "telcoiq-sesb",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "dev:sesb"],
-      "port": 3101
+      "runtimeArgs": [
+        "run",
+        "dev:sesb"
+      ],
+      "port": 3401
     },
     {
-      "name": "gensetiq-unbranded",
+      "name": "telcoiq-unbranded",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "dev:unbranded"],
-      "port": 3102
+      "runtimeArgs": [
+        "run",
+        "dev:unbranded"
+      ],
+      "port": 3402
+    },
+    {
+      "name": "telcoiq-brand",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev:telcoiq"
+      ],
+      "port": 3404
     }
   ]
 }

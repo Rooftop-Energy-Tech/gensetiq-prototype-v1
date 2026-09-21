@@ -1,6 +1,9 @@
 import {DATASET} from '@/brands';
+import type {ProgramId} from '@/brands';
 import type {SiteKind, SitePowerRole} from '../types/site.type';
 import type {CustomerId} from './customers';
+import {siteOverrides} from './siteOverrides';
+import type {SiteOverrides} from './siteOverrides';
 
 /**
  * The twenty-five sites, as **given facts about places**.
@@ -9,6 +12,19 @@ import type {CustomerId} from './customers';
  * on one, a utility's injection points on the other — and this file is the view
  * the site module reads them through. It used to hold one of those two estates
  * inline, which is why swapping estates meant swapping branches.
+ *
+ * ## Given by whom
+ *
+ * By the dataset first, and then by **the reader**, who can correct a site's name,
+ * its position, its region and its programme from the site's Settings tab. Those
+ * edits are differences held in `siteOverrides.ts`, and `siteSeeds()` below is what
+ * lays them over the dataset's rows — so everything downstream reads one estate
+ * rather than each screen deciding for itself whether to honour a correction.
+ *
+ * That is why this file's main export is a **function** and not the const it used
+ * to be. Everything here is still a given about a place: what changed is that the
+ * givens can be restated, not that they became derived. `DATASET_SITE_SEED` is the
+ * original statement, and it is what Reset goes back to.
  *
  * ## Why position is seeded rather than derived
  *
@@ -88,28 +104,111 @@ export type SiteSeed = {
    * and clearing site data returns to what is written here.
    */
   powerRole: SitePowerRole;
+  /**
+   * The rollout programme this site is filed under, or `undefined` for none.
+   *
+   * A **grouping and nothing else** — see `programs.ts` for why it is a separate
+   * axis from `customer` rather than a second name for it, and why being in no
+   * programme is a complete answer rather than a gap.
+   */
+  program: ProgramId | undefined;
 };
 
 /**
- * The active estate's places.
+ * The active estate's places, exactly as the dataset states them.
  *
- * The cast is the one place this refactor gives up a guarantee, and it is narrow:
- * a dataset's `powerRole` is typed `string` in `brands/types.ts` so a dataset file
- * can be read without importing the site module, and it is asserted back to
- * `SitePowerRole` here. `assertDatasetIntegrity` cannot check it — the roles are
- * the product's vocabulary and the dataset layer does not know them — so a dataset
- * inventing a fifth role would reach the diagram and draw no sources above the
- * bus. The four names are in `SITE_POWER_ROLES`; use those.
+ * **Not what the app reads** — that is `siteSeeds()` below, which is this with a
+ * reader's edits applied. This is the thing an edit is measured against: it is what
+ * Reset restores, and what "changed from the dataset" on the settings page compares
+ * to.
+ *
+ * The cast is the one place the brands refactor gives up a guarantee, and it is
+ * narrow: a dataset's `powerRole` is typed `string` in `brands/types.ts` so a
+ * dataset file can be read without importing the site module, and it is asserted
+ * back to `SitePowerRole` here. `assertDatasetIntegrity` cannot check it — the
+ * roles are the product's vocabulary and the dataset layer does not know them — so
+ * a dataset inventing a fifth role would reach the diagram and draw no sources
+ * above the bus. The four names are in `SITE_POWER_ROLES`; use those.
  */
-export const SITE_SEED: Array<SiteSeed> = DATASET.sites.map((site) => ({
+export const DATASET_SITE_SEED: ReadonlyArray<SiteSeed> = DATASET.sites.map((site) => ({
   ...site,
   powerRole: site.powerRole as SitePowerRole,
+  program: site.program,
 }));
 
-export const siteSeed = (siteId: string): SiteSeed | undefined =>
-  SITE_SEED.find((seed) => seed.id === siteId);
+const DATASET_BY_ID: Record<string, SiteSeed> = Object.fromEntries(
+  DATASET_SITE_SEED.map((seed) => [seed.id, seed]),
+);
 
-/** `WPKL-0142`, for the breadcrumb and the document title. */
+/** What the dataset says about one site, before any edit. */
+export const datasetSiteSeed = (siteId: string): SiteSeed | undefined => DATASET_BY_ID[siteId];
+
+/**
+ * One site, with the reader's edits laid over the dataset's row.
+ *
+ * The override store holds only *differences* (see `siteOverrides.ts`), so an
+ * untouched site comes back as its dataset row and an untouched **estate** comes
+ * back as `DATASET_SITE_SEED` itself — which is what keeps the memo below cheap in
+ * the case that is true almost all the time.
+ *
+ * `program` is the one field that cannot be written with `??`: `null` in the patch
+ * means *the reader took this site out of its programme*, which is a different
+ * statement from the key being absent, and `??` would collapse the two and make
+ * un-filing a seeded site impossible.
+ */
+const patched = (seed: SiteSeed, overrides: SiteOverrides): SiteSeed => {
+  const patch = overrides[seed.id];
+  if (patch === undefined) return seed;
+
+  return {
+    ...seed,
+    name: patch.name ?? seed.name,
+    latitude: patch.latitude ?? seed.latitude,
+    longitude: patch.longitude ?? seed.longitude,
+    customer: patch.customer ?? seed.customer,
+    powerRole: patch.powerRole ?? seed.powerRole,
+    program: patch.program === undefined ? seed.program : (patch.program ?? undefined),
+  };
+};
+
+/**
+ * Memoised on the override snapshot's identity, which is stable between writes.
+ *
+ * Not decoration: `sites.ts` keys its whole summary cache on the identity of what
+ * this returns, and half a dozen estate-wide figures in `hybrid.ts` map over it on
+ * every render. A fresh array per call would rebuild twenty-five summaries each
+ * time and hand `useSyncExternalStore` a new snapshot forever.
+ */
+let cache: {overrides: SiteOverrides; seeds: ReadonlyArray<SiteSeed>} | undefined;
+
+/**
+ * **The estate, as the app reads it** — the dataset's rows with a reader's edits on
+ * top.
+ *
+ * A function rather than the const this used to be, because the values are no
+ * longer fixed for the life of the process: a reader can rename a site, move its
+ * pin, change its region or file it under a different programme, and every figure
+ * derived from those has to follow. Callers that render should reach it through
+ * `sites.ts` or a hook so they re-render when it changes; callers that compute —
+ * loaders, `aria-label` builders, one-shot derivations — can call it directly.
+ */
+export const siteSeeds = (): ReadonlyArray<SiteSeed> => {
+  const overrides = siteOverrides();
+  if (cache?.overrides !== overrides) {
+    cache = {
+      overrides,
+      seeds: DATASET_SITE_SEED.map((seed) => patched(seed, overrides)),
+    };
+  }
+  return cache.seeds;
+};
+
+export const siteSeed = (siteId: string): SiteSeed | undefined => {
+  const seed = DATASET_BY_ID[siteId];
+  return seed === undefined ? undefined : patched(seed, siteOverrides());
+};
+
+/** `SWK-1163`, for the breadcrumb and the document title. */
 export const siteLabel = (siteId: string): string => siteSeed(siteId)?.name ?? 'Site';
 
 /**

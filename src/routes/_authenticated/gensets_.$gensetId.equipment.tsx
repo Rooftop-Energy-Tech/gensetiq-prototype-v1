@@ -8,7 +8,7 @@ export const Route = createFileRoute('/_authenticated/gensets_/$gensetId/equipme
     <ComingSoon
       icon={WrenchIcon}
       title="Equipment"
-      description="Nameplate data, the controller and ATS fitted, and the service schedule. Named in the design's tab strip but not drawn."
+      description="Nameplate data, the controller and ATS fitted, and the service schedule. Named `Devices` in the design's rail but not drawn."
     />
   ),
 });

@@ -13,7 +13,7 @@ import type {BrandId} from './src/brands/types';
  * The default when `VITE_BRAND` is unset — a developer running `npm run dev`,
  * not a typo. Kept in step with nothing else: this is the only statement of it.
  */
-const FALLBACK_BRAND: BrandId = 'celcomdigi';
+const FALLBACK_BRAND: BrandId = 'express-mission';
 
 const VIRTUAL_ID = 'virtual:brands';
 const RESOLVED_VIRTUAL_ID = '\0virtual:brands';
@@ -23,8 +23,8 @@ const RESOLVED_VIRTUAL_ID = '\0virtual:brands';
  *
  * ## Why the registry is generated rather than written
  *
- * A hand-written `Record` of all three brands ships all three. That was the state
- * before this plugin: a production CelcomDigi bundle contained Sabah Electricity's
+ * A hand-written `Record` of every brand ships every one of them. That was the
+ * state before this plugin: a production CelcomDigi bundle contained SESB's
  * name, their logo as an emitted asset, and all twenty-five of their substation
  * names — hidden behind a UI flag and one devtools tab away from being read.
  *
@@ -94,18 +94,23 @@ const brands = (): PluginOption => {
         }),
       ];
 
+      // Keys are **quoted**, because a brand id is data and not an identifier.
+      // Every id happened to be a bare-legal one until `express-mission`, whose
+      // hyphen emitted `express-mission: EXPRESS_MISSION,` and took the whole
+      // registry out with a syntax error at module load. Quoting costs nothing and
+      // the next id with a hyphen in it is somebody's customer, not a mistake.
       const identities = entries
-        .map((entry) => `  ${entry.brandId}: ${entry.binding},`)
+        .map((entry) => `  ${JSON.stringify(entry.brandId)}: ${entry.binding},`)
         .join('\n');
 
       const datasets = datasetIds
-        .map((datasetId) => `  ${datasetId}: ${DATASET_MANIFEST[datasetId].binding},`)
+        .map((datasetId) => `  ${JSON.stringify(datasetId)}: ${DATASET_MANIFEST[datasetId].binding},`)
         .join('\n');
 
       // Tab strings are inlined as literals rather than imported, so `manifest.ts`
       // — which names every customer — stays out of the client module graph.
       const tabs = entries
-        .map((entry) => `  ${entry.brandId}: ${JSON.stringify(entry.tab)},`)
+        .map((entry) => `  ${JSON.stringify(entry.brandId)}: ${JSON.stringify(entry.tab)},`)
         .join('\n');
 
       return [
@@ -140,11 +145,13 @@ const brands = (): PluginOption => {
   };
 };
 
-// Port 3100 rather than 3000: rooftopiq-frontend-v3 pins :3000 with
-// `strictPort`, and the two prototypes should be runnable side by side.
+// Port 3400: this repo was forked from gensetiq-frontend, which keeps :3100.
+// :3000, :3200 and :3300 are taken by rooftopiq-frontend-v3, the mobile
+// prototype and the tagging prototype. Every one of them pins `strictPort`, so
+// each prototype owns a hundred and they are all runnable side by side.
 export default defineConfig({
   server: {
-    port: 3100,
+    port: 3400,
     strictPort: true,
   },
   resolve: {

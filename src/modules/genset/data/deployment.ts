@@ -1,6 +1,6 @@
 import {useSyncExternalStore} from 'react';
 
-import {SITE_SEED} from '@/modules/site/data/siteSeed';
+import {siteSeeds} from '@/modules/site/data/siteSeed';
 import type {Genset} from '../types/genset.type';
 import {GENSETS} from './fleet';
 import {spreadBetween} from './spread';
@@ -89,7 +89,7 @@ const applyPlacement = (current: Placement): Array<Genset> =>
     const siteId = current[genset.id];
     if (siteId === genset.siteId) return genset;
 
-    const seed = siteId === null ? undefined : SITE_SEED.find((site) => site.id === siteId);
+    const seed = siteId === null ? undefined : siteSeeds().find((site) => site.id === siteId);
 
     // Detached, or sent to a site that no longer exists: the machine has not moved,
     // so only its membership changes.
@@ -168,7 +168,3 @@ export const deployGenset = (gensetId: string, siteId: string | null) => {
   }
   emit();
 };
-
-/** Sets owned but not deployed. The pool a site's attach picker draws from. */
-export const depotGensets = (all: Array<Genset>): Array<Genset> =>
-  all.filter((genset) => genset.siteId === null);

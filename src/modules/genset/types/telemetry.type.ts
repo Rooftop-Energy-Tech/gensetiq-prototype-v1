@@ -89,6 +89,22 @@ export type PickableReading = {
 };
 
 /**
+ * A named set of readings — one section of a picker that files its catalogue
+ * instead of listing it.
+ *
+ * Keys rather than readings. A group is a filing decision about the *machine*,
+ * settled once wherever the machine is described; the values change every poll,
+ * and a group holding copies of them would be a second place for them to go
+ * stale. The picker joins the two.
+ *
+ * Groups do not have to cover everything they are given. Whatever a caller's
+ * groups fail to mention is still offered — see `SeriesPicker` — so a reading
+ * added to the data and not filed shows up under a heading that says so, rather
+ * than disappearing from the picker.
+ */
+export type ReadingGroup = {label: string; keys: Array<string>};
+
+/**
  * The subset of a gauge reading that `TickGauge` actually draws.
  *
  * Widened out of `GaugeReading` when the solar module needed the same dial. The

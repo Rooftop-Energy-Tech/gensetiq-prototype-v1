@@ -16,14 +16,9 @@ export type NavItem = {
    * because until then the fallback happened to land on something usable.
    */
   link:
-    | '/overview'
     | '/gensets'
-    | '/report'
-    | '/solar'
-    | '/battery'
     | '/sites'
-    | '/meters'
-    | '/refuel'
+    | '/deployment'
     | '/settings';
 };
 

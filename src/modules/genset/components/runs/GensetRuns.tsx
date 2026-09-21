@@ -1,16 +1,15 @@
 import {useMemo, useState} from 'react';
 
 import {downloadText} from '@/lib/download';
-import {gensetInstallations} from '../../data/installations';
+import {gensetDeployments} from '../../data/deployments';
 import {gensetDetail} from '../../data/detail';
 import {gensetRuns, historyStart} from '../../data/history';
 import {runsCsv, runsCsvFilename} from '../../data/runsCsv';
-import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 import type {RunRange} from '../../types/runsView.type';
 import {clearedRunsRange, runTotals, runsOverlapping, runsRange} from '../../types/runsView.type';
 import type {RunWindow, RunsSearch} from '../../types/runsView.type';
-import {InstallationPicker} from './InstallationPicker';
+import {DeploymentPicker} from './DeploymentPicker';
 import {RunsPanel} from './RunsPanel';
 
 /**
@@ -42,7 +41,7 @@ export const GensetRuns = ({
   // thing the URL can name, and its window is exact — the totals under it have
   // to reconcile with the same posting's row on the dispatch feed, which a
   // day-granular custom range cannot promise.
-  const deployments = useMemo(() => gensetInstallations(genset.id), [genset.id]);
+  const deployments = useMemo(() => gensetDeployments(genset.id), [genset.id]);
   const deployment = deployments.find((candidate) => candidate.id === search.dep);
   const range: RunRange =
     deployment === undefined
@@ -64,7 +63,10 @@ export const GensetRuns = ({
   const exportCsv = () => {
     const text = runsCsv({
       scope: 'Genset',
-      name: gensetName(genset),
+      // The bare tag: `scope` above is the word `Genset`, and the two are printed
+      // on one line — `Genset,Genset | BRF9540`. The site export pairs `Site` with
+      // a bare site code the same way.
+      name: genset.tag,
       place: genset.locationLabel,
       range,
       earliest,
@@ -92,7 +94,7 @@ export const GensetRuns = ({
       showAsset={false}
       energyNote={undefined}
       deploymentPicker={
-        <InstallationPicker
+        <DeploymentPicker
           deployments={deployments}
           selectedId={deployment?.id}
           onSelect={(dep) => onSearchChange({...search, from: undefined, to: undefined, dep})}

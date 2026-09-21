@@ -8,7 +8,7 @@ export const Route = createFileRoute('/_authenticated/sites_/$siteId/contract')(
     <ComingSoon
       icon={FileTextIcon}
       title="Contract"
-      description="The commercial side of the site: the SLA its availability is measured against, the rate its fuel is billed at, and the term. Named in the design's tab strip but not drawn — and the one tab a genset has no counterpart for."
+      description="The commercial side of the site: the SLA its availability is measured against, the rate its fuel is billed at, and the term. Not drawn in any frame — and the one section a genset has no counterpart for."
     />
   ),
 });

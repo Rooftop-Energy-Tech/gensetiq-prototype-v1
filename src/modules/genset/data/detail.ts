@@ -8,7 +8,6 @@ import type {
   GensetTag,
 } from '../types/alert.type';
 import {RESERVE_FRACTION} from '../types/fuelLevel.type';
-import {gensetName} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 import type {GensetRun} from '../types/run.type';
 import type {
@@ -16,6 +15,7 @@ import type {
   GaugeReading,
   PhaseGroup,
   Reading,
+  ReadingGroup,
   ReadingKind,
 } from '../types/telemetry.type';
 import {fleet} from './deployment';
@@ -394,6 +394,41 @@ const TAGS: Array<GensetTag> = [
     alarmIds: ['sd-override'],
   },
 ];
+
+/**
+ * The plottable readings, filed under the tags the rest of the page already uses.
+ *
+ * Derived from `TAGS` rather than written out beside them. The operator meets
+ * those labels as alarm chips on the home page and as the filing system for every
+ * reading the machine reports; a picker that invented its own headings would be a
+ * second filing system for one genset, and the two would drift.
+ *
+ * Two rules turn ten tags into the sections a picker needs. A reading claimed by
+ * an earlier tag is not offered again by a later one — `Starter battery voltage`
+ * belongs to `Battery & charging` and *matters* to `Starting`, which is exactly
+ * what tags being lists rather than a partition is for, but a catalogue that
+ * printed it twice would look like two different readings. And a tag holding
+ * nothing plottable drops out: `Service` and `Panel & comms` name only counters
+ * and window totals, so they would print headings over empty space.
+ *
+ * Nothing here is exhaustive by construction, and it does not need to be. A
+ * plottable reading no tag mentions is still offered — `SeriesPicker` gathers the
+ * remainder into a section of its own — so the failure mode of forgetting to file
+ * a new reading is a heading that reads `Other`, not a reading nobody can chart.
+ */
+export const PLOTTABLE_READING_GROUPS: Array<ReadingGroup> = (() => {
+  const plottable = new Set(PLOTTABLE_READING_KEYS);
+  const claimed = new Set<string>();
+
+  return TAGS.map((tag) => {
+    const keys = tag.readingKeys.filter(
+      (key) => plottable.has(key) && !claimed.has(key),
+    );
+    keys.forEach((key) => claimed.add(key));
+
+    return {label: tag.label, keys};
+  }).filter((group) => group.keys.length > 0);
+})();
 
 // ─── Alert rules ─────────────────────────────────────────────────────────────
 
@@ -1194,7 +1229,7 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
   // so this and the Service tab are two views of one fact.
   //
   // This is the *seeded* value. A service logged in the browser moves it, and the
-  // alerts section takes the live figure from the store — see `AlertsSection`.
+  // reading is taken live from the store rather than from this snapshot.
   readings['hours-since-service'] = {
     ...readings['hours-since-service'],
     value: seededHoursSinceService(genset.id),
@@ -1427,9 +1462,3 @@ export const gensetDetail = (gensetId: string): GensetDetail | undefined => DETA
  */
 export const gensetById = (gensetId: string): Genset | undefined =>
   fleet().find((genset) => genset.id === gensetId);
-
-/** `BRF9540 | Cummins 1000 kVa`, for the breadcrumb and the document title. */
-export const gensetLabel = (gensetId: string): string => {
-  const genset = gensetById(gensetId);
-  return genset === undefined ? 'Genset' : gensetName(genset);
-};

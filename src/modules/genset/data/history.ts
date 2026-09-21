@@ -159,6 +159,54 @@ export const runLoadKw = (run: GensetRun, now: number): number => {
   return hours > 0 ? run.energyProducedKwh / hours : 0;
 };
 
+/**
+ * What one machine did inside a window: starts, engine-turning time, and the
+ * energy and diesel apportioned to it.
+ *
+ * **The apportioning is the point.** A run that began at 22:00 and ended at 06:00
+ * belongs to two days, and this splits its totals pro-rata across the boundary
+ * rather than handing the whole run to whichever day owns its start stamp. That
+ * is the same split `siteTrend.gensetHoursIn` makes for the chart — and now the
+ * same *implementation*, because the strip and the bars beneath it disagreeing
+ * about this morning is exactly what two copies of this arithmetic produce.
+ *
+ * `starts` is the exception and is deliberately not apportioned: a start is an
+ * event, not a quantity, and the run above began yesterday however much of it
+ * ran today.
+ *
+ * Unrounded. Callers round once, at the point of display — summing rounded
+ * per-genset figures is how a site total ends up a kilowatt-hour off its rows.
+ */
+export const runTotalsIn = (
+  gensetId: string,
+  from: number,
+  to: number,
+  now: number,
+): {starts: number; runtimeMs: number; energyKwh: number; fuelLitres: number} => {
+  let starts = 0;
+  let runtimeMs = 0;
+  let energyKwh = 0;
+  let fuelLitres = 0;
+
+  for (const run of gensetRuns(gensetId)) {
+    const startedAt = new Date(run.startedAt).getTime();
+    const endedAt = run.endedAt === null ? now : new Date(run.endedAt).getTime();
+
+    if (startedAt >= from && startedAt < to) starts += 1;
+
+    const overlap = Math.min(endedAt, to) - Math.max(startedAt, from);
+    if (overlap <= 0) continue;
+
+    const span = endedAt - startedAt;
+    const share = span > 0 ? overlap / span : 0;
+    runtimeMs += overlap;
+    energyKwh += run.energyProducedKwh * share;
+    fuelLitres += run.fuelConsumedLitres * share;
+  }
+
+  return {starts, runtimeMs, energyKwh, fuelLitres};
+};
+
 // ─── Sampling ────────────────────────────────────────────────────────────────
 
 /**
@@ -427,8 +475,8 @@ export const runSpan = (
  *
  * The ladder already places a refuel wherever backward integration passes a full
  * tank, so these are not seeded a second time. One source, so a delivery cannot
- * exist for the reconciliation and not for the chart every screen draws — and when
- * `/refuel` grows a real log, that becomes the source and this retires.
+ * exist for the reconciliation and not for the chart every screen draws — and if a
+ * real delivery log ever lands (GEN-25), that becomes the source and this retires.
  *
  * The threshold is a litre rather than zero: the ladder is floating-point, and a
  * tank sitting flat between two steps can differ in the last bit.

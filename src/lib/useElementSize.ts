@@ -18,7 +18,7 @@ import type {RefObject} from 'react';
  * `ResizeObserver` is specified to deliver an initial callback when you observe an
  * element, and in a browser it does. It is not, however, something to *depend* on:
  * an environment that throttles or never delivers that first callback leaves every
- * caller stuck on `{0, 0}` forever — which for `SiteDiagram` means a drawing that
+ * caller stuck on `{0, 0}` forever — which for the plant scene means a drawing that
  * silently never scales, and for the analysis chart one that never draws. The
  * in-app preview browser this prototype is reviewed in behaves exactly that way.
  *

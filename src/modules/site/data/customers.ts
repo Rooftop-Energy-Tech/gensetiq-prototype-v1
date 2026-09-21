@@ -29,8 +29,10 @@ import type {BrandCustomer, CustomerId} from '@/brands';
  * The cards group by division and the filter chips key off it, so the order here is
  * the order the chips appear in — deliberately not alphabetical and not by size,
  * but the way an operations team reads its own patch. On the carrier estate that is
- * peninsular north to south then across to Borneo; on the utility estate it is west
- * coast, the northern tip, the interior, then down the east coast.
+ * **Sabah and Sarawak first**, because twenty-one of the twenty-five sites are
+ * there and the four peninsular regions are the baseline they are read against; on
+ * the utility estate it is west coast, the northern tip, the interior, then down
+ * the east coast.
  *
  * ## Why the sun hours live on the division
  *
@@ -54,6 +56,19 @@ export const CUSTOMERS: ReadonlyArray<Customer> = DATASET.customers;
  * summary cards that show it do not each have to know which brand is loaded.
  */
 export const CUSTOMER_GROUPING_LABEL: string = DATASET.groupingLabel;
+
+/**
+ * The same word on its own — `Region`, `Zone` — for a field label or a chip.
+ *
+ * Derived from the card heading rather than declared beside it, so a dataset states
+ * the vocabulary once and the two can never drift into calling the same thing by
+ * two names on one screen. `By region` is the only shape the field takes, and a
+ * dataset that wrote something else falls back to the heading whole, which reads
+ * oddly but says nothing false.
+ */
+export const CUSTOMER_TERM: string = CUSTOMER_GROUPING_LABEL.startsWith('By ')
+  ? CUSTOMER_GROUPING_LABEL.slice(3, 4).toUpperCase() + CUSTOMER_GROUPING_LABEL.slice(4)
+  : CUSTOMER_GROUPING_LABEL;
 
 const BY_ID: Record<CustomerId, Customer> = Object.fromEntries(
   CUSTOMERS.map((entry) => [entry.id, entry]),

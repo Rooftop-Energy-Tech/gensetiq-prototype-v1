@@ -19,7 +19,7 @@ import {cn} from '@/lib/utils';
  *
  * ## Why it is absent from a customer's own deployment
  *
- * A dropdown offering "Sabah Electricity" on a CelcomDigi demo is a small leak of
+ * A dropdown offering another customer on an Express Mission demo is a small leak of
  * an account, and the person who notices it is the customer. So the rule is:
  *
  *  - **in dev**, always shown — this is where the comparing happens;

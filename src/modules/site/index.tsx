@@ -1,17 +1,20 @@
-import {Suspense, lazy, useMemo, useRef} from 'react';
+import {Suspense, lazy, useMemo, useRef, useState} from 'react';
 import {SearchXIcon} from 'lucide-react';
 
 import {useIsCompact} from '@/lib/useIsCompact';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
+import {isDueForService, useServiceRecords} from '@/modules/genset/data/services';
 import {estateSummary, filterSites} from './data/estateSummary';
 import {searchSites, sortSites, useSiteSummaries} from './data/sites';
+import {useEstateAlarmCounts} from './data/siteAlarmQueue';
 import {useSitePowerRoles} from './data/siteConfig';
 import {SiteDetailPanel} from './components/SiteDetailPanel';
 import {SitesCards} from './components/SitesCards';
 import {SitesSummaryCards} from './components/SitesSummaryCards';
 import {SitesTable} from './components/SitesTable';
 import {SitesToolbar} from './components/SitesToolbar';
-import type {SiteSearch} from './types/view.type';
+import {SITE_SORT_DEFAULT_DIRECTION} from './types/view.type';
+import type {SiteSearch, SiteSort} from './types/view.type';
 
 /**
  * MapLibre is ~800 kB, and it is on this route's first paint now that the split
@@ -35,7 +38,7 @@ type SitesPageProps = {
 };
 
 /**
- * `/sites` — seventeen sites, worst condition first, as a list beside a map.
+ * `/sites` — seventeen sites, worst alarm first, as a list beside a map.
  *
  * The map used to be argued against on the grounds that a site's position is its
  * gensets' position, which `/gensets?view=map` already draws. That is true of the
@@ -50,23 +53,88 @@ type SitesPageProps = {
  * needs one: a pin has nowhere to put a link, so a clicked site has to open
  * *something* that carries the way in. That panel is a preview of the site rather
  * than a copy of its page — the facts a pin cannot state, and an arrow out.
+ *
+ * ## It is also the app's landing screen
+ *
+ * `/` used to send you to `/overview`, and this page is where that went. The two
+ * were always answering the same question at different resolutions — *is every site
+ * up, and where* — and the overview's own note admitted the honest version of this:
+ * it existed because "a list makes them read twenty-five rows to find that out". The
+ * card strip above the list is that summary, so the estate is counted and listed on
+ * one screen instead of counted on one and listed on the next.
+ *
+ * Two figures the overview carried and nothing else did — service due and solar
+ * share — came down into the strip with it. See `SitesSummaryCards`.
  */
 export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
-  const {view, q = '', id, panel, customer, role, status} = search;
+  const {view, q = '', id, panel, customer, role, status, program, sort, dir} = search;
+
+  // Absent `dir` means the key's own grain — see `SITE_SORT_DEFAULT_DIRECTION`.
+  const direction = dir ?? SITE_SORT_DEFAULT_DIRECTION[sort];
 
   // Keyed on the summaries as well as the query: attaching or detaching a genset
-  // changes a site's genset count, its fuel and its condition, and condition is what
-  // this list is *ordered* by. Memoising on `q` alone would leave the list ranked by
-  // a fleet that has since moved.
+  // changes a site's genset count and its fuel, and moves the machine's alarms from
+  // one yard's queue to another's — and that queue is what this list is *ordered* by.
+  // Memoising on `q` alone would leave the list ranked by a fleet that has since
+  // moved.
   const all = useSiteSummaries();
   const roles = useSitePowerRoles();
 
   // Over the whole estate, not the filtered view — see `estateSummary`.
   const summary = useMemo(() => estateSummary(all, roles), [all, roles]);
 
+  // One clock reading for the whole render, so the service count cannot straddle a
+  // minute boundary between the tally and the detail line under it.
+  const [now] = useState(() => Date.now());
+
+  /**
+   * What is standing at every site, in one pass — the list's ranking, its `Alarms`
+   * column, the phone cards' pill and the preview panel's row, off one reading.
+   *
+   * Live: it is derived from the same handling store the Alarms tabs write to, so
+   * clearing a row on a site's own tab re-ranks this list and drops its pill on the
+   * way back. It replaced the `condition` verdict the summaries used to carry — see
+   * `useEstateAlarmCounts` for why a count rather than a verdict.
+   */
+  const alarmCounts = useEstateAlarmCounts(now);
+
+  /**
+   * Machines past one of their two intervals, and the yards they stand in.
+   *
+   * Read through `useServiceRecords()` so logging a service on a genset's own tab
+   * drops the count here without a reload — `serviceRecords` is the subscription
+   * rather than an input, which is why it is a dependency the rule cannot see.
+   */
+  const serviceRecords = useServiceRecords();
+  const serviceDue = useMemo(() => {
+    const due = ({genset}: {genset: {id: string}}) => isDueForService(genset.id, now);
+    return {
+      siteCount: all.filter((summary) => summary.gensets.some(due)).length,
+      gensetCount: all.reduce(
+        (running, summary) => running + summary.gensets.filter(due).length,
+        0,
+      ),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, serviceRecords, now]);
+
+  /**
+   * The energy position, from the same model `/solar` tabulates.
+   *
+   * The nameplate map is what makes the fuel curve real — see `hybrid.ts` — so it is
+   * built from the summaries here rather than assumed there. Over the whole estate
+   * like every other figure on the strip, not the filtered view.
+   */
+
   const summaries = useMemo(
-    () => sortSites(filterSites(searchSites(all, q), {customer, role, status}, roles)),
-    [all, q, customer, role, status, roles],
+    () =>
+      sortSites(
+        filterSites(searchSites(all, q), {customer, role, status, program}, roles),
+        alarmCounts,
+        sort,
+        direction,
+      ),
+    [all, q, customer, role, status, program, roles, alarmCounts, sort, direction],
   );
 
   // Resolved against the *filtered* list, not the whole estate: if a search hides
@@ -106,6 +174,27 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   // deliberate one.
   const selectSite = (next: string) => onSearchChange({id: next, panel: true});
 
+  /**
+   * A column header was clicked.
+   *
+   * A new column picks up its own natural direction — worst alarms first, emptiest
+   * tank first, A to Z — because that is the answer somebody clicking `Fuel on site`
+   * came for, and making them click twice to get it would be the control asking a
+   * question it already knows the answer to. The column that is already the order
+   * flips instead, which is the only way to reach the other end of it.
+   *
+   * `dir: undefined` rather than the key's default written out: the default belongs
+   * to the key, so storing it would put a redundant `dir` in every shared URL and
+   * freeze today's grain into yesterday's link.
+   */
+  const changeSort = (next: SiteSort) => {
+    if (next === sort) {
+      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc'});
+      return;
+    }
+    onSearchChange({sort: next, dir: undefined});
+  };
+
   // Clicking the basemap puts the selection down and the preview away — the fleet
   // screen's rule and its reasoning, including why `panel` returns to unset rather
   // than to `false`.
@@ -126,11 +215,18 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         panelOpen={panelOpen}
         onPanelOpenChange={(next) => onSearchChange({panel: next})}
         showViewControls={!compact}
+        // The table's headers are the sort control wherever the table is drawn, so
+        // the dropdown only appears where it is not: the phone's card list, and the
+        // map-only view. See `SitesTable`.
+        summary={summary}
+        search={search}
+        onSearchChange={onSearchChange}
       />
 
       <SitesSummaryCards
         summary={summary}
         showing={summaries.length}
+        serviceDue={serviceDue}
         search={search}
         onSearchChange={onSearchChange}
       />
@@ -145,12 +241,17 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
           ) : (
             <div className="min-h-0 min-w-0 flex-1">
               {compact ? (
-                <SitesCards summaries={summaries} />
+                <SitesCards summaries={summaries} counts={alarmCounts} />
               ) : (
                 <SitesTable
                   summaries={summaries}
+                  counts={alarmCounts}
+                  roles={roles}
                   selectedId={id}
                   onSelect={selectSite}
+                  sort={sort}
+                  direction={direction}
+                  onSortChange={changeSort}
                   scrollRef={listRef}
                   onBeforeAutoScroll={suppress}
                 />
@@ -190,6 +291,7 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         {panelOpen && (
           <SiteDetailPanel
             summary={selected}
+            counts={selected === undefined ? undefined : alarmCounts[selected.site.id]}
             className={
               // Over the map the panel floats, so the basemap keeps running
               // underneath it. In the list-only view it takes its own column

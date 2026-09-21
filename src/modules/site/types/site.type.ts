@@ -14,8 +14,7 @@
  */
 
 import type {RunState} from '@/modules/genset/types/genset.type';
-import type {MeterFeed} from '@/modules/meter/types/meter.type';
-import type {CustomerId, SiteKindId} from '@/brands';
+import type {CustomerId, ProgramId, SiteKindId} from '@/brands';
 
 /**
  * What kind of network asset this site is.
@@ -41,23 +40,17 @@ export type SiteKind = SiteKindId;
 /**
  * How this site is powered — and therefore **which circuit the site page draws**.
  *
- * Four configurations, because this estate genuinely runs four. The mobile-fleet
- * build had two, mains-backed and genset-only, and adding storage to that
- * vocabulary as a flag would have produced a fifth state nobody could name.
+ * Two configurations, because a genset fleet runs two: mains-backed and
+ * genset-only. The estate this build serves is a *mobile* one — machines are
+ * posted to a site for a period and collected again — so a site is a yard with
+ * an engine standing in it, not a permanent plant with storage and an array.
  *
  * - `GRID_BACKUP` — there is a utility incomer, and a genset backs it up. The
  *   load normally sits on the grid; the set picks it up when the grid drops.
  *   Town and suburban sites.
- * - `DIESEL_PRIME` — no incomer, no storage. The genset *is* the supply and runs
- *   continuously. The oldest configuration on the estate and the one every other
- *   entry here is measured against.
- * - `DIESEL_HYBRID` — no incomer. A battery carries the load and the genset runs
- *   in blocks to recharge it, near its efficient loading rather than idling at
- *   the 4 kW a tower draws. Fewer engine hours, less diesel, same supply.
- * - `SOLAR_HYBRID` — no incomer. Solar carries the day and charges the battery,
- *   the battery carries the night, and the genset is the backstop for a run of
- *   dull days. The genset is still fitted, which is the point: this is a hybrid,
- *   not an off-grid solar site.
+ * - `DIESEL_PRIME` — no incomer. The genset *is* the supply and runs
+ *   continuously. The configuration Express Mission's own fleet runs, and the
+ *   one every remote posting lands in.
  *
  * ## This is a display choice, and only a display choice
  *
@@ -72,16 +65,11 @@ export type SiteKind = SiteKindId;
  * prototype has no business issuing.
  *
  * One visible consequence of holding that line: a set's activity feed is the
- * *machine's* history, so at a site declared `SOLAR_HYBRID` it may still read
- * "Engine started on utility outage". The setting redraws the site; it does not
- * rewrite what the controllers did.
+ * *machine's* history, so at a site declared `DIESEL_PRIME` it may still read
+ * "Engine started on utility outage" from a posting at some earlier yard. The
+ * setting redraws the site; it does not rewrite what the controllers did.
  */
-export const SITE_POWER_ROLES = [
-  'GRID_BACKUP',
-  'DIESEL_PRIME',
-  'DIESEL_HYBRID',
-  'SOLAR_HYBRID',
-] as const;
+export const SITE_POWER_ROLES = ['GRID_BACKUP', 'DIESEL_PRIME'] as const;
 
 export type SitePowerRole = (typeof SITE_POWER_ROLES)[number];
 
@@ -91,31 +79,18 @@ export type SitePowerRole = (typeof SITE_POWER_ROLES)[number];
  * One predicate rather than `role === 'GRID_BACKUP'` at each call site, because
  * the question every caller is actually asking is "is there a grid here", and
  * writing it as an equality invites the next configuration to be added by
- * forgetting one of them. Three of the four have no incomer, and the day a
- * grid-tied hybrid joins the list this is the only line that changes.
+ * forgetting one of them. The day a grid-tied arrangement joins the list this is
+ * the only line that changes.
  */
 export const hasMains = (role: SitePowerRole): boolean => role === 'GRID_BACKUP';
-
-/** Is a battery fitted — the two hybrid configurations, and only those. */
-export const hasBattery = (role: SitePowerRole): boolean =>
-  role === 'DIESEL_HYBRID' || role === 'SOLAR_HYBRID';
-
-/** Is a PV array fitted. */
-export const hasSolar = (role: SitePowerRole): boolean => role === 'SOLAR_HYBRID';
-
-/** Is this one of the two configurations the energy screen has anything to say about. */
-export const isHybrid = (role: SitePowerRole): boolean => hasBattery(role);
 
 /** How the configuration is written in a heading or a chip. */
 export const SITE_POWER_ROLE_LABEL: Record<SitePowerRole, string> = {
   GRID_BACKUP: 'Grid + genset',
   DIESEL_PRIME: 'Diesel prime',
-  DIESEL_HYBRID: 'Diesel hybrid',
-  SOLAR_HYBRID: 'Solar hybrid',
 };
-
 /**
- * The mains incomer, as its meter reports it.
+ * The mains incomer: whether it is live, and what is flowing through it.
  *
  * A **measurement**, not an inference. An earlier sketch of this derived mains
  * health from the gensets — "a set is running, so the grid must be down" — and it
@@ -123,29 +98,24 @@ export const SITE_POWER_ROLE_LABEL: Record<SitePowerRole, string> = {
  * beside a perfectly healthy grid, and inferring a failure from it would report an
  * outage at a site that never had one.
  *
- * So the site reads its intake meter, and the meter is what says whether the
- * supply is there. In this prototype that reading is mock data like every other
- * figure (see `data/sites.ts`); in a real deployment it is the meter's API, and
- * nothing downstream of this type changes.
+ * In this prototype both figures are mock data like every other one (see
+ * `data/sites.ts`); in a real deployment they come from the transfer switch and the
+ * intake instrument, and nothing downstream of this type changes.
  */
 export type MainsSupply = {
   /**
    * Is the incomer energised.
    *
-   * **Always known, meter or no meter** — this comes from the transfer switch, which
-   * senses voltage on the incomer because that is how it decides to transfer at all.
-   * Presence and consumption are separate instruments, and conflating them would make
-   * an unmetered site look like a site with no grid.
+   * This comes from the transfer switch, which senses voltage on the incomer because
+   * that is how it decides to transfer at all — a separate fact from how much is
+   * flowing, and the two are deliberately not folded together.
    */
   live: boolean;
   /**
-   * What is flowing through the incomer — **only if somebody fitted a meter to it.**
-   *
-   * See `MeterFeed`: the figure, or which of the two reasons there isn't one. This
-   * used to be a bare number every site carried, which quietly claimed instrumentation
-   * most of them have never had.
+   * What is flowing through the incomer, kW — `0` while a genset carries the load
+   * and the mains contactor is open.
    */
-  feed: MeterFeed;
+  kw: number;
 };
 
 export type Site = {
@@ -162,9 +132,8 @@ export type Site = {
   /**
    * What the customer draws, kW.
    *
-   * The physical quantity, which exists whether or not anybody measures it. A meter
-   * is what makes it *visible* — see `MeterFeed` — so this is carried separately from
-   * the readings, and fitting or removing a meter never changes it.
+   * The physical quantity, which exists whether or not anybody is watching it, and
+   * is therefore carried separately from anything an instrument reports.
    */
   loadKw: number;
   /**
@@ -173,12 +142,23 @@ export type Site = {
    * On the site and not on the genset, which is what makes "how many sets in Sarawak"
    * answerable without a machine having to carry an owner around with it.
    *
-   * The **power role is deliberately not here.** It is seeded beside this one, but a
-   * reader can flip it at any moment, so it is read live through
-   * `siteConfig.ts` rather than baked into the summary a site was built with. A copy
-   * on this object would be the stale one within a click.
+   * The **power role is deliberately not here.** Every other field on this object is
+   * something the page *reports*; the role says how the yard is fed, which the supply
+   * line and the alarm categories read off. The components that need it take it as a
+   * prop rather than finding it on the summary, so each stays a pure function of what
+   * it is handed. It is read live through `siteConfig.ts`. See `SitePowerRole`.
    */
   customer: CustomerId;
+  /**
+   * The rollout programme this site is filed under, or `undefined` for none.
+   *
+   * A **grouping and nothing else** — no figure on any screen derives from it. It
+   * is here rather than beside the power role in the config store for the reason
+   * `customer` is: it is a fact the summary *reports*, and every screen that groups
+   * sites needs it from the same pass that gave it the region. See `programs.ts`
+   * for why it is a separate axis from the region rather than a second name for it.
+   */
+  program: ProgramId | undefined;
 };
 
 /**
@@ -217,12 +197,25 @@ export type SwitchState = {
  *   test, or warming), and it is off-load while it is.
  */
 export const isolatorStateOf = (runState: RunState, duty: boolean): SwitchState => {
-  if (!duty) return {closed: false, live: false};
-
-  return {
-    closed: runState === 'RUNNING' || runState === 'IDLE',
-    live: runState === 'RUNNING',
-  };
+  /**
+   * Open unless this set is actually carrying, and that is a change of rule.
+   *
+   * It used to draw the duty set **closed onto a dead bus** whenever it was stopped
+   * but available — the classic standby position, a set sitting closed waiting for a
+   * transfer. That is real behaviour at a grid-backed site and it was the wrong thing
+   * to draw here, because the diagram's whole job is answering *what is feeding this
+   * tower*: a reader looking at a solar hybrid on a sunny afternoon saw a closed knife
+   * switch under a stopped engine and had to work out from the colour alone that no
+   * diesel was involved. A switch is the one mark in the drawing whose shape a reader
+   * takes in before any colour, and it was saying the opposite of the answer.
+   *
+   * So the position now follows the one fact the drawing is about: closed if this set
+   * is carrying, open if it is not. The standby-closed state is not lost from the app —
+   * the set's own run state is on its node's caption, its card and its page, in words
+   * (`stopped`, `off-load`) that do not need decoding.
+   */
+  const carrying = duty && runState === 'RUNNING';
+  return {closed: carrying, live: carrying};
 };
 
 /**
@@ -234,12 +227,13 @@ export const isolatorStateOf = (runState: RunState, duty: boolean): SwitchState 
  * this reads the two facts it acts on — the meter, and whether a set is already
  * carrying — and reports the position that follows.
  *
- * `closed` and `live` are the same value here, which they are *not* for a genset
- * isolator, and the asymmetry is the point: a genset can sit closed onto a dead
- * bus waiting for a mains failure, but the grid is either carrying the load or
- * disconnected from it. A transfer switch must never bridge the two sources — that
+ * `closed` and `live` are the same value here, and since `isolatorStateOf` took the
+ * same rule they are the same value on every source the diagram draws. The reason was
+ * always sharper for the grid: a transfer switch must never bridge two sources — that
  * is back-feed onto the utility, the one thing the interlock exists to prevent — so
- * there is no closed-and-dead mains position to draw.
+ * there was never a closed-and-dead mains position to draw. `SwitchState` keeps the
+ * two fields because they are two different facts and `Isolator` still renders all
+ * three combinations; nothing currently produces the fourth.
  *
  * A set that is carrying therefore *wins*: the contactor is open, and the meter's
  * verdict on the grid is reported next to it rather than in place of it. That is
@@ -251,13 +245,3 @@ export const mainsContactorStateOf = (mains: MainsSupply, gensetCarrying: boolea
   const carrying = mains.live && !gensetCarrying;
   return {closed: carrying, live: carrying};
 };
-
-/**
- * Can the changeover hand the load to this set?
- *
- * Only to a set that is already turning. Transferring to a stopped one means
- * *starting* it first, which is a `START` command — and those are inert in this
- * prototype and say so. Transferring to an unreachable set is not an operation at
- * all.
- */
-export const canTakeLoad = (runState: RunState): boolean => runState === 'RUNNING';

@@ -1,16 +1,5 @@
 import {useNavigate} from '@tanstack/react-router';
-import {
-  BatteryChargingIcon,
-  BoomBoxIcon,
-  FileChartColumnIcon,
-  FuelIcon,
-  GaugeIcon,
-  LayoutDashboardIcon,
-  LogOutIcon,
-  PanelsTopLeftIcon,
-  RadioTowerIcon,
-  SettingsIcon,
-} from 'lucide-react';
+import {BoomBoxIcon, LogOutIcon, RadioTowerIcon, SettingsIcon, TruckIcon} from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
 import type {NavItem} from '@/components/global/NavButton';
@@ -23,63 +12,52 @@ import {BRAND} from '@/brands';
 /**
  * The rail, and the one place this white-label's estate changes the order.
  *
- * The mobile-fleet build put **Deployment** second and **Sites** fourth, because
- * for plant that moves the posting is the fact about a machine and a yard is only
- * where it happens to be standing this week. This estate is the other way round: a
- * tower site is a permanent installation, its genset is bolted to a plinth beside
- * it, and nobody asks where a set has been sent. So **Sites leads** — the site is
- * the asset, and the plant on it is a property of the site — and Deployment is
- * gone rather than demoted, because a destination nobody visits is worse than one
- * that isn't there.
+ * Express Mission's plant **moves**. A set is trucked to a customer, stands there
+ * for a job, and comes back — so the machine is the fact and the yard is only
+ * where it happens to be standing this week. That makes **Gensets** the rail's
+ * first destination and the app's landing screen: every question here starts at a
+ * particular engine, and the estate's tallies ride in the card strip above the
+ * rows rather than on a screen of their own.
  *
- * **Report** takes the slot it left, and it is one destination where there were
- * two. `Energy` and `Solar report` sat here side by side because they answer two
- * questions — what carried the load and what the plant saved, against whether the
- * arrays are generating what they were bought on — and those two headline figures
- * move for unrelated reasons. That is still true, and the tab strip inside
- * `/report` is what keeps them on separate screens. What it never justified was
- * two rail items: the rail is a list of *places*, and both of them were the same
- * place.
+ * **Deployment** follows it, because on a fleet that moves "what is out, where,
+ * and since when" is the next question after "what do we have" — and for the EM
+ * proof of concept it is the question the product is being judged on.
  *
- * The consolidation also retires a qualifier. `Solar report` had to carry one
- * because a rail item reading `Solar` next to `Battery` and `Gensets` would have
- * been read as the plant register — which it now emphatically is, with systems
- * and inverters under it. Inside a section where every tab is a report there is
- * nothing to disambiguate, so the tabs read `Overall`, `Solar` and `Genset`, and
- * the register keeps the short name it always wanted.
+ * **Sites** is last rather than gone. A tower estate would lead with it — a site
+ * is a permanent installation and its genset is bolted to a plinth beside it — but
+ * this estate's sites are destinations plant is sent to, so the register is the
+ * place you go once you already know which machine you are asking about. The
+ * white-label's other builds reverse these two; nothing else about the rail moves.
  *
- * ## Reports, then registers
+ * **Report** and **Overview** were destinations here and have both gone, for the
+ * same reason one level apart: each restated figures a register already states.
+ * What the estate is burning belongs on `/gensets`; what it counts belongs in that
+ * screen's card strip. A destination whose whole job is to restate another screen
+ * is one more place for two numbers to disagree.
  *
- * The rail falls into two halves and the order says so. Above, three destinations
- * that *count the estate* — Overview, Sites, Report. Below, three that *list its
- * plant* — Solar, Battery, Gensets — one per thing bolted to a site. Meters and
- * Refuel close it out as the two operational logs.
+ * **Meters** and **Refuel** stood last, and were cut for a different reason again:
+ * both were whole features rather than restatements, and both went to get the first
+ * build's surface down to what one engineer can hold. Their design is written down
+ * in GEN-24 and GEN-25 rather than lost.
+ *
+ * **Solar** and **Battery** were registers here until the product became the
+ * genset line alone. A site hosts an engine; the array and the bank belong to
+ * SolarIQ, and a rail offering them from this app would be claiming a surface it
+ * does not have.
  */
 const NAV_ITEMS: Array<NavItem> = [
-  // First, and the app's landing screen: the estate's state before any one site
-  // in it. Everything below is a way of narrowing what this page counts.
-  {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
-  {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
-  // One item, three tabs. The three reports were consolidated here; see the note
-  // above for why the rail carried two of them and now carries one.
-  {label: 'Report', icon: FileChartColumnIcon, link: '/report'},
-  // The three plant registers, grouped and ordered by what each one is: the
-  // solar system, the bank it charges, and the engine that backs both up.
-  //
-  // Solar was a scaffold — six empty tabs — until it became a register with a
-  // page per system and the six tabs moved down onto each one, which is the shape
-  // `/gensets` has always had. A row there is everything PV at one site; its
-  // inverters are a band on its page. Battery is still the scaffold, and it stays in the
-  // rail for the reason both were put there: a destination that says what it will
-  // hold is how the shape of the estate gets agreed before a table is drawn for
-  // it, and storage is the largest thing this app is missing.
-  {label: 'Solar', icon: PanelsTopLeftIcon, link: '/solar'},
-  {label: 'Battery', icon: BatteryChargingIcon, link: '/battery'},
+  // First, and the app's landing screen: the plant register, which is the whole of
+  // what this product puts anywhere. A row is one machine, and the six tabs below
+  // it are the same shape every detail page in the app has.
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
-  // After Sites, because a meter is fitted to a site's circuit and reads nothing on
-  // its own — the order of the rail follows what each destination is about.
-  {label: 'Meters', icon: GaugeIcon, link: '/meters'},
-  {label: 'Refuel', icon: FuelIcon, link: '/refuel'},
+  // The dispatch feed: what is out, where, and since when. Fleet-wide like the
+  // register above it, and next to it because it is the question you ask as soon as
+  // you know what the fleet is.
+  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
+  // The estate counted in the card strip and listed under it. Last, because on a
+  // fleet that moves a site is where a machine went rather than the thing you are
+  // asking about.
+  {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
 ];
 
 export const Sidebar = () => {
@@ -93,34 +71,34 @@ export const Sidebar = () => {
 
   return (
     // Gone entirely below `md`, where `MobileNav` takes over. Not merely narrowed:
-    // a rail of nine destinations has no phone-width form, and the handful that
+    // a rail of six destinations has no phone-width form, and the handful that
     // do have mobile layouts are the ones the floating bar offers.
     <aside className="hidden h-full w-[94px] flex-col items-center pt-2 md:flex">
       <div className="flex w-full items-center justify-center py-3.5">
-        {/* The customer's own mark, cropped out of their official lockup — the
-            rail is 94px and the full wordmark has no legible form at that width,
-            the same call the IQ mark made for the product's own brand. The crop
-            is the artwork's own left edge to the start of the "c", viewBox
-            `-6 0 408 439.61`; both dimensions are set so the flex row can't
-            stretch it.
+        {/* Whatever of the customer's mark reads at 94px — which is a per-brand call,
+            and the two brands here answer it differently. Express Mission's is a
+            circular badge, square and legible at any size the rail could give it. The
+            product's own is the IQ mark, cropped out of the wordmark because seven
+            letters have no legible form at this width.
 
-            The full-colour cut, not the reversed one. CelcomDigi's inverted
-            artwork only whitens the *wordmark* — the mark itself is the same
-            blue-to-yellow in both files — and the wordmark is exactly what this
-            crop drops. So the two cuts are identical here, and the rail is navy
-            (`--sidebar`, #001871) precisely so the mark's own #009BDF → #0064DC
-            gradient has a ground to sit on. */}
+            Whichever it is, it wants a *dark* ground, because the rail always is one.
+            EM's badge is dark green on transparent, so the rail is `#0A2723` — a shade
+            off the badge's own ring rather than the ring itself, since a mark on its
+            own colour has no silhouette.
+
+            Both dimensions are set so the flex row cannot stretch it, and
+            `object-contain` so a `markSize` that rounds off the artwork's own ratio
+            letterboxes by half a pixel rather than squashing it. */}
         <img
           src={BRAND.mark}
           alt={BRAND.name}
           width={BRAND.markSize.width}
           height={BRAND.markSize.height}
-          className="shrink-0"
+          className="shrink-0 object-contain"
         />
       </div>
 
-      {/* `min-h-0` and its own scroll, added when the rail went from seven
-          destinations to nine. Without them the item list simply grows past the
+      {/* `min-h-0` and its own scroll. Without them the item list simply grows past the
           bottom of the aside and takes Settings and the sign-out avatar with it —
           at a 720px viewport the footer started 69px below the fold and neither
           control could be reached at all. Flex items floor at their content size

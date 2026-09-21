@@ -100,6 +100,18 @@ export const dayMonth = (at: number | string): string => {
 };
 
 /**
+ * "2 Sep 2026" — the day half of a run stamp, for a card that sets the time above
+ * the date rather than beside it.
+ *
+ * Unpadded day, like `stampAt`'s and unlike `stampDate`'s. The two really do
+ * differ in the design: `Refuel by` is a date on its own in a column of figures
+ * and pads to keep that column straight, while a run stamp is read as a phrase
+ * under a clock time and "02" there is a form field, not a date.
+ */
+export const stampDay = (iso: string): string =>
+  `${dayMonth(iso)} ${new Date(iso).getFullYear()}`;
+
+/**
  * "1–7 Aug 2026", "28 Jul – 3 Aug 2026", "28 Dec 2025 – 3 Jan 2026".
  *
  * Says each part exactly once. Repeating the month across a range that stays
@@ -151,6 +163,59 @@ export const duration = (milliseconds: number): string => {
   const rest = hours % 24;
   const head = `${days} day${days === 1 ? '' : 's'}`;
   return rest === 0 ? head : `${head} ${rest} hour${rest === 1 ? '' : 's'}`;
+};
+
+/**
+ * "14 h", "11 h 41 m", "3 d 4 h" — `duration` for a column of figures.
+ *
+ * Same arithmetic, abbreviated units. The long form is prose and belongs in a
+ * label/value pair with a whole line to itself; in a table two figures wide,
+ * "11 hours 41 minutes" is 130px of text against a 68px column and truncates to
+ * `11 hours 41 minu…`, which is worse than either form. Abbreviating is also what
+ * the figures beside it already do — `15 kWh`, `7 L` — so the column reads as one
+ * kind of thing.
+ */
+export const durationCompact = (milliseconds: number): string => {
+  const minutes = Math.floor(Math.max(0, milliseconds) / MINUTE);
+  if (minutes < 1) return 'under a minute';
+  if (minutes < 60) return `${minutes} m`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    const rest = minutes % 60;
+    return rest === 0 ? `${hours} h` : `${hours} h ${rest} m`;
+  }
+
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  return rest === 0 ? `${days} d` : `${days} d ${rest} h`;
+};
+
+/**
+ * "39 hours", "6.4 days" — a runway, in the unit the machine earns.
+ *
+ * Deliberately not `duration()`. That one describes an interval that *happened*
+ * and spells out its remainder ("6 days 4 hours"); this one describes runtime
+ * still in hand, and the remainder is false precision — a burn rate good to two
+ * significant figures cannot place the fourth hour of the seventh day.
+ *
+ * The unit is not a house style, it is a property of the set. A 400 L tank on a
+ * 500 kVa machine is tens of hours and reads naturally in hours; the same figure
+ * on a 1,000 L bulk tank feeding a 30 kVa set is a week and a half, and "247
+ * hours" is a number a reader has to divide before it means anything. The
+ * threshold is two days, which is the point past which nobody plans in hours.
+ */
+export const runtimeSpan = (hours: number): string => {
+  if (hours < 1) return 'under an hour';
+  if (hours < 48) {
+    const whole = Math.round(hours);
+    return `${whole} hour${whole === 1 ? '' : 's'}`;
+  }
+
+  const days = hours / 24;
+  // One decimal while the figure is small enough for it to mean something: at 6.4
+  // days the tenth is fifteen hours of runtime, and at 41 days it is noise.
+  return days < 10 ? `${days.toFixed(1)} days` : `${Math.round(days)} days`;
 };
 
 /**

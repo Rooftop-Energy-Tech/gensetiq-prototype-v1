@@ -1,43 +1,39 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, LayoutDashboardIcon, RadioTowerIcon, SunMediumIcon} from 'lucide-react';
+import {BoomBoxIcon, RadioTowerIcon, TruckIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
+
+import {deploymentSearch} from '@/modules/deployment/types/view.type';
+import type {DeploymentSearch} from '@/modules/deployment/types/view.type';
+import {gensetSearch} from '@/modules/genset/types/view.type';
+import type {GensetSearch} from '@/modules/genset/types/view.type';
+import {siteSearch} from '@/modules/site/types/view.type';
+import type {SiteSearch} from '@/modules/site/types/view.type';
 
 /**
  * The phone-width nav: a floating pill at the bottom of the screen.
  *
  * It replaces the 94px sidebar rather than reflowing it, because the sidebar is a
- * *rail* — seven destinations stacked vertically — and a phone has no vertical
+ * *rail* — six destinations stacked vertically — and a phone has no vertical
  * space to spare for one. Floating rather than docked, and centred rather than
  * full-width, which is the shape RooftopIQ's own floating bars take (see its
  * `FilesBulkActionBar`): the page scrolls underneath it and the bar reads as a
  * control over the content instead of a piece of the frame.
  *
- * ## Three destinations, not seven
+ * ## Three destinations, not six
  *
- * Only the screens that have a mobile layout are here. `Energy`, `Meters`,
- * `Refuel` and `Settings` are desktop-only in this prototype, and a nav item that
- * lands on a screen laid out for 1,280px would be worse than no item at all — the
- * point of a limited bar is that everything it offers works. The report's
- * `Overall` and `Genset` tabs are the clearest case: each is a wide table whose
- * whole job is comparison down a column, and there is no phone-width form of that
- * worth offering.
+ * Only the screens that have a mobile layout are here. `Settings` is desktop-only in
+ * this prototype, and a nav item that lands on a screen laid out for 1,280px would be
+ * worse than no item at all — the point of a limited bar is that everything it offers
+ * works.
  *
- * ## The bar points at one tab, not at the section
+ * ## Why the three are the three
  *
- * `Solar` **is** here, and it links straight to `/report/solar` rather than to
- * `/report`. That is deliberate. `SectionTabs` hides its strip below `md` for the
- * same reason this bar is four items long, so a phone sent to `/report` would
- * land on the one report it cannot read with no way to reach the one it can.
- * Naming the tab in the link is what keeps the rule — offer no door the app
- * cannot open — true through a section whose other doors are shut.
- *
- * The short label survives the move: at this width it is the only solar screen on
- * offer, and the plant register at `/solar` is withheld because its system and
- * inverter pages have no phone layout. The report's cards are an `auto-fill` grid
- * that resolves to a single column at this width, and its charts were drawn for a
- * 44px slot, so the phone layout is the desktop one narrowed rather than a
- * desktop screen squeezed. Withholding it would have been withholding the screen
- * most likely to be opened by somebody standing at the foot of a tower.
+ * Each is a **register** — a list, which is the one shape that reads at 390px.
+ * Everything below a register is a detail page with a 240px rail beside it, and
+ * the rail has no phone form at all (see `DetailSidebar`): a phone sent to
+ * `/gensets/brf9540` gets the page but not its six sections. That is acceptable for
+ * a page you arrive at from a list you tapped; it would not be acceptable as a
+ * destination the bar offered directly.
  *
  * The routes themselves are untouched and still resolve if a URL is typed or
  * followed from a desktop link. What is withheld is *navigation to* them, which is
@@ -47,28 +43,39 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/overview' | '/sites' | '/report/solar' | '/gensets';
+  link: '/sites' | '/gensets' | '/deployment';
   /**
-   * The list's own default view state, for the two items that have one.
+   * The screen's own view state, whole.
    *
-   * Both list screens validate their search params, and a `Link` has to name the
-   * whole object — the schema's defaults settle a URL that is *parsed*, not one that
-   * is built — so each item says which view it opens. `list` in both cases, which at
-   * this width is the only view either screen has. The overview takes none: it has
-   * no view state to carry.
+   * All three destinations validate their search params, and a `Link` type-checks
+   * against the *parsed* shape rather than the URL's — so each item names the
+   * complete object through that screen's own `…Search()` helper, which is where its
+   * defaults are written down. `view: 'list'` in all three cases, because at this
+   * width the list is the only view any of them has.
+   *
+   * No longer optional: the dispatch feed used to be one table with a search box and
+   * carried no view state to name. It is a register now — see `DeploymentPage`.
    */
-  search?: {view: 'list'};
+  search: GensetSearch | SiteSearch | DeploymentSearch;
 };
 
 const ITEMS: Array<MobileNavItem> = [
-  // The overview is here where the other report tabs are not, because it
-  // genuinely has a phone layout: its tiles are a two-column grid at this width
-  // rather than a desktop screen squeezed. It is also where `/` now lands, so
-  // leaving it out would strand a phone on a screen with no way back to it.
-  {label: 'Overview', icon: LayoutDashboardIcon, link: '/overview'},
-  {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
-  {label: 'Solar', icon: SunMediumIcon, link: '/report/solar'},
-  {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
+  // First, and where `/` now lands. The fleet register: every machine, wherever it
+  // is standing. Its card strip is folded away by default at this width — see
+  // `SummaryCollapseButton` — so the phone gets the list first and the summary on
+  // request.
+  {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: gensetSearch({view: 'list'})},
+  // The dispatch feed. On the bar rather than a tap away through a site, because on a
+  // mobile fleet "what is out and since when" is the question asked standing in a yard.
+  {
+    label: 'Deployment',
+    icon: TruckIcon,
+    link: '/deployment',
+    search: deploymentSearch({view: 'list'}),
+  },
+  // The estate. Last here for the same reason it is last on the rail: a site is
+  // where a set was sent, not the thing you open the app to ask about.
+  {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: siteSearch({view: 'list'})},
 ];
 
 export const MobileNav = () => (

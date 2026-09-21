@@ -20,14 +20,10 @@
  * estate the demo walks through.
  *
  * A brand does **not** own the product model. `SitePowerRole` is the clearest
- * case: `feat/sesb-demo` shipped a two-role vocabulary (`STANDBY` / `PRIME`) and
- * the CelcomDigi branch replaced it with four (`GRID_BACKUP`, `DIESEL_PRIME`,
- * `DIESEL_HYBRID`, `SOLAR_HYBRID`) because the hybrid plant needed to be nameable.
- * Reviving the two-role version as "the SESB way" would fork the model again in
- * config instead of in git, and every hybrid feature would be dark on that brand.
- * So the utility dataset is **re-expressed in today's model** rather than restored
- * — see `datasets/utility.ts`. The vocabulary is the product's; which sites use
- * which entry is the dataset's.
+ * case: it is two entries, `GRID_BACKUP` and `DIESEL_PRIME`, and every dataset is
+ * expressed in them. A brand reviving its own vocabulary would fork the model in
+ * config instead of in git. The vocabulary is the product's; which sites use which
+ * entry is the dataset's.
  *
  * The same rule settles anything else that comes up: if two brands disagreeing
  * about it would mean two versions of a *feature*, it does not belong here.
@@ -52,8 +48,8 @@
  * `datasets/`, and the thing that collects them is a **virtual module built per
  * build** by the `brands` plugin in `vite.config.ts`.
  *
- * That is not tidiness. A hand-written `Record` of all three brands ships all
- * three: a customer's deployment would carry the other customers' names, marks and
+ * That is not tidiness. A hand-written `Record` of every brand ships every one
+ * of them: a customer's deployment would carry the other customers' names, marks and
  * twenty-five site names each, hidden behind a UI flag and one devtools tab away
  * from being read. Hiding the picker is a product decision; leaving the data out
  * of the bundle is the one that makes it true.
@@ -66,7 +62,7 @@
  */
 
 /** The brands this build can be compiled as. Add a customer by adding an entry. */
-export const BRAND_IDS = ['celcomdigi', 'sesb', 'gensetiq'] as const;
+export const BRAND_IDS = ['express-mission', 'gensetiq'] as const;
 
 export type BrandId = (typeof BRAND_IDS)[number];
 
@@ -75,9 +71,9 @@ export const DATASET_IDS = ['carrier', 'utility'] as const;
 export type DatasetId = (typeof DATASET_IDS)[number];
 
 /**
- * The four colours that are the customer's and not the product's.
+ * The three colours that are the customer's and not the product's.
  *
- * Deliberately four, and not "the palette". Every other token in `colors.ts` is
+ * Deliberately three, and not "the palette". Every other token in `colors.ts` is
  * the design system's and is shared by every brand — a customer who wanted their
  * own `bg-canvas` would be asking for a different product, and a customer whose
  * yellow fails contrast as a data mark does not get to make bars invisible (see
@@ -90,14 +86,15 @@ export type DatasetId = (typeof DATASET_IDS)[number];
  *   button loses its label, which is why it is here and not derived.
  * - `sidebar` — the rail, in both modes. The one surface that does not follow the
  *   app's light/dark polarity, because it carries the customer's mark.
- * - `battery` — the storage series in charts, as a base and a lighter tip.
- *   Optional: a brand that does not supply one gets the product's own.
+ * Three, where there were four. `battery` was the fourth — a brand's own storage
+ * colour for the charts — and it went with the storage: nothing on a genset estate
+ * draws a bank, and the one battery left is the starter on the engine, whose colour
+ * is the product's.
  */
 export type BrandTheme = {
   brand: string;
   brandForeground: string;
   sidebar: string;
-  battery?: {base: string; tip: string};
 };
 
 /**
@@ -107,7 +104,7 @@ export type BrandTheme = {
  * which is read by the Vite plugin in Node and inlined into the generated registry
  * as literals for only the brands a build includes. Putting them on this type
  * would mean the client importing a map of every brand's title — three short
- * strings, but three customers' names — which is the leak this whole structure
+ * strings, but every customer's name — which is the leak this whole structure
  * exists to close.
  */
 export type BrandIdentity = {
@@ -154,16 +151,41 @@ export type BrandCustomer = {
   name: string;
   /** The short form the chips and cards use. */
   shortName: string;
-  /**
-   * Daily peak sun hours, the P50 design figure every solar figure is built from.
-   *
-   * Regional rather than per-site: twenty-five copies of six numbers is twenty-five
-   * chances for them to disagree. Required on every dataset, including estates with
-   * no solar on them today, because `hybridPlant` reads it the moment a reader flips
-   * one site to `SOLAR_HYBRID` on its settings tab — and a dataset that answered
-   * `undefined` there would put `NaN` kWp on the diagram.
-   */
-  peakSunHours: number;
+};
+
+/**
+ * A **programme** a site was built or converted under — a grouping the operator
+ * draws, not a fact about the plant.
+ *
+ * Region and programme answer different questions and neither substitutes for the
+ * other. A region is *where the site is*, and it is fixed by geography: Kapit is in
+ * Sarawak whatever anybody decides. A programme is *what budget and rollout the
+ * site belongs to*, and it is a line an operations team draws across the estate for
+ * their own reasons — a funding round, a build wave, a conversion campaign. Two
+ * sites in the same district can sit in different programmes, and one programme can
+ * span districts.
+ *
+ * So it is a **grouping and nothing else**. Nothing derives from it: no figure, no
+ * diagram, no default. It exists so a reader can say "show me the SWK build" and
+ * get exactly the sites somebody assigned to it — which is why a site is allowed to
+ * be in **no** programme at all. An estate that pre-dates its first programme, or a
+ * site nobody has filed yet, is unassigned rather than forced into the nearest
+ * plausible bucket.
+ *
+ * The roster is the dataset's, for the same reason the customer roster is: a
+ * carrier's rollout waves and a utility's capital programmes are not the same
+ * vocabulary, and there is no union that covers both without meaning nothing.
+ */
+export type ProgramId = string;
+
+export type BrandProgram = {
+  id: ProgramId;
+  /** Written in full, for a detail line or a tooltip — `Jendela Sabah`. */
+  name: string;
+  /** The short form the chips and the settings picker use — `Jendela SBH`. */
+  shortName: string;
+  /** One line: what this programme is, for the settings picker. */
+  blurb: string;
 };
 
 /**
@@ -190,6 +212,14 @@ export type BrandSiteSeed = {
    * vocabulary, not the brand's. `siteConfig.ts` lets a reader override it live.
    */
   powerRole: string;
+  /**
+   * The programme this site was filed under, or `undefined` for none.
+   *
+   * Optional rather than defaulted, because "not in a programme" is a real state
+   * and the honest one for a site that pre-dates the estate's first rollout wave.
+   * A reader can file it — or unfile it — from the site's settings.
+   */
+  program?: ProgramId;
 };
 
 export type BrandFleetSeed = {
@@ -202,6 +232,15 @@ export type BrandFleetSeed = {
    * set turning beside a healthy incomer. Both estates pin two units to it.
    */
   startReason?: string;
+  /**
+   * Road registration — the plate this machine is moved under.
+   *
+   * Seeded on **every** row, because every machine on a mobile fleet arrives on a
+   * lorry and leaves on one. Still optional on the type: the day an estate seeds a
+   * set bolted to a plinth, the honest record is no plate rather than an invented
+   * one.
+   */
+  plateNumber?: string;
   /** Must match a `BrandSiteSeed.id` in the same dataset, or `undefined` for the workshop. */
   siteId: string | undefined;
   locationLabel: string;
@@ -223,6 +262,11 @@ export type BrandDataset = {
    */
   groupingLabel: string;
   customers: ReadonlyArray<BrandCustomer>;
+  /**
+   * The rollout programmes sites can be filed under. May be empty: an estate with
+   * no programmes is a legitimate estate, and every site is then unassigned.
+   */
+  programs: ReadonlyArray<BrandProgram>;
   /** The kind vocabulary, and how each entry is written in a chip. */
   siteKindLabels: Readonly<Record<SiteKindId, string>>;
   sites: ReadonlyArray<BrandSiteSeed>;

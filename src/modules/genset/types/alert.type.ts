@@ -173,9 +173,17 @@ export const worstCondition = (
   ...conditions: Array<GensetCondition>
 ): GensetCondition => CONDITION_ORDER.find((rank) => conditions.includes(rank)) ?? 'OPTIMUM';
 
-/** How many alerts sit at each severity — the counts on the three filter chips. */
+/**
+ * How many alerts sit at each severity — the counts on the three filter chips.
+ *
+ * Typed on the one field it reads rather than on `GensetAlert`, so a `SystemAlert`
+ * counts through it too. The two alert types deliberately share `AlertSeverity`
+ * (see `health.type.ts`) and deliberately share nothing else, and a second copy of
+ * this loop in the solar module would be the second place the three chips could be
+ * counted differently.
+ */
 export const countBySeverity = (
-  alerts: Array<GensetAlert>,
+  alerts: ReadonlyArray<{severity: AlertSeverity}>,
 ): Record<AlertSeverity, number> => {
   const counts: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
   for (const alert of alerts) counts[alert.severity] += 1;

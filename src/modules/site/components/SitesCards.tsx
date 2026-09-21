@@ -2,8 +2,9 @@ import {Link} from '@tanstack/react-router';
 import {BoomBoxIcon, ChevronRightIcon, DropletIcon, MapPinIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
+import {StaticAlarmBadge} from '@/components/global/AlarmCounts';
 import {fuelHeadline} from '@/lib/format';
-import {CONDITION_META} from '@/modules/genset/components/detail/severityMeta';
+import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import type {SiteSummary} from '../data/sites';
 import {SITE_KIND_LABEL} from '../data/sites';
 
@@ -12,16 +13,34 @@ import {SITE_KIND_LABEL} from '../data/sites';
  *
  * The same call as the fleet's cards, and the same reason — the columns that would
  * survive a narrow screen are not the ones the list is read for. Here the kept
- * facts are condition, what is standing there and whether it needs a tanker, which
- * is the order the list's own columns ask them in.
+ * facts are what is standing against the site, what plant is on it and whether it
+ * needs a tanker, which is the order the list's own columns ask them in.
  *
  * The whole card navigates into the site. At this width there is no preview panel
  * to select into, so the split the table makes between selecting and navigating has
  * nothing to be a split *between*.
+ *
+ * ## The alarm pill here is quiet when there is nothing to say
+ *
+ * The table's `Alarms` column draws a pill of dashes at a healthy site, because a
+ * column is read down and a hole in it reads as missing data. This is a **badge row**,
+ * and the rule there is the site page's: an empty alarm chip sitting between the genset
+ * count and the fuel level is an alarm-shaped element on a healthy yard, which is how a
+ * row of badges stops being read. So the pill appears when something is standing and
+ * the row closes up when nothing is.
+ *
+ * It is also `StaticAlarmBadge` rather than `AlarmBadge` — an anchor cannot nest
+ * inside the card's own, and see that component for why nothing is lost by it.
  */
-const SiteCard = ({summary}: {summary: SiteSummary}) => {
-  const condition = CONDITION_META[summary.condition];
-  const ConditionIcon = condition.icon;
+const SiteCard = ({
+  summary,
+  counts,
+}: {
+  summary: SiteSummary;
+  counts: Record<AlertSeverity, number> | undefined;
+}) => {
+  const standing =
+    counts === undefined ? 0 : counts.CRITICAL + counts.WARNING + counts.NEUTRAL;
 
   return (
     <Link
@@ -38,10 +57,7 @@ const SiteCard = ({summary}: {summary: SiteSummary}) => {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="secondary">
-            <ConditionIcon className={condition.textClassName} aria-hidden="true" />
-            {condition.label}
-          </Badge>
+          {counts !== undefined && standing > 0 && <StaticAlarmBadge counts={counts} />}
           <Badge variant="secondary">
             <BoomBoxIcon className="text-secondary" aria-hidden="true" />
             {summary.gensets.length} · {summary.runningCount} running
@@ -63,14 +79,21 @@ const SiteCard = ({summary}: {summary: SiteSummary}) => {
   );
 };
 
-export const SitesCards = ({summaries}: {summaries: Array<SiteSummary>}) => (
+export const SitesCards = ({
+  summaries,
+  counts,
+}: {
+  summaries: Array<SiteSummary>;
+  /** Every site's standing count — see `SitesTable` for why the page holds them. */
+  counts: Record<string, Record<AlertSeverity, number>>;
+}) => (
   <div className="h-full overflow-y-auto">
     {/* `pb-20` clears the floating nav — the last card has to be scrollable out
         from under it, not merely reachable. */}
     <ul aria-label="Sites" className="flex flex-col gap-2 pb-20">
       {summaries.map((summary) => (
         <li key={summary.site.id}>
-          <SiteCard summary={summary} />
+          <SiteCard summary={summary} counts={counts[summary.site.id]} />
         </li>
       ))}
     </ul>

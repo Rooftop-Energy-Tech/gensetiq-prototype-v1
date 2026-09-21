@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {Input} from '@/components/ui/input';
-import {SITE_SEED} from '@/modules/site/data/siteSeed';
+import {siteSeeds} from '@/modules/site/data/siteSeed';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 import {logService} from '../../data/services';
@@ -156,7 +156,7 @@ export const LogServiceDialog = ({
                   className="h-9 w-full rounded-md border border-default bg-element px-3 text-sm text-primary outline-none focus-visible:border-brand focus-visible:ring-[1px] focus-visible:ring-brand"
                 >
                   {genset.siteId === null && <option value="">Workshop — not fitted</option>}
-                  {SITE_SEED.map((site) => (
+                  {siteSeeds().map((site) => (
                     <option key={site.id} value={site.id}>
                       {site.name}
                     </option>

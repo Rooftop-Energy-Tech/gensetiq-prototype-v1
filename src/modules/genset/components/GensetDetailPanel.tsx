@@ -6,12 +6,9 @@ import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
 import {fuelLevel, relativeTime} from '@/lib/format';
-import {ActivityFeed} from './ActivityFeed';
 import {RunStateBadge} from './RunStateBadge';
-import {gensetName} from '../types/genset.type';
+import {gensetLabel} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
-import {gensetActivityLog, useActivityNotes} from '../data/activity';
-import {useServiceRecords} from '../data/services';
 
 const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
   <div className="flex items-center gap-px">
@@ -29,14 +26,6 @@ export const GensetDetailPanel = ({
   genset: Genset | undefined;
   className?: string;
 }) => {
-  // The feed is the machine's history plus its service log, merged and re-sorted.
-  // `fleet.ts` used to carry a hardcoded service line; now the entry and the
-  // record are the same fact, so a service logged on the Service tab shows up
-  // here without either file knowing about the other.
-  const records = useServiceRecords();
-  const notes = useActivityNotes();
-  const activity = genset === undefined ? [] : gensetActivityLog(genset, records, notes);
-
   return (
     <aside
       aria-label="Genset details"
@@ -56,7 +45,9 @@ export const GensetDetailPanel = ({
               map pin has nowhere to put a link, and clicking one has to keep you
               on the map or the selection is useless. */}
           <div className="flex items-center justify-between gap-2">
-            <h2 className="truncate font-medium text-primary">{gensetName(genset)}</h2>
+            {/* Bare: this panel is the register's own preview, opened from a row that
+                is already under a `Genset name` column. See `gensetLabel`. */}
+            <h2 className="truncate font-medium text-primary">{gensetLabel(genset)}</h2>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon-sm" className="size-7 shrink-0" asChild>
@@ -83,11 +74,6 @@ export const GensetDetailPanel = ({
             <DetailRow label="Location">{genset.locationLabel}</DetailRow>
             <DetailRow label="Last updated">{relativeTime(genset.lastUpdated)}</DetailRow>
           </dl>
-
-          <section className="flex min-h-0 flex-col gap-3">
-            <h3 className="font-medium text-primary">Activity</h3>
-            <ActivityFeed activity={activity} />
-          </section>
         </>
       )}
     </aside>

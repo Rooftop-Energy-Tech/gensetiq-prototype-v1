@@ -22,10 +22,12 @@ export type {
   BrandFleetSeed,
   BrandId,
   BrandIdentity,
+  BrandProgram,
   BrandSiteSeed,
   BrandTab,
   BrandTheme,
   CustomerId,
   DatasetId,
+  ProgramId,
   SiteKindId,
 } from './types';

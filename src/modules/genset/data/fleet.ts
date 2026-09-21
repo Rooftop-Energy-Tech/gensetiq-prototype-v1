@@ -61,6 +61,8 @@ type FleetSeed = {
    * distinction exists for — a set turning beside a healthy grid.
    */
   startReason?: StartReason;
+  /** Road registration, when the machine has one. Most do not. */
+  plateNumber?: string;
   /**
    * The site this unit stands at. Sites are derived from this column rather than
    * seeded separately — see `modules/site/data/sites.ts`.
@@ -110,7 +112,12 @@ const minutesBefore = (now: number, minutes: number): string =>
   new Date(now - minutes * MINUTE).toISOString();
 
 /**
- * The event feed shown under "Activity".
+ * The event feed the activity log is built from.
+ *
+ * Nothing renders it any more — the "Activity" band is gone from the genset
+ * home page and from the fleet panel — but it is still what `activity.ts`
+ * merges the controller entries out of, and it stays consistent for the day it
+ * is wanted back.
  *
  * Built from the unit's *current* state backwards, so the story is consistent:
  * a running genset's newest event is the start that put it there, a stopped
@@ -175,6 +182,9 @@ const buildFleet = (): Array<Genset> => {
     // The seed's default. Resolved here rather than left optional on `Genset`, so
     // no reader has to know that a missing reason means an outage.
     startReason: seed.startReason ?? 'OUTAGE',
+    // Absent in the seed becomes `null` here rather than staying undefined, so the
+    // details block asks one question — is there a plate — instead of two.
+    plateNumber: seed.plateNumber ?? null,
     fuelLitres: seed.fuelLitres,
     fuelCapacityLitres: seed.fuelCapacityLitres,
     siteId: seed.siteId,
@@ -187,6 +197,3 @@ const buildFleet = (): Array<Genset> => {
 };
 
 export const GENSETS: Array<Genset> = buildFleet();
-
-/** The unit the design opens on, and this app's default selection. */
-export const DEFAULT_GENSET_ID = DATASET.defaultGensetId;

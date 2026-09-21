@@ -4,6 +4,8 @@ import {GensetDetailShell} from '@/modules/genset/components/detail/GensetDetail
 import {gensetById, gensetDetail} from '@/modules/genset/data/detail';
 import {gensetName} from '@/modules/genset/types/genset.type';
 import type {Genset} from '@/modules/genset/types/genset.type';
+import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';
+import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 
 /**
  * Annotated rather than inferred, and it has to be.
@@ -43,6 +45,11 @@ export const Route = createFileRoute('/_authenticated/gensets_/$gensetId')({
     // depends on the params.
     return {genset, crumb: gensetName(genset)};
   },
+  // Accepts `from` so an asset opened at a site crumbs back to that site rather
+  // than to its register — see `fromSearch.type.ts`. Declared on the section route
+  // so every tab under it carries the param without repeating the schema.
+  validateSearch: (search: Record<string, unknown>): FromSearch =>
+    fromSearchSchema.parse(search),
   staticData: {crumbParent: {label: 'Gensets', to: '/gensets'}},
   component: GensetDetailRoute,
 });
