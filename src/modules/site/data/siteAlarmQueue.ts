@@ -1,6 +1,6 @@
 import {useMemo} from 'react';
 
-import {GENSETS} from '@/modules/genset/data/fleet';
+import {fleet, useFleet} from '@/modules/genset/data/deployment';
 import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
 import {controllerAlarms} from '@/modules/genset/data/alarmViews';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
@@ -102,7 +102,11 @@ const rowsFor = (
    * a queue that cannot be worked. On the set's own page there is no ambiguity and no
    * prefix, which is why this is done here rather than in `controllerAlarms`.
    */
-  for (const genset of GENSETS.filter((machine) => machine.siteId === siteId)) {
+  // The **deployed** fleet rather than the seed: what is standing at a yard is
+  // whatever the jobs put there, so a set collected yesterday must not still be
+  // raising alarms on this queue. Reading the seed here was correct only while
+  // membership was a field on the machine.
+  for (const genset of fleet().filter((machine) => machine.siteId === siteId)) {
     rows.push(
       ...controllerAlarms(genset.id, handling).map((row) => ({
         ...row,
@@ -118,6 +122,13 @@ const rowsFor = (
 export const useSiteAlarmQueue = (siteId: string, now: number): SiteAlarmQueue => {
   const handling = useAlarmHandling();
   const role = useSitePowerRole(siteId);
+  /**
+   * The fleet is a subscription rather than an input, which is why it is a
+   * dependency the exhaustive-deps rule cannot see: `rowsFor` reads `fleet()`
+   * directly, so a job closing has to invalidate this queue or the page keeps
+   * listing alarms for a machine that has left the yard.
+   */
+  const currentFleet = useFleet();
   return useMemo(() => {
     const rows = rowsFor(siteId, role, handling);
 
@@ -138,7 +149,8 @@ export const useSiteAlarmQueue = (siteId: string, now: number): SiteAlarmQueue =
             new Date(left.handling.clearedAt ?? 0).getTime(),
         ),
     };
-  }, [siteId, role, now, handling]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId, role, now, handling, currentFleet]);
 };
 
 /**
@@ -184,6 +196,8 @@ export const useEstateAlarmCounts = (
 ): Record<string, Record<AlertSeverity, number>> => {
   const handling = useAlarmHandling();
   const roles = useSitePowerRoles();
+  // See `useSiteAlarmQueue` for why the fleet is in the dependency list.
+  const currentFleet = useFleet();
 
   return useMemo(
     () =>
@@ -194,7 +208,8 @@ export const useEstateAlarmCounts = (
           return [seed.id, countBySeverity(rows.filter(isStanding))];
         }),
       ),
-    [roles, now, handling],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roles, now, handling, currentFleet],
   );
 };
 

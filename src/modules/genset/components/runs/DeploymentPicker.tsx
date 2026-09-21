@@ -5,7 +5,8 @@ import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {dayMonth} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {siteLabel} from '@/modules/site/data/siteSeed';
-import type {DeploymentSession} from '../../types/deployment.type';
+import type {GensetPosting} from '@/modules/deployment/types/deployment.type';
+import {postingEnd} from '@/modules/deployment/types/deployment.type';
 
 /**
  * The third way of choosing a window: **by posting**.
@@ -20,26 +21,34 @@ import type {DeploymentSession} from '../../types/deployment.type';
  * A popover of rows rather than a native select, in the range calendar's
  * pattern: each posting needs two lines — where, and when — and an option
  * element holds one.
+ *
+ * It takes **postings** rather than jobs: the window belongs to the job, and which
+ * of its machines this is decides where the window ends, because a set collected on
+ * day nine of a fortnight did not run the last five days. The reference leads each
+ * row now that a job has one, since `DEP-0042` is what a reader will have heard the
+ * job called.
  */
 export const DeploymentPicker = ({
-  deployments,
+  postings,
   selectedId,
   onSelect,
 }: {
-  /** This genset's postings, newest first — the open one at the head. */
-  deployments: Array<DeploymentSession>;
+  /** This genset's postings, newest first — the one it is standing on at the head. */
+  postings: Array<GensetPosting>;
   selectedId: string | undefined;
   onSelect: (deploymentId: string | undefined) => void;
 }) => {
   const [open, setOpen] = useState(false);
-  const selected = deployments.find((deployment) => deployment.id === selectedId);
+  const selected = postings.find((posting) => posting.deployment.id === selectedId);
 
-  if (deployments.length === 0) return null;
+  if (postings.length === 0) return null;
 
-  const label = (deployment: DeploymentSession): string =>
-    deployment.endedAt === null
-      ? `${dayMonth(deployment.startedAt)} – ongoing`
-      : `${dayMonth(deployment.startedAt)} – ${dayMonth(deployment.endedAt)}`;
+  const label = (posting: GensetPosting): string => {
+    const end = postingEnd(posting);
+    return end === null
+      ? `${dayMonth(posting.deployment.startsAt)} – ongoing`
+      : `${dayMonth(posting.deployment.startsAt)} – ${dayMonth(end)}`;
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -57,7 +66,7 @@ export const DeploymentPicker = ({
           <TruckIcon className="size-3.5" aria-hidden="true" />
           {selected === undefined
             ? 'By deployment'
-            : `${siteLabel(selected.siteId)} · ${label(selected)}`}
+            : `${selected.deployment.reference} · ${label(selected)}`}
           <ChevronDownIcon className="size-3.5" aria-hidden="true" />
         </button>
       </PopoverTrigger>
@@ -78,28 +87,28 @@ export const DeploymentPicker = ({
           )}
         </button>
 
-        {deployments.map((deployment) => (
+        {postings.map((posting) => (
           <button
-            key={deployment.id}
+            key={posting.membership.id}
             type="button"
             onClick={() => {
-              onSelect(deployment.id);
+              onSelect(posting.deployment.id);
               setOpen(false);
             }}
             className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-hover"
           >
             <span className="min-w-0">
               <span className="block truncate text-primary">
-                {siteLabel(deployment.siteId)}
-                {deployment.endedAt === null && (
+                {posting.deployment.reference} · {siteLabel(posting.deployment.siteId)}
+                {postingEnd(posting) === null && (
                   <span className="text-secondary"> · ongoing</span>
                 )}
               </span>
               <span className="block truncate text-xs text-tertiary">
-                {label(deployment)} · {deployment.locationLabel}
+                {label(posting)} · {posting.deployment.locationLabel}
               </span>
             </span>
-            {deployment.id === selectedId && (
+            {posting.deployment.id === selectedId && (
               <CheckIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
             )}
           </button>

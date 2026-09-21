@@ -72,11 +72,10 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   // Absent `dir` means the key's own grain — see `SITE_SORT_DEFAULT_DIRECTION`.
   const direction = dir ?? SITE_SORT_DEFAULT_DIRECTION[sort];
 
-  // Keyed on the summaries as well as the query: attaching or detaching a genset
-  // changes a site's genset count and its fuel, and moves the machine's alarms from
-  // one yard's queue to another's — and that queue is what this list is *ordered* by.
-  // Memoising on `q` alone would leave the list ranked by a fleet that has since
-  // moved.
+  // Keyed on the summaries as well as the query: a job opening or closing changes a
+  // site's genset count and its fuel, and moves the machines' alarms from one yard's
+  // queue to another's — and that queue is what this list is *ordered* by. Memoising
+  // on `q` alone would leave the list ranked by a fleet that has since moved.
   const all = useSiteSummaries();
   const roles = useSitePowerRoles();
 

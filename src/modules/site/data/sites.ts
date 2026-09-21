@@ -36,8 +36,9 @@ import type {SiteSeed} from './siteSeed';
  * hand-maintained member list eventually gets wrong.
  *
  * The fleet it groups is the **deployed** one, from `deployment.ts`, not the raw
- * seed. That is the only line in the site module that membership reaches through,
- * which is why attaching and detaching gensets was affordable at all.
+ * seed — and what that module reports is itself derived from the deployment record,
+ * so a job opening or closing reaches every figure here through one line. That is
+ * why putting a machine on a job is affordable at all.
  */
 
 export {SITE_KIND_LABEL, DEFAULT_SITE_ID, siteLabel} from './siteSeed';

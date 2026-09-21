@@ -1,7 +1,8 @@
 import {createFileRoute, useNavigate, useParams} from '@tanstack/react-router';
 
 import {GensetAnalysis} from '@/modules/genset/components/detail/analysis/GensetAnalysis';
-import {gensetById, gensetDetail} from '@/modules/genset/data/detail';
+import {gensetById} from '@/modules/genset/data/deployment';
+import {gensetDetail} from '@/modules/genset/data/detail';
 import {analysisSearchSchema} from '@/modules/genset/types/analysisView.type';
 import type {AnalysisSearch} from '@/modules/genset/types/analysisView.type';
 import {fromSearchSchema, keepFrom} from '@/modules/site/types/fromSearch.type';

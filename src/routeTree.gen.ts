@@ -14,11 +14,18 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedDeploymentRouteImport } from './routes/_authenticated/deployment'
+import { Route as AuthenticatedDeploymentsRouteImport } from './routes/_authenticated/deployments'
 import { Route as AuthenticatedGensetsRouteImport } from './routes/_authenticated/gensets'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSitesRouteImport } from './routes/_authenticated/sites'
+import { Route as AuthenticatedDeploymentsDeploymentIdRouteImport } from './routes/_authenticated/deployments_.$deploymentId'
 import { Route as AuthenticatedGensetsGensetIdRouteImport } from './routes/_authenticated/gensets_.$gensetId'
 import { Route as AuthenticatedSitesSiteIdRouteImport } from './routes/_authenticated/sites_.$siteId'
+import { Route as AuthenticatedDeploymentsDeploymentIdIndexRouteImport } from './routes/_authenticated/deployments_.$deploymentId.index'
+import { Route as AuthenticatedDeploymentsDeploymentIdAlarmsRouteImport } from './routes/_authenticated/deployments_.$deploymentId.alarms'
+import { Route as AuthenticatedDeploymentsDeploymentIdGensetsRouteImport } from './routes/_authenticated/deployments_.$deploymentId.gensets'
+import { Route as AuthenticatedDeploymentsDeploymentIdRunsRouteImport } from './routes/_authenticated/deployments_.$deploymentId.runs'
+import { Route as AuthenticatedDeploymentsDeploymentIdSettingsRouteImport } from './routes/_authenticated/deployments_.$deploymentId.settings'
 import { Route as AuthenticatedGensetsGensetIdIndexRouteImport } from './routes/_authenticated/gensets_.$gensetId.index'
 import { Route as AuthenticatedGensetsGensetIdAlarmsRouteImport } from './routes/_authenticated/gensets_.$gensetId.alarms'
 import { Route as AuthenticatedGensetsGensetIdAnalysisRouteImport } from './routes/_authenticated/gensets_.$gensetId.analysis'
@@ -30,6 +37,7 @@ import { Route as AuthenticatedGensetsGensetIdSettingsRouteImport } from './rout
 import { Route as AuthenticatedSitesSiteIdIndexRouteImport } from './routes/_authenticated/sites_.$siteId.index'
 import { Route as AuthenticatedSitesSiteIdAlarmsRouteImport } from './routes/_authenticated/sites_.$siteId.alarms'
 import { Route as AuthenticatedSitesSiteIdContractRouteImport } from './routes/_authenticated/sites_.$siteId.contract'
+import { Route as AuthenticatedSitesSiteIdDeploymentsRouteImport } from './routes/_authenticated/sites_.$siteId.deployments'
 import { Route as AuthenticatedSitesSiteIdRunsRouteImport } from './routes/_authenticated/sites_.$siteId.runs'
 import { Route as AuthenticatedSitesSiteIdSettingsRouteImport } from './routes/_authenticated/sites_.$siteId.settings'
 
@@ -57,6 +65,12 @@ const AuthenticatedDeploymentRoute = AuthenticatedDeploymentRouteImport.update({
   path: '/deployment',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedDeploymentsRoute =
+  AuthenticatedDeploymentsRouteImport.update({
+    id: '/deployments',
+    path: '/deployments',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedGensetsRoute = AuthenticatedGensetsRouteImport.update({
   id: '/gensets',
   path: '/gensets',
@@ -72,6 +86,12 @@ const AuthenticatedSitesRoute = AuthenticatedSitesRouteImport.update({
   path: '/sites',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedDeploymentsDeploymentIdRoute =
+  AuthenticatedDeploymentsDeploymentIdRouteImport.update({
+    id: '/deployments_/$deploymentId',
+    path: '/deployments/$deploymentId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedGensetsGensetIdRoute =
   AuthenticatedGensetsGensetIdRouteImport.update({
     id: '/gensets_/$gensetId',
@@ -83,6 +103,36 @@ const AuthenticatedSitesSiteIdRoute =
     id: '/sites_/$siteId',
     path: '/sites/$siteId',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDeploymentsDeploymentIdIndexRoute =
+  AuthenticatedDeploymentsDeploymentIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDeploymentsDeploymentIdRoute,
+  } as any)
+const AuthenticatedDeploymentsDeploymentIdAlarmsRoute =
+  AuthenticatedDeploymentsDeploymentIdAlarmsRouteImport.update({
+    id: '/alarms',
+    path: '/alarms',
+    getParentRoute: () => AuthenticatedDeploymentsDeploymentIdRoute,
+  } as any)
+const AuthenticatedDeploymentsDeploymentIdGensetsRoute =
+  AuthenticatedDeploymentsDeploymentIdGensetsRouteImport.update({
+    id: '/gensets',
+    path: '/gensets',
+    getParentRoute: () => AuthenticatedDeploymentsDeploymentIdRoute,
+  } as any)
+const AuthenticatedDeploymentsDeploymentIdRunsRoute =
+  AuthenticatedDeploymentsDeploymentIdRunsRouteImport.update({
+    id: '/runs',
+    path: '/runs',
+    getParentRoute: () => AuthenticatedDeploymentsDeploymentIdRoute,
+  } as any)
+const AuthenticatedDeploymentsDeploymentIdSettingsRoute =
+  AuthenticatedDeploymentsDeploymentIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedDeploymentsDeploymentIdRoute,
   } as any)
 const AuthenticatedGensetsGensetIdIndexRoute =
   AuthenticatedGensetsGensetIdIndexRouteImport.update({
@@ -150,6 +200,12 @@ const AuthenticatedSitesSiteIdContractRoute =
     path: '/contract',
     getParentRoute: () => AuthenticatedSitesSiteIdRoute,
   } as any)
+const AuthenticatedSitesSiteIdDeploymentsRoute =
+  AuthenticatedSitesSiteIdDeploymentsRouteImport.update({
+    id: '/deployments',
+    path: '/deployments',
+    getParentRoute: () => AuthenticatedSitesSiteIdRoute,
+  } as any)
 const AuthenticatedSitesSiteIdRunsRoute =
   AuthenticatedSitesSiteIdRunsRouteImport.update({
     id: '/runs',
@@ -168,11 +224,17 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
   '/deployment': typeof AuthenticatedDeploymentRoute
+  '/deployments': typeof AuthenticatedDeploymentsRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
+  '/deployments/$deploymentId': typeof AuthenticatedDeploymentsDeploymentIdRouteWithChildren
   '/gensets/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
   '/sites/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
+  '/deployments/$deploymentId/alarms': typeof AuthenticatedDeploymentsDeploymentIdAlarmsRoute
+  '/deployments/$deploymentId/gensets': typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
+  '/deployments/$deploymentId/runs': typeof AuthenticatedDeploymentsDeploymentIdRunsRoute
+  '/deployments/$deploymentId/settings': typeof AuthenticatedDeploymentsDeploymentIdSettingsRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/gensets/$gensetId/deployments': typeof AuthenticatedGensetsGensetIdDeploymentsRoute
@@ -182,8 +244,10 @@ export interface FileRoutesByFullPath {
   '/gensets/$gensetId/settings': typeof AuthenticatedGensetsGensetIdSettingsRoute
   '/sites/$siteId/alarms': typeof AuthenticatedSitesSiteIdAlarmsRoute
   '/sites/$siteId/contract': typeof AuthenticatedSitesSiteIdContractRoute
+  '/sites/$siteId/deployments': typeof AuthenticatedSitesSiteIdDeploymentsRoute
   '/sites/$siteId/runs': typeof AuthenticatedSitesSiteIdRunsRoute
   '/sites/$siteId/settings': typeof AuthenticatedSitesSiteIdSettingsRoute
+  '/deployments/$deploymentId/': typeof AuthenticatedDeploymentsDeploymentIdIndexRoute
   '/gensets/$gensetId/': typeof AuthenticatedGensetsGensetIdIndexRoute
   '/sites/$siteId/': typeof AuthenticatedSitesSiteIdIndexRoute
 }
@@ -192,9 +256,14 @@ export interface FileRoutesByTo {
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
   '/deployment': typeof AuthenticatedDeploymentRoute
+  '/deployments': typeof AuthenticatedDeploymentsRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sites': typeof AuthenticatedSitesRoute
+  '/deployments/$deploymentId/alarms': typeof AuthenticatedDeploymentsDeploymentIdAlarmsRoute
+  '/deployments/$deploymentId/gensets': typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
+  '/deployments/$deploymentId/runs': typeof AuthenticatedDeploymentsDeploymentIdRunsRoute
+  '/deployments/$deploymentId/settings': typeof AuthenticatedDeploymentsDeploymentIdSettingsRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/gensets/$gensetId/deployments': typeof AuthenticatedGensetsGensetIdDeploymentsRoute
@@ -204,8 +273,10 @@ export interface FileRoutesByTo {
   '/gensets/$gensetId/settings': typeof AuthenticatedGensetsGensetIdSettingsRoute
   '/sites/$siteId/alarms': typeof AuthenticatedSitesSiteIdAlarmsRoute
   '/sites/$siteId/contract': typeof AuthenticatedSitesSiteIdContractRoute
+  '/sites/$siteId/deployments': typeof AuthenticatedSitesSiteIdDeploymentsRoute
   '/sites/$siteId/runs': typeof AuthenticatedSitesSiteIdRunsRoute
   '/sites/$siteId/settings': typeof AuthenticatedSitesSiteIdSettingsRoute
+  '/deployments/$deploymentId': typeof AuthenticatedDeploymentsDeploymentIdIndexRoute
   '/gensets/$gensetId': typeof AuthenticatedGensetsGensetIdIndexRoute
   '/sites/$siteId': typeof AuthenticatedSitesSiteIdIndexRoute
 }
@@ -216,11 +287,17 @@ export interface FileRoutesById {
   '/gallery': typeof GalleryRoute
   '/login': typeof LoginRoute
   '/_authenticated/deployment': typeof AuthenticatedDeploymentRoute
+  '/_authenticated/deployments': typeof AuthenticatedDeploymentsRoute
   '/_authenticated/gensets': typeof AuthenticatedGensetsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/sites': typeof AuthenticatedSitesRoute
+  '/_authenticated/deployments_/$deploymentId': typeof AuthenticatedDeploymentsDeploymentIdRouteWithChildren
   '/_authenticated/gensets_/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
   '/_authenticated/sites_/$siteId': typeof AuthenticatedSitesSiteIdRouteWithChildren
+  '/_authenticated/deployments_/$deploymentId/alarms': typeof AuthenticatedDeploymentsDeploymentIdAlarmsRoute
+  '/_authenticated/deployments_/$deploymentId/gensets': typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
+  '/_authenticated/deployments_/$deploymentId/runs': typeof AuthenticatedDeploymentsDeploymentIdRunsRoute
+  '/_authenticated/deployments_/$deploymentId/settings': typeof AuthenticatedDeploymentsDeploymentIdSettingsRoute
   '/_authenticated/gensets_/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/_authenticated/gensets_/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/_authenticated/gensets_/$gensetId/deployments': typeof AuthenticatedGensetsGensetIdDeploymentsRoute
@@ -230,8 +307,10 @@ export interface FileRoutesById {
   '/_authenticated/gensets_/$gensetId/settings': typeof AuthenticatedGensetsGensetIdSettingsRoute
   '/_authenticated/sites_/$siteId/alarms': typeof AuthenticatedSitesSiteIdAlarmsRoute
   '/_authenticated/sites_/$siteId/contract': typeof AuthenticatedSitesSiteIdContractRoute
+  '/_authenticated/sites_/$siteId/deployments': typeof AuthenticatedSitesSiteIdDeploymentsRoute
   '/_authenticated/sites_/$siteId/runs': typeof AuthenticatedSitesSiteIdRunsRoute
   '/_authenticated/sites_/$siteId/settings': typeof AuthenticatedSitesSiteIdSettingsRoute
+  '/_authenticated/deployments_/$deploymentId/': typeof AuthenticatedDeploymentsDeploymentIdIndexRoute
   '/_authenticated/gensets_/$gensetId/': typeof AuthenticatedGensetsGensetIdIndexRoute
   '/_authenticated/sites_/$siteId/': typeof AuthenticatedSitesSiteIdIndexRoute
 }
@@ -242,11 +321,17 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/login'
     | '/deployment'
+    | '/deployments'
     | '/gensets'
     | '/settings'
     | '/sites'
+    | '/deployments/$deploymentId'
     | '/gensets/$gensetId'
     | '/sites/$siteId'
+    | '/deployments/$deploymentId/alarms'
+    | '/deployments/$deploymentId/gensets'
+    | '/deployments/$deploymentId/runs'
+    | '/deployments/$deploymentId/settings'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
     | '/gensets/$gensetId/deployments'
@@ -256,8 +341,10 @@ export interface FileRouteTypes {
     | '/gensets/$gensetId/settings'
     | '/sites/$siteId/alarms'
     | '/sites/$siteId/contract'
+    | '/sites/$siteId/deployments'
     | '/sites/$siteId/runs'
     | '/sites/$siteId/settings'
+    | '/deployments/$deploymentId/'
     | '/gensets/$gensetId/'
     | '/sites/$siteId/'
   fileRoutesByTo: FileRoutesByTo
@@ -266,9 +353,14 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/login'
     | '/deployment'
+    | '/deployments'
     | '/gensets'
     | '/settings'
     | '/sites'
+    | '/deployments/$deploymentId/alarms'
+    | '/deployments/$deploymentId/gensets'
+    | '/deployments/$deploymentId/runs'
+    | '/deployments/$deploymentId/settings'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
     | '/gensets/$gensetId/deployments'
@@ -278,8 +370,10 @@ export interface FileRouteTypes {
     | '/gensets/$gensetId/settings'
     | '/sites/$siteId/alarms'
     | '/sites/$siteId/contract'
+    | '/sites/$siteId/deployments'
     | '/sites/$siteId/runs'
     | '/sites/$siteId/settings'
+    | '/deployments/$deploymentId'
     | '/gensets/$gensetId'
     | '/sites/$siteId'
   id:
@@ -289,11 +383,17 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/login'
     | '/_authenticated/deployment'
+    | '/_authenticated/deployments'
     | '/_authenticated/gensets'
     | '/_authenticated/settings'
     | '/_authenticated/sites'
+    | '/_authenticated/deployments_/$deploymentId'
     | '/_authenticated/gensets_/$gensetId'
     | '/_authenticated/sites_/$siteId'
+    | '/_authenticated/deployments_/$deploymentId/alarms'
+    | '/_authenticated/deployments_/$deploymentId/gensets'
+    | '/_authenticated/deployments_/$deploymentId/runs'
+    | '/_authenticated/deployments_/$deploymentId/settings'
     | '/_authenticated/gensets_/$gensetId/alarms'
     | '/_authenticated/gensets_/$gensetId/analysis'
     | '/_authenticated/gensets_/$gensetId/deployments'
@@ -303,8 +403,10 @@ export interface FileRouteTypes {
     | '/_authenticated/gensets_/$gensetId/settings'
     | '/_authenticated/sites_/$siteId/alarms'
     | '/_authenticated/sites_/$siteId/contract'
+    | '/_authenticated/sites_/$siteId/deployments'
     | '/_authenticated/sites_/$siteId/runs'
     | '/_authenticated/sites_/$siteId/settings'
+    | '/_authenticated/deployments_/$deploymentId/'
     | '/_authenticated/gensets_/$gensetId/'
     | '/_authenticated/sites_/$siteId/'
   fileRoutesById: FileRoutesById
@@ -353,6 +455,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeploymentRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/deployments': {
+      id: '/_authenticated/deployments'
+      path: '/deployments'
+      fullPath: '/deployments'
+      preLoaderRoute: typeof AuthenticatedDeploymentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/gensets': {
       id: '/_authenticated/gensets'
       path: '/gensets'
@@ -374,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSitesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/deployments_/$deploymentId': {
+      id: '/_authenticated/deployments_/$deploymentId'
+      path: '/deployments/$deploymentId'
+      fullPath: '/deployments/$deploymentId'
+      preLoaderRoute: typeof AuthenticatedDeploymentsDeploymentIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/gensets_/$gensetId': {
       id: '/_authenticated/gensets_/$gensetId'
       path: '/gensets/$gensetId'
@@ -387,6 +503,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/sites/$siteId'
       preLoaderRoute: typeof AuthenticatedSitesSiteIdRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/deployments_/$deploymentId/': {
+      id: '/_authenticated/deployments_/$deploymentId/'
+      path: '/'
+      fullPath: '/deployments/$deploymentId/'
+      preLoaderRoute: typeof AuthenticatedDeploymentsDeploymentIdIndexRouteImport
+      parentRoute: typeof AuthenticatedDeploymentsDeploymentIdRoute
+    }
+    '/_authenticated/deployments_/$deploymentId/alarms': {
+      id: '/_authenticated/deployments_/$deploymentId/alarms'
+      path: '/alarms'
+      fullPath: '/deployments/$deploymentId/alarms'
+      preLoaderRoute: typeof AuthenticatedDeploymentsDeploymentIdAlarmsRouteImport
+      parentRoute: typeof AuthenticatedDeploymentsDeploymentIdRoute
+    }
+    '/_authenticated/deployments_/$deploymentId/gensets': {
+      id: '/_authenticated/deployments_/$deploymentId/gensets'
+      path: '/gensets'
+      fullPath: '/deployments/$deploymentId/gensets'
+      preLoaderRoute: typeof AuthenticatedDeploymentsDeploymentIdGensetsRouteImport
+      parentRoute: typeof AuthenticatedDeploymentsDeploymentIdRoute
+    }
+    '/_authenticated/deployments_/$deploymentId/runs': {
+      id: '/_authenticated/deployments_/$deploymentId/runs'
+      path: '/runs'
+      fullPath: '/deployments/$deploymentId/runs'
+      preLoaderRoute: typeof AuthenticatedDeploymentsDeploymentIdRunsRouteImport
+      parentRoute: typeof AuthenticatedDeploymentsDeploymentIdRoute
+    }
+    '/_authenticated/deployments_/$deploymentId/settings': {
+      id: '/_authenticated/deployments_/$deploymentId/settings'
+      path: '/settings'
+      fullPath: '/deployments/$deploymentId/settings'
+      preLoaderRoute: typeof AuthenticatedDeploymentsDeploymentIdSettingsRouteImport
+      parentRoute: typeof AuthenticatedDeploymentsDeploymentIdRoute
     }
     '/_authenticated/gensets_/$gensetId/': {
       id: '/_authenticated/gensets_/$gensetId/'
@@ -465,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSitesSiteIdContractRouteImport
       parentRoute: typeof AuthenticatedSitesSiteIdRoute
     }
+    '/_authenticated/sites_/$siteId/deployments': {
+      id: '/_authenticated/sites_/$siteId/deployments'
+      path: '/deployments'
+      fullPath: '/sites/$siteId/deployments'
+      preLoaderRoute: typeof AuthenticatedSitesSiteIdDeploymentsRouteImport
+      parentRoute: typeof AuthenticatedSitesSiteIdRoute
+    }
     '/_authenticated/sites_/$siteId/runs': {
       id: '/_authenticated/sites_/$siteId/runs'
       path: '/runs'
@@ -481,6 +639,33 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthenticatedDeploymentsDeploymentIdRouteChildren {
+  AuthenticatedDeploymentsDeploymentIdAlarmsRoute: typeof AuthenticatedDeploymentsDeploymentIdAlarmsRoute
+  AuthenticatedDeploymentsDeploymentIdGensetsRoute: typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
+  AuthenticatedDeploymentsDeploymentIdRunsRoute: typeof AuthenticatedDeploymentsDeploymentIdRunsRoute
+  AuthenticatedDeploymentsDeploymentIdSettingsRoute: typeof AuthenticatedDeploymentsDeploymentIdSettingsRoute
+  AuthenticatedDeploymentsDeploymentIdIndexRoute: typeof AuthenticatedDeploymentsDeploymentIdIndexRoute
+}
+
+const AuthenticatedDeploymentsDeploymentIdRouteChildren: AuthenticatedDeploymentsDeploymentIdRouteChildren =
+  {
+    AuthenticatedDeploymentsDeploymentIdAlarmsRoute:
+      AuthenticatedDeploymentsDeploymentIdAlarmsRoute,
+    AuthenticatedDeploymentsDeploymentIdGensetsRoute:
+      AuthenticatedDeploymentsDeploymentIdGensetsRoute,
+    AuthenticatedDeploymentsDeploymentIdRunsRoute:
+      AuthenticatedDeploymentsDeploymentIdRunsRoute,
+    AuthenticatedDeploymentsDeploymentIdSettingsRoute:
+      AuthenticatedDeploymentsDeploymentIdSettingsRoute,
+    AuthenticatedDeploymentsDeploymentIdIndexRoute:
+      AuthenticatedDeploymentsDeploymentIdIndexRoute,
+  }
+
+const AuthenticatedDeploymentsDeploymentIdRouteWithChildren =
+  AuthenticatedDeploymentsDeploymentIdRoute._addFileChildren(
+    AuthenticatedDeploymentsDeploymentIdRouteChildren,
+  )
 
 interface AuthenticatedGensetsGensetIdRouteChildren {
   AuthenticatedGensetsGensetIdAlarmsRoute: typeof AuthenticatedGensetsGensetIdAlarmsRoute
@@ -521,6 +706,7 @@ const AuthenticatedGensetsGensetIdRouteWithChildren =
 interface AuthenticatedSitesSiteIdRouteChildren {
   AuthenticatedSitesSiteIdAlarmsRoute: typeof AuthenticatedSitesSiteIdAlarmsRoute
   AuthenticatedSitesSiteIdContractRoute: typeof AuthenticatedSitesSiteIdContractRoute
+  AuthenticatedSitesSiteIdDeploymentsRoute: typeof AuthenticatedSitesSiteIdDeploymentsRoute
   AuthenticatedSitesSiteIdRunsRoute: typeof AuthenticatedSitesSiteIdRunsRoute
   AuthenticatedSitesSiteIdSettingsRoute: typeof AuthenticatedSitesSiteIdSettingsRoute
   AuthenticatedSitesSiteIdIndexRoute: typeof AuthenticatedSitesSiteIdIndexRoute
@@ -531,6 +717,8 @@ const AuthenticatedSitesSiteIdRouteChildren: AuthenticatedSitesSiteIdRouteChildr
     AuthenticatedSitesSiteIdAlarmsRoute: AuthenticatedSitesSiteIdAlarmsRoute,
     AuthenticatedSitesSiteIdContractRoute:
       AuthenticatedSitesSiteIdContractRoute,
+    AuthenticatedSitesSiteIdDeploymentsRoute:
+      AuthenticatedSitesSiteIdDeploymentsRoute,
     AuthenticatedSitesSiteIdRunsRoute: AuthenticatedSitesSiteIdRunsRoute,
     AuthenticatedSitesSiteIdSettingsRoute:
       AuthenticatedSitesSiteIdSettingsRoute,
@@ -544,18 +732,23 @@ const AuthenticatedSitesSiteIdRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDeploymentRoute: typeof AuthenticatedDeploymentRoute
+  AuthenticatedDeploymentsRoute: typeof AuthenticatedDeploymentsRoute
   AuthenticatedGensetsRoute: typeof AuthenticatedGensetsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSitesRoute: typeof AuthenticatedSitesRoute
+  AuthenticatedDeploymentsDeploymentIdRoute: typeof AuthenticatedDeploymentsDeploymentIdRouteWithChildren
   AuthenticatedGensetsGensetIdRoute: typeof AuthenticatedGensetsGensetIdRouteWithChildren
   AuthenticatedSitesSiteIdRoute: typeof AuthenticatedSitesSiteIdRouteWithChildren
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDeploymentRoute: AuthenticatedDeploymentRoute,
+  AuthenticatedDeploymentsRoute: AuthenticatedDeploymentsRoute,
   AuthenticatedGensetsRoute: AuthenticatedGensetsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSitesRoute: AuthenticatedSitesRoute,
+  AuthenticatedDeploymentsDeploymentIdRoute:
+    AuthenticatedDeploymentsDeploymentIdRouteWithChildren,
   AuthenticatedGensetsGensetIdRoute:
     AuthenticatedGensetsGensetIdRouteWithChildren,
   AuthenticatedSitesSiteIdRoute: AuthenticatedSitesSiteIdRouteWithChildren,

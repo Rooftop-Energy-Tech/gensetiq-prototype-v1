@@ -1,53 +1,52 @@
 import {Link} from '@tanstack/react-router';
 import {useEffect} from 'react';
 import type {KeyboardEvent, RefObject} from 'react';
-import {ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, CircleIcon, TruckIcon} from 'lucide-react';
+import {ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
+import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, dayMonth, duration, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {DeploymentRow} from '../data/feed';
 import type {DeploymentSort, DeploymentSortDirection} from '../types/view.type';
+import {DEPLOYMENT_STATE_META} from './stateMeta';
 
 /**
- * The dispatch feed as a table — the registers' table, over postings.
+ * The register as a table — the registers' table, over jobs.
  *
- * It was this screen's only view, and most of what it drew survives: sticky 40px
- * header, 52px rows, hairline rules, the same cell shapes. What changed is that it
- * is now *one* of four and has to behave like the registers' tables do — its headers
- * are the ordering control, its rows select into a preview panel rather than only
- * linking out, and the columns it drops below 600px are declared rather than
- * improvised.
+ * ## The columns, and the two that left with the model
  *
- * ## The columns, and the two that went
+ * `Deployment`, `Status`, `Gensets`, `Window`, `On load`, `Fuel burned`.
  *
- * `Genset`, `Status`, `Site`, `Window`, `On load`, `Fuel burned`, `Lorry`. Energy
- * came out: it is the same posting's work stated a second way, it is the figure
- * nobody dispatches against, and the preview panel states it beside the litres it
- * belongs with. `Status` stayed even though the feed's own ordering leads with the
- * open postings, because a reader who has sorted by fuel is looking at a list where
- * that ordering no longer says it.
+ * `Genset` was the leading column while a row *was* one machine's posting. A job has
+ * one to three sets on it, so the machine becomes a count with the tags behind it and
+ * the reference takes the lead: `DEP-0042` over the yard it is at, which is the pair
+ * an operations room says out loud.
+ *
+ * `Lorry` went with it. A plate belongs to a machine rather than to a job, and a job
+ * with three sets arrived on three of them — one column cannot hold that honestly.
+ * It stays searchable, and it is on the job's own page against each machine.
+ *
+ * Energy stays out, for the reason it was left out before: it is the same job's work
+ * stated a second way, nobody dispatches against it, and the preview panel states it
+ * beside the litres it belongs with.
  *
  * ## Which columns are sortable and which are not
  *
- * Four of the seven, and they are the four the toolbar's dropdown also offers —
- * `Genset`, `Window`, `On load`, `Fuel burned`. The other three are not orderings
- * anybody wants: `Status` is the strip's chips, `Site` is what the search box
- * matches, and a fleet sorted by lorry plate is a list nobody asked for. A header
- * that is not a control is drawn as plain text rather than as a button with nothing
- * behind it.
+ * Five of the six, and the odd one out is `Status`, which is the strip's three chips.
+ * A header that is not a control is drawn as plain text rather than as a button with
+ * nothing behind it.
  *
- * Time standing is `On load`'s neighbour rather than its own column: it is the
- * second line under the window, where it already was.
+ * Time standing is `On load`'s neighbour rather than its own column: it is the second
+ * line under the window, where it already was.
  */
 const COLUMNS = [
-  {label: 'Genset', width: '17%', sort: 'genset'},
-  {label: 'Status', width: '11%', sort: undefined},
-  {label: 'Site', width: '18%', sort: undefined},
-  {label: 'Window', width: '18%', sort: 'started'},
+  {label: 'Deployment', width: '24%', sort: 'reference'},
+  {label: 'Status', width: '12%', sort: undefined},
+  {label: 'Gensets', width: '20%', sort: 'genset'},
+  {label: 'Window', width: '20%', sort: 'started'},
   {label: 'On load', width: '12%', sort: 'duration'},
   {label: 'Fuel burned', width: '12%', sort: 'fuel'},
-  {label: 'Lorry', width: '12%', sort: undefined},
 ] as const satisfies ReadonlyArray<{
   label: string;
   width: string;
@@ -57,21 +56,41 @@ const COLUMNS = [
 /**
  * The width below which this table scrolls sideways rather than squeezing.
  *
- * Seven columns rather than the sites list's three, and two of them hold figures
- * with units — so the floor is higher than that table's 600px. Below it the row's
- * own scroll container takes over, which is the honest failure: a table you can push
- * sideways, rather than `1,240 L` printed over a lorry plate.
+ * Six columns rather than the sites list's three, and two of them hold figures with
+ * units — so the floor is higher than that table's 600px. Below it the row's own
+ * scroll container takes over, which is the honest failure: a table you can push
+ * sideways, rather than `1,240 L` printed over a date.
  */
-const TABLE_MIN_WIDTH = 'min-w-[860px]';
+const TABLE_MIN_WIDTH = 'min-w-[820px]';
 
-/** "12 Aug – ongoing" / "3 Aug – 14 Aug". The posting's span, tersely. */
-const windowLabel = (row: DeploymentRow): string =>
-  row.deployment.endedAt === null
-    ? `${dayMonth(row.deployment.startedAt)} – ongoing`
-    : `${dayMonth(row.deployment.startedAt)} – ${dayMonth(row.deployment.endedAt)}`;
+/**
+ * "12 Aug – ongoing" / "3 Aug – 14 Aug" / "from 2 Oct". The job's span, tersely.
+ *
+ * A planned job reads *from* its start rather than as a range, because the range is
+ * the thing about it that has not happened: what a dispatcher needs off this row is
+ * the date the lorry is wanted.
+ */
+const windowLabel = (row: DeploymentRow): string => {
+  const {startsAt, endsAt} = row.deployment;
+  if (row.state === 'planned') return `from ${dayMonth(startsAt)}`;
+  if (endsAt === null) return `${dayMonth(startsAt)} – ongoing`;
+  return `${dayMonth(startsAt)} – ${dayMonth(endsAt)}`;
+};
+
+/**
+ * The second line under the window: how long it has stood, or how far off it is.
+ *
+ * `duration()` of a planned job's elapsed time would read `0m`, which says nothing.
+ */
+const windowDetail = (row: DeploymentRow, now: number): string => {
+  if (row.state !== 'planned') return duration(row.elapsedMs);
+  return `in ${duration(row.startedMs - now)}`;
+};
 
 type DeploymentsTableProps = {
   rows: Array<DeploymentRow>;
+  /** One clock reading for the whole table — see `DeploymentPage`. */
+  now: number;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
   sort: DeploymentSort;
@@ -90,6 +109,7 @@ type DeploymentsTableProps = {
 
 export const DeploymentsTable = ({
   rows,
+  now,
   selectedId,
   onSelect,
   sort,
@@ -133,7 +153,8 @@ export const DeploymentsTable = ({
         )}
       >
         <caption className="sr-only">
-          Genset deployments, ongoing first, with each posting's window and what it cost
+          Deployments, the ones standing first, with each job's window, the machines on
+          it, and what it cost
         </caption>
         <colgroup>
           {COLUMNS.map((column) => (
@@ -221,83 +242,113 @@ export const DeploymentsTable = ({
                   selected && 'bg-highlight hover:bg-highlight',
                 )}
               >
-                {/* The row selects into the preview panel and the two links navigate
+                {/* The row selects into the preview panel and the links navigate
                     — the registers' split. `stopPropagation` on each, or opening a
-                    machine would also move the panel onto a posting we are leaving. */}
+                    job would also move the panel onto a row we are leaving. */}
                 <td className="h-13 truncate border-b border-subtle p-2 font-medium">
                   <Link
-                    to="/gensets/$gensetId"
-                    params={{gensetId: row.deployment.gensetId}}
+                    to="/deployments/$deploymentId"
+                    params={{deploymentId: row.deployment.id}}
                     onClick={(event) => event.stopPropagation()}
                     className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                   >
-                    {row.tag}
+                    {row.deployment.reference}
                   </Link>
-                  <span className="block truncate text-xs text-tertiary">{row.model}</span>
-                </td>
-
-                <td className="h-13 border-b border-subtle p-2">
-                  {row.ongoing ? (
-                    <Badge variant="secondary">
-                      <CircleIcon className="text-severity-ok" aria-hidden="true" />
-                      Deployed
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">
-                      <TruckIcon className="text-tertiary" aria-hidden="true" />
-                      Completed
-                    </Badge>
-                  )}
-                </td>
-
-                <td className="h-13 truncate border-b border-subtle p-2">
                   <Link
                     to="/sites/$siteId"
                     params={{siteId: row.deployment.siteId}}
                     onClick={(event) => event.stopPropagation()}
-                    className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+                    className="block truncate rounded-sm text-xs text-tertiary underline-offset-4 outline-none hover:text-secondary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                   >
                     {row.siteName}
                   </Link>
+                </td>
+
+                <td className="h-13 border-b border-subtle p-2">
+                  {(() => {
+                    const meta = DEPLOYMENT_STATE_META[row.state];
+                    const Icon = meta.icon;
+                    return (
+                      <Badge variant="secondary">
+                        <Icon className={meta.iconClassName} aria-hidden="true" />
+                        {meta.label}
+                      </Badge>
+                    );
+                  })()}
+                </td>
+
+                {/* The count leads and the tags sit under it, because three tags do
+                    not fit a 20% column and "three sets" is the fact the row is
+                    scanned for. The full list is one hover away, and it is on the
+                    job's own page for anybody who needs to click a machine. */}
+                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="block cursor-help truncate">
+                        {row.members.length === 0
+                          ? 'None yet'
+                          : `${row.members.length} ${row.members.length === 1 ? 'genset' : 'gensets'}`}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-64">
+                      {row.members.length === 0
+                        ? 'No machines on this job yet'
+                        : row.members
+                            .map(
+                              (member) =>
+                                `${member.tag}${member.collected ? ' (collected)' : ''}`,
+                            )
+                            .join(' · ')}
+                    </TooltipContent>
+                  </Tooltip>
                   <span className="block truncate text-xs text-tertiary">
-                    {row.locationLabel}
+                    {row.members.map((member) => member.tag).join(', ')}
                   </span>
                 </td>
 
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
                   <span
                     className="block truncate"
-                    title={`${stampDate(row.deployment.startedAt)}${
-                      row.deployment.endedAt === null
+                    title={`${stampDate(row.deployment.startsAt)}${
+                      row.deployment.endsAt === null
                         ? ''
-                        : ` to ${stampDate(row.deployment.endedAt)}`
+                        : ` to ${stampDate(row.deployment.endsAt)}`
                     }`}
                   >
                     {windowLabel(row)}
                   </span>
                   <span className="block truncate text-xs text-tertiary">
-                    {duration(row.elapsedMs)}
+                    {windowDetail(row, now)}
                   </span>
                 </td>
 
+                {/* A planned job has nothing to report: no runs, no litres. A dash
+                    rather than `0 h`, which would read as a job that stood and did
+                    nothing. */}
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  <span
-                    className="block truncate"
-                    title={`${row.totals.starts} start${row.totals.starts === 1 ? '' : 's'} inside this deployment`}
-                  >
-                    {amount(row.totals.runtimeHours, 'h')}
-                  </span>
-                  <span className="block truncate text-xs text-tertiary">
-                    {row.totals.starts} start{row.totals.starts === 1 ? '' : 's'}
-                  </span>
+                  {row.state === 'planned' ? (
+                    <span className="text-tertiary">—</span>
+                  ) : (
+                    <>
+                      <span
+                        className="block truncate"
+                        title={`${row.totals.starts} start${row.totals.starts === 1 ? '' : 's'} inside this deployment`}
+                      >
+                        {amount(row.totals.runtimeHours, 'h')}
+                      </span>
+                      <span className="block truncate text-xs text-tertiary">
+                        {row.totals.starts} start{row.totals.starts === 1 ? '' : 's'}
+                      </span>
+                    </>
+                  )}
                 </td>
 
                 <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {amount(row.totals.fuelBurnedLitres, 'L')}
-                </td>
-
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {row.deployment.lorryPlate}
+                  {row.state === 'planned' ? (
+                    <span className="text-tertiary">—</span>
+                  ) : (
+                    amount(row.totals.fuelBurnedLitres, 'L')
+                  )}
                 </td>
               </tr>
             );

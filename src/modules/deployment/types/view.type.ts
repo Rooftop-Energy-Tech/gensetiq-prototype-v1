@@ -1,5 +1,7 @@
 import {z} from 'zod';
 
+import {DEPLOYMENT_STATES} from './deployment.type';
+
 /**
  * Four views, where the registers have three.
  *
@@ -13,24 +15,14 @@ export const DEPLOYMENT_VIEWS = ['split', 'list', 'map', 'gantt'] as const;
 export type DeploymentView = (typeof DEPLOYMENT_VIEWS)[number];
 
 /**
- * The two states a posting can be in, and the strip's two chips.
+ * How the register is ordered. `started` is the default and the register's own
+ * ranking — active jobs first, then what is committed, then the record, newest at
+ * the top of each.
  *
- * Not a status vocabulary like the fleet's four: a posting is open or it is closed,
- * and everything else a reader might call a state — late, overrunning, due back —
- * is a judgement this prototype has no contract to make.
+ * Five, because five is what the columns can answer for: which job it is, when it
+ * went out, how long it has stood, what it burned, and which machines are on it.
  */
-export const DEPLOYMENT_STATES = ['ongoing', 'completed'] as const;
-
-export type DeploymentState = (typeof DEPLOYMENT_STATES)[number];
-
-/**
- * How the feed is ordered. `started` is the default and the feed's own ranking —
- * ongoing first, newest posting at the top.
- *
- * Four, because four is what the columns can answer for: when it went out, how long
- * it has been standing, what it burned, and whose machine it is.
- */
-export const DEPLOYMENT_SORTS = ['started', 'duration', 'fuel', 'genset'] as const;
+export const DEPLOYMENT_SORTS = ['started', 'duration', 'fuel', 'genset', 'reference'] as const;
 
 export type DeploymentSort = (typeof DEPLOYMENT_SORTS)[number];
 
@@ -43,14 +35,15 @@ export type DeploymentSortDirection = (typeof DEPLOYMENT_SORT_DIRECTIONS)[number
  * its reasoning: first click means *the answer you wanted*, not *ascending*.
  *
  * `started` and `duration` and `fuel` all run downwards, because the useful end of
- * each is the top of its scale: the newest posting, the longest standing, the
- * thirstiest. Only the tag runs A to Z.
+ * each is the top of its scale: the newest job, the longest standing, the
+ * thirstiest. The reference and the tags run A to Z, because both are lookups.
  */
 export const DEPLOYMENT_SORT_DEFAULT_DIRECTION: Record<DeploymentSort, DeploymentSortDirection> = {
   started: 'desc',
   duration: 'desc',
   fuel: 'desc',
   genset: 'asc',
+  reference: 'asc',
 };
 
 /**
@@ -65,7 +58,7 @@ export const DEPLOYMENT_SORT_DEFAULT_DIRECTION: Record<DeploymentSort, Deploymen
 export const deploymentSearchSchema = z.object({
   view: z.enum(DEPLOYMENT_VIEWS).default('split').catch('split'),
   q: z.string().optional().catch(undefined),
-  /** The strip's two chips — open postings, or the record underneath them. */
+  /** The strip's three chips — what is committed, what is out, and the record. */
   state: z.enum(DEPLOYMENT_STATES).optional().catch(undefined),
   /**
    * Whose estate the posting stood at. A plain string rather than an enum for the

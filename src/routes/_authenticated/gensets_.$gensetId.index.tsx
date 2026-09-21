@@ -1,7 +1,8 @@
 import {createFileRoute, useParams} from '@tanstack/react-router';
 
 import {GensetHome} from '@/modules/genset/components/detail/GensetHome';
-import {gensetById, gensetDetail} from '@/modules/genset/data/detail';
+import {gensetById} from '@/modules/genset/data/deployment';
+import {gensetDetail} from '@/modules/genset/data/detail';
 
 /**
  * The genset home page — the tab a click from the fleet list lands on.

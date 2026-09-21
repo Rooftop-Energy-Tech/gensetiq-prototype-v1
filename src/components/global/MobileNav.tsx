@@ -43,7 +43,7 @@ import type {SiteSearch} from '@/modules/site/types/view.type';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/sites' | '/gensets' | '/deployment';
+  link: '/sites' | '/gensets' | '/deployments';
   /**
    * The screen's own view state, whole.
    *
@@ -68,9 +68,9 @@ const ITEMS: Array<MobileNavItem> = [
   // The dispatch feed. On the bar rather than a tap away through a site, because on a
   // mobile fleet "what is out and since when" is the question asked standing in a yard.
   {
-    label: 'Deployment',
+    label: 'Deployments',
     icon: TruckIcon,
-    link: '/deployment',
+    link: '/deployments',
     search: deploymentSearch({view: 'list'}),
   },
   // The estate. Last here for the same reason it is last on the rail: a site is

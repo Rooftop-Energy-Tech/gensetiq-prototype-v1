@@ -1,7 +1,7 @@
 import type {GensetRun} from '../types/run.type';
 import type {ReadingSeries, Sample, SeriesThreshold} from '../types/series.type';
-import {GENSETS} from './fleet';
-import {READING_SWING, gensetById, gensetDetail, sfcLitresPerKwh} from './detail';
+import {GENSETS, seededGenset} from './fleet';
+import {READING_SWING, gensetDetail, sfcLitresPerKwh} from './detail';
 import {lossRateOf, lossStartedHoursAgo} from './fuelInstruments';
 import {spread, spreadBetween} from './spread';
 
@@ -371,7 +371,7 @@ const fuelLadder = (gensetId: string): Array<number> => {
   if (cached !== undefined) return cached;
 
   const detail = gensetDetail(gensetId);
-  const genset = gensetById(gensetId);
+  const genset = seededGenset(gensetId);
   if (detail === undefined || genset === undefined) return [];
 
   const capacity = detail.fuel.maxLitres;
@@ -548,7 +548,7 @@ export const readingSeries = (
   to: number,
   now: number,
 ): ReadingSeries | undefined => {
-  const genset = gensetById(gensetId);
+  const genset = seededGenset(gensetId);
   const detail = gensetDetail(gensetId);
   if (genset === undefined || detail === undefined) return undefined;
 

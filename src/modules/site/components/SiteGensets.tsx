@@ -1,200 +1,256 @@
-import {useState} from 'react';
-import {BoomBoxIcon, MapPinIcon, PlusIcon, XIcon} from 'lucide-react';
+import {useId, useState} from 'react';
+import {Link, useNavigate} from '@tanstack/react-router';
+import {ArrowRightIcon, BoomBoxIcon, PlusIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
-import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
+import {Input} from '@/components/ui/input';
+import {dayMonth, duration} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import {deployGenset, useFleet} from '@/modules/genset/data/deployment';
+import {DEPLOYMENT_STATE_META} from '@/modules/deployment/components/stateMeta';
+import {
+  createDeployment,
+  deploymentMembers,
+  deploymentsAtSite,
+  useDeployments,
+} from '@/modules/deployment/data/store';
+import {deploymentElapsedMs, deploymentState} from '@/modules/deployment/types/deployment.type';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
-import type {Genset} from '@/modules/genset/types/genset.type';
-import {siteLabel} from '../data/siteSeed';
+import {useFleet} from '@/modules/genset/data/deployment';
 import type {SiteSummary} from '../data/sites';
 
 /**
- * Which gensets stand at this site — and the control that changes it.
+ * Which gensets stand at this site, and the job each one is here under.
  *
- * The Settings tab's original placeholder promised exactly this, and it is the other
- * half of what a site *is*: a place, and the machines on it. The power role above
- * says how the yard is fed; this says what is in it.
+ * ## What replaced the attach picker, and why
  *
- * ## Attaching moves the machine
+ * This section used to carry an `Attach genset` picker that moved a machine on
+ * click. It was the only way to place plant, and it wrote membership with **no
+ * window**: a machine was at a yard, with nothing recording since when or for how
+ * long. That is the gap the deployment model closes, so the control is gone and this
+ * section is a *reading* of the jobs standing here.
  *
- * A site is a customer's **yard**, not a folder — `fleet.ts` puts co-sited units
- * within a hundred metres of each other because that is what being at the same site
- * means. So attaching is a lorry, not a checkbox: the set takes on the site's
- * placename and a spot in its yard, and its pin moves on the fleet map.
+ * A machine is now at a yard **because a job put it there**, which means the only
+ * honest control on a site is one that starts a job. That is the button at the
+ * bottom: it opens a deployment at this site and sends the reader to its Gensets
+ * section, which is where machines go on. Two steps, and they are the two steps the
+ * work actually has — the job is agreed with a customer, and the sets are found
+ * afterwards.
  *
- * That consequence is written on the control rather than left to be discovered.
- * Somebody attaching a Penang set to a Petaling Jaya site is relocating it, and a
- * picker that quietly did so while claiming to "add" would be lying about the
- * biggest thing it does.
+ * Where a job is already standing here, the primary way in is that job rather than a
+ * new one: adding a fourth set to a five-week hire is the common case, and starting a
+ * second job at the same yard for it would split one hire into two records.
  *
- * **Detaching moves nothing.** The set stops being part of this installation and
- * goes to the depot; it is still standing in the yard until somebody collects it.
+ * ## Why collecting is not offered here at all
  *
- * ## Why other sites' sets are in the picker
- *
- * Because the alternative is worse. Restricting it to the depot would make every
- * transfer a two-step errand across two pages, and the intermediate state — a set
- * belonging nowhere — is one nobody asked for. Listing them with `Move from Hosp-006`
- * on the button keeps the one step while making it impossible to take a set off
- * another site without reading that you are doing it.
+ * Because collecting a machine is an act on the job rather than on the yard: the
+ * membership closes, the machine leaves and nothing moves. A `Detach` button on a
+ * site would be the old model's control with the new model's data underneath it,
+ * which is exactly how a page starts disagreeing with the record it draws.
  */
-
-/** Tag, model and run state — the three facts every row here leads with. */
-const GensetIdentity = ({genset}: {genset: Genset}) => {
-  const meta = RUN_STATE_META[genset.runState];
-  const Icon = meta.icon;
-
-  return (
-    <span className="flex min-w-0 items-center gap-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-highlight">
-        <BoomBoxIcon className="size-[18px] text-secondary" aria-hidden="true" />
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-medium text-primary">{genset.tag}</span>
-        <span className="truncate text-[13px] leading-[18px] text-secondary">{genset.model}</span>
-      </span>
-      <Badge variant="element" className="ml-1 shrink-0 border-subtle">
-        <Icon className={cn('size-3', meta.iconClassName)} aria-hidden="true" />
-        {meta.label}
-      </Badge>
-    </span>
-  );
-};
-
 export const SiteGensets = ({summary}: {summary: SiteSummary}) => {
-  const all = useFleet();
-  const [picking, setPicking] = useState(false);
+  const fleet = useFleet();
+  const navigate = useNavigate();
+  const ids = useId();
+  const [opening, setOpening] = useState(false);
+  const [endsAt, setEndsAt] = useState('');
 
-  const {site, gensets} = summary;
+  // The record, live: opening a job here has to show up without a reload.
+  useDeployments();
+  const [now] = useState(() => Date.now());
 
-  /**
-   * Everything not already here, depot first.
-   *
-   * Depot leads because it is the cost-free choice — taking a set from there changes
-   * one site, taking one from another yard changes two.
-   */
-  const candidates = all
-    .filter((genset) => genset.siteId !== site.id)
-    .sort(
-      (left, right) =>
-        Number(left.siteId !== null) - Number(right.siteId !== null) ||
-        left.tag.localeCompare(right.tag),
-    );
+  const {site} = summary;
 
-  const attach = (gensetId: string) => {
-    deployGenset(gensetId, site.id);
-    setPicking(false);
+  // Standing and booked, because both are things about this yard a reader needs. The
+  // closed ones are the site's Deployments section, which is the history.
+  const jobs = deploymentsAtSite(site.id).filter(
+    (job) => deploymentState(job, now) !== 'completed',
+  );
+  const standing = jobs.filter((job) => deploymentState(job, now) === 'active');
+
+  const open = () => {
+    const job = createDeployment({
+      siteId: site.id,
+      startsAt: new Date(now).toISOString(),
+      endsAt: endsAt === '' ? null : new Date(`${endsAt}T12:00:00`).toISOString(),
+    });
+    // Straight to where the machines go on: a job with nothing on it is a page
+    // waiting to be filled, and leaving the reader here would make them find it.
+    void navigate({
+      to: '/deployments/$deploymentId/gensets',
+      params: {deploymentId: job.id},
+    });
   };
 
   return (
-    <section aria-labelledby="gensets-installed" className="flex flex-col gap-5 px-6 py-7">
+    <section aria-labelledby="gensets-deployed" className="flex flex-col gap-5 px-6 py-7">
       <div className="flex flex-col gap-1">
-        <h2 id="gensets-installed" className="text-sm font-medium text-primary">
-          Gensets installed
+        <h2 id="gensets-deployed" className="text-sm font-medium text-primary">
+          Gensets deployed here
         </h2>
         <p className="max-w-2xl text-sm text-secondary">
-          The machines standing at {site.name}. Attaching one deploys it here — it takes this
-          site's location and moves on the fleet map. Detaching sends it to the depot; nothing
-          physically moves until somebody collects it.
+          The machines standing at {site.name}, and the deployment each one is here
+          under. A machine is at a yard because a job put it there, so machines go on
+          and come off from the job rather than from the site.
         </p>
       </div>
 
-      <div className="flex max-w-3xl flex-col gap-2">
-        {gensets.length === 0 ? (
+      <div className="flex max-w-3xl flex-col gap-4">
+        {jobs.length === 0 ? (
           <p className="rounded-lg border border-dashed border-subtle px-4 py-6 text-center text-sm text-secondary">
-            No gensets are installed here. This site has no standby plant of its own.
+            No deployment standing or booked here. Nothing of ours is in this yard.
           </p>
         ) : (
-          gensets.map(({genset}) => (
-            <div
-              key={genset.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-subtle bg-element p-3"
-            >
-              <GensetIdentity genset={genset} />
+          jobs.map((job) => {
+            const state = deploymentState(job, now);
+            const meta = DEPLOYMENT_STATE_META[state];
+            const StateIcon = meta.icon;
+            const members = deploymentMembers(job.id).filter(
+              (member) => member.collectedAt === null,
+            );
 
-              <span className="flex shrink-0 items-center gap-3">
-                {/* Worth saying before somebody detaches it. The site's draw and its
-                    whole diagram hang off whichever set is on the bus. */}
-                {genset.id === summary.defaultDutyId && (
-                  <span className="text-[13px] text-secondary">on the bus</span>
-                )}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deployGenset(genset.id, null)}
+            return (
+              <div key={job.id} className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Link
+                      to="/deployments/$deploymentId"
+                      params={{deploymentId: job.id}}
+                      className="rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                     >
-                      <XIcon aria-hidden="true" />
-                      Detach
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-64">
-                    Send {genset.tag} to the depot. It stays where it is standing — only its
-                    membership of {site.name} ends.
-                  </TooltipContent>
-                </Tooltip>
-              </span>
-            </div>
-          ))
+                      {job.reference}
+                    </Link>
+                    <Badge variant="element" className="border-subtle">
+                      <StateIcon className={meta.iconClassName} aria-hidden="true" />
+                      {meta.label}
+                    </Badge>
+                    <span className="text-[13px] text-secondary">
+                      {state === 'planned'
+                        ? `from ${dayMonth(job.startsAt)}`
+                        : `${duration(deploymentElapsedMs(job, now))} standing`}
+                    </span>
+                  </div>
+
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/deployments/$deploymentId/gensets" params={{deploymentId: job.id}}>
+                      {state === 'active' ? 'Add or collect' : 'Book gensets'}
+                      <ArrowRightIcon aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </div>
+
+                {members.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-subtle px-4 py-4 text-center text-[13px] text-secondary">
+                    Nothing on this deployment yet.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {members.map((member) => {
+                      const genset = fleet.find((machine) => machine.id === member.gensetId);
+                      const runMeta =
+                        genset === undefined ? undefined : RUN_STATE_META[genset.runState];
+                      const RunIcon = runMeta?.icon;
+
+                      return (
+                        <li
+                          key={member.id}
+                          className="flex items-center justify-between gap-4 rounded-lg border border-subtle bg-element p-3"
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-highlight">
+                              <BoomBoxIcon
+                                className="size-[18px] text-secondary"
+                                aria-hidden="true"
+                              />
+                            </span>
+                            <span className="flex min-w-0 flex-col">
+                              <Link
+                                to="/gensets/$gensetId"
+                                params={{gensetId: member.gensetId}}
+                                className="truncate rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+                              >
+                                {genset?.tag ?? member.gensetId}
+                              </Link>
+                              <span className="truncate text-[13px] leading-[18px] text-secondary">
+                                {genset?.model ?? ''}
+                              </span>
+                            </span>
+                            {RunIcon !== undefined && runMeta !== undefined && (
+                              <Badge variant="element" className="ml-1 shrink-0 border-subtle">
+                                <RunIcon
+                                  className={cn('size-3', runMeta.iconClassName)}
+                                  aria-hidden="true"
+                                />
+                                {runMeta.label}
+                              </Badge>
+                            )}
+                          </span>
+
+                          <span className="flex shrink-0 items-center gap-3 text-[13px] text-secondary">
+                            {/* Worth saying before anybody collects it. The site's
+                                draw and its whole diagram hang off whichever set is
+                                on the bus. */}
+                            {member.gensetId === summary.defaultDutyId && <span>on the bus</span>}
+                            <span className="text-tertiary">{member.lorryPlate}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
-      {picking ? (
-        <div className="flex max-w-3xl flex-col gap-2">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-primary">Attach a genset</p>
-            <Button variant="ghost" size="sm" onClick={() => setPicking(false)}>
-              Cancel
-            </Button>
-          </div>
-
-          <p className="flex items-center gap-2 text-[13px] leading-[18px] text-secondary">
-            <MapPinIcon className="size-3.5 shrink-0" aria-hidden="true" />
-            Attaching moves the set to {site.locationLabel}.
-          </p>
-
-          {candidates.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-subtle px-4 py-6 text-center text-sm text-secondary">
-              Every genset in the fleet is already here.
+      {/* Starting a job here. Secondary where one is already standing, because adding
+          to that one is almost always what somebody means. */}
+      <div className="flex max-w-3xl flex-col gap-2">
+        {opening ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-subtle bg-element p-3">
+            <p className="text-sm font-medium text-primary">Start a deployment at {site.name}</p>
+            <p className="text-[13px] text-secondary">
+              It opens today. Machines go on from the deployment&rsquo;s own Gensets
+              section, which is where you land next.
             </p>
-          ) : (
-            // Capped and scrollable: with 24 units in the fleet this list is most of
-            // them, and a settings section should not push its own controls off the
-            // page to show a menu.
-            <ul className="flex max-h-[320px] flex-col gap-2 overflow-y-auto">
-              {candidates.map((genset) => (
-                <li
-                  key={genset.id}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-subtle bg-element p-3"
-                >
-                  <GensetIdentity genset={genset} />
-
-                  <span className="flex shrink-0 items-center gap-3">
-                    <span className="text-[13px] text-secondary">
-                      {genset.siteId === null ? 'In the depot' : genset.locationLabel}
-                    </span>
-                    <Button variant="outline" size="sm" onClick={() => attach(genset.id)}>
-                      <PlusIcon aria-hidden="true" />
-                      {/* Naming the site a set is being taken from is the whole
-                          reason other sites' units are listed at all. */}
-                      {genset.siteId === null ? 'Attach' : `Move from ${siteLabel(genset.siteId)}`}
-                    </Button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        <Button variant="outline" size="sm" className="w-fit" onClick={() => setPicking(true)}>
-          <PlusIcon aria-hidden="true" />
-          Attach a genset
-        </Button>
-      )}
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor={`${ids}-ends`} className="text-[13px] font-medium text-primary">
+                  Agreed end
+                </label>
+                <Input
+                  id={`${ids}-ends`}
+                  type="date"
+                  value={endsAt}
+                  onChange={(event) => setEndsAt(event.target.value)}
+                  className="w-44"
+                />
+              </div>
+              <Button size="sm" onClick={open}>
+                Open deployment
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setOpening(false)}>
+                Cancel
+              </Button>
+            </div>
+            <p className="text-[13px] text-tertiary">
+              Leave the date empty for a job with no agreed end. A machine on an
+              open-ended job cannot be booked to a later one.
+            </p>
+          </div>
+        ) : (
+          <Button
+            variant={standing.length > 0 ? 'ghost' : 'outline'}
+            size="sm"
+            className="self-start"
+            onClick={() => setOpening(true)}
+          >
+            <PlusIcon aria-hidden="true" />
+            {standing.length > 0 ? 'Start another deployment here' : 'Deploy gensets here'}
+          </Button>
+        )}
+      </div>
     </section>
   );
 };

@@ -10,7 +10,7 @@ import type {DetailNavEntry} from '@/components/global/DetailSidebar';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {fuelLevel, relativeTime, stampDate} from '@/lib/format';
 import {siteSeed} from '@/modules/site/data/siteSeed';
-import {openDeployment} from '../../data/deployments';
+import {activePosting} from '@/modules/deployment/data/store';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 
@@ -69,7 +69,9 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
  * site, so there is nothing to return to.
  */
 export const GensetDetailShell = ({genset}: {genset: Genset}) => {
-  const deployment = openDeployment(genset.id);
+  // The job this machine is standing on, if it is standing on one. A planned
+  // commitment is not it: the machine has not gone anywhere yet.
+  const posting = activePosting(genset.id, Date.now());
   const site = genset.siteId === null ? undefined : siteSeed(genset.siteId);
 
   return (
@@ -99,10 +101,11 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                   <span>
                     Tank · {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
                   </span>
-                  {deployment !== undefined && (
+                  {posting !== undefined && (
                     <span>
-                      Posted · {stampDate(deployment.startedAt)} ·{' '}
-                      {deployment.lorryPlate}
+                      On {posting.deployment.reference} ·{' '}
+                      {stampDate(posting.deployment.startsAt)} ·{' '}
+                      {posting.membership.lorryPlate}
                     </span>
                   )}
                   <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>

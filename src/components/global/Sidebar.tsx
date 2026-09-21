@@ -53,7 +53,7 @@ const NAV_ITEMS: Array<NavItem> = [
   // The dispatch feed: what is out, where, and since when. Fleet-wide like the
   // register above it, and next to it because it is the question you ask as soon as
   // you know what the fleet is.
-  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
+  {label: 'Deployments', icon: TruckIcon, link: '/deployments'},
   // The estate counted in the card strip and listed under it. Last, because on a
   // fleet that moves a site is where a machine went rather than the thing you are
   // asking about.

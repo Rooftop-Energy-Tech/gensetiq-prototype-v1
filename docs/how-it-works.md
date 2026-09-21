@@ -96,7 +96,7 @@ summary cards count it under `Workshop` rather than inventing an owner.
 
 ## The model
 
-Twenty-two concepts. They are small, and the constraints between them are what keep the
+Twenty-one concepts. They are small, and the constraints between them are what keep the
 screens honest.
 
 ### Site
@@ -204,77 +204,105 @@ was borrowed from another product.
 
 → `src/modules/genset/types/genset.type.ts`
 
-### Installation
-
-**The period during which one genset is fitted at one site**, and the unit a
-permanent estate is managed in: its runs, its fuel and its alarms are attributable
-to that fitting.
-
-The shape mirrors the production model, and a mobile fleet reads it as a *posting* —
-dropped at a yard, run, collected, dropped elsewhere. Nothing about the record
-changes here; what changes is **how many of them a machine has**. On this estate a
-genset is bolted to a plinth beside the tower it feeds, so it has one installation,
-opened at commissioning and still open. Movement exists — a set goes to the workshop
-and a replacement takes the plinth — and when it does it closes one record and opens
-another, which is exactly what `endedAt` is for.
-
-Exactly one installation may be open per genset, and `endedAt === null` marks it.
-The tank level is *derived* from telemetry rather than stored, so an installation
-carries the level at commissioning and the level at removal and nothing in between.
-
-A run answers "when did the engine turn"; an installation answers "since when has
-this machine been the one feeding this site, and what has it cost". On a mobile
-fleet that second question is asked of a fortnight; here it is asked of a year.
-
-It is what makes two things possible that the earlier model had to refuse. A refuel
-order can be attributed to *where the fuel actually went in* rather than to where
-the machine is standing now. And the [runs](#the-runs-section) and
-[analysis](#the-analysis-section) sections can offer a window named by **one
-fitting** — exact where a calendar is day-granular, so the totals under it reconcile
-with the record rather than approximately agreeing with it.
-
-The picker for it hides below two entries, and usually there is one, which is the
-honest treatment of a control offering a single choice that is also the default. It
-returns the moment a set has been swapped out and back — which is exactly when
-"which fitting was that under" becomes a real question.
-
-→ `src/modules/genset/types/installation.type.ts`, `src/modules/genset/data/installations.ts`
-
 ### Deployment
 
-Which site a genset stands at **now**, and the act of changing it — the live half of
-what an [installation](#installation) records over time.
+**One job: a site, a window, and the machines that stood there.** It is the unit a
+mobile fleet is managed and costed in, and it is what a genset's runs, fuel and
+alarms are attributable to.
+
+A yard that needs three sets for five weeks is **one deployment**, and the three
+machines on it are `DeploymentMembership` records with no dates of their own. That is
+the whole shape, and it is a deliberate departure from the production model: Helios
+`DeploymentSession` is one posting per machine with its own window, which records the
+paperwork correctly and loses the job. Tristan's call, 2026-09-21.
+
+The cost of it is worth stating, because it is the thing to revisit first: **a fourth
+set arriving in week three cannot join an existing job.** It needs a successor job,
+which splits one hire into two records. If that turns out to be how Express Mission
+actually work, the two dates move onto the membership and nothing else changes.
+
+A membership carries the **lorry plate** that took that set out, the tank level at
+each of its own edges, and a `collectedAt` for the one case that needs a date: a set
+pulled out early while the job runs on. The live level during an open posting is
+*derived* from telemetry rather than stored.
+
+#### Three states, and none of them is stored
+
+`planned`, `active` and `completed` are readings of the window against the clock.
+
+- **planned** — the start is in the future. A commitment, and **it moves nothing**:
+  the machines are booked and are still standing wherever they are. This is the state
+  the earlier model could not hold at all, and holding it is what lets the app answer
+  *what is booked* rather than only *what happened*.
+- **active** — started, not closed. It may carry an *agreed* end in the future; every
+  figure is still measured to **now**, because a five-week hire in its first week has
+  produced one week's energy.
+- **completed** — closed. The record.
+
+A stored state would be a second answer to a question the window already answers, and
+the two drift the moment a demo sits overnight. Derived, a planned job becomes active
+because the clock moved — which is also the cheapest way to demo the transition: set
+a start two minutes out and navigate.
+
+#### A genset's site is derived from its active membership
+
+This is the direction the model runs in, and it used to run the other way: `siteId`
+was a field on the machine with an override store over it, and deployments were
+history somebody else had written. **A machine is at a yard because a job put it
+there**, so `fleet()` reads the site off the record and holds nothing of its own.
 
 A site is a **yard**, not a folder — `fleet.ts` puts co-sited units within a hundred
-metres of each other because that is what sharing a site means. So attaching a set
-is a lorry, not a checkbox: **the machine moves.** It takes the site's placename and
-a spot in its yard, and its pin moves on the fleet map.
+metres of each other because that is what sharing a site means. So a job going active
+is a lorry: its machines take the yard's placename and a spot in it, and their pins
+move on the fleet map. Membership you could set freely without moving anything would
+let a Penang set belong to a Petaling Jaya site, and every figure that made a site *a
+place* would then be describing two places at once.
 
-That is forced, not chosen. Membership you could set freely without moving anything
-would let a Penang set belong to a Petaling Jaya site, and every figure that made a
-site *a place* would then be describing two places at once.
+**Collecting moves nothing.** The set leaves the job and reports no site, and it is
+still standing in that yard until somebody comes for it — so `siteId` is derived and
+the coordinates are **last known**, the yard of the most recent job the machine
+actually stood on. Inventing a depot coordinate would be a claim about the physical
+world the app has not earned.
 
-**Detaching moves nothing.** The set leaves the installation and goes to the
-**depot** — `siteId: null` — but it is still standing in that yard until somebody
-collects it. Inventing a depot coordinate to move it to would be a claim about the
-physical world the app has not earned.
+Two words are in use for a machine with no active job and it is worth knowing before
+writing a third. The deployment layer and the site's own pages call it the **depot**;
+the fleet cards and their role filter call it **`Workshop`**. They are the same
+absence of a job.
 
-Two words are in use for that state and it is worth knowing before writing a third.
-The deployment layer and the site's Settings section call it the **depot**; the fleet
-cards and their role filter call it **`Workshop`**. They are the same `siteId: null`.
+**One machine may not be on two jobs whose windows overlap.** It is checked on every
+write and the refusal names the job in the way, because "already out" is not an
+answer a reader can act on and "on DEP-0117 at Kapit until the 14th" is. Deriving the
+active one by picking a winner from overlapping records would make the invariant a
+rendering convention, and two screens that picked differently would then disagree
+about where a machine is.
 
-The depot is why `siteId` is nullable, and giving up "always at exactly one site"
-was the price of being able to remove a set at all. Gensets genuinely exist before
-they are deployed and while they are away being serviced; the alternative was making
-every removal a transfer to somewhere the machine is not.
+Every figure a site reports is summed from its members, so all of them move when this
+does — capacity, fuel, condition, the diagram's source count, the duty default, and
+the site's rank in the list. That rebuild is cheap for one specific reason:
+**`detail.ts` and `history.ts` never look at where a machine is.** They key off genset
+id, so relocating a set cannot invalidate a single reading or run. The one module that
+did look was `history.ts` itself, through `gensetById`; it reads the *seeded* row now,
+because a fuel ladder that asked where its machine was standing made the derivation a
+circle.
 
-Every figure a site reports is summed from its members, so all of them move when
-this does — capacity, fuel, condition, the diagram's source count, the duty default,
-and the site's rank in the list. That rebuild is cheap for one specific reason:
-**`detail.ts` and `history.ts` never look at where a machine is.** They key off
-genset id, so relocating a set cannot invalidate a single reading or run.
+#### What the window makes possible
 
-→ `src/modules/genset/data/deployment.ts`
+A run answers "when did the engine turn"; a job answers "where was the fleet posted,
+and what did the posting cost". A fortnight at a substation may contain thirty runs,
+and the questions asked of it — litres in, litres burned, hours on load — are asked of
+the fortnight.
+
+So the [runs](#the-runs-section) and [analysis](#the-analysis-section) sections can
+offer a window named by **one posting**, exact where a calendar is day-granular, and
+the totals under it reconcile with the record rather than approximately agreeing with
+it. And the job's own page can state energy produced against fuel burned over the
+window, which is *efficiency by deployment* — the figure the product's own notes name
+as the one operators want, and the one the screen inventory recorded as unobtainable
+while a genset carried a single `siteId` with no time dimension.
+
+→ `src/modules/deployment/types/deployment.type.ts`,
+`src/modules/deployment/data/{seed,store}.ts`,
+`src/modules/genset/data/deployment.ts`
 
 ### Hybrid plant
 
@@ -937,14 +965,17 @@ argues the order at length, including what a *permanent* estate would do instead
                                      ├── /equipment
                                      └── /settings
 
-/deployment?view=split ─┐
-/deployment?view=list ──┼─ the tag ─→ /gensets/<id>                 Deployment
-/deployment?view=map  ──┤   the site ─→ /sites/<id>
-/deployment?view=gantt ─┘   or panel →
+/deployments?view=split ─┐
+/deployments?view=list ──┼─ the reference ─→ /deployments/<id>   Deployment
+/deployments?view=map  ──┤   the site ──────→ /sites/<id>             ├── /gensets
+/deployments?view=gantt ─┘   or panel →                               ├── /runs
+                                                                      ├── /alarms
+                                                                      └── /settings
 
 /sites?view=split ──┐
 /sites?view=list  ──┼─ the site's name ─→ /sites/<id>                    Site
 /sites?view=map   ──┘   or the panel's →     ├── /alarms
+                                             ├── /deployments
                                              ├── /settings
                                              └── /runs · /contract   still resolve;
                                                                      nothing links
@@ -1126,53 +1157,107 @@ coordinates and wrong about the question: the fleet map answers *where are my
 machines*, so a yard with three sets is three pins; this one answers *where are my
 sites, and which of them is in trouble*.
 
-### The dispatch feed
+### The deployments register
 
-`/deployment` is the third register, and the only one whose rows are **events rather
-than things**. A posting is one contiguous period during which a machine stood at one
-site — see [Deployment](#deployment) for the model — and the screen answers the
-operations-room question: *what is out, where, and since when.*
+`/deployments` is the third register, and the only one whose rows are **jobs rather
+than assets**. A job is one site, one window and the machines that stood there — see
+[Deployment](#deployment) for the model — and the screen answers the operations-room
+question: *what is out, where, since when, and what is booked next.*
 
-It shipped as a flat table with a search box, which was the right shape while it was
-the rail's last destination and a thing you checked. It is the rail's second
-destination now, which makes it a screen people live on, so it was rebuilt to the
-registers' shape: a summary strip, a preview panel, view state in the URL, and the
-list/map/split switcher. Tristan's call, 2026-09-21.
+It shipped as a flat feed of postings, one row per machine, and was rebuilt to the
+registers' shape on 2026-09-21: a summary strip, a preview panel, view state in the
+URL, and the list/map/split switcher. It changed again the same day, and the second
+change was the model rather than the furniture: **a row is a job now**, because a yard
+that needs three sets for five weeks is one hire and three rows with identical dates
+is that hire with its identity taken away.
 
 **Four views, not three.** The first three do here what they do on the estate — the
 table with its headers as the ordering control, the map, and the two side by side
 with the map framing the rows on screen. The fourth is this screen's own:
 
-**The timeline is one lane per machine and one bar per posting.** Lanes rather than
-rows is the whole design. A list of postings on a time axis would be the table again
-with a bar drawn on it; a lane per genset puts that machine's whole chain on one
+**The timeline is one lane per machine and one bar per job that machine is on.** Lanes
+rather than rows is the whole design. A list of jobs on a time axis would be the table
+again with a bar drawn on it; a lane per genset puts that machine's whole chain on one
 line, so **the white space between its bars is depot time** — which is the only place
 in this app a thing that *did not happen* is drawn. On a fleet that hires plant out,
-that gap is the number the business runs on.
+that gap is the number the business runs on. A job with three sets therefore draws
+three bars on three lanes, sharing one window, and clicking any of them selects the
+job.
 
-It is not a planner. Nothing drags, nothing schedules, and the axis stops at *now*,
-because a posting that has not happened yet is not in the data model. When dispatch
-becomes a write path this is the screen that grows a right-hand side; until then a
-Gantt showing empty future weeks would be promising a control that does not exist.
+**The axis runs past today.** It stopped at `now` while a posting that had not happened
+was not in the data model; a planned job is, so the window runs to the last thing
+booked, `now` gets a rule down every lane, and a standing job quoted to a future date
+carries a dashed tail from today to its agreed end. It is still **not a planner**:
+nothing drags, nothing schedules, and no bar can be moved, because dispatch is a lorry
+and a phone call and this screen is the paper trail those leave.
 
 The timeline also ignores the table's ordering, deliberately — sorting lanes by fuel
 burned would put a machine's chain at a vertical position that means nothing against
 a time axis — so the toolbar's sort dropdown is withheld there rather than left on
 screen doing nothing.
 
-**The strip counts postings, not things.** The registers count what exists; this
-counts what is happening, so the headline is two figures — machines out, and yards
-occupied — which are not the same number when two sets stand at one substation. The
-two chips are the only states a posting has, open and closed, and they filter all
-four views together. Typical posting length and the diesel the record burned sit
-beside them because they are the two figures nobody can read off the list.
+**The strip counts jobs, not things.** The registers count what exists; this counts
+what is happening, so the headline is two figures — machines out, and yards occupied —
+which are not the same number when two sets stand at one substation, with a third
+clause for machines *committed* to a job that has not started. The three chips are the
+three states a job can be in, and they filter all four views together. Typical job
+length and the diesel the record burned sit beside them because they are the two
+figures nobody can read off the list.
 
-**Closed postings are drawn on the map as well as open ones.** A map of only what is
+**Closed jobs are drawn on the map as well as standing ones.** A map of only what is
 out would be smaller and cleaner, and it could not answer "have we had a set at Kapit
 before" — which is the question asked before quoting one. The `Deployed` chip is one
-click away for anybody who wants the smaller map.
+click away for anybody who wants the smaller map. A pin's size says how much plant is
+on the job, which is the sites map's own channel and the question this map is asked
+next.
+
+**The columns are the job's facts.** `Deployment` (the reference over the yard),
+`Status`, `Gensets`, `Window`, `On load`, `Fuel burned`. `Lorry` left the table with
+the model: a plate belongs to a machine and a job may have three of them, so it is
+searchable and it sits against each machine on the job's own page.
 
 → `src/modules/deployment/`
+
+### A deployment's own pages
+
+`/deployments/<id>` is the third thing in this app with a rail of its own, and it is
+the same rail: `DetailSidebar`, a switcher in the header, five rows. A job differs
+from a site and a machine only in its header and its items, and a new arrangement
+here would have been a third pattern for one problem.
+
+| Section | What it answers |
+| --- | --- |
+| `Deployment` | what the job is, how far through it is, and what it cost |
+| `Gensets` | which machines are on it — **and the only place they go on and come off** |
+| `Runs` | what those machines ran inside the window |
+| `Alarms` | what their controllers raised inside the window |
+| `Settings` | the reference, the yard, the dates, and the two acts that end it |
+
+**The home band states energy against fuel over the window**, with the ratio between
+them. That is *efficiency by deployment*, and it is the reason the model changed: it
+could not be shown at all while a genset carried one `siteId` with no time dimension.
+
+**A planned job does not draw that band.** It has produced nothing, burned nothing and
+raised nothing, so the strip is dropped and the page says what is committed and when
+the lorry is wanted — the same rule that keeps a `0 kWh` generation figure off a site
+with no array.
+
+**Runs has no range picker**, which is the one place this page deliberately differs
+from the other two levels. The window *is* the job: offering a calendar would invite a
+reader to choose a range that reconciles with no record.
+
+**Alarms is the site's own queue, filtered** to the machines on the job and to alarms
+raised inside the window. One handling store, one set of rows — so clearing a row here
+clears it on the machine's tab and on the site's. Alarms in this prototype are a live
+state rather than a log, so a job that closed last month has nothing to show, and the
+page says that rather than drawing an empty table that reads as a quiet fortnight.
+
+**Close and delete are different acts.** Closing ends a standing job now: the window
+closes, the machines leave the yard and none of them moves. Deleting is offered on a
+*planned* job only, because a job machines have actually stood on is a fact about the
+world and the app does not offer to unmake one.
+
+→ `src/modules/deployment/components/detail/`
 
 ### One thing's rail
 
@@ -1411,9 +1496,9 @@ that is the unit a person names and the unit a URL can carry legibly. A **run** 
 anchored to an event, and it is the only stretch of time over which *every* reading on
 the machine is defined, because a run is by definition the engine turning — which is
 why the run list lives here as well as on the `Runs` section: it is this screen's
-sharpest selector, not a cross-reference. An **installation** is anchored to a fitting,
-and it is the one selector that usually is not on screen, because on this estate almost
-every set has exactly one.
+sharpest selector, not a cross-reference. A **posting** is anchored to a job, and on a
+fleet whose plant moves it is the selector that answers the question a customer asks:
+*what did the Ranau job cost?*
 
 Each control clears the others, so only a hand-edited URL can ask for more than one at
 once — and `analysisRange()` is the single place that gets settled. A custom range
@@ -1509,8 +1594,8 @@ and this log goes back sixty days while the machine has been in service far long
 
 #### The range, and the file
 
-Four presets, a calendar, and — where a set has been fitted more than once — an
-[installation](#installation). The presets are the analysis section's own
+Four presets, a calendar, and — where a set has been on more than one job — a
+[posting](#deployment). The presets are the analysis section's own
 vocabulary, imported rather than retyped: the two sit one click apart in the same
 rail, and a `7d` meaning different spans on each would be the app disagreeing with
 itself. `All` is this section's addition and earns its place — a backup set runs
@@ -1937,9 +2022,11 @@ no surrounding page to infer it from.
 
 **It lists the runs of the sets standing here *now*.** A run is a fact about a machine and
 a machine's site can change, so a set that arrived last week brings its whole history with
-it, including runs it performed in another yard. The record that would fix this now exists —
-see [Installation](#installation) — and the site log does not yet read it; a per-fitting
-site log is the next step and needs nothing above `SiteSummary` to change.
+it, including runs it performed in another yard. The record that fixes this exists — see
+[Deployment](#deployment) — and **a per-job run log is built**, on the job's own Runs
+section; what has not changed is this page, which still pools whatever is standing here
+today. Pointing it at the yard's jobs instead is the next step and needs nothing above
+`SiteSummary` to change.
 
 **`Alarms`** is in the rail and not drawn: every active threshold across this site's
 gensets, pooled into one list. **`Contract`** is drawn in no frame at all and is the one
@@ -2195,7 +2282,6 @@ src/components/global/
 src/modules/genset/
 ├── types/
 │   ├── genset.type.ts       Genset, run state
-│   ├── installation.type.ts one fitting at one site, and what it cost
 │   ├── run.type.ts          GensetRun — one start to one stop
 │   ├── telemetry.type.ts    Reading, GaugeReading, PhaseGroup, ControlMode
 │   ├── alert.type.ts        GensetAlert, GensetTag, condition
@@ -2209,8 +2295,7 @@ src/modules/genset/
 │   └── runsView.type.ts     the runs section's URL state, window rules and totals
 ├── data/
 │   ├── fleet.ts             the dataset's machines — the givens
-│   ├── deployment.ts        which site each set stands at now
-│   ├── installations.ts     which site each set has stood at, and since when
+│   ├── deployment.ts        where each set is, DERIVED from its active job
 │   ├── spread.ts            the one hash every mock number is seeded from
 │   ├── detail.ts            everything derived from a given, incl. `ALERT_RULES`
 │   ├── history.ts           the run log and the reading series, built backwards
@@ -2225,7 +2310,7 @@ src/modules/genset/
     ├── …                    the register, incl. GensetsCards for phone width
     ├── detail/              the five bands, and StandbyPanel for a stopped set
     │   └── analysis/        the analysis section: picker, range, calendar, chart
-    ├── runs/                strip, totals, log, installation picker — shared with sites
+    ├── runs/                strip, totals, log, posting picker — shared with sites
     ├── alarms/              the standing and cleared tables
     └── service/             the two counters, the schedule, the log, the dialog
 
@@ -2262,10 +2347,23 @@ src/modules/site/
     ├── SiteRuns.tsx         the genset panel, over every set here
     ├── SiteSettings.tsx     identity, power, gensets, and the preview
     ├── settings/SiteIdentityPanel.tsx   six editable givens
-    └── SiteGensets.tsx      attach and detach — and it says the lorry out loud
+    ├── SiteDeployments.tsx  every job this yard has held, newest first
+    └── SiteGensets.tsx      what stands here, under which job, and a way to start one
 
-src/modules/solar/           the register, a system's four bands, three health rules
-src/modules/battery/         the register, a bank's four bands
+src/modules/deployment/
+├── types/
+│   ├── deployment.type.ts   Deployment, DeploymentMembership, the three states
+│   └── view.type.ts         the register's URL state — four views, three chips
+├── data/
+│   ├── seed.ts              the record, dealt per yard; and what a window cost
+│   ├── store.ts             the jobs, the write path, and the overlap rule
+│   ├── feed.ts              one job joined to its machines — every view's row
+│   └── detail.ts            one job, live, for its own pages
+└── components/
+    ├── Deployments…         the register: toolbar, strip, table, cards, map, Gantt
+    ├── stateMeta.ts         one description of a state, for the six places drawing it
+    └── detail/              the job's five sections, and the rail's switcher
+
 src/modules/settings/        the brand picker
 ```
 
@@ -2273,14 +2371,24 @@ src/modules/settings/        the brand picker
 
 **`data/siteSeed.ts` has no imports**, and that is structural rather than tidiness.
 `sites.ts` needs it and so does `genset/data/deployment.ts` — which needs to know where a
-yard is, so attaching a set can move the machine there — and `sites.ts` reads the fleet,
-which reads deployment. Leaving the seed inside `sites.ts` closes that loop; pure data at
-the bottom of the graph breaks it. `siteOverrides.ts` is under even that: it imports no
+yard is, so a job going active can move its machines there — and `sites.ts` reads the fleet,
+which reads placement, which reads the deployment record. Leaving the seed inside
+`sites.ts` closes that loop; pure data at the bottom of the graph breaks it.
+
+**The deployment record is dealt lazily, and that is load-bearing.** The deal reads the
+fuel ladder, the ladder is derived from a machine's detail, and placement — which the
+record produces — is what `detail.ts` used to read to answer *where is this machine*. That
+circle is fine as a set of imports and fatal as an order of execution: dealing at import
+time called into `history.ts` while `detail.ts` was still initialising, and recursed until
+the stack gave out. Two rules came out of it and both are worth keeping: **nothing in
+`deployment/data/` computes at module load**, and **`history.ts` and `fuelIntegrity.ts`
+read the seeded row** through `seededGenset()` rather than the deployed one, because
+nothing they need is touched by placement. `siteOverrides.ts` is under even that: it imports no
 site data at all, because `siteSeed.ts` has to read it and `siteConfig.ts` reads
 `siteSeed.ts` to know a site's default.
 
 **Three stores are neither seeded nor derived** — `siteConfig.ts` (the power role),
-`siteOverrides.ts` (a site's own facts), `genset/data/deployment.ts` (where a set stands),
+`siteOverrides.ts` (a site's own facts), `deployment/data/store.ts` (the jobs),
 plus the alarm, service and note stores beside them. All hold **overrides only**, so a
 fresh browser renders the estate as its dataset states it and clearing site data restores
 it. Site summaries are memoised on the deployed fleet's identity rather than built once at

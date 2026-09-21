@@ -3,8 +3,13 @@ import {Link} from '@tanstack/react-router';
 
 import {amount, duration, stampAt} from '@/lib/format';
 import {DEFAULT_RUN_WINDOW} from '../../types/runsView.type';
-import {deploymentElapsedMs} from '../../types/deployment.type';
-import {deploymentTotals, gensetDeployments} from '../../data/deployments';
+import {postingTotals} from '@/modules/deployment/data/seed';
+import {gensetPostings} from '@/modules/deployment/data/store';
+import {
+  deploymentElapsedMs,
+  deploymentState,
+  postingEnd,
+} from '@/modules/deployment/types/deployment.type';
 import type {Genset} from '../../types/genset.type';
 
 /**
@@ -24,22 +29,29 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
   // totals must be measured against the same instant.
   const [now] = useState(() => Date.now());
 
-  const deployments = gensetDeployments(genset.id);
-  const ongoing = deployments.filter((deployment) => deployment.endedAt === null);
+  // A posting is this machine's membership joined to the job it is on: the job owns
+  // the window, and the membership says which lorry took this set and whether it was
+  // collected early. See `deployment.type.ts` for why the window sits where it does.
+  const postings = gensetPostings(genset.id);
+  const standing = postings.filter(
+    (posting) =>
+      posting.membership.collectedAt === null &&
+      deploymentState(posting.deployment, now) === 'active',
+  );
 
   return (
     <div className="flex min-h-full flex-col gap-4 px-4 pt-4 pb-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Metric label="Postings held" value={String(deployments.length)} />
-        <Metric label="Ongoing" value={String(ongoing.length)} />
+        <Metric label="Postings held" value={String(postings.length)} />
+        <Metric label="Standing" value={String(standing.length)} />
         <Metric
           label="Standing at"
-          value={ongoing.length > 0 ? ongoing[0].locationLabel : 'In depot'}
+          value={standing.length > 0 ? standing[0].deployment.locationLabel : 'In depot'}
         />
       </div>
 
       <div className="overflow-hidden rounded-md border border-subtle bg-element">
-        {deployments.length === 0 ? (
+        {postings.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-secondary">
             No postings held. This set has not been deployed in the period this log covers.
           </p>
@@ -48,7 +60,7 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-subtle text-xs text-secondary">
-                  <Th>Posted to</Th>
+                  <Th>Deployment</Th>
                   <Th>Window</Th>
                   <Th align="right">Duration</Th>
                   <Th align="right">On load</Th>
@@ -60,8 +72,15 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
               </thead>
 
               <tbody>
-                {deployments.map((deployment) => {
-                  const totals = deploymentTotals(deployment);
+                {postings.map((posting) => {
+                  const {deployment, membership} = posting;
+                  const end = postingEnd(posting);
+                  const totals = postingTotals(posting, now);
+                  // A booked posting has produced nothing and drunk nothing, and a
+                  // row of zeros beside `under a minute` would read as a posting the
+                  // machine stood through and did nothing on. The window is the whole
+                  // of what a planned row has to say.
+                  const planned = deploymentState(deployment, now) === 'planned';
                   const sfc =
                     totals.fuelBurnedLitres > 0
                       ? `${(totals.energyKwh / totals.fuelBurnedLitres).toFixed(2)} kWh/L`
@@ -72,58 +91,89 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
                       {/* The place is the link, into the runs this posting
                           contains — the same journey the runs tab's dropdown
                           makes, entered from the other end. */}
+                      {/* The reference is the link into this job's own page, and the
+                          placename under it links into the runs the posting contains —
+                          the journey the runs tab's dropdown makes, entered from the
+                          other end. Two doors, because a posting now belongs to a job
+                          that has a page of its own. */}
                       <td className="px-3 py-2.5">
+                        <Link
+                          to="/deployments/$deploymentId"
+                          params={{deploymentId: deployment.id}}
+                          className="font-medium text-primary underline-offset-4 hover:underline"
+                        >
+                          {deployment.reference}
+                        </Link>
                         <Link
                           to="/gensets/$gensetId/runs"
                           params={{gensetId: genset.id}}
                           search={{window: DEFAULT_RUN_WINDOW, dep: deployment.id}}
-                          className="font-medium text-primary underline-offset-4 hover:underline"
+                          className="block text-xs text-tertiary underline-offset-4 hover:text-secondary hover:underline"
                         >
-                          {deployment.locationLabel}
+                          {deployment.locationLabel} · {membership.lorryPlate}
                         </Link>
-                        <span className="block text-xs text-tertiary">
-                          Carried by {deployment.lorryPlate}
-                        </span>
                       </td>
 
                       <td className="px-3 py-2.5 text-secondary">
                         <span className="block whitespace-nowrap">
-                          {stampAt(deployment.startedAt)}
+                          {stampAt(deployment.startsAt)}
                         </span>
                         <span className="block whitespace-nowrap text-xs">
-                          {deployment.endedAt === null ? (
+                          {planned ? (
+                            `to ${stampAt(end ?? deployment.startsAt)}`
+                          ) : end === null ? (
                             <span className="text-teal">Ongoing</span>
+                          ) : membership.collectedAt !== null ? (
+                            `collected ${stampAt(membership.collectedAt)}`
                           ) : (
-                            `to ${stampAt(deployment.endedAt)}`
+                            `to ${stampAt(end)}`
                           )}
                         </span>
                       </td>
 
                       <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
-                        {duration(deploymentElapsedMs(deployment, now))}
+                        {planned ? (
+                          <span className="text-tertiary">not started</span>
+                        ) : (
+                          duration(deploymentElapsedMs(deployment, now))
+                        )}
                       </td>
 
-                      <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
-                        {totals.runtimeHours < 1 && totals.runtimeHours > 0
-                          ? 'under 1 h'
-                          : `${Math.round(totals.runtimeHours)} h`}
-                      </td>
+                      {planned ? (
+                        // One cell across the five figures, rather than five dashes:
+                        // the reason they are empty is the same reason for all of
+                        // them, and saying it once is how the row stays readable.
+                        <td
+                          colSpan={5}
+                          className="px-3 py-2.5 text-right text-tertiary"
+                        >
+                          Booked · nothing has moved yet
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
+                            {totals.runtimeHours < 1 && totals.runtimeHours > 0
+                              ? 'under 1 h'
+                              : `${Math.round(totals.runtimeHours)} h`}
+                          </td>
 
-                      <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
-                        {totals.starts}
-                      </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
+                            {totals.starts}
+                          </td>
 
-                      <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
-                        {amount(Math.round(totals.energyKwh), 'kWh')}
-                      </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
+                            {amount(Math.round(totals.energyKwh), 'kWh')}
+                          </td>
 
-                      <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
-                        {amount(Math.round(totals.fuelBurnedLitres), 'L')}
-                      </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
+                            {amount(Math.round(totals.fuelBurnedLitres), 'L')}
+                          </td>
 
-                      <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
-                        {sfc}
-                      </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
+                            {sfc}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}

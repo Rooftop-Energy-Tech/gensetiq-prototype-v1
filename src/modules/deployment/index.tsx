@@ -40,37 +40,45 @@ type DeploymentPageProps = {
 };
 
 /**
- * `/deployment` — the dispatch feed.
+ * `/deployments` — the deployments register.
  *
- * It answers an operations-room question: **what is out, where, and since when?**
- * The physical move is still a truck and a driver, and nothing here commands one —
- * a posting opens when the machine is attached to a site and closes when it is
- * collected, and this screen is the paper trail those events leave.
+ * It answers an operations-room question: **what is out, where, since when, and what
+ * is booked next?** The physical move is still a truck and a driver, and nothing here
+ * commands one: a job opens when the machines are dropped at a yard and closes when
+ * they are collected, and this screen is the paper trail those events leave.
  *
- * ## It was one table, and it is now a register
+ * ## A row is a job, and a job has machines on it
  *
- * The feed shipped as a flat table with a search box: the right shape while it was
- * the rail's last destination and a thing you checked. It is now the rail's *second*
- * destination on a fleet whose plant moves, which makes it a screen people live on —
- * so it was rebuilt to the shape `/sites` and `/gensets` already have, and Tristan's
- * call (2026-09-21) was exactly that: give it the strip, the views, and a timeline.
+ * It was a flat feed of postings, one row per machine, which is the shape Helios
+ * `DeploymentSession` has. A yard that needs three sets for five weeks is **one job**,
+ * and three rows with identical dates is that job with its identity taken away. So a
+ * row here is a job at a site over a window, with one to three machines on it, and
+ * the machine's own view of the same fact lives on its pages.
  *
- * Four views rather than three. The registers' list, map and split do here what they
- * do there, and the fourth is this screen's own:
+ * ## Three states, and the third one is new
  *
- *  - **list** — the table, seven columns, its headers the ordering control.
+ * `planned`, `active`, `completed`, derived from the window against the clock. A
+ * planned job is a commitment that has not started, which the earlier model could not
+ * hold at all — and holding it is what lets this screen answer *what is booked*
+ * rather than only *what happened*.
+ *
+ * Four views. The registers' list, map and split do here what they do there, and the
+ * fourth is this screen's own:
+ *
+ *  - **list** — the table, six columns, its headers the ordering control.
  *  - **split** — table and map, the default, the map framing the rows on screen.
- *  - **map** — where the fleet has been sent, one pin per posting.
- *  - **gantt** — one lane per machine, one bar per posting, on a time axis. The only
- *    view that can show a *gap*, which on a hire fleet is the fact worth money. See
- *    `DeploymentsGantt`.
+ *  - **map** — where the fleet has been sent, one pin per job, sized by how much
+ *    plant is on it.
+ *  - **gantt** — one lane per machine, one bar per job it is on, on a time axis that
+ *    runs past today. The only view that can show a *gap*, which on a hire fleet is
+ *    the fact worth money. See `DeploymentsGantt`.
  *
  * ## What the strip counts, and why it is not the registers' strip
  *
- * The registers count things; a feed counts postings. So the headline is machines
- * out over yards occupied, and the two figures nobody can read off the list — the
- * typical posting length and the diesel the record burned — sit beside the chips.
- * See `DeploymentsSummaryCards`.
+ * The registers count things; this counts jobs. So the headline is machines out over
+ * yards occupied, with what is committed beside it, and the two figures nobody can
+ * read off the list — the typical job length and the diesel the record burned — sit
+ * beside the chips. See `DeploymentsSummaryCards`.
  */
 export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) => {
   const {view, q = '', id, panel, state, customer, sort, dir} = search;
@@ -202,10 +210,11 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
             {showList && (
               <div className="min-h-0 min-w-0 flex-1">
                 {compact ? (
-                  <DeploymentsCards rows={rows} />
+                  <DeploymentsCards rows={rows} now={now} />
                 ) : (
                   <DeploymentsTable
                     rows={rows}
+                    now={now}
                     selectedId={id}
                     onSelect={selectDeployment}
                     sort={sort}
@@ -263,6 +272,7 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
         {panelOpen && (
           <DeploymentDetailPanel
             row={selected}
+            now={now}
             className={
               // Over the map the panel floats, so the basemap keeps running
               // underneath it. Everywhere else it takes its own column instead, so it
