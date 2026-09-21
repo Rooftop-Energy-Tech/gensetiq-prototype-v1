@@ -4,6 +4,15 @@ import type {BrandDataset} from '../types';
  * The utility estate: **a distribution licensee's pencawang elektrik in Peninsular
  * Malaysia**.
  *
+ * Twenty-five substations, feeder points and rural mini-grids across Sabah and
+ * Labuan, with thirty-seven machines posted to them. **Posted, not fitted** — this
+ * is the estate Express Mission walks, and EM is a vendor whose sets are trucked to
+ * an injection point for a job and brought back. That is what `plant: 'mobile'`
+ * below records, and it is why this estate's rail offers no Sites register.
+ * Recovered from
+ * `feat/sesb-demo`, which is where it was stranded — the branch predates the
+ * hybrid plant, the generation series and the energy screen, and every one of
+ * those was invisible on it.
  * Twenty-five distribution substations from Kepong down to Johor Bahru, with
  * thirty-seven machines standing on them.
  *
@@ -202,6 +211,10 @@ const GENSETS = [
 export const UTILITY_DATASET: BrandDataset = {
   id: 'utility',
   label: 'Utility distribution estate',
+  groupingLabel: 'By zone',
+  // A vendor's machines, posted to the operator's injection points for a job and
+  // taken back. The rail drops Sites — see `PlantKind`.
+  plant: 'mobile',
   groupingLabel: 'By state',
   customers: CUSTOMERS,
   programs: PROGRAMS,

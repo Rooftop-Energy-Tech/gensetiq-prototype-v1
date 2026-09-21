@@ -7,6 +7,8 @@ import type {DeploymentSearch} from '@/modules/deployment/types/view.type';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 import type {GensetSearch} from '@/modules/genset/types/view.type';
 import {siteSearch} from '@/modules/site/types/view.type';
+
+import {DATASET} from '@/brands';
 import type {SiteSearch} from '@/modules/site/types/view.type';
 
 /**
@@ -73,9 +75,19 @@ const ITEMS: Array<MobileNavItem> = [
     link: '/deployments',
     search: deploymentSearch({view: 'list'}),
   },
-  // The estate. Last here for the same reason it is last on the rail: a site is
-  // where a set was sent, not the thing you open the app to ask about.
-  {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: siteSearch({view: 'list'})},
+  // The estate, on the estates that have it — the bar follows the rail, and a
+  // mobile fleet offers neither. See `PlantKind`; the route still resolves either
+  // way, which is what makes withholding the door honest rather than lossy.
+  ...(DATASET.plant === 'stationary'
+    ? [
+        {
+          label: 'Sites',
+          icon: RadioTowerIcon,
+          link: '/sites',
+          search: siteSearch({view: 'list'}),
+        } satisfies MobileNavItem,
+      ]
+    : []),
 ];
 
 export const MobileNav = () => (

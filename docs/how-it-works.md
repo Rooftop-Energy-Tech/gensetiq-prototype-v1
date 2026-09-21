@@ -945,12 +945,25 @@ one that would change something is enabled — you cannot start a running set.
 
 ## The screens
 
-Three destinations in the app rail, and Settings pinned to the foot. **Gensets**
-leads and is the app's landing screen — the plant register, which on a fleet whose
-machines move is the thing every question starts from. **Deployment** follows it:
-what is out, where, and since when. **Sites** is last, because on this estate a yard
-is where a set was sent rather than the subject itself. The rail's own doc comment
-argues the order at length, including what a *permanent* estate would do instead.
+Two or three destinations in the app rail, and Settings pinned to the foot.
+**Gensets** leads and is the app's landing screen — the plant register, which on a
+fleet whose machines move is the thing every question starts from. **Deployment**
+follows it: what is out, where, and since when.
+
+**Sites** is the third only where the estate has one worth offering. A *stationary*
+estate keeps it — a set bolted to a plinth beside the tower it feeds makes the site
+a real subject, and the register is where a reader starts. A **mobile** estate drops
+it: a yard there is where a machine was sent, not a thing anyone opens the app to
+ask about, and `/deployments` answers that question properly. Express Mission's
+build is mobile and shows two; the unbranded `gensetiq` build walks the carrier
+tower estate and shows three.
+
+`DATASET.plant` decides it, so the fact sits with the estate rather than in a
+customer's config — see `PlantKind` in `src/brands/types.ts` for why that line is
+drawn there. The **routes** are untouched either way: `/sites` and `/sites/$siteId`
+still resolve on a mobile build, and a breadcrumb into one still reads. What is
+withheld is the door, not the room. The rail's own doc comment argues the order at
+length.
 
 ```
 /                    → /gensets

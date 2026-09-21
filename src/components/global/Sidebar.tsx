@@ -7,7 +7,7 @@ import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {sessionInitial, signOut, useSession} from '@/modules/auth/session';
 
-import {BRAND} from '@/brands';
+import {BRAND, DATASET} from '@/brands';
 
 /**
  * The rail, and the one place this white-label's estate changes the order.
@@ -23,11 +23,18 @@ import {BRAND} from '@/brands';
  * and since when" is the next question after "what do we have" — and for the EM
  * proof of concept it is the question the product is being judged on.
  *
- * **Sites** is last rather than gone. A tower estate would lead with it — a site
- * is a permanent installation and its genset is bolted to a plinth beside it — but
- * this estate's sites are destinations plant is sent to, so the register is the
- * place you go once you already know which machine you are asking about. The
- * white-label's other builds reverse these two; nothing else about the rail moves.
+ * **Sites** is now the estate's call rather than a fixed last place, and it is the
+ * one thing about this rail that moves. A stationary estate keeps it: a site there
+ * is a permanent installation, its genset is bolted to a plinth beside it, and the
+ * register is a real destination. A **mobile** estate drops it, because a yard on a
+ * fleet that moves is somewhere plant was sent rather than a thing anyone asks
+ * about — and what the register used to be asked, `/deployments` now answers
+ * properly.
+ *
+ * `DATASET.plant` decides, so the fact lives with the estate that has it rather
+ * than in a brand's config; see `PlantKind` for why that line is drawn there. The
+ * **route** is untouched on both — `/sites/$siteId` still resolves, and the
+ * breadcrumb into one still reads. This drops a destination, not a feature.
  *
  * **Report** and **Overview** were destinations here and have both gone, for the
  * same reason one level apart: each restated figures a register already states.
@@ -54,10 +61,12 @@ const NAV_ITEMS: Array<NavItem> = [
   // register above it, and next to it because it is the question you ask as soon as
   // you know what the fleet is.
   {label: 'Deployments', icon: TruckIcon, link: '/deployments'},
-  // The estate counted in the card strip and listed under it. Last, because on a
-  // fleet that moves a site is where a machine went rather than the thing you are
-  // asking about.
-  {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
+  // The estate counted in the card strip and listed under it. Last on the estates
+  // that have it at all, because even where plant stands still the machine is what
+  // this product is about.
+  ...(DATASET.plant === 'stationary'
+    ? [{label: 'Sites', icon: RadioTowerIcon, link: '/sites'} satisfies NavItem]
+    : []),
 ];
 
 export const Sidebar = () => {

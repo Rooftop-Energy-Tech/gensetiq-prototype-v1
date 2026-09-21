@@ -71,6 +71,25 @@ export const DATASET_IDS = ['carrier', 'utility'] as const;
 export type DatasetId = (typeof DATASET_IDS)[number];
 
 /**
+ * Whether an estate's machines **move**.
+ *
+ * `'stationary'` is a set bolted to a plinth beside the thing it feeds. The site is
+ * the fact and the machine is a fitting on it, so a reader starts at the register
+ * of places and arrives at the engine standing on one.
+ *
+ * `'mobile'` is a set trucked to a yard for a job and brought back. The machine is
+ * the fact, and a site is only where it happens to be standing this week.
+ *
+ * This is the estate's answer and not the brand's, for the same reason the customer
+ * roster is. A brand stating its own would be a customer overriding the product
+ * model in config — the thing `types.ts` exists to prevent. What the estate names,
+ * the brand inherits by naming the estate.
+ */
+export const PLANT_KINDS = ['mobile', 'stationary'] as const;
+
+export type PlantKind = (typeof PLANT_KINDS)[number];
+
+/**
  * The three colours that are the customer's and not the product's.
  *
  * Deliberately three, and not "the palette". Every other token in `colors.ts` is
@@ -261,6 +280,20 @@ export type BrandDataset = {
    * cards show it and they should not all have to know which brand is loaded.
    */
   groupingLabel: string;
+  /**
+   * Whether the machines on this estate move — see `PlantKind`.
+   *
+   * It changes exactly one thing in the app, and deliberately only one: a mobile
+   * estate does not offer **Sites** in the rail. On a fleet that moves, the yard is
+   * a destination plant was sent to rather than a thing a reader asks about, and
+   * the question the register used to answer is the one `/deployments` now answers
+   * properly — what is out, where, and since when.
+   *
+   * The *routes* stay on both estates. A deep link into a site still resolves, and
+   * the breadcrumb into one still reads. This hides a destination; it does not
+   * delete a feature, which is why it can live on config at all.
+   */
+  plant: PlantKind;
   customers: ReadonlyArray<BrandCustomer>;
   /**
    * The rollout programmes sites can be filed under. May be empty: an estate with
