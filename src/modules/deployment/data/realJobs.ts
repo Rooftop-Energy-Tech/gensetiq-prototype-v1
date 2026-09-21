@@ -25,12 +25,20 @@ import type {Deployment, DeploymentMembership} from '../types/deployment.type';
  * carry what Express Mission wrote on the job sheet, and `fuelFrom` says which is
  * which on every row.
  *
- * Where both exist they disagree, and not slightly: job 8's sheet says 2,300 → 1,428
- * where the sensor says **2,316 → 2,136**, a 708 L gap in the closing figure alone.
- * The sheet is nearer the truth on burn rate — 1,348 L against 11,603 kWh on job 2
- * is 0.12 L/kWh, where a diesel set runs 0.25–0.30 — so neither source is reliably
- * the better one. ⚠️ Do not quote any of these jobs' fuel efficiency as a benchmark
- * until the two records are reconciled against delivery dockets.
+ * Where both exist they disagree, and the reason turns out to be instructive. Job 8's
+ * sheet closes at 1,428 L where the sensor says 2,136 — but 1,428 is roughly the tank
+ * at its **low point before the delivery on the 16th**, not at the end. Somebody read
+ * the gauge before the tanker came and wrote that down as the closing figure.
+ *
+ * Which is the whole argument for `consumedLitres` being stored rather than derived.
+ * Job 8 looks like it burned 180 L across its window; it burned **1,237**, because
+ * 1,057 went in halfway through. Endpoints cannot see a delivery, and six of these
+ * eight jobs have no sensor to find one with.
+ *
+ * ⚠️ The first six jobs' litres are therefore endpoint arithmetic on hand-written
+ * figures, and any refuel inside those windows is invisible. Job 2's 1,348 L against
+ * 11,603 kWh is 0.12 L/kWh where a diesel set runs 0.25–0.30, which is very likely a
+ * missed fill of about 1,700 L. Do not quote May–June fuel efficiency as a benchmark.
  */
 export const REAL_GENSET_ID = 'brf9540';
 
@@ -46,6 +54,25 @@ type RealJob = {
   /** Tank level at the posting's edges, litres. */
   startFuelLitres: number;
   endFuelLitres: number;
+  /**
+   * The lowest the tank reached inside the window, litres — `null` where no sensor
+   * was fitted. On a job with a delivery in it this is the number that says how
+   * close the machine came to stopping, which neither endpoint can: job 7 opens at
+   * 2,026 L and closes at 1,584, and touched **878 L** in between.
+   */
+  lowFuelLitres: number | null;
+  /** Litres delivered inside the window, `null` where there is no sensor to see it. */
+  refuelledLitres: number | null;
+  /**
+   * Litres actually burned — **not** `start − end`.
+   *
+   * With a delivery in the window those differ by the whole of the delivery: job 8
+   * runs 2,316 → 2,136, which looks like 180 L until you count the 1,057 L that went
+   * in on the 16th, and the real figure is 1,237. Every job with a refuel in it reads
+   * low by exactly the amount delivered if this is derived from the endpoints, which
+   * is why it is stored.
+   */
+  consumedLitres: number;
   /**
    * Where those two litre figures come from, and it is not the same for every job.
    *
@@ -93,7 +120,8 @@ type RealJob = {
 const JOBS: ReadonlyArray<RealJob> = [
   {index: 1, siteId: 'pe-026', locationLabel: 'PE Kapar L. Ind Park',
    startsAt: '2026-05-23T02:00:00.000Z', endsAt: '2026-05-23T10:00:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
-   startFuelLitres: 1970, endFuelLitres: 1848, fuelFrom: 'job sheet',
+   startFuelLitres: 1970, endFuelLitres: 1848, lowFuelLitres: null,
+   refuelledLitres: null, consumedLitres: 122, fuelFrom: 'job sheet',
    engineStartedAt: '2026-05-23T02:49:09.000Z', engineEndedAt: '2026-05-23T09:25:41.000Z',
    energyKwh: 298, meanLoadKw: 44, peakLoadKw: 58,
    oilPressureBar: 4.4, coolantCelsius: 68, batteryVolts: 28.9,
@@ -101,7 +129,8 @@ const JOBS: ReadonlyArray<RealJob> = [
 
   {index: 2, siteId: 'pe-027', locationLabel: 'PE Sek Men Vokasional Sg. Buloh',
    startsAt: '2026-06-03T10:00:00.000Z', endsAt: '2026-06-06T04:00:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
-   startFuelLitres: 1850, endFuelLitres: 502, fuelFrom: 'job sheet',
+   startFuelLitres: 1850, endFuelLitres: 502, lowFuelLitres: null,
+   refuelledLitres: null, consumedLitres: 1348, fuelFrom: 'job sheet',
    engineStartedAt: '2026-06-03T10:48:25.000Z', engineEndedAt: '2026-06-06T03:19:42.000Z',
    energyKwh: 11603, meanLoadKw: 179, peakLoadKw: 232,
    oilPressureBar: 4.4, coolantCelsius: 69, batteryVolts: 29.0,
@@ -109,7 +138,8 @@ const JOBS: ReadonlyArray<RealJob> = [
 
   {index: 3, siteId: 'pe-028', locationLabel: 'PE Taman Pantai Makmur 2',
    startsAt: '2026-06-11T04:00:00.000Z', endsAt: '2026-06-11T15:50:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
-   startFuelLitres: 2300, endFuelLitres: 1804, fuelFrom: 'job sheet',
+   startFuelLitres: 2300, endFuelLitres: 1804, lowFuelLitres: null,
+   refuelledLitres: null, consumedLitres: 496, fuelFrom: 'job sheet',
    engineStartedAt: '2026-06-11T04:33:27.000Z', engineEndedAt: '2026-06-11T15:38:36.000Z',
    energyKwh: 1155, meanLoadKw: 104, peakLoadKw: 127,
    oilPressureBar: 4.5, coolantCelsius: 68, batteryVolts: 29.4,
@@ -117,7 +147,8 @@ const JOBS: ReadonlyArray<RealJob> = [
 
   {index: 4, siteId: null, locationLabel: 'Location not recorded',
    startsAt: '2026-06-18T07:30:00.000Z', endsAt: '2026-06-18T12:00:00.000Z', enteredAt: '2026-06-19T00:00:00.000Z',
-   startFuelLitres: 1800, endFuelLitres: 1412, fuelFrom: 'job sheet',
+   startFuelLitres: 1800, endFuelLitres: 1412, lowFuelLitres: null,
+   refuelledLitres: null, consumedLitres: 388, fuelFrom: 'job sheet',
    engineStartedAt: '2026-06-18T07:44:33.000Z', engineEndedAt: '2026-06-18T11:31:13.000Z',
    energyKwh: 1203, meanLoadKw: 317, peakLoadKw: 433,
    oilPressureBar: 4.2, coolantCelsius: 71, batteryVolts: 29.2,
@@ -125,7 +156,8 @@ const JOBS: ReadonlyArray<RealJob> = [
 
   {index: 5, siteId: 'pe-029', locationLabel: 'PE Tmn Sementa Jaya',
    startsAt: '2026-06-24T08:10:00.000Z', endsAt: '2026-06-25T14:30:00.000Z', enteredAt: '2026-06-25T00:00:00.000Z',
-   startFuelLitres: 2100, endFuelLitres: 20, fuelFrom: 'job sheet',
+   startFuelLitres: 2100, endFuelLitres: 20, lowFuelLitres: null,
+   refuelledLitres: null, consumedLitres: 2080, fuelFrom: 'job sheet',
    engineStartedAt: '2026-06-24T08:17:58.000Z', engineEndedAt: '2026-06-25T13:15:46.000Z',
    energyKwh: 4352, meanLoadKw: 347, peakLoadKw: 486,
    oilPressureBar: 4.3, coolantCelsius: 70, batteryVolts: 29.5,
@@ -133,7 +165,8 @@ const JOBS: ReadonlyArray<RealJob> = [
 
   {index: 6, siteId: 'pe-030', locationLabel: 'PE Pusat Ternakan Itik',
    startsAt: '2026-06-27T20:35:00.000Z', endsAt: '2026-06-29T14:30:00.000Z', enteredAt: '2026-07-01T00:00:00.000Z',
-   startFuelLitres: 2200, endFuelLitres: 1623, fuelFrom: 'job sheet',
+   startFuelLitres: 2200, endFuelLitres: 1623, lowFuelLitres: null,
+   refuelledLitres: null, consumedLitres: 577, fuelFrom: 'job sheet',
    engineStartedAt: '2026-06-28T15:39:03.000Z', engineEndedAt: '2026-06-29T14:03:25.000Z',
    energyKwh: 483, meanLoadKw: 41, peakLoadKw: 75,
    oilPressureBar: 4.4, coolantCelsius: 67, batteryVolts: 29.4,
@@ -141,7 +174,8 @@ const JOBS: ReadonlyArray<RealJob> = [
 
   {index: 7, siteId: 'pe-031', locationLabel: 'PE Alam Perdana No 3',
    startsAt: '2026-09-10T06:40:00.000Z', endsAt: '2026-09-11T15:00:00.000Z', enteredAt: '2026-09-14T00:00:00.000Z',
-   startFuelLitres: 2271, endFuelLitres: 1584, fuelFrom: 'telemetry',
+   startFuelLitres: 2026, endFuelLitres: 1584, lowFuelLitres: 878,
+   refuelledLitres: 1362, consumedLitres: 1804, fuelFrom: 'telemetry',
    engineStartedAt: '2026-09-10T06:40:49.000Z', engineEndedAt: '2026-09-11T14:45:54.000Z',
    energyKwh: 5540, meanLoadKw: 172, peakLoadKw: 274,
    oilPressureBar: 4.2, coolantCelsius: 68, batteryVolts: 29.4,
@@ -149,7 +183,8 @@ const JOBS: ReadonlyArray<RealJob> = [
 
   {index: 8, siteId: null, locationLabel: 'Location not recorded',
    startsAt: '2026-09-15T07:10:00.000Z', endsAt: '2026-09-16T12:00:00.000Z', enteredAt: '2026-09-21T00:00:00.000Z',
-   startFuelLitres: 2316, endFuelLitres: 2136, fuelFrom: 'telemetry',
+   startFuelLitres: 2316, endFuelLitres: 2136, lowFuelLitres: 1282,
+   refuelledLitres: 1057, consumedLitres: 1237, fuelFrom: 'telemetry',
    engineStartedAt: '2026-09-15T07:15:58.000Z', engineEndedAt: '2026-09-16T09:11:29.000Z',
    energyKwh: 2546, meanLoadKw: 98, peakLoadKw: 169,
    oilPressureBar: 4.4, coolantCelsius: 68, batteryVolts: 29.4,
@@ -192,6 +227,40 @@ export const REAL_MEMBERSHIPS: ReadonlyArray<DeploymentMembership> = JOBS.map((j
   collectedAt: null,
 }));
 
+/**
+ * Deliveries into this machine's tank, from the refuel event log.
+ *
+ * Each is stamped at the moment the fill **completed**, which is what decides the job
+ * it belongs to: delivery 4 begins at 22:47 on the 11th — inside job 7's window by
+ * thirteen minutes — and finishes the next morning, so it counts against neither job
+ * 7 nor job 8, and job 7 carries two deliveries rather than three.
+ *
+ * ⚠️ Deliveries 1 and 4 bracket a gap in the record — an idle week and a night with
+ * the genset off — so their times are approximate and the litres are the sensor's
+ * delta across the gap rather than a measured fill. The other three are timed to the
+ * minute. Times are UTC; the source log is MYT.
+ */
+export const REAL_REFUELS: ReadonlyArray<{
+  at: string;
+  beforeLitres: number;
+  afterLitres: number;
+  litres: number;
+  /** True where the fill spans a gap in the record and its timing is inferred. */
+  approximate: boolean;
+  note: string;
+}> = [
+  {at: '2026-09-01T16:00:00.000Z', beforeLitres: 67, afterLitres: 2038, litres: 1971,
+   approximate: true, note: 'Fill from near-empty, across an idle week'},
+  {at: '2026-09-11T02:32:00.000Z', beforeLitres: 878, afterLitres: 2035, litres: 1158,
+   approximate: false, note: 'The 1,300 L nominal fill'},
+  {at: '2026-09-11T09:17:00.000Z', beforeLitres: 1728, afterLitres: 1933, litres: 205,
+   approximate: false, note: 'Top-up'},
+  {at: '2026-09-12T07:02:00.000Z', beforeLitres: 1584, afterLitres: 2354, litres: 770,
+   approximate: true, note: 'Morning fill, across a night with the genset off'},
+  {at: '2026-09-16T05:02:00.000Z', beforeLitres: 1282, afterLitres: 2339, litres: 1057,
+   approximate: false, note: 'The 1,000 L nominal fill'},
+];
+
 /** The engine's real spans, for the run log. Oldest first. */
 export const REAL_RUNS = JOBS.map((job) => ({
   id: `${REAL_GENSET_ID}-run-${job.index}`,
@@ -199,7 +268,7 @@ export const REAL_RUNS = JOBS.map((job) => ({
   startedAt: job.engineStartedAt,
   endedAt: job.engineEndedAt,
   energyProducedKwh: job.energyKwh,
-  fuelConsumedLitres: job.startFuelLitres - job.endFuelLitres,
+  fuelConsumedLitres: job.consumedLitres,
   meanLoadKw: job.meanLoadKw,
   peakLoadKw: job.peakLoadKw,
 }));

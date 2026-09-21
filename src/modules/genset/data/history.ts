@@ -4,7 +4,7 @@ import {GENSETS, seededGenset} from './fleet';
 import {READING_SWING, gensetDetail, sfcLitresPerKwh} from './detail';
 import {lossRateOf, lossStartedHoursAgo} from './fuelInstruments';
 import {spread, spreadBetween} from './spread';
-import {REAL_GENSET_ID, REAL_RUNS} from '@/modules/deployment/data/realJobs';
+import {REAL_GENSET_ID, REAL_REFUELS, REAL_RUNS} from '@/modules/deployment/data/realJobs';
 
 /**
  * The past, in place of the time-series API this prototype doesn't have.
@@ -501,8 +501,12 @@ export const runSpan = (
  *
  * The ladder already places a refuel wherever backward integration passes a full
  * tank, so these are not seeded a second time. One source, so a delivery cannot
- * exist for the reconciliation and not for the chart every screen draws — and if a
- * real delivery log ever lands (GEN-25), that becomes the source and this retires.
+ * exist for the reconciliation and not for the chart every screen draws.
+ *
+ * **The real delivery log has landed for one machine.** `BRF 9540` reads its five
+ * fills out of `REAL_REFUELS` rather than off the ladder, which is what the note here
+ * always said would happen (GEN-25) — for every other id the ladder is still the
+ * source, so this has not retired, it has forked.
  *
  * The threshold is a litre rather than zero: the ladder is floating-point, and a
  * tank sitting flat between two steps can differ in the last bit.
@@ -512,6 +516,14 @@ export const refuelsIn = (
   from: number,
   to: number,
 ): Array<{at: number; litres: number}> => {
+  // The real delivery log, for the one machine that has one — which is the case this
+  // function's own note anticipated. Stamped at the moment each fill completed, so a
+  // delivery that starts inside a job and finishes after it counts against neither.
+  if (gensetId === REAL_GENSET_ID) {
+    return REAL_REFUELS.map((refuel) => ({at: new Date(refuel.at).getTime(), litres: refuel.litres}))
+      .filter((refuel) => refuel.at >= from && refuel.at <= to);
+  }
+
   const levels = fuelLadder(gensetId);
   const refuels: Array<{at: number; litres: number}> = [];
 
