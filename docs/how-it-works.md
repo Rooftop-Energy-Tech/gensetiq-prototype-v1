@@ -1695,12 +1695,24 @@ card — it sits on the canvas, so it reads as the page's own subject rather tha
 another panel — and it is still the one thing here that is a fact about the *yard*
 rather than about a machine in it.
 
-What is new is that it is also the page's **navigation**. Clicking `GENSET`, `SOLAR` or
-`BATTERY` puts that device's card in the right-hand column; the box takes a ring to say
-which one is showing, and the page opens on **whatever is carrying the site**, so a
-solar hybrid in daylight opens on its array and a set that has picked up an outage
-opens on that set. `MAINS` and `LOAD` are not clickable, because neither is a device on
-this estate's books and neither has a card behind it.
+It is also the page's **navigation**. Clicking a `GENSET` box puts that set's card in
+the right-hand column and the box takes a ring to say which one is showing; clicking the
+drawing's **background** puts the selection down again and the column returns to the
+site's own figures, which is the state the page opens in. `MAINS` and `LOAD` are not
+clickable, because neither is a device on this estate's books and neither has a card
+behind it.
+
+**The drawing was removed and is back.** It came out when the telco plant did — the
+argument was that a circuit of an incomer, a bus and a set is a DC-plant picture, and
+that the isometric plant scene answered the same question better by drawing the compound.
+Then the scene came out too, because a mast and a row of equipment cabinets draw a *telco
+site* and this product posts a genset to a yard. What was left in this band was a row of
+pill buttons — `Site`, then one per set — which is an honest control that draws nothing.
+The schematic is the projection that survives the change of product: an incomer, an
+isolator, a set and a load is the electrical truth about a compound whatever the compound
+is for. Tristan's call, 2026-09-21. It is back stripped to what this product has —
+mains where the role has one, one row per set, the load — and the pills are gone with the
+`Site` pill's job handed to the background click.
 
 The cards were band 5 — a stack of full-width rows at the foot of the page — and the
 move is the same argument the details' move made, one page further on. The stack was a
@@ -1717,9 +1729,10 @@ rather than one card and a footnote.
 
 Below `xl` the band folds into a column — the drawing, then its card. This page carries
 the global rail *and* the site's own nav, so its content column is about 380px narrower
-than the viewport: 901px at `xl`, which divides into 530 for a solar hybrid's drawing
-and 355 for its card. One step down it is 645px, and there is no honest way to split
-that.
+than the viewport: 901px at `xl`, which divides into 398 for the drawing — a fixed canvas,
+so its track is sized to it exactly — and the rest for its card. One step down it is
+645px, which puts the card under the 18rem where its badges start wrapping one to a line,
+and there is no honest way to split that.
 
 **Band 3 — the details.** What the site *is*, in the shared `DetailBand`: its name,
 where it stands, its region, its programme, how it is fed and what is installed. Every
@@ -1753,19 +1766,18 @@ is captioned in two lines — what it is, and what it is putting into the bus �
 node that is a **device** carries the alarm pill under those two.
 
 **The pill is what makes the drawing say where the trouble is** (Tristan, 2026-09-14).
-The band already answered *what is feeding this tower*; it could not answer *which of
-these boxes has something wrong with it* without a reader clicking each one in turn. Four
-boxes — array, bank, cabinet, set — now carry `Critical · Warning · Neutral` in the app's
-own pill, in the same position on each, so the column of them reads down like a column in
-a table. The mains and the load carry none: an incomer is a supply rather than a machine
-on this estate's books, and nothing reports on a load.
+The band already answered *what is feeding this yard*; it could not answer *which of
+these boxes has something wrong with it* without a reader clicking each one in turn. Every
+set's box now carries `Critical · Warning · Neutral` in the app's own pill, in the same
+position on each, so the column of them reads down like a column in a table. The mains and
+the load carry none: an incomer is a supply rather than a machine on this estate's books,
+and nothing reports on a load.
 
-The counts are **sliced out of the site's own queue** — the union the page's strip counts
-and its Alarms tab lists, `useSiteAlarmQueue` — so a box and the
-device card it opens beside the drawing cannot report different numbers. Each set takes
-the union its own page takes instead, the controller's bits plus the unit's `GENSET`
-rows, which means two sets in one yard both carry that yard's AC rows; at a site with no
-incomer that AC is each engine's own output, so this is right rather than double-counted.
+Each set takes the union its own page takes — the controller's bits plus the monitoring
+unit's `GENSET` rows — so a box and the device card it opens beside the drawing cannot
+report different numbers. Two sets in one yard therefore both carry that yard's AC rows;
+at a site with no incomer that AC is each engine's own output, so this is right rather
+than double-counted.
 
 **The pill is a link** to that device's Alarms tab, and **double-clicking the box opens
 the device's own page** — the gesture a reader already expects from a box in a diagram. A
@@ -1774,13 +1786,6 @@ single click still puts the device in the card beside the drawing. That is why a
 and the browser closes it at the `<a>` if you try. Enter and Space still select; the
 double-click is mouse-only, and the card it opens carries the same link.
 
-**The plant view carries all of it too.** The two projections of this band are one control
-with two drawings, so a gutter card in the 3D scene has the pill under its three lines,
-the same link, and the same single-click-selects / double-click-opens pair. Both read the
-same `alarms` map, handed down by `SiteCircuit`. A card is 118px wide against the box's
-88, so the 80px pill fits either way up; what it cost was the scene's label pitch, which
-went from 76px to 100px to clear the taller card.
-
 Pills are drawn on **every** device node, a quiet one included, so their absence never
 becomes the signal — and a severity with nothing standing draws a dash rather than a `0`.
 The settings page, which renders this same drawing twice as a preview of a power role,
@@ -1788,7 +1793,7 @@ passes no counts at all and gets the tighter geometry back: the pitch and the bo
 margin both open up by one pill's height only when there are pills to put there.
 
 Only a connected, energised source gets a **kW figure**; the rest get a word
-(`off-load`, `stopped`, `unavailable`, `failed`, `night`), because `0 kW` is a
+(`off-load`, `stopped`, `unavailable`, `failed`), because `0 kW` is a
 *measurement*, and claiming to have measured zero at a machine that is unreachable is a
 stronger statement than the page is entitled to make. The load's caption is the site's
 draw, stated where the power actually arrives — and on a grid-backed site with the grid
@@ -1798,21 +1803,14 @@ up, that draw is the **incomer's** figure, not a genset's.
 mains source above its gensets, on its own contactor. The frame has no such node — it
 draws gensets only, which quietly makes every site look like it has nothing else
 feeding it — and a page about *backup* power that never shows what is being backed up is
-missing its subject. The two hybrid roles add a **bank** the same way, and that is the
-argument for putting all of them in one column rather than inventing a second: a bus is
-a bus, so every source is a row, and every measurement above applies to each unchanged.
-Three sources at a solar hybrid with two sets is the same drawing as one source at a
-diesel-prime site with one — taller, and not otherwise different.
+missing its subject. It is a row like any other, and that is the argument for one column
+rather than a second: a bus is a bus, so every source is a row, and every measurement
+above applies to each unchanged. Three sources at a grid-backed site with two sets is the
+same drawing as one source at a diesel-prime site with one — taller, and not otherwise
+different.
 
-**The array is the one thing that is not a row**, because it is not on the bus. It is
-DC-coupled: it charges the bank and reaches the load through the same converter the bank
-does, so it is drawn where it actually sits — in its own column to the left, on one
-conductor into the battery. Giving it an isolator of its own said something false, that
-the array could carry the tower with the bank disconnected.
-
-The order down the column is the order the site uses its sources in: **grid, bank, then
-gensets.** Reading it downwards is reading the control strategy, which is why the bank
-sits above the machine that charges it.
+The order down the column is the order the site uses its sources in: **grid, then
+gensets.** Reading it downwards is reading the control strategy.
 
 Conductors are painted **dead runs first, then live ones**. Not cosmetic: every source
 elbows onto the bus riser and runs along it to the tap, so with three or more sources

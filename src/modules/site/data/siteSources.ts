@@ -16,16 +16,14 @@ import type {SiteFeed, SiteSummary} from './sites';
  *
  * ## Why this is data and not a drawing
  *
- * It was the data half of `SiteDiagram`, the single-line schematic, which has been
- * removed: a one-line circuit of an incomer, a bus and a set is a *telco DC plant*
- * picture, and this product puts a genset in a yard. The plant scene answers the
- * same question by drawing the compound, which is what a reader arriving at a site
- * is actually asking about.
+ * It was the data half of `SiteDiagram`, the single-line schematic, and it was split
+ * out when that drawing was removed — then it outlived the two drawings that replaced
+ * it. Which sources a site has, whether each one's isolator is shut, what each is
+ * delivering and where its box leads when clicked are facts about the site, not about
+ * any one projection of it, so they stay here whichever drawing is reading them.
  *
- * The answers themselves outlived the schematic. Which sources a site has, whether
- * each one's isolator is shut, what each is delivering and where its box leads when
- * clicked are facts about the site, not about any one projection of it — so they
- * live here and `SitePlantScene` reads them.
+ * `SiteDiagram` is that drawing again as of 2026-09-21 — see its header for why the
+ * schematic is the projection that survived the change of product.
  */
 
 /**

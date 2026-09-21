@@ -49,10 +49,11 @@ import {SiteMetricStrip} from './SiteMetricStrip';
  *
  * ## At phone width
  *
- * The bands are already a column, and band 2 is one at every width now that its
- * drawing is gone: a picker over the card it selects. Nothing there is a fixed
- * canvas any more, so nothing has to measure its own box — see `SiteCircuit` on what
- * the two drawings were and why neither survived.
+ * The bands are already a column, and band 2 becomes one below `xl`: the drawing over
+ * the card it selects. The drawing is a fixed canvas, so it measures the box it is
+ * handed and scales itself rather than reflowing — see `SiteDiagram`, and
+ * `SiteCircuit` on the two drawings that have been through this band and why the
+ * schematic is the one that came back.
  */
 export const SiteHome = ({summary}: {summary: SiteSummary}) => {
   // One clock reading for the whole page, so the strip's figures, the device card
