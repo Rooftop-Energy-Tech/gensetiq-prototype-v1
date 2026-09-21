@@ -16,7 +16,6 @@ import {
 } from '@/components/global/SummaryCards';
 import {STATUS_META} from '@/modules/genset/data/fleetStatus';
 import {gensetSearch} from '@/modules/genset/types/view.type';
-import {solarSearch} from '@/modules/solar/types/register.type';
 import type {EstateSummary} from '../data/estateSummary';
 import type {SiteSearch} from '../types/view.type';
 
@@ -75,8 +74,6 @@ type SitesSummaryCardsProps = {
    * whoever happens to drive there. The site count moves to the detail line.
    */
   serviceDue: {gensetCount: number; siteCount: number};
-  /** Solar's share of off-grid generation over thirty days, and the kWh behind it. */
-  solar: {share: number; kwh: number};
   search: SiteSearch;
   onSearchChange: (next: Partial<SiteSearch>) => void;
 };
@@ -102,10 +99,7 @@ const LinkCard = ({
 }: {
   label: string;
   children: React.ReactNode;
-} & (
-  | {to: '/solar'; search: ReturnType<typeof solarSearch>}
-  | {to: '/gensets'; search: ReturnType<typeof gensetSearch>}
-)) => (
+} & {to: '/gensets'; search: ReturnType<typeof gensetSearch>}) => (
   <Link {...link} aria-label={label} className={cn(SUMMARY_CARD_BOX, SUMMARY_CARD_LINK)}>
     <SummaryCardLabel>
       <span className="truncate">{label}</span>
@@ -121,7 +115,6 @@ export const SitesSummaryCards = ({
   summary,
   showing,
   serviceDue,
-  solar,
   search,
   onSearchChange,
 }: SitesSummaryCardsProps) => {
@@ -201,18 +194,6 @@ export const SitesSummaryCards = ({
           />
         </LinkCard>
 
-        {/* To the array register, which is where this figure is accounted for system
-            by system — the same destination the overview's tile had. */}
-        <LinkCard label="Solar share" to="/solar" search={solarSearch()}>
-          {/* No unit beside the figure: `23%` carries its own, and `of generation`
-              beside it truncated at phone width for no gain — the label already says
-              this is a share. The detail line carries the kWh behind it and the
-              window both figures are measured over. */}
-          <Headline
-            value={`${Math.round(solar.share * 100)}%`}
-            detail={`${Math.round(solar.kwh).toLocaleString('en-MY')} kWh over 30 days`}
-          />
-        </LinkCard>
       </SummaryCardRow>
 
       <SummaryCollapseButton

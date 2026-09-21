@@ -1,4 +1,4 @@
-import {BatteryChargingIcon, BoomBoxIcon, SunMediumIcon, UtilityPoleIcon} from 'lucide-react';
+import {BoomBoxIcon, UtilityPoleIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
@@ -7,7 +7,7 @@ import type {SitePowerRole} from '../types/site.type';
 import {setSitePowerRole, useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
 import {SiteIdentityPanel} from './settings/SiteIdentityPanel';
-import {SiteDiagram} from './SiteDiagram';
+import {SitePlantScene} from './SitePlantScene';
 import {SiteGensets} from './SiteGensets';
 
 /**
@@ -63,28 +63,14 @@ const ROLE_COPY: Record<SitePowerRole, RoleCopy> = {
     icon: UtilityPoleIcon,
     claim:
       'There is a utility incomer. The genset starts when it fails and hands the load back when it returns.',
-    effect: 'The diagram draws the grid above the gensets, on its own transfer contactor.',
+    effect: 'The site is drawn with an incomer above the gensets, on its own transfer contactor.',
   },
   DIESEL_PRIME: {
     label: 'Diesel prime',
     icon: BoomBoxIcon,
     claim:
-      'No incomer and no storage. The genset carries the tower continuously, and a second set is a spare rather than a backup.',
-    effect: 'The diagram draws the gensets alone, and a site with none feeding reads as an outage.',
-  },
-  DIESEL_HYBRID: {
-    label: 'Diesel hybrid',
-    icon: BatteryChargingIcon,
-    claim:
-      'No incomer. A battery carries the tower and the genset runs in blocks to recharge it, near its efficient loading rather than idling at what the tower draws.',
-    effect: 'The diagram adds the battery to the bus, above the gensets.',
-  },
-  SOLAR_HYBRID: {
-    label: 'Solar hybrid',
-    icon: SunMediumIcon,
-    claim:
-      'No incomer. Solar carries the day and charges the battery, the battery carries the night, and the genset is the backstop for a run of dull days.',
-    effect: 'The diagram adds the array and the battery to the bus, above the gensets.',
+      'No incomer. The genset carries the tower continuously, and a second set is a spare rather than a backup.',
+    effect: 'The site is drawn with the gensets alone, and one with none feeding reads as an outage.',
   },
 };
 
@@ -199,12 +185,16 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
 
       <hr className="border-subtle" />
 
-      {/* The setting's own effect, drawn. Cheap — `SiteDiagram` is already a pure
+      {/* The setting's own effect, drawn. Cheap — `SitePlantScene` is already a pure
           function of `(summary, dutyId, role)` — and it is the most useful thing the
           page can show: the choice above is about a picture, so the picture is the
-          argument. It uses the site's real duty set and real incomer reading, which
-          is why this is the site page's circuit rather than an illustration of one. */}
-      <section aria-label="Circuit preview" className="flex flex-col gap-5 px-6 py-7">
+          argument. It uses the site's real duty set and real incomer reading, which is
+          why this is the site page's own scene rather than an illustration of one.
+
+          It was the single-line schematic until that was removed: a circuit of an
+          incomer, a bus and a set is a telco DC plant drawing, and this product puts a
+          genset in a yard. */}
+      <section aria-label="Site preview" className="flex flex-col gap-5 px-6 py-7">
         <h2 className="text-sm font-medium text-primary">
           {summary.site.name} as {ROLE_COPY[role].label.toLowerCase()}
         </h2>
@@ -215,7 +205,7 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
             fitted.
           </p>
         ) : (
-          <SiteDiagram summary={summary} dutyId={summary.defaultDutyId} role={role} />
+          <SitePlantScene summary={summary} dutyId={summary.defaultDutyId} role={role} />
         )}
       </section>
     </div>

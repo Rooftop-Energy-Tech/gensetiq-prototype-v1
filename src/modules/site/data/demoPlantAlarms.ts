@@ -98,22 +98,6 @@ type DemoShowcase = {
 };
 
 const DEMO_RANKS: Partial<Record<PlantAlarmCategory, DemoShowcase>> = {
-  SOLAR: {
-    mode: 'REPLACE',
-    rows: [
-      {label: 'PV 1 Array Fault', severity: 'CRITICAL'},
-      {label: 'PV 2 Array Fault', severity: 'WARNING'},
-      {label: 'PV 3 Array Fault', severity: 'NEUTRAL'},
-    ],
-  },
-  BATTERY: {
-    mode: 'REPLACE',
-    rows: [
-      {label: 'Lithium Battery 1 Abnormal', severity: 'CRITICAL'},
-      {label: 'Lithium Battery 2 Abnormal', severity: 'WARNING'},
-      {label: 'Lithium Battery 3 Abnormal', severity: 'NEUTRAL'},
-    ],
-  },
 
   /**
    * **The cabinet's three are real, and that is why they are these three.**

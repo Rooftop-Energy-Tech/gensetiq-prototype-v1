@@ -58,7 +58,7 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
  * site has no utility incomer, and the DC bus pair is `SITE` rather than `BATTERY`
  * because a sagging bus is a generation problem.
  */
-export const PLANT_ALARM_CATEGORIES = ['SITE', 'BATTERY', 'GENSET', 'SOLAR'] as const;
+export const PLANT_ALARM_CATEGORIES = ['SITE', 'GENSET'] as const;
 
 export type PlantAlarmCategory = (typeof PLANT_ALARM_CATEGORIES)[number];
 
@@ -159,10 +159,8 @@ export const CABINET_PART_LABEL: Record<CabinetPart, string> = {
 };
 
 export const PLANT_ALARM_CATEGORY_LABEL: Record<PlantAlarmCategory, string> = {
-  SITE: 'Cabinet',
-  BATTERY: 'Battery',
+  SITE: 'Site',
   GENSET: 'Genset',
-  SOLAR: 'Solar',
 };
 
 /**

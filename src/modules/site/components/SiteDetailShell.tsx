@@ -1,24 +1,15 @@
 import {Outlet} from '@tanstack/react-router';
 import {
-  BatteryChargingIcon,
   BellIcon,
   BoomBoxIcon,
   ComponentIcon,
   LandPlotIcon,
-  PanelsTopLeftIcon,
-  ServerIcon,
   SettingsIcon,
 } from 'lucide-react';
 
 import {DetailSidebar} from '@/components/global/DetailSidebar';
 import type {DetailNavEntry, DetailNavItem} from '@/components/global/DetailSidebar';
-import {hasBattery, hasSolar} from '../types/site.type';
-import type {SitePowerRole} from '../types/site.type';
-import {hybridPlant} from '../data/hybrid';
-import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
 import {fromSite} from '../types/fromSearch.type';
-import {siteSeed} from '../data/siteSeed';
-import {useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
 import {SiteSwitcher} from './SiteSwitcher';
 
@@ -80,9 +71,7 @@ import {SiteSwitcher} from './SiteSwitcher';
  * The rest of the yard is reachable from that row's "see all plant"; a rail that
  * listed four engines would be an inventory, which is what `/gensets` is for.
  */
-const assetItems = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavItem> => {
-  const seed = siteSeed(summary.site.id);
-  const plant = seed === undefined ? undefined : hybridPlant(seed, role);
+const assetItems = (summary: SiteSummary): Array<DetailNavItem> => {
   const lead = summary.gensets[0];
   const items: Array<DetailNavItem> = [];
 
@@ -97,52 +86,12 @@ const assetItems = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavI
     });
   }
 
-  if (hasSolar(role) && (plant?.solarKwp ?? 0) > 0) {
-    items.push({
-      label: 'Solar',
-      icon: PanelsTopLeftIcon,
-      to: '/solar/$systemId',
-      params: {systemId: summary.site.id},
-      search: fromSite(summary.site.id),
-      end: true,
-    });
-  }
-
-  // The bank's own page, now that storage has one. `bankId` is the site id — one
-  // bank per site, the same identity `/solar/<siteId>` uses.
-  if (hasBattery(role) && (plant?.batteryKwh ?? 0) > 0) {
-    items.push({
-      label: 'Battery',
-      icon: BatteryChargingIcon,
-      to: '/battery/$bankId',
-      params: {bankId: summary.site.id},
-      search: fromSite(summary.site.id),
-      end: true,
-    });
-  }
-
-  // The subrack cabinet: every solar hybrid, plus the instrumented site whatever its
-  // role. `siteHasCabinet` rather than a `subrackCabinet(...) !== undefined` call:
-  // this is a rail deciding whether to offer a door, and it should not have to
-  // assemble the room behind it to find out. The two agree by construction — the
-  // assembly tests this same predicate first.
-  if (siteHasCabinet(summary.site.id, role)) {
-    items.push({
-      label: 'Cabinet',
-      icon: ServerIcon,
-      to: '/cabinet/$cabinetId',
-      params: {cabinetId: summary.site.id},
-      search: fromSite(summary.site.id),
-      end: true,
-    });
-  }
-
   return items;
 };
 
-const navEntries = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavEntry> => {
+const navEntries = (summary: SiteSummary): Array<DetailNavEntry> => {
   const params = {siteId: summary.site.id};
-  const assets = assetItems(summary, role);
+  const assets = assetItems(summary);
 
   return [
     // `end` on this row alone: `/sites/x` prefixes every route below it, so
@@ -159,14 +108,13 @@ const navEntries = (summary: SiteSummary, role: SitePowerRole): Array<DetailNavE
 };
 
 export const SiteDetailShell = ({summary}: {summary: SiteSummary}) => {
-  const role = useSitePowerRole(summary.site.id);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <DetailSidebar
         ariaLabel="Site sections"
         header={<SiteSwitcher site={summary.site} />}
-        entries={navEntries(summary, role)}
+        entries={navEntries(summary)}
       />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

@@ -9,10 +9,6 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {byUrgency, isStanding} from '@/modules/genset/types/alarmState.type';
 import type {AlarmHandling} from '@/modules/genset/types/alarmState.type';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
-import {systemDetail} from '@/modules/solar/data/systemDetail';
-import {solarAlarmRows} from '@/modules/solar/data/solarAlarmQueue';
-import {solarSystem, useSolarSystem} from '@/modules/solar/data/systems';
-import type {SolarSystem} from '@/modules/solar/types/system.type';
 import {FALLBACK_POWER_ROLE, useSitePowerRole, useSitePowerRoles} from './siteConfig';
 import {siteSeeds} from './siteSeed';
 import type {PlantAlarmCategory} from '../types/plantAlarm.type';
@@ -90,13 +86,10 @@ const tagged = (
 const rowsFor = (
   siteId: string,
   role: SitePowerRole,
-  system: SolarSystem | undefined,
-  now: number,
   handling: Record<string, AlarmHandling>,
 ): Array<AlarmView> => {
   const rows: Array<AlarmView> = [
     ...tagged(assertedPlantAlarms(siteId, role, 'SITE', handling), 'SITE'),
-    ...tagged(assertedPlantAlarms(siteId, role, 'BATTERY', handling), 'BATTERY'),
     ...tagged(assertedPlantAlarms(siteId, role, 'GENSET', handling), 'GENSET'),
   ];
 
@@ -119,27 +112,14 @@ const rowsFor = (
     );
   }
 
-  // The array, where there is one — its derived rules and the unit's registers
-  // together, which is the same list its own tab shows.
-  if (system !== undefined) {
-    const detail = systemDetail(system, now, false);
-    if (detail !== undefined) {
-      rows.push(...tagged(solarAlarmRows(system, detail, now, handling), 'SOLAR'));
-    }
-  }
-
   return rows;
 };
 
 export const useSiteAlarmQueue = (siteId: string, now: number): SiteAlarmQueue => {
   const handling = useAlarmHandling();
   const role = useSitePowerRole(siteId);
-  // `undefined` where the role carries no array, which is how a site flipped to
-  // `GRID_BACKUP` loses its solar rows without this file knowing the rule.
-  const system = useSolarSystem(siteId, now);
-
   return useMemo(() => {
-    const rows = rowsFor(siteId, role, system, now, handling);
+    const rows = rowsFor(siteId, role, handling);
 
     const standing = rows
       .filter(isStanding)
@@ -158,7 +138,7 @@ export const useSiteAlarmQueue = (siteId: string, now: number): SiteAlarmQueue =
             new Date(left.handling.clearedAt ?? 0).getTime(),
         ),
     };
-  }, [siteId, role, system, now, handling]);
+  }, [siteId, role, now, handling]);
 };
 
 /**
@@ -210,13 +190,7 @@ export const useEstateAlarmCounts = (
       Object.fromEntries(
         siteSeeds().map((seed) => {
           const role = roles[seed.id] ?? FALLBACK_POWER_ROLE;
-          // `solarSystem` rather than the hook, for the reason this is one pass:
-          // `useSolarSystem` is `useSitePowerRoles` + `useAlarmHandling` + a memo,
-          // and both of those are already subscribed here. `undefined` where the
-          // role carries no array, which is how a site flipped to `GRID_BACKUP`
-          // loses its solar rows without this file knowing the rule.
-          const system = solarSystem(seed.id, roles, now, handling);
-          const rows = rowsFor(seed.id, role, system, now, handling);
+          const rows = rowsFor(seed.id, role, handling);
           return [seed.id, countBySeverity(rows.filter(isStanding))];
         }),
       ),

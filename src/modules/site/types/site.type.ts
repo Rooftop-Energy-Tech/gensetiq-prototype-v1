@@ -40,23 +40,17 @@ export type SiteKind = SiteKindId;
 /**
  * How this site is powered — and therefore **which circuit the site page draws**.
  *
- * Four configurations, because this estate genuinely runs four. The mobile-fleet
- * build had two, mains-backed and genset-only, and adding storage to that
- * vocabulary as a flag would have produced a fifth state nobody could name.
+ * Two configurations, because a genset fleet runs two: mains-backed and
+ * genset-only. The estate this build serves is a *mobile* one — machines are
+ * posted to a site for a period and collected again — so a site is a yard with
+ * an engine standing in it, not a permanent plant with storage and an array.
  *
  * - `GRID_BACKUP` — there is a utility incomer, and a genset backs it up. The
  *   load normally sits on the grid; the set picks it up when the grid drops.
  *   Town and suburban sites.
- * - `DIESEL_PRIME` — no incomer, no storage. The genset *is* the supply and runs
- *   continuously. The oldest configuration on the estate and the one every other
- *   entry here is measured against.
- * - `DIESEL_HYBRID` — no incomer. A battery carries the load and the genset runs
- *   in blocks to recharge it, near its efficient loading rather than idling at
- *   the 4 kW a tower draws. Fewer engine hours, less diesel, same supply.
- * - `SOLAR_HYBRID` — no incomer. Solar carries the day and charges the battery,
- *   the battery carries the night, and the genset is the backstop for a run of
- *   dull days. The genset is still fitted, which is the point: this is a hybrid,
- *   not an off-grid solar site.
+ * - `DIESEL_PRIME` — no incomer. The genset *is* the supply and runs
+ *   continuously. The configuration Express Mission's own fleet runs, and the
+ *   one every remote posting lands in.
  *
  * ## This is a display choice, and only a display choice
  *
@@ -71,16 +65,11 @@ export type SiteKind = SiteKindId;
  * prototype has no business issuing.
  *
  * One visible consequence of holding that line: a set's activity feed is the
- * *machine's* history, so at a site declared `SOLAR_HYBRID` it may still read
- * "Engine started on utility outage". The setting redraws the site; it does not
- * rewrite what the controllers did.
+ * *machine's* history, so at a site declared `DIESEL_PRIME` it may still read
+ * "Engine started on utility outage" from a posting at some earlier yard. The
+ * setting redraws the site; it does not rewrite what the controllers did.
  */
-export const SITE_POWER_ROLES = [
-  'GRID_BACKUP',
-  'DIESEL_PRIME',
-  'DIESEL_HYBRID',
-  'SOLAR_HYBRID',
-] as const;
+export const SITE_POWER_ROLES = ['GRID_BACKUP', 'DIESEL_PRIME'] as const;
 
 export type SitePowerRole = (typeof SITE_POWER_ROLES)[number];
 
@@ -90,26 +79,16 @@ export type SitePowerRole = (typeof SITE_POWER_ROLES)[number];
  * One predicate rather than `role === 'GRID_BACKUP'` at each call site, because
  * the question every caller is actually asking is "is there a grid here", and
  * writing it as an equality invites the next configuration to be added by
- * forgetting one of them. Three of the four have no incomer, and the day a
- * grid-tied hybrid joins the list this is the only line that changes.
+ * forgetting one of them. The day a grid-tied arrangement joins the list this is
+ * the only line that changes.
  */
 export const hasMains = (role: SitePowerRole): boolean => role === 'GRID_BACKUP';
-
-/** Is a battery fitted — the two hybrid configurations, and only those. */
-export const hasBattery = (role: SitePowerRole): boolean =>
-  role === 'DIESEL_HYBRID' || role === 'SOLAR_HYBRID';
-
-/** Is a PV array fitted. */
-export const hasSolar = (role: SitePowerRole): boolean => role === 'SOLAR_HYBRID';
 
 /** How the configuration is written in a heading or a chip. */
 export const SITE_POWER_ROLE_LABEL: Record<SitePowerRole, string> = {
   GRID_BACKUP: 'Grid + genset',
   DIESEL_PRIME: 'Diesel prime',
-  DIESEL_HYBRID: 'Diesel hybrid',
-  SOLAR_HYBRID: 'Solar hybrid',
 };
-
 /**
  * The mains incomer: whether it is live, and what is flowing through it.
  *

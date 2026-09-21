@@ -1,7 +1,5 @@
 import {useMemo, useState} from 'react';
-import {BoxesIcon, NetworkIcon} from 'lucide-react';
 
-import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 
 import {standingAlarms, useAlarmHandling} from '@/modules/genset/data/alarms';
 import {plantAlarmQueue} from '@/modules/genset/data/assertedAlarms';
@@ -12,7 +10,6 @@ import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
 import {gensetDeviceKey} from '../types/device.type';
 import type {SiteDeviceKey} from '../types/device.type';
 import type {SitePowerRole} from '../types/site.type';
-import {SiteDiagram} from './SiteDiagram';
 import {SitePlantScene} from './SitePlantScene';
 import {SiteTelemetry} from './SiteTelemetry';
 import {SiteDevicePanel, siteDevices} from './SiteDevicePanel';
@@ -87,9 +84,7 @@ export const SiteCircuit = ({
    * click away rather than a second band — two drawings of one site stacked would say
    * everything twice.
    */
-  const [view, setView] = useState<'schematic' | 'plant'>('plant');
-
-  const devices = siteDevices(summary, role);
+  const devices = siteDevices(summary);
 
   /**
    * What is standing on each box in the drawing — the pills under the node names.
@@ -119,9 +114,7 @@ export const SiteCircuit = ({
     const plantStanding = plantAlarmQueue(summary.site.id, role, 'GENSET', handling).standing;
 
     const byDevice: Partial<Record<SiteDeviceKey, Record<AlertSeverity, number>>> = {
-      solar: countBySeverity(standing.filter((row) => row.asset === 'SOLAR')),
-      battery: countBySeverity(standing.filter((row) => row.asset === 'BATTERY')),
-      cabinet: countBySeverity(standing.filter((row) => row.asset === 'SITE')),
+      site: countBySeverity(standing.filter((row) => row.asset === 'SITE')),
     };
 
     for (const {genset} of summary.gensets) {
@@ -178,93 +171,28 @@ export const SiteCircuit = ({
 
           The content stays top-aligned inside the card: it is the *box* that grows,
           not the type, so nothing is centred against the drawing by accident. */}
-      {/* The switcher sits above the band rather than inside either drawing, because it
-          belongs to the band: it changes which projection the left track carries, and
-          the card on the right is unaffected — same device, same figures, whichever
-          drawing chose it. */}
-      <div className="flex justify-center pb-1 xl:justify-start">
-        <Tabs value={view} onValueChange={(next) => setView(next as 'schematic' | 'plant')}>
-          {/* No fixed width: at `w-[70px]` the two triggers' own `px-2` was being
-              squeezed out by `flex-1` and the icons sat against the rail's edges.
-              `w-fit` lets the list take the width its padding asks for. */}
-          <TabsList>
-            {/* `tabIndex` by hand for the reason `PlantToolbar` gives: Radix's
-                roving-focus group leaves every trigger at -1 until one is clicked,
-                which makes a fresh switcher unreachable by keyboard. */}
-            <TabsTrigger
-              value="schematic"
-              className="flex-1"
-              aria-label="Single-line diagram"
-              tabIndex={view === 'schematic' ? 0 : -1}
-            >
-              <NetworkIcon aria-hidden="true" />
-            </TabsTrigger>
-            <TabsTrigger
-              value="plant"
-              className="flex-1"
-              aria-label="Plant on site"
-              tabIndex={view === 'plant' ? 0 : -1}
-            >
-              <BoxesIcon aria-hidden="true" />
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
       <div
         className="flex flex-col gap-4 xl:grid xl:items-stretch"
         style={{
-          // The schematic is a fixed canvas and asks for its measured width. The plant
-          // scene measures whatever it is given and scales the compound to fit, so it
-          // takes a share of the row instead — and the larger share, because it is a
-          // drawing of objects rather than of boxes and lines: the same figures that are
-          // legible in a 88px box need the equipment under them to be big enough to
-          // recognise. The card beside it holds at 18rem, which is where its badges stop
-          // wrapping one to a line.
-          // **One template for both views, and it is the plant view's.** The card on the
-          // right used to be sized off whichever drawing was showing, so switching view
-          // resized the card and re-flowed its badges — the reader's eye lost the thing
-          // they were reading because they changed how they were looking at the site. The
-          // schematic is a fixed canvas and simply sits at the left of the wider track,
-          // which costs it nothing: it was never going to use the space.
+          // The plant scene measures whatever it is given and scales the compound to
+          // fit, so it takes a share of the row — and the larger share, because it is a
+          // drawing of objects rather than of boxes and lines: the equipment has to be
+          // big enough to recognise. The card beside it holds at 18rem, which is where
+          // its badges stop wrapping one to a line.
           gridTemplateColumns: 'minmax(34rem, 2.4fr) minmax(18rem, 1fr)',
         }}
       >
-        {/* Centred in its track at every width. Handed the width directly rather than
-            sized to the drawing: the diagram measures what it is given and scales
-            itself, so a wrapper that hugged it would make that circular.
-
-            It used to go `xl:justify-start`, on the argument that the schematic is a
-            fixed canvas and sitting at the left of the wider track "costs it nothing:
-            it was never going to use the space". That is true of the *drawing* and
-            wrong about the *band*: the track is 2.4fr and the canvas is 398px, so at
-            a desktop width the schematic sat hard left with a couple of hundred pixels
-            of nothing between it and the card, which reads as a drawing that failed to
-            load the rest of itself rather than as one that is simply narrower than its
-            column. Centred, the gap falls either side and the whole band is one
-            object. Tristan's call, 2026-09-14.
-
-            The plant view is unaffected either way — it scales the compound to whatever
-            width it is given, so it fills the track and has no slack to centre. */}
+        {/* The scene scales the compound to whatever width it is given, so it fills
+            the track and has no slack to centre. */}
         <div className="flex min-w-0 justify-center py-2">
-          {view === 'schematic' ? (
-            <SiteDiagram
-              summary={summary}
-              dutyId={summary.defaultDutyId}
-              role={role}
-              selection={{devices, selected, onSelect: setPicked}}
-              alarms={alarms}
-            />
-          ) : (
-            <SitePlantScene
-              summary={summary}
-              dutyId={summary.defaultDutyId}
-              role={role}
-              selection={{devices, selected, onSelect: setPicked}}
-              alarms={alarms}
-              onClear={() => setPicked(undefined)}
-            />
-          )}
+          <SitePlantScene
+            summary={summary}
+            dutyId={summary.defaultDutyId}
+            role={role}
+            selection={{devices, selected, onSelect: setPicked}}
+            alarms={alarms}
+            onClear={() => setPicked(undefined)}
+          />
         </div>
 
         {/* `h-full` on the track and on the card inside it: a stretched grid item is

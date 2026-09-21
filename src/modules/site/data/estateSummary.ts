@@ -83,8 +83,6 @@ export const estateSummary = (
   const roleCounts: Record<SitePowerRole, number> = {
     GRID_BACKUP: 0,
     DIESEL_PRIME: 0,
-    DIESEL_HYBRID: 0,
-    SOLAR_HYBRID: 0,
   };
   const customerCounts = new Map<CustomerId, number>();
   const programCounts = new Map<string, number>();

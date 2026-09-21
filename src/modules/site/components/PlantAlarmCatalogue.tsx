@@ -91,30 +91,12 @@ const CategoryLink = ({
   const className =
     'rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline';
 
-  // The cabinet's own tab, now that it has one. This pointed at the *site's* pooled
-  // tab, which was the one page a reader clicking this chip could already be looking
-  // at — a cross-reference to where you are. All seventeen `SITE` rows are the
-  // cabinet's, so `Cabinet 17` goes to the cabinet, exactly as `Battery 28` goes to
-  // the bank.
+  // The site's own pooled tab. Every `SITE` row is the yard's monitoring unit or its
+  // incomer, and that tab is where they are worked — the same destination the chip
+  // names.
   if (category === 'SITE') {
     return (
-      <Link to="/cabinet/$cabinetId/alarms" params={{cabinetId: siteId}} className={className}>
-        {label}
-      </Link>
-    );
-  }
-
-  if (category === 'BATTERY') {
-    return (
-      <Link to="/battery/$bankId/alarms" params={{bankId: siteId}} className={className}>
-        {label}
-      </Link>
-    );
-  }
-
-  if (category === 'SOLAR') {
-    return (
-      <Link to="/solar/$systemId/alarms" params={{systemId: siteId}} className={className}>
+      <Link to="/sites/$siteId/alarms" params={{siteId}} className={className}>
         {label}
       </Link>
     );

@@ -8,15 +8,10 @@ export const SITE_VIEWS = ['split', 'list', 'map'] as const;
 export type SiteView = (typeof SITE_VIEWS)[number];
 
 /**
- * The estate cards' configuration filter. Four values, not the fleet's five: a
+ * The estate cards' configuration filter. Two values, not the fleet's three: a
  * *site* is always somewhere, so there is no workshop bucket to filter to.
  */
-export const SITE_ROLE_FILTERS = [
-  'GRID_BACKUP',
-  'DIESEL_PRIME',
-  'DIESEL_HYBRID',
-  'SOLAR_HYBRID',
-] as const;
+export const SITE_ROLE_FILTERS = ['GRID_BACKUP', 'DIESEL_PRIME'] as const;
 
 /**
  * The `/sites` URL carries the whole view state — which view, what's typed in

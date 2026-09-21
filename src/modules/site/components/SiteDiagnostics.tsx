@@ -1,11 +1,9 @@
 import {useMemo} from 'react';
 
-import {useSitePowerRole} from '../data/siteConfig';
 import {siteSeed} from '../data/siteSeed';
-import {hasOverview} from '../data/siteOverview';
 import {siteTrendMetrics} from '../data/siteTrend';
 import type {SiteSummary} from '../data/sites';
-import {OVERVIEW_VIEW, TrendPanel} from './TrendPanel';
+import {TrendPanel} from './TrendPanel';
 import type {TrendView} from './TrendPanel';
 
 /**
@@ -25,40 +23,18 @@ import type {TrendView} from './TrendPanel';
  * a site*: which metrics this particular yard can answer for.
  *
  * A site only offers the metrics it can answer for — see `siteTrendMetrics`. A yard
- * with no array has no `Solar generation` option rather than one that draws a flat
- * zero, which is the same rule the rest of the page follows about plant that isn't
- * fitted.
+ * with no set standing on it has no `Genset Fuel Consumption` option rather than one
+ * that draws a flat zero, which is the same rule the rest of the page follows about
+ * plant that isn't there.
  */
 export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: number}) => {
   const {site, gensets} = summary;
-  const role = useSitePowerRole(site.id);
   const seed = siteSeed(site.id);
 
-  /**
-   * The stacked views first at a hybrid, then the single-series ones behind them.
-   *
-   * Leading rather than replacing, for two reasons. A hybrid's first question is
-   * what carried the load, so that is what the band should open on — but the
-   * single-series views are still the diagnostic: an operator who has seen the
-   * overlay and wants to know whether *this* array is down needs one curve on one
-   * axis with nothing else on it, and four superimposed bands is the wrong picture
-   * for that. Non-hybrid sites are unchanged and open on the picker they had, where
-   * one series really is all there is to draw.
-   */
-  const metrics = useMemo((): ReadonlyArray<TrendView> => {
-    if (seed === undefined) return [];
-    const single = siteTrendMetrics(seed, role, gensets.length);
-    // The composition leads: what carried the load. Its other half — `CHARGE_VIEW`,
-    // what charged the bank — is parked rather than deleted: `siteChargeMix` and
-    // the chart still answer for it, so returning it is re-adding it to this list.
-    // `LOAD` goes with it wherever the composition exists: the load is the
-    // distribution's own dashed crown, and a second tab restating it was one tab
-    // of noise. A site with no bank has no composition, so Consumption stays its
-    // only load view there.
-    return hasOverview(seed, role)
-      ? [OVERVIEW_VIEW, ...single.filter((metric) => metric !== 'LOAD')]
-      : single;
-  }, [seed, role, gensets.length]);
+  const metrics = useMemo(
+    (): ReadonlyArray<TrendView> => (seed === undefined ? [] : siteTrendMetrics(gensets.length)),
+    [seed, gensets.length],
+  );
 
   // Stable across renders, or `TrendPanel`'s series would be rebuilt on every one:
   // a fresh array literal is a new dependency every time.
@@ -72,10 +48,8 @@ export const SiteDiagnostics = ({summary, now}: {summary: SiteSummary; now: numb
   return (
     <TrendPanel
       seed={seed}
-      role={role}
       gensetIds={gensetIds}
       metrics={metrics}
-      ratedKw={summary.ratedKw}
       now={now}
       ariaLabel="Site diagnostics"
     />

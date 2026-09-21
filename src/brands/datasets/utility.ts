@@ -12,17 +12,15 @@ import type {BrandDataset} from '../types';
  * ## Why the power roles are re-expressed rather than restored
  *
  * The SESB branch shipped a two-entry vocabulary: `STANDBY` (a mains incomer, a
- * genset behind it) and `PRIME` (the genset *is* the supply). The CelcomDigi
- * branch replaced it with four, splitting prime into `DIESEL_PRIME`,
- * `DIESEL_HYBRID` and `SOLAR_HYBRID`, because a battery and an array had to be
- * nameable before anything could be drawn for them.
+ * genset behind it) and `PRIME` (the genset *is* the supply). Today's model is the
+ * same two under this product's own names.
  *
  * Restoring the old two would have made this dataset a second product model
  * wearing a brand's name, and every hybrid screen would be dark on it. So the
  * mapping is:
  *
  *  - `STANDBY` → `GRID_BACKUP`, unchanged in meaning. Twenty of the twenty-five.
- *  - `PRIME` → one of the three no-incomer configurations, per site.
+ *  - `PRIME` → `DIESEL_PRIME`, the no-incomer configuration.
  *
  * The five mini-grids are where that second line is a judgement, and it is worth
  * stating rather than hiding. They were all `PRIME`, and a rural island grid
@@ -48,13 +46,13 @@ import type {BrandDataset} from '../types';
  * island-facing zones.
  */
 const CUSTOMERS = [
-  {id: 'west-coast', name: 'West Coast Distribution', shortName: 'West Coast', peakSunHours: 3.4},
-  {id: 'kudat', name: 'Kudat Distribution', shortName: 'Kudat', peakSunHours: 3.5},
-  {id: 'interior', name: 'Interior Distribution', shortName: 'Interior', peakSunHours: 3.2},
-  {id: 'sandakan', name: 'Sandakan Distribution', shortName: 'Sandakan', peakSunHours: 3.3},
-  {id: 'lahad-datu', name: 'Lahad Datu Distribution', shortName: 'Lahad Datu', peakSunHours: 3.4},
-  {id: 'tawau', name: 'Tawau Distribution', shortName: 'Tawau', peakSunHours: 3.4},
-  {id: 'labuan', name: 'Labuan Distribution', shortName: 'Labuan', peakSunHours: 3.5},
+  {id: 'west-coast', name: 'West Coast Distribution', shortName: 'West Coast'},
+  {id: 'kudat', name: 'Kudat Distribution', shortName: 'Kudat'},
+  {id: 'interior', name: 'Interior Distribution', shortName: 'Interior'},
+  {id: 'sandakan', name: 'Sandakan Distribution', shortName: 'Sandakan'},
+  {id: 'lahad-datu', name: 'Lahad Datu Distribution', shortName: 'Lahad Datu'},
+  {id: 'tawau', name: 'Tawau Distribution', shortName: 'Tawau'},
+  {id: 'labuan', name: 'Labuan Distribution', shortName: 'Labuan'},
 ] as const;
 
 /**
@@ -112,12 +110,12 @@ const SITES = [
   {id: 'ppu-009', name: 'PPU-009', kind: 'PPU',       locationLabel: 'Tuaran, Sabah',              latitude: 6.1770, longitude: 116.2330, loadKw: 313, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
   {id: 'ppu-010', name: 'PPU-010', kind: 'PPU',       locationLabel: 'Kota Belud, Sabah',          latitude: 6.3510, longitude: 116.4300, loadKw: 364, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
   {id: 'pe-011',  name: 'PE-011',  kind: 'PE',        locationLabel: 'Kudat, Sabah',               latitude: 6.8830, longitude: 116.8440, loadKw: 71,  customer: 'kudat',      powerRole: 'GRID_BACKUP'},
-  {id: 'mg-012',  name: 'MG-012',  kind: 'MINI_GRID', locationLabel: 'Pulau Banggi, Kudat',        latitude: 7.2717, longitude: 117.1782, loadKw: 248, customer: 'kudat',      powerRole: 'SOLAR_HYBRID', program: 'rural-electrification'},
+  {id: 'mg-012',  name: 'MG-012',  kind: 'MINI_GRID', locationLabel: 'Pulau Banggi, Kudat',        latitude: 7.2717, longitude: 117.1782, loadKw: 248, customer: 'kudat',      powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
   {id: 'ppu-013', name: 'PPU-013', kind: 'PPU',       locationLabel: 'Keningau, Sabah',            latitude: 5.3380, longitude: 116.1600, loadKw: 242, customer: 'interior',   powerRole: 'GRID_BACKUP'},
   {id: 'pe-014',  name: 'PE-014',  kind: 'PE',        locationLabel: 'Victoria, Labuan',           latitude: 5.2767, longitude: 115.2417, loadKw: 218, customer: 'labuan',     powerRole: 'GRID_BACKUP'},
   {id: 'pe-015',  name: 'PE-015',  kind: 'PE',        locationLabel: 'Papar, Sabah',               latitude: 5.7330, longitude: 115.9330, loadKw: 175, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
   {id: 'pmu-016', name: 'PMU-016', kind: 'PMU',       locationLabel: 'Sepanggar Bay, Sabah',       latitude: 6.0830, longitude: 116.1080, loadKw: 281, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'mg-017',  name: 'MG-017',  kind: 'MINI_GRID', locationLabel: 'Kemabong, Tenom',            latitude: 4.9670, longitude: 115.9640, loadKw: 64,  customer: 'interior',   powerRole: 'DIESEL_HYBRID', program: 'rural-electrification'},
+  {id: 'mg-017',  name: 'MG-017',  kind: 'MINI_GRID', locationLabel: 'Kemabong, Tenom',            latitude: 4.9670, longitude: 115.9640, loadKw: 64,  customer: 'interior',   powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
   // — The interior and the east coast — where the mini-grids are.
   //
   // The five `PRIME` yards are isolated schemes: an island off Kudat or an
@@ -126,13 +124,13 @@ const SITES = [
   // distinction for. At east-coast distances the drive is most of any
   // intervention, which is what the buckets are for.
   {id: 'pe-018',  name: 'PE-018',  kind: 'PE',        locationLabel: 'Ranau, Sabah',              latitude: 5.9540, longitude: 116.6640, loadKw: 188, customer: 'interior',   powerRole: 'GRID_BACKUP'},
-  {id: 'mg-019',  name: 'MG-019',  kind: 'MINI_GRID', locationLabel: 'Nabawan, Sabah',            latitude: 5.0620, longitude: 116.4370, loadKw: 42,  customer: 'interior',   powerRole: 'SOLAR_HYBRID', program: 'rural-electrification'},
+  {id: 'mg-019',  name: 'MG-019',  kind: 'MINI_GRID', locationLabel: 'Nabawan, Sabah',            latitude: 5.0620, longitude: 116.4370, loadKw: 42,  customer: 'interior',   powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
   {id: 'fdr-020', name: 'FDR-020', kind: 'FEEDER',    locationLabel: 'Sandakan, Sabah',           latitude: 5.8402, longitude: 118.1179, loadKw: 132, customer: 'sandakan',   powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
   {id: 'fdr-021', name: 'FDR-021', kind: 'FEEDER',    locationLabel: 'Lahad Datu, Sabah',         latitude: 5.0269, longitude: 118.3270, loadKw: 58,  customer: 'lahad-datu', powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
   {id: 'ppu-022', name: 'PPU-022', kind: 'PPU',       locationLabel: 'Batu Sapi, Sandakan',       latitude: 5.8560, longitude: 118.0210, loadKw: 296, customer: 'sandakan',   powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
   {id: 'ppu-023', name: 'PPU-023', kind: 'PPU',       locationLabel: 'Tawau, Sabah',              latitude: 4.2450, longitude: 117.8840, loadKw: 415, customer: 'tawau',      powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
   {id: 'mg-024',  name: 'MG-024',  kind: 'MINI_GRID', locationLabel: 'Kalabakan, Tawau',          latitude: 4.4210, longitude: 117.4750, loadKw: 267, customer: 'tawau',      powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
-  {id: 'mg-025',  name: 'MG-025',  kind: 'MINI_GRID', locationLabel: 'Pulau Larapan, Semporna',   latitude: 4.5340, longitude: 118.6540, loadKw: 37,  customer: 'tawau',      powerRole: 'SOLAR_HYBRID', program: 'rural-electrification'},
+  {id: 'mg-025',  name: 'MG-025',  kind: 'MINI_GRID', locationLabel: 'Pulau Larapan, Semporna',   latitude: 4.5340, longitude: 118.6540, loadKw: 37,  customer: 'tawau',      powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
 ] as const;
 
 /**

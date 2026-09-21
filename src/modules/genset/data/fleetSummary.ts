@@ -71,8 +71,6 @@ export const fleetSummary = (
   const roleCounts: Record<string, number> = {
     GRID_BACKUP: 0,
     DIESEL_PRIME: 0,
-    DIESEL_HYBRID: 0,
-    SOLAR_HYBRID: 0,
     WORKSHOP: 0,
   };
   const customerCounts = new Map<CustomerId | 'WORKSHOP', number>();

@@ -10,19 +10,17 @@
  *
  * ## Why only the genset carries an id
  *
- * A site has any number of sets and at most one array, one bank and one cabinet —
- * one converter, one DC bus, one DC plant, see `hybridPlant` and `subrackCabinet`.
- * So `solar`, `battery` and `cabinet` are complete names and a set needs saying
- * which. The `genset:` prefix is what keeps a tag like `battery` on a machine from
- * ever reading as the bank.
+ * A site has any number of sets and one monitoring unit of its own. So `site` is a
+ * complete name and a set needs saying which. The `genset:` prefix is what keeps a
+ * machine's own tag from ever reading as the yard.
  */
-export type SiteDeviceKey = `genset:${string}` | 'solar' | 'battery' | 'cabinet';
+export type SiteDeviceKey = `genset:${string}` | 'site';
 
 const GENSET_PREFIX = 'genset:';
 
 export const gensetDeviceKey = (gensetId: string): SiteDeviceKey =>
   `${GENSET_PREFIX}${gensetId}`;
 
-/** The set a `genset:` key names, or `undefined` for the array and the bank. */
+/** The set a `genset:` key names, or `undefined` for the yard itself. */
 export const deviceGensetId = (device: SiteDeviceKey): string | undefined =>
   device.startsWith(GENSET_PREFIX) ? device.slice(GENSET_PREFIX.length) : undefined;

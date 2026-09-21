@@ -11,10 +11,7 @@ import {
   siteTrend,
 } from '../data/siteTrend';
 import type {SiteTrendMetric, SiteTrendPeriod} from '../data/siteTrend';
-import {siteChargeMix, siteOverview} from '../data/siteOverview';
-import type {SitePowerRole} from '../types/site.type';
 import type {SiteSeed} from '../data/siteSeed';
-import {SiteOverviewChart} from './SiteOverviewChart';
 import {SiteTrendChart} from './SiteTrendChart';
 
 /**
@@ -29,27 +26,9 @@ import {SiteTrendChart} from './SiteTrendChart';
  *
  * So the picker's vocabulary is one wider than the model's, and this is the join.
  */
-export const OVERVIEW_VIEW = 'OVERVIEW' as const;
+export type TrendView = SiteTrendMetric;
 
-/**
- * The bank's other view — what charged it, by source. Outside `SiteTrendMetric`
- * for the same reason `OVERVIEW` is: it is two quantities on one axis, from
- * `siteChargeMix` rather than from a switch over the metric union.
- */
-export const CHARGE_VIEW = 'CHARGE' as const;
-
-export type TrendView = SiteTrendMetric | typeof OVERVIEW_VIEW | typeof CHARGE_VIEW;
-
-/** Which views are drawn by the stacked chart rather than by the single-series one. */
-const COMPOSITIONS: ReadonlyArray<TrendView> = [OVERVIEW_VIEW, CHARGE_VIEW];
-
-const VIEW_LABEL: Record<typeof OVERVIEW_VIEW | typeof CHARGE_VIEW, string> = {
-  [OVERVIEW_VIEW]: 'Power Supply Distribution',
-  [CHARGE_VIEW]: 'Charge mix',
-};
-
-const viewLabel = (view: TrendView): string =>
-  view === OVERVIEW_VIEW || view === CHARGE_VIEW ? VIEW_LABEL[view] : SITE_TREND_METRIC_LABEL[view];
+const viewLabel = (view: TrendView): string => SITE_TREND_METRIC_LABEL[view];
 
 /**
  * One chart, a metric picker and a period control — the band the site page's
@@ -85,15 +64,12 @@ const viewLabel = (view: TrendView): string =>
  */
 export const TrendPanel = ({
   seed,
-  role,
   gensetIds,
   metrics,
-  ratedKw,
   now,
   ariaLabel,
 }: {
   seed: SiteSeed;
-  role: SitePowerRole;
   /** Whose run logs the `GENSET` series reads. Empty is fine when it is not offered. */
   gensetIds: Array<string>;
   /** In the order the picker should offer them; the first is the opening view. */
@@ -107,7 +83,6 @@ export const TrendPanel = ({
    * genset band and no nameplate behind it would be drawing a rectangle from
    * nowhere.
    */
-  ratedKw?: number;
   now: number;
   ariaLabel: string;
 }) => {
@@ -134,28 +109,12 @@ export const TrendPanel = ({
   const [daysBack, setDaysBack] = useState(0);
   const dayAt = now - daysBack * 86_400_000;
 
-  const composed = active !== undefined && COMPOSITIONS.includes(active);
-
   const trend = useMemo(
-    () =>
-      active === undefined || active === OVERVIEW_VIEW || active === CHARGE_VIEW
-        ? undefined
-        : siteTrend(seed, role, gensetIds, ratedKw ?? 0, active, period, dayAt, now),
-    [seed, role, gensetIds, ratedKw, active, period, dayAt, now],
+    () => (active === undefined ? undefined : siteTrend(seed, gensetIds, active, period, dayAt, now)),
+    [seed, gensetIds, active, period, dayAt, now],
   );
 
-  const composition = useMemo(
-    () =>
-      !composed || ratedKw === undefined
-        ? undefined
-        : active === CHARGE_VIEW
-          ? siteChargeMix(seed, role, ratedKw, period, dayAt, now)
-          : siteOverview(seed, role, ratedKw, period, dayAt, now),
-    [composed, active, seed, role, ratedKw, period, dayAt, now],
-  );
-
-  if (active === undefined) return null;
-  if (composed ? composition === undefined : trend === undefined) return null;
+  if (active === undefined || trend === undefined) return null;
 
   return (
     <section
@@ -253,11 +212,7 @@ export const TrendPanel = ({
         </div>
       </div>
 
-      {composition !== undefined ? (
-        <SiteOverviewChart overview={composition} />
-      ) : trend === undefined || active === OVERVIEW_VIEW || active === CHARGE_VIEW ? null : (
-        <SiteTrendChart trend={trend} colorClassName={SITE_TREND_METRIC_TOKEN[active]} />
-      )}
+      <SiteTrendChart trend={trend} colorClassName={SITE_TREND_METRIC_TOKEN[active]} />
     </section>
   );
 };

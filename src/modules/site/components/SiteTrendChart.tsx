@@ -7,7 +7,6 @@ import type {ChartTooltipRow} from '@/components/global/ChartTooltip';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {SiteTrend} from '../data/siteTrend';
-import {BatteryFlowBar} from './BatteryFlowBar';
 import {ShareBar} from './ShareBar';
 
 /**
@@ -373,7 +372,6 @@ export const SiteTrendChart = ({
           bar of the same kind — movement rather than shares — so it sits in the
           same slot rather than under the plot on its own. */}
       {trend.mix !== undefined && <ShareBar rows={trend.mix} />}
-      {trend.flow !== undefined && <BatteryFlowBar flow={trend.flow} />}
 
       {/* The plot's own positioning box — the tooltip is offset from the top of
           the frame, which is no longer the top of this component. */}

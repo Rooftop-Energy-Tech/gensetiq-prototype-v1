@@ -38,12 +38,12 @@ import type {BrandDataset} from '../types';
  * number in this prototype.
  */
 const CUSTOMERS = [
-  {id: 'sabah', name: 'Sabah Region', shortName: 'Sabah', peakSunHours: 3.4},
-  {id: 'sarawak', name: 'Sarawak Region', shortName: 'Sarawak', peakSunHours: 3.3},
-  {id: 'northern', name: 'Northern Region', shortName: 'Northern', peakSunHours: 3.7},
-  {id: 'central', name: 'Central Region', shortName: 'Central', peakSunHours: 3.5},
-  {id: 'southern', name: 'Southern Region', shortName: 'Southern', peakSunHours: 3.5},
-  {id: 'east-coast', name: 'East Coast Region', shortName: 'East Coast', peakSunHours: 3.4},
+  {id: 'sabah', name: 'Sabah Region', shortName: 'Sabah'},
+  {id: 'sarawak', name: 'Sarawak Region', shortName: 'Sarawak'},
+  {id: 'northern', name: 'Northern Region', shortName: 'Northern'},
+  {id: 'central', name: 'Central Region', shortName: 'Central'},
+  {id: 'southern', name: 'Southern Region', shortName: 'Southern'},
+  {id: 'east-coast', name: 'East Coast Region', shortName: 'East Coast'},
 ] as const;
 
 /**
@@ -96,12 +96,12 @@ const SITES = [
   {id: 'sbh-1058', name: 'SBH-1058', kind: 'CORE',   locationLabel: 'Sepanggar, Kota Kinabalu',    latitude: 6.0670, longitude: 116.1330, loadKw: 186, customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
   {id: 'sbh-1204', name: 'SBH-1204', kind: 'HUB',    locationLabel: 'Kota Kinabalu, Sabah',        latitude: 5.9804, longitude: 116.0735, loadKw: 22,  customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
   {id: 'sbh-1291', name: 'SBH-1291', kind: 'MACRO',  locationLabel: 'Tuaran, Sabah',               latitude: 6.1770, longitude: 116.2330, loadKw: 6,   customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
-  {id: 'sbh-1336', name: 'SBH-1336', kind: 'MACRO',  locationLabel: 'Kota Belud, Sabah',           latitude: 6.3510, longitude: 116.4300, loadKw: 5,   customer: 'sabah',      powerRole: 'SOLAR_HYBRID',  program: 'jendela-sbh'},
+  {id: 'sbh-1336', name: 'SBH-1336', kind: 'MACRO',  locationLabel: 'Kota Belud, Sabah',           latitude: 6.3510, longitude: 116.4300, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_PRIME',  program: 'jendela-sbh'},
   {id: 'sbh-1377', name: 'SBH-1377', kind: 'RURAL',  locationLabel: 'Nabawan, Sabah',              latitude: 5.0620, longitude: 116.4370, loadKw: 3,   customer: 'sabah',      powerRole: 'DIESEL_PRIME',  program: 'jendela-sbh'},
   {id: 'sbh-1428', name: 'SBH-1428', kind: 'RURAL',  locationLabel: 'Pensiangan, Sabah',           latitude: 4.5330, longitude: 116.3170, loadKw: 3,   customer: 'sabah',      powerRole: 'DIESEL_PRIME',  program: 'jendela-sbh'},
-  {id: 'sbh-1495', name: 'SBH-1495', kind: 'RURAL',  locationLabel: 'Pulau Banggi, Kudat',         latitude: 7.2717, longitude: 117.1782, loadKw: 4,   customer: 'sabah',      powerRole: 'SOLAR_HYBRID',  program: 'jendela-sbh'},
-  {id: 'sbh-1553', name: 'SBH-1553', kind: 'MACRO',  locationLabel: 'Ranau, Sabah',                latitude: 5.9540, longitude: 116.6640, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_HYBRID', program: 'jendela-sbh'},
-  {id: 'sbh-1612', name: 'SBH-1612', kind: 'MACRO',  locationLabel: 'Lahad Datu, Sabah',           latitude: 5.0269, longitude: 118.3270, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_HYBRID', program: 'jendela-sbh'},
+  {id: 'sbh-1495', name: 'SBH-1495', kind: 'RURAL',  locationLabel: 'Pulau Banggi, Kudat',         latitude: 7.2717, longitude: 117.1782, loadKw: 4,   customer: 'sabah',      powerRole: 'DIESEL_PRIME',  program: 'jendela-sbh'},
+  {id: 'sbh-1553', name: 'SBH-1553', kind: 'MACRO',  locationLabel: 'Ranau, Sabah',                latitude: 5.9540, longitude: 116.6640, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_PRIME', program: 'jendela-sbh'},
+  {id: 'sbh-1612', name: 'SBH-1612', kind: 'MACRO',  locationLabel: 'Lahad Datu, Sabah',           latitude: 5.0269, longitude: 118.3270, loadKw: 5,   customer: 'sabah',      powerRole: 'DIESEL_PRIME', program: 'jendela-sbh'},
   {id: 'sbh-1704', name: 'SBH-1704', kind: 'HUB',    locationLabel: 'Sandakan, Sabah',             latitude: 5.8402, longitude: 118.1179, loadKw: 24,  customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
   {id: 'sbh-1788', name: 'SBH-1788', kind: 'IBS',    locationLabel: 'Tawau, Sabah',                latitude: 4.2450, longitude: 117.8840, loadKw: 11,  customer: 'sabah',      powerRole: 'GRID_BACKUP',   program: 'jendela-sbh'},
 
@@ -111,14 +111,14 @@ const SITES = [
   //   which is why a tank running down matters more here than anywhere else.
   {id: 'swk-0412', name: 'SWK-0412', kind: 'HUB',    locationLabel: 'Kuching, Sarawak',            latitude: 1.5533, longitude: 110.3592, loadKw: 27,  customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
   {id: 'swk-0487', name: 'SWK-0487', kind: 'MACRO',  locationLabel: 'Serian, Sarawak',             latitude: 1.1670, longitude: 110.5670, loadKw: 5,   customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
-  {id: 'swk-0559', name: 'SWK-0559', kind: 'MACRO',  locationLabel: 'Sri Aman, Sarawak',           latitude: 1.2370, longitude: 111.4630, loadKw: 5,   customer: 'sarawak',    powerRole: 'SOLAR_HYBRID',  program: 'jendela-swk'},
+  {id: 'swk-0559', name: 'SWK-0559', kind: 'MACRO',  locationLabel: 'Sri Aman, Sarawak',           latitude: 1.2370, longitude: 111.4630, loadKw: 5,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME',  program: 'jendela-swk'},
   {id: 'swk-0663', name: 'SWK-0663', kind: 'RURAL',  locationLabel: 'Kapit, Sarawak',              latitude: 2.0170, longitude: 112.9330, loadKw: 3,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME',  program: 'jendela-swk'},
   {id: 'swk-0721', name: 'SWK-0721', kind: 'MACRO',  locationLabel: 'Sibu, Sarawak',               latitude: 2.2870, longitude: 111.8310, loadKw: 6,   customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
-  {id: 'swk-0794', name: 'SWK-0794', kind: 'RURAL',  locationLabel: 'Song, Sarawak',               latitude: 2.0170, longitude: 112.5420, loadKw: 3,   customer: 'sarawak',    powerRole: 'DIESEL_HYBRID', program: 'jendela-swk'},
+  {id: 'swk-0794', name: 'SWK-0794', kind: 'RURAL',  locationLabel: 'Song, Sarawak',               latitude: 2.0170, longitude: 112.5420, loadKw: 3,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME', program: 'jendela-swk'},
   {id: 'swk-0851', name: 'SWK-0851', kind: 'RURAL',  locationLabel: 'Belaga, Sarawak',             latitude: 2.7000, longitude: 113.7830, loadKw: 4,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME',  program: 'jendela-swk'},
   {id: 'swk-0918', name: 'SWK-0918', kind: 'HUB',    locationLabel: 'Bintulu, Sarawak',            latitude: 3.1700, longitude: 113.0410, loadKw: 24,  customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
   {id: 'swk-1027', name: 'SWK-1027', kind: 'MACRO',  locationLabel: 'Miri, Sarawak',               latitude: 4.3990, longitude: 113.9910, loadKw: 6,   customer: 'sarawak',    powerRole: 'GRID_BACKUP',   program: 'jendela-swk'},
-  {id: 'swk-1163', name: 'SWK-1163', kind: 'RURAL',  locationLabel: "Ba'kelalan, Sarawak",         latitude: 3.9670, longitude: 115.6170, loadKw: 4,   customer: 'sarawak',    powerRole: 'SOLAR_HYBRID',  program: 'jendela-swk'},
+  {id: 'swk-1163', name: 'SWK-1163', kind: 'RURAL',  locationLabel: "Ba'kelalan, Sarawak",         latitude: 3.9670, longitude: 115.6170, loadKw: 4,   customer: 'sarawak',    powerRole: 'DIESEL_PRIME',  program: 'jendela-swk'},
 
   // — The peninsula (4), one per remaining region and **in no programme**. The
   //   two switching centres are here, which is where a carrier's heavy plant

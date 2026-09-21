@@ -7,11 +7,10 @@ import {fleet, subscribeFleet} from '@/modules/genset/data/deployment';
 import {gensetDetail} from '@/modules/genset/data/detail';
 import type {GensetDetail} from '@/modules/genset/data/detail';
 import {spreadBetween} from '@/modules/genset/data/spread';
-import {hasBattery, hasMains} from '../types/site.type';
+import {hasMains} from '../types/site.type';
 import type {MainsSupply, Site, SitePowerRole} from '../types/site.type';
-import {hybridState} from './hybrid';
 import {alarmRank, alarmRankCount} from './siteAlarmQueue';
-import {SITE_KIND_LABEL, siteSeed, siteSeeds} from './siteSeed';
+import {SITE_KIND_LABEL, siteSeeds} from './siteSeed';
 import {subscribeSiteOverrides} from './siteOverrides';
 import type {SiteSeed} from './siteSeed';
 
@@ -159,18 +158,6 @@ export const siteFeed = (
   // has it, and a controller that let the bank fight a running genset for the bus
   // would be a fault, not a strategy.
   //
-  // The bank is treated as always able to carry. This prototype has no state of
-  // charge history, so a flat bank is a state it cannot reach or represent, and
-  // claiming an outage the model has no evidence for would be worse than the
-  // simplification.
-  if (hasBattery(role)) {
-    const seed = siteSeed(summary.site.id);
-    if (seed !== undefined) {
-      const state = hybridState(seed, role);
-      return state.solarKw > summary.site.loadKw ? {source: 'SOLAR'} : {source: 'BATTERY'};
-    }
-  }
-
   return {source: 'NONE'};
 };
 
@@ -251,45 +238,21 @@ export type SiteDcBus = {
 const FLOAT_V = 53.5;
 /** Commissioning spread either side of float — see the note above. */
 const FLOAT_SPREAD_V = 0.4;
-/** The pack's terminal voltage at the ends of its window, carrying the load. */
-const PACK_EMPTY_V = 47;
-const PACK_FULL_V = 54;
-
-const busVolts = (
-  summary: SiteSummary,
-  dutyId: string | undefined,
-  role: SitePowerRole,
-  now: number,
-): number => {
-  const seed = siteSeed(summary.site.id);
-
-  if (siteFeed(summary, dutyId, role).source === 'BATTERY' && seed !== undefined) {
-    const {soc} = hybridState(seed, role, now);
-    return Math.round((PACK_EMPTY_V + soc * (PACK_FULL_V - PACK_EMPTY_V)) * 10) / 10;
-  }
-
-  return (
-    Math.round(
-      spreadBetween(
-        summary.site.id,
-        'dc/float',
-        FLOAT_V - FLOAT_SPREAD_V,
-        FLOAT_V + FLOAT_SPREAD_V,
-      ) * 10,
-    ) / 10
-  );
-};
+const busVolts = (summary: SiteSummary): number =>
+  Math.round(
+    spreadBetween(summary.site.id, 'dc/float', FLOAT_V - FLOAT_SPREAD_V, FLOAT_V + FLOAT_SPREAD_V) *
+      10,
+  ) / 10;
 
 export const siteDcBus = (
   summary: SiteSummary,
   dutyId: string | undefined,
   role: SitePowerRole,
-  now: number = Date.now(),
 ): SiteDcBus | null => {
   const loadKw = siteLoadKw(summary, dutyId, role);
   if (loadKw === null) return null;
 
-  const volts = busVolts(summary, dutyId, role, now);
+  const volts = busVolts(summary);
   return {volts, amps: Math.round((loadKw * 1000) / volts)};
 };
 

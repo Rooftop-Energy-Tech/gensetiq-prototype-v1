@@ -6,26 +6,20 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
-import {siteHasCabinet} from '@/modules/cabinet/data/shelf';
-import {siteFeed, siteLoadKw} from '../data/sites';
+import {siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
 import {EQUIPMENT, byDepth, isoX, isoY, placementBox, plantScene} from '../data/plantScene';
 import type {Ground, ScenePlacement} from '../data/plantScene';
 import type {SiteDeviceKey} from '../types/device.type';
 import {fromSite} from '../types/fromSearch.type';
 import type {SitePowerRole} from '../types/site.type';
-import {
-  cabinetPowerLabel,
-  deviceOfSource,
-  deviceRoutes,
-  sourcesOf,
-  type SiteDiagramSelection,
-} from './SiteDiagram';
+import {deviceOfSource, deviceRoutes, sourcesOf} from '../data/siteSources';
+import type {SiteSceneSelection} from '../data/siteSources';
 
 /**
  * The site's plant, drawn as the compound rather than as a circuit.
  *
- * ## What this is, next to `SiteDiagram`
+ * ## What this is
  *
  * The same nodes, the same captions, the same click. The single-line diagram answers
  * *what is connected to what*; this answers *what is standing there*. A reader deciding
@@ -165,7 +159,6 @@ const nodesOf = (
   placements: ReadonlyArray<ScenePlacement>,
 ): Array<SceneNode> => {
   const sources = sourcesOf(summary, dutyId, role);
-  const feed = siteFeed(summary, dutyId, role);
   const loadKw = siteLoadKw(summary, dutyId, role);
   const anyLive = sources.some((source) => source.switchState.live);
 
@@ -185,20 +178,6 @@ const nodesOf = (
           power: loadKw === null ? 'not served' : amount(loadKw, 'kW'),
           live: anyLive,
           device: undefined,
-        },
-      ];
-    }
-
-    if (key === 'cabinet') {
-      return [
-        {
-          key,
-          chip: placement,
-          label: 'CABINET',
-          caption: 'DC plant',
-          power: cabinetPowerLabel(feed.source),
-          live: anyLive,
-          device: 'cabinet',
         },
       ];
     }
@@ -395,8 +374,8 @@ const Label = ({
         <span className="mt-0.5 inline-flex" onClick={(event) => event.stopPropagation()}>
           <AlarmBadge
             counts={counts}
-            to={deviceRoutes(node.device, siteId).alarms}
-            params={deviceRoutes(node.device, siteId).params}
+            to={deviceRoutes(node.device).alarms}
+            params={deviceRoutes(node.device).params}
             search={fromSite(siteId)}
           />
         </span>
@@ -473,11 +452,10 @@ export const SitePlantScene = ({
   summary: SiteSummary;
   dutyId: string | undefined;
   role: SitePowerRole;
-  selection?: SiteDiagramSelection;
+  selection?: SiteSceneSelection;
   /**
    * What is standing on each device, keyed the way `selection` picks — the same map
-   * `SiteDiagram` takes, handed down by `SiteCircuit` so the two projections of this
-   * band draw one set of figures. Omitted leaves every card without a pill.
+   * `SiteCircuit` hands down. Omitted leaves every card without a pill.
    */
   alarms?: Partial<Record<SiteDeviceKey, Record<AlertSeverity, number>>>;
   /**
@@ -500,7 +478,6 @@ export const SitePlantScene = ({
     summary.site.id,
     role,
     summary.gensets.map(({genset}) => genset.id),
-    siteHasCabinet(summary.site.id, role),
   );
   const nodes = nodesOf(summary, dutyId, role, placements);
 
@@ -547,7 +524,7 @@ export const SitePlantScene = ({
 
   /** The device a node key names, in the selection's own vocabulary. */
   const deviceOf = (key: string): SiteDeviceKey | undefined =>
-    key === 'cabinet' ? 'cabinet' : key === 'load' || key === 'mains' ? undefined : deviceOfSource(key);
+    key === 'load' || key === 'mains' ? undefined : deviceOfSource(key);
 
   const selectHandler = (key: string): (() => void) | undefined => {
     const device = deviceOf(key);
@@ -785,7 +762,7 @@ export const SitePlantScene = ({
                   device === undefined || selection === undefined
                     ? undefined
                     : () => {
-                        const {page, params} = deviceRoutes(device, summary.site.id);
+                        const {page, params} = deviceRoutes(device);
                         void navigate({to: page, params, search: fromSite(summary.site.id)});
                       }
                 }

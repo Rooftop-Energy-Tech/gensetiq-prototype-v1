@@ -20,14 +20,10 @@
  * estate the demo walks through.
  *
  * A brand does **not** own the product model. `SitePowerRole` is the clearest
- * case: `feat/sesb-demo` shipped a two-role vocabulary (`STANDBY` / `PRIME`) and
- * the CelcomDigi branch replaced it with four (`GRID_BACKUP`, `DIESEL_PRIME`,
- * `DIESEL_HYBRID`, `SOLAR_HYBRID`) because the hybrid plant needed to be nameable.
- * Reviving the two-role version as "the SESB way" would fork the model again in
- * config instead of in git, and every hybrid feature would be dark on that brand.
- * So the utility dataset is **re-expressed in today's model** rather than restored
- * — see `datasets/utility.ts`. The vocabulary is the product's; which sites use
- * which entry is the dataset's.
+ * case: it is two entries, `GRID_BACKUP` and `DIESEL_PRIME`, and every dataset is
+ * expressed in them. A brand reviving its own vocabulary would fork the model in
+ * config instead of in git. The vocabulary is the product's; which sites use which
+ * entry is the dataset's.
  *
  * The same rule settles anything else that comes up: if two brands disagreeing
  * about it would mean two versions of a *feature*, it does not belong here.
@@ -154,16 +150,6 @@ export type BrandCustomer = {
   name: string;
   /** The short form the chips and cards use. */
   shortName: string;
-  /**
-   * Daily peak sun hours — the irradiance figure every solar figure is built from.
-   *
-   * Regional rather than per-site: twenty-five copies of six numbers is twenty-five
-   * chances for them to disagree. Required on every dataset, including estates with
-   * no solar on them today, because `hybridPlant` reads it the moment a reader flips
-   * one site to `SOLAR_HYBRID` on its settings tab — and a dataset that answered
-   * `undefined` there would put `NaN` kWp on the diagram.
-   */
-  peakSunHours: number;
 };
 
 /**

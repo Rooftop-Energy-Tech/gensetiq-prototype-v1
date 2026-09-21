@@ -310,7 +310,6 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
         <>
           <TrendPanel
             seed={seed}
-            role={role}
             gensetIds={[genset.id]}
             metrics={['GENSET']}
             now={now}

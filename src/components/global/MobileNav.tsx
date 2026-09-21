@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, RadioTowerIcon, SunMediumIcon} from 'lucide-react';
+import {BoomBoxIcon, RadioTowerIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 /**
@@ -24,14 +24,9 @@ import type {LucideIcon} from 'lucide-react';
  * Each is a **register** — a list, which is the one shape that reads at 390px.
  * Everything below a register is a detail page with a 240px rail beside it, and
  * the rail has no phone form at all (see `DetailSidebar`): a phone sent to
- * `/solar/kdh-0431` gets the page but not its six sections. That is acceptable for
+ * `/gensets/brf9540` gets the page but not its six sections. That is acceptable for
  * a page you arrive at from a list you tapped; it would not be acceptable as a
  * destination the bar offered directly.
- *
- * `Battery` is the one register not on the bar, and it is a judgement rather than
- * a rule: five items is where a bar of this width starts squeezing labels, and of
- * the five registers storage is the one whose page nobody opens standing at the
- * foot of a tower. It is one tap away through the site.
  *
  * The routes themselves are untouched and still resolve if a URL is typed or
  * followed from a desktop link. What is withheld is *navigation to* them, which is
@@ -41,7 +36,7 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/sites' | '/solar' | '/gensets';
+  link: '/sites' | '/gensets';
   /**
    * The list's own default view state.
    *
@@ -62,7 +57,6 @@ const ITEMS: Array<MobileNavItem> = [
   // the list first and the summary on request.
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
   // The array register, which is where solar lives now that the report is gone.
-  {label: 'Solar', icon: SunMediumIcon, link: '/solar', search: {view: 'list'}},
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
 ];
 

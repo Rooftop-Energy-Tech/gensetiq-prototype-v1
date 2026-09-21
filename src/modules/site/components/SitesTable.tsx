@@ -225,7 +225,7 @@ export const SitesTable = ({
             // The panel's own reading of who has the load, off `defaultDutyId` —
             // the set the changeover starts on — so a row and the preview it opens
             // cannot name two different sources. See `SiteDetailPanel`.
-            const supply = supplyMeta(siteFeed(summary, summary.defaultDutyId, role), role);
+            const supply = supplyMeta(siteFeed(summary, summary.defaultDutyId, role));
             const SupplyIcon = supply.icon;
 
             return (

@@ -1,12 +1,9 @@
 import {useMemo, useRef, useState} from 'react';
 
-import {BatteryGlyph} from '@/components/global/BatteryGlyph';
 import {ChartTooltip} from '@/components/global/ChartTooltip';
 import {amount} from '@/lib/format';
 import {useElementSize} from '@/lib/useElementSize';
 import {cn} from '@/lib/utils';
-import {hybridPlant, hybridState} from '../data/hybrid';
-import {siteOverview} from '../data/siteOverview';
 import {siteSeed} from '../data/siteSeed';
 import {siteFeed, siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
@@ -14,7 +11,6 @@ import {SITE_TREND_METRIC_TOKEN, siteTrend} from '../data/siteTrend';
 import type {SiteTrend, SiteTrendMetric} from '../data/siteTrend';
 import {deviceGensetId} from '../types/device.type';
 import type {SiteDeviceKey} from '../types/device.type';
-import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 
 /**
@@ -95,78 +91,6 @@ const curvePaths = (
     .join(' ');
 
   return {line, area};
-};
-
-/** The chart's box, in its own user units. Small on purpose - see the header. */
-const SPARK = {w: 240, h: 56};
-
-/**
- * A day's series as one small chart, and no more than that.
- *
- * Curves are drawn as an area under a line, bars as bars, which is the same distinction
- * `SiteTrend.shape` makes for the big chart and for the same reason: a day of engine hours
- * has no instantaneous value to trace.
- *
- * `null` readings break the line rather than pulling it to zero, per `TrendPoint.value`.
- * The path is emitted as separate move-and-line runs, so an afternoon the record does not
- * reach yet is absent instead of being drawn as a plant that has stopped.
- */
-const Spark = ({trend, className}: {trend: SiteTrend; className?: string}) => {
-  const values = trend.points.map((point) => point.value);
-  const peak = Math.max(0, ...values.map((value) => (value === null ? 0 : value)));
-  // `axisMax` is the fixed ceiling a bounded quantity has - state of charge is a
-  // percentage of a known bank, and letting it auto-scale would draw a day between 71%
-  // and 74% as a mountain range. It already carries its own headroom.
-  //
-  // Everything else gets 15% of it, because without any the day's peak sits exactly on
-  // the top edge - and a load that held steady all day is then a filled rectangle with
-  // no line visible at all. With headroom the same day is a rule near the top of the
-  // box, which is what "steady" should look like.
-  const top =
-    trend.axisMax !== undefined ? Math.max(trend.axisMax, peak) : Math.max(peak * 1.15, 1);
-  const step = trend.points.length > 1 ? SPARK.w / (trend.points.length - 1) : SPARK.w;
-  const y = (value: number) => SPARK.h - (value / top) * (SPARK.h - 2) - 1;
-
-  const {line, area} = curvePaths(values, (index) => index * step, y, SPARK.h);
-
-  return (
-    <svg
-      viewBox={`0 0 ${SPARK.w} ${SPARK.h}`}
-      preserveAspectRatio="none"
-      className={cn('h-14 w-full', SITE_TREND_METRIC_TOKEN[trend.metric], className)}
-      role="img"
-      aria-label={`${trend.metric.toLowerCase()}, today, in ${trend.unit}`}
-    >
-      {trend.shape === 'bars' ? (
-        trend.points.map((point, index) =>
-          point.value === null || point.value === 0 ? null : (
-            <rect
-              key={index}
-              x={index * step + step * 0.15}
-              y={y(point.value)}
-              width={Math.max(1, step * 0.7)}
-              height={SPARK.h - y(point.value)}
-              fill="currentColor"
-              opacity={0.55}
-            />
-          ),
-        )
-      ) : (
-        <>
-          <path d={area} fill="currentColor" opacity={0.14} />
-          <path
-            d={line}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            vectorEffect="non-scaling-stroke"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-        </>
-      )}
-    </svg>
-  );
 };
 
 /**
@@ -378,47 +302,6 @@ const DayChart = ({trend}: {trend: SiteTrend}) => {
 };
 
 /**
- * State of charge, drawn as a battery.
- *
- * Horizontal, with the terminal on the right and the charge filling from the left, which
- * is the convention every phone and every BMS screen already uses.
- *
- * ## Why the SVG went
- *
- * This drew that battery itself, in about thirty lines of hand-placed `<rect>` — the
- * right shape, from the same mock, and separately. So the site page showed **two
- * batteries at the same percentage in the same state**, one with a charging bolt and
- * one without, because `BatteryGlyph` had arrived on the other side of a merge and
- * nobody had joined them up. The one drawn here also had no low-charge colours.
- *
- * Its measurements are not lost: they are `BatteryGlyph`'s `xl` size, which is the
- * only place in the app the battery is a frame's subject rather than a mark beside a
- * figure. Nothing a reader can see changed size.
- *
- * The fill is still the bank's own token at a healthy charge, and the fill going amber
- * under 40% is not this component contradicting its old note — "whether that is a
- * problem is the alarm rows' job" is about *raising* something, and a colour beside a
- * figure raises nothing. `BatteryGlyph` argues that boundary, and why the two
- * thresholds must never reach `plantAlarms.ts`.
- */
-const SocGauge = ({soc, flow}: {soc: number; flow: 'charging' | 'discharging' | 'standby'}) => (
-  <div className="flex items-center gap-3">
-    {/* No `label`. The percentage and the direction are real text immediately to the
-        right, so labelling the glyph too would read the level twice — the rule every
-        other level in this app follows. It used to carry
-        `State of charge 71 per cent, charging`, which is exactly that duplication. */}
-    <BatteryGlyph fraction={soc} size="xl" charging={flow === 'charging'} />
-
-    <div className="flex flex-col">
-      <span className="text-lg leading-none font-semibold text-primary">
-        {Math.round(Math.max(0, Math.min(1, soc)) * 100)}%
-      </span>
-      <span className="text-[11px] text-secondary">{flow}</span>
-    </div>
-  </div>
-);
-
-/**
  * `hero` sizes the value like the strip figures above the scene — for the one or
  * two numbers a panel exists to deliver, not for every supporting fact.
  */
@@ -471,16 +354,6 @@ const Frame = ({
   </section>
 );
 
-/** The metric a device's own trend is about. */
-const METRIC_OF: Record<'solar' | 'battery' | 'cabinet', SiteTrendMetric> = {
-  solar: 'SOLAR',
-  battery: 'BATTERY',
-  // The DC plant's own quantity is what it is delivering, which is the site's draw. A
-  // cabinet has no series of its own in the model, and inventing one would be a chart of
-  // a number nothing measures.
-  cabinet: 'LOAD',
-};
-
 export const SiteTelemetry = ({
   summary,
   role,
@@ -501,81 +374,17 @@ export const SiteTelemetry = ({
   const gensetId = device === undefined ? undefined : deviceGensetId(device);
 
   const metric: SiteTrendMetric | undefined =
-    device === undefined
-      ? 'LOAD'
-      : gensetId !== undefined
-        ? 'GENSET'
-        : device === 'solar' || device === 'battery' || device === 'cabinet'
-          ? METRIC_OF[device]
-          : undefined;
+    device === undefined ? 'LOAD' : gensetId !== undefined ? 'GENSET' : undefined;
 
   const trend = useMemo(
     () =>
       seed === undefined || metric === undefined
         ? undefined
-        : siteTrend(seed, role, gensetIds, summary.ratedKw ?? 0, metric, 'day', now, now),
-    [seed, role, gensetIds, summary.ratedKw, metric, now],
+        : siteTrend(seed, gensetIds, metric, 'day', now, now),
+    [seed, gensetIds, metric, now],
   );
 
-  // Solar's second figure: how much of the day's load the array actually carried. Taken
-  // off the same composition the energy-overview chart draws, so the share quoted here
-  // and the bands down there cannot disagree.
-  const solarShare = useMemo(() => {
-    if (seed === undefined || device !== 'solar') return undefined;
-
-    const overview = siteOverview(seed, role, summary.ratedKw ?? 0, 'day', now, now);
-    const total = (id: string) =>
-      overview.series
-        .find((series) => series.id === id)
-        ?.values.reduce<number>((sum, value) => sum + (value ?? 0), 0) ?? 0;
-
-    const load = total('LOAD');
-    return load > 0 ? total('SOLAR') / load : undefined;
-  }, [seed, device, role, summary.ratedKw, now]);
-
   if (seed === undefined) return null;
-
-  const plant = hybridPlant(seed, role);
-  const state = hybridState(seed, role);
-
-  if (device === 'battery' && hasBattery(role)) {
-    const flow =
-      state.batteryKw > 0.05
-        ? ('discharging' as const)
-        : state.batteryKw < -0.05
-          ? ('charging' as const)
-          : ('standby' as const);
-
-    return (
-      <Frame title="State of charge" embedded={embedded}>
-        <SocGauge soc={state.soc} flow={flow} />
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="text-[11px] leading-none text-secondary">Charge through today</span>
-            <span className="text-[11px] leading-none text-secondary">
-              {plant.batteryKwh} kWh usable
-            </span>
-          </div>
-          {trend !== undefined && <Spark trend={trend} />}
-        </div>
-      </Frame>
-    );
-  }
-
-  if (device === 'solar' && hasSolar(role)) {
-    return (
-      <Frame title="Generation today" embedded={embedded}>
-        <div className="flex items-start justify-between gap-6">
-          <Figure label="Generating now" value={amount(state.solarKw, 'kW', 1)} />
-          <Figure
-            label="Load carried by solar"
-            value={solarShare === undefined ? 'no draw yet' : `${Math.round(solarShare * 100)}%`}
-          />
-        </div>
-        {trend !== undefined && <Spark trend={trend} />}
-      </Frame>
-    );
-  }
 
   if (device !== undefined && trend !== undefined) {
     // The genset's day series is litres burned per hour (see `gensetDayTrend`), so
@@ -612,15 +421,7 @@ export const SiteTelemetry = ({
   const feed = siteFeed(summary, summary.defaultDutyId, role);
   const loadKw = siteLoadKw(summary, summary.defaultDutyId, role);
   const carrying =
-    feed.source === 'GENSET'
-      ? 'Genset'
-      : feed.source === 'SOLAR'
-        ? 'Solar'
-        : feed.source === 'BATTERY'
-          ? 'Battery'
-          : feed.source === 'MAINS'
-            ? 'Mains'
-            : 'Nothing';
+    feed.source === 'GENSET' ? 'Genset' : feed.source === 'MAINS' ? 'Mains' : 'Nothing';
 
   return (
     <Frame title="Site at a glance" embedded={embedded}>
@@ -630,12 +431,6 @@ export const SiteTelemetry = ({
           label="Site draw"
           value={loadKw === null ? 'not served' : amount(loadKw, 'kW', 1)}
         />
-        {hasSolar(role) && (
-          <Figure label="Generating" value={amount(state.solarKw, 'kW', 1)} />
-        )}
-        {hasBattery(role) && (
-          <Figure label="State of charge" value={`${Math.round(state.soc * 100)}%`} />
-        )}
       </div>
       {/* No `Draw through today` spark here any more. A site's load barely moves —
           it is a tower, not a plant that starts and stops — so the sparkline was a
@@ -644,8 +439,8 @@ export const SiteTelemetry = ({
           same series is a full chart with an axis two bands down, under
           `Site Load`, where its shape can actually be read.
 
-          The device cards keep theirs: a genset's fuel and an array's generation do
-          have a shape at this size. */}
+          The genset cards keep theirs: a set's fuel burn does have a shape at this
+          size. */}
     </Frame>
   );
 };

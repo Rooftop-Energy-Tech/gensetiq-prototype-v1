@@ -13,9 +13,9 @@ import type {BrandIdentity} from '../types';
  * instead of re-sampling it.
  *
  * The estate is `carrier`, for the reason `../types.ts` gives for the unbranded
- * `gensetiq` build: a telco tower network already exists as a dataset, and the
- * product model already names `SOLAR_HYBRID` as a site power role, so a solar
- * hybrid site walks through the existing screens with nothing invented for it.
+ * `gensetiq` build: a telco tower network already exists as a dataset, and a tower
+ * standing on a genset walks through the existing screens with nothing invented
+ * for it.
  */
 export const TELCOIQ: BrandIdentity = {
   id: 'telcoiq',

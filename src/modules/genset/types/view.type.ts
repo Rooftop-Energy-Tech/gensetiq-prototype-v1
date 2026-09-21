@@ -19,13 +19,7 @@ export const GENSET_VIEWS = ['split', 'list', 'map'] as const;
 export type GensetView = (typeof GENSET_VIEWS)[number];
 
 /** The fleet cards' filters: whose set, what it feeds, and what needs doing to it. */
-export const GENSET_ROLE_FILTERS = [
-  'GRID_BACKUP',
-  'DIESEL_PRIME',
-  'DIESEL_HYBRID',
-  'SOLAR_HYBRID',
-  'WORKSHOP',
-] as const;
+export const GENSET_ROLE_FILTERS = ['GRID_BACKUP', 'DIESEL_PRIME', 'WORKSHOP'] as const;
 
 /**
  * The /gensets URL carries the whole view state — which view, what's typed in

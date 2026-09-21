@@ -5,7 +5,6 @@ import {useIsCompact} from '@/lib/useIsCompact';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
 import {isDueForService, useServiceRecords} from '@/modules/genset/data/services';
 import {estateSummary, filterSites} from './data/estateSummary';
-import {estateEnergy} from './data/hybrid';
 import {searchSites, sortSites, useSiteSummaries} from './data/sites';
 import {useEstateAlarmCounts} from './data/siteAlarmQueue';
 import {useSitePowerRoles} from './data/siteConfig';
@@ -122,15 +121,6 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
    * built from the summaries here rather than assumed there. Over the whole estate
    * like every other figure on the strip, not the filtered view.
    */
-  const ratedKwBySite = useMemo(
-    () =>
-      Object.fromEntries(all.map((summary) => [summary.site.id, summary.ratedKw])) as Record<
-        string,
-        number
-      >,
-    [all],
-  );
-  const energy = useMemo(() => estateEnergy(roles, ratedKwBySite), [roles, ratedKwBySite]);
 
   const summaries = useMemo(
     () =>
@@ -207,7 +197,6 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         summary={summary}
         showing={summaries.length}
         serviceDue={serviceDue}
-        solar={{share: energy.solarShare, kwh: energy.solarKwh}}
         search={search}
         onSearchChange={onSearchChange}
       />

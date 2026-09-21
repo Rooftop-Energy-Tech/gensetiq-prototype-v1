@@ -17,8 +17,6 @@ export type NavItem = {
    */
   link:
     | '/gensets'
-    | '/solar'
-    | '/battery'
     | '/sites'
     | '/settings';
 };

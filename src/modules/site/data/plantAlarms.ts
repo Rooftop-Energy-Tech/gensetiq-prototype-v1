@@ -287,348 +287,6 @@ const SITE_SPECS: ReadonlyArray<AlarmSpec> = [
 ];
 
 /**
- * The four load-shed stages and the battery's own, as the register map lays them
- * out.
- *
- * Written as a table because the addresses do not follow a formula — stages 1 and 2
- * sit at `0x5017`–`0x501A` and stages 3 and 4 were added later at `0x5032`–`0x5035`
- * — and because each stage has its own enable register, which is the whole reason
- * these rows are `ON_DEMAND` rather than trustworthy.
- *
- * **LLVD2 is the one to read twice.** Its enable at `0x2103` defaults to `0`, so on
- * a plant nobody has configured those two rows read quiet forever and mean nothing
- * whatever. That is the clearest example in the table of why silence is not
- * evidence.
- */
-const LVD_STAGES: ReadonlyArray<{
-  warningAt: number;
-  disconnectedAt: number;
-  label: string;
-  /** Enable register, and what it ships as. See the note above on `LLVD2`. */
-  enable: string;
-  enabledByDefault: boolean;
-  /** Where the stage sheds and where it comes back, volts — §15.2 defaults. */
-  disconnectV: string;
-  reconnectV: string;
-  disconnectRegister: string;
-  reconnectRegister: string;
-  /** Disconnect-mode register. The reason the voltages carry a caveat. */
-  mode: string;
-  /** Remaining state of charge the stage sheds at in capacity mode. */
-  capacity: string;
-}> = [
-  {
-    warningAt: 0x5017,
-    disconnectedAt: 0x5018,
-    label: 'LLVD1',
-    enable: '0x2100',
-    enabledByDefault: true,
-    disconnectV: '45.0 V',
-    reconnectV: '51.5 V',
-    disconnectRegister: '0x2101',
-    reconnectRegister: '0x2102',
-    mode: '0x210C',
-    capacity: '25%',
-  },
-  {
-    warningAt: 0x5019,
-    disconnectedAt: 0x501a,
-    label: 'LLVD2',
-    enable: '0x2103',
-    enabledByDefault: false,
-    disconnectV: '44.0 V',
-    reconnectV: '51.5 V',
-    disconnectRegister: '0x2104',
-    reconnectRegister: '0x2105',
-    mode: '0x2111',
-    capacity: '15%',
-  },
-  {
-    warningAt: 0x5032,
-    disconnectedAt: 0x5033,
-    label: 'LLVD3',
-    enable: '0x2116',
-    enabledByDefault: true,
-    disconnectV: '44.0 V',
-    reconnectV: '51.5 V',
-    disconnectRegister: '0x2117',
-    reconnectRegister: '0x2118',
-    mode: '0x2119',
-    capacity: '15%',
-  },
-  {
-    warningAt: 0x5034,
-    disconnectedAt: 0x5035,
-    label: 'LLVD4',
-    enable: '0x211E',
-    enabledByDefault: true,
-    disconnectV: '44.0 V',
-    reconnectV: '51.5 V',
-    disconnectRegister: '0x211F',
-    reconnectRegister: '0x2120',
-    mode: '0x2121',
-    capacity: '15%',
-  },
-];
-
-/**
- * ⚠️ **A shed voltage is only the shed voltage in voltage mode.**
- *
- * Every stage has a `Disconnect Mode` register — `0` voltage, `1` elapsed time, `2`
- * remaining capacity — and all five ship on voltage. **None of the five is polled.**
- * A plant somebody switched to capacity mode sheds at 25% state of charge and trips
- * at a bus voltage that looks perfectly healthy, so a page printing `45.0 V` as
- * *the* line would be describing a plant nobody has confirmed this is.
- *
- * The same is true of the numbers themselves: the disconnect and reconnect
- * registers are settable across 35–56 V and 37–58 V and are not read either. So
- * every LVD row says `default`, names the register that would settle it, and names
- * the mode register beside it. That is the `ON_DEMAND` grade doing its job on the
- * screen instead of in a comment.
- *
- * There is also a **high-temperature disconnect** on every stage, default off at
- * 65 °C — a thermal shed rather than a voltage one, and worth ruling out before
- * attributing a trip to a flat battery.
- */
-const lvdNote = (stage: (typeof LVD_STAGES)[number]): string =>
-  [
-    `Disconnect ${stage.disconnectRegister}, default ${stage.disconnectV}, settable 35–56 V;`,
-    `reconnect ${stage.reconnectRegister}, default ${stage.reconnectV}.`,
-    `Mode ${stage.mode} ships on voltage — in capacity mode this stage sheds at ${stage.capacity} instead, at a bus voltage that looks healthy.`,
-    stage.enabledByDefault
-      ? `Enable ${stage.enable}, default 1. Not read yet.`
-      : `Enable ${stage.enable} ships at 0 — on a stock plant this row reads 0 forever and says nothing at all.`,
-  ].join(' ');
-
-const LVD_SPECS: ReadonlyArray<AlarmSpec> = LVD_STAGES.flatMap(
-  (stage): Array<AlarmSpec> => [
-    {
-      address: stage.warningAt,
-      label: `${stage.label} Warning`,
-      category: 'BATTERY',
-      huawei: 'MA',
-      checkability: 'ON_DEMAND',
-      // The stage's own shed line rather than a line of the warning's own, because
-      // the map documents no separate warning threshold: what "about to" means is
-      // decided by the mode register. Phrased as a fact about the stage — it sheds
-      // here — instead of a claim about where this row trips.
-      threshold: `sheds at ${stage.disconnectV} (default)`,
-      meaning: `${stage.label} is about to shed its load stage. The site is still up — this is the actionable one.`,
-      corroboration: `No separate warning line is documented; what "about to" means is decided by the mode. ${lvdNote(stage)}`,
-    },
-    {
-      address: stage.disconnectedAt,
-      label: `${stage.label} Disconnected`,
-      category: 'BATTERY',
-      huawei: 'MA',
-      checkability: 'ON_DEMAND',
-      threshold: `< ${stage.disconnectV}, back at ${stage.reconnectV} (default)`,
-      meaning: `${stage.label} has shed. The equipment on that stage is off the air.`,
-      corroboration: lvdNote(stage),
-    },
-  ],
-);
-
-/** The bank itself: its discharge state, its protection, its temperature and its fuse. */
-const BATTERY_SPECS: ReadonlyArray<AlarmSpec> = [
-  {
-    address: 0x5021,
-    label: 'Battery Discharge Alarm',
-    category: 'BATTERY',
-    huawei: 'MA',
-    checkability: 'BOTH_WAYS',
-    meaning:
-      'The bank is discharging. Normal at night, and the leading edge of the load-shed sequence when it is not.',
-    corroboration:
-      'Total Battery Current is polled and the sign of it is the same fact. Nothing in this table is better corroborated.',
-  },
-  {
-    address: 0x5500,
-    label: 'Battery High Temperature',
-    category: 'BATTERY',
-    huawei: 'MI',
-    checkability: 'BOTH_WAYS',
-    meaning: 'The bank is too hot, by the plant’s own definition of hot.',
-    corroboration:
-      'Both battery temperatures are polled. No threshold register has been identified in the digested map, so the line itself is unknown.',
-  },
-  {
-    address: 0x5501,
-    label: 'Battery Temp Sensor Fault',
-    category: 'BATTERY',
-    huawei: 'MA',
-    checkability: 'BOTH_WAYS',
-    meaning: 'The temperature sensor has failed. The plant is thermally blind.',
-    corroboration:
-      'Self-confirming: sensible values on the temperature register prove the sensor is alive.',
-    invalidates: [
-      'Battery Temperature',
-      'Battery High Temperature',
-      'Battery Low Temperature',
-    ],
-  },
-  {
-    address: 0x5502,
-    label: 'BLVD Disconnected',
-    category: 'BATTERY',
-    huawei: 'MA',
-    checkability: 'ON_DEMAND',
-    threshold: '< 43.2 V, back at 51.5 V (default)',
-    meaning: 'The battery has been disconnected from the bus. Site dark, bank saved.',
-    // The last rung on the ladder, and the lowest: 43.2 V against LLVD1's 45.0, so
-    // the load stages shed first and the bank is what the plant protects last.
-    corroboration:
-      'Disconnect 0x2304, default 43.2 V; reconnect 0x2305, default 51.5 V. Mode 0x2307 ships on voltage — in capacity mode it sheds at 5% instead. Enable 0x2303, default 1. None of the four is read yet.',
-  },
-  {
-    address: 0x5503,
-    label: 'BLVD Warning',
-    category: 'BATTERY',
-    huawei: 'MA',
-    checkability: 'ON_DEMAND',
-    threshold: 'sheds at 43.2 V (default)',
-    meaning: 'The battery is about to be disconnected. The site is still up — last chance.',
-    corroboration:
-      'No separate warning line is documented; what "about to" means is decided by the mode. Disconnect 0x2304, default 43.2 V; reconnect 0x2305, default 51.5 V. Mode 0x2307 ships on voltage — in capacity mode it sheds at 5%. Enable 0x2303, default 1. Not read yet.',
-  },
-  {
-    address: 0x5505,
-    label: 'Battery Low Temperature',
-    category: 'BATTERY',
-    huawei: 'MI',
-    checkability: 'BOTH_WAYS',
-    meaning: 'The bank is too cold.',
-    corroboration:
-      'Both battery temperatures are polled. At an equatorial site an assertion here is better evidence that the sensor is wrong than that the bank is cold.',
-  },
-  {
-    address: 0x5506,
-    label: 'Battery Fuse Blown',
-    category: 'BATTERY',
-    huawei: 'MA',
-    checkability: 'ONE_WAY',
-    meaning:
-      'The fuse between the bank and the busbar is open. The battery is no longer part of the plant.',
-    corroboration:
-      'No partner and no enable register. The indirect check is that Total Battery Current should then read a hard 0.',
-  },
-];
-
-/**
- * The solar block: the bus, each conversion unit, and the array feeding it.
- *
- * `SSU N Fault` and `PV N Array Fault` are sixteen addresses apart per unit, so the
- * four units land on `0x5901`/`0x5903`, `0x5911`/`0x5913` and so on. Identity is
- * **positional** — slot 1 is reliably SSU 1 — which is what makes generating them
- * safe here and is not true of the rectifiers, whose addresses are hand-set on the
- * LCD.
- *
- * The pair matters more than either row. `PV N Array Fault` is the only register in
- * the whole poll set that separates "a cloud went over" from "a string is gone".
- *
- * ## Why these nine rows are not all `SOLAR`
- *
- * Because a category here answers *who is dispatched*, and the rule the register map's
- * own notes were recategorised on (2026-09-08) is **where the thing physically is**:
- * anything that is a module in the subrack or inside the power cabinet is `SITE`.
- *
- * An SSU is a plug-in converter in the same shelf as the rectifiers — it reads its own
- * slot off detection pins, which is exactly why identity is positional — so `SSU 3
- * Fault` is a module to swap in the cabinet, and the person who goes is the person who
- * swaps a rectifier. What it converts is solar; where it is, is the plant. So `SSU
- * Lost` and the four `SSU N Fault` rows are `SITE`, alongside `Low Rectifier Capacity`
- * and the three rectifier summary rows already there.
- *
- * `PV N Array Fault` stays `SOLAR`. It is not the module — it is fifteen strings across
- * four junction boxes on the roof, and a dead string is traced by somebody with a
- * clamp meter and a ladder.
- *
- * ⚠️ **The consequence is that the pair now spans two categories, and the pair is the
- * point.** SSU 3 faulted with PV 3 clear is a module to swap; PV 3 clear with SSU 3
- * faulted is a string to trace; both asserted is the ambiguous case. The site's pooled
- * Alarms tab is what keeps them readable together — it is the one screen that shows all
- * four categories in one queue, which is most of the argument for it existing.
- */
-const solarSpecs = (ssus: number): ReadonlyArray<AlarmSpec> => [
-  {
-    address: 0x5900,
-    label: 'SSU Lost',
-    // `SITE`, not `SOLAR` — a module in the cabinet. See the note above.
-    category: 'SITE',
-    part: 'SSUS',
-    huawei: 'WA',
-    checkability: 'BOTH_WAYS',
-    meaning: 'A solar conversion unit has fallen off the bus.',
-    // 🛑 The source document is emphatic that this one should not be inherited:
-    // the device rates it a warning because it assumes solar is a bonus, and here
-    // the array is the primary source, so a quarter of it leaving the bus is a
-    // generation shortfall that ends at the load-shed ladder a few nights later.
-    // It is inherited anyway, because the dashboard's rule is now the register
-    // map's Sev column and nothing else — see `SEVERITY_OF_HUAWEI`. This is the
-    // row to revisit first if that rule ever loosens.
-    corroboration: `SSU Amount is polled and should read ${ssus}. The register map rates this the device's lowest class; the alarms-chosen note argues it should not stay there at a solar-primary site.`,
-  },
-  ...Array.from({length: ssus}, (_unused, index): Array<AlarmSpec> => {
-    const unit = index + 1;
-    const base = 0x5901 + index * 0x10;
-
-    return [
-      {
-        address: base,
-        label: `SSU ${unit} Fault`,
-        // `SITE`, not `SOLAR` — a module in the cabinet. See the note above.
-        category: 'SITE',
-        part: 'SSUS',
-        huawei: 'MA',
-        checkability: 'PARTIAL',
-        meaning: `Conversion unit ${unit} has failed and is not converting.`,
-        corroboration: `SSU Amount is polled and should read ${ssus}. Identity is positional, so "SSU ${unit}" is reliably slot ${unit}.`,
-      },
-      {
-        address: base + 2,
-        label: `PV ${unit} Array Fault`,
-        // The one row in this block that stays `SOLAR`: strings on a roof, not a
-        // module in a rack.
-        category: 'SOLAR',
-        huawei: 'MA',
-        checkability: 'PARTIAL',
-        meaning: `The panels and wiring feeding unit ${unit} — a dead string, a blown string fuse, a junction box.`,
-        corroboration:
-          'SSU Amount is polled. This is the only register in the poll set that separates cloud from a string being gone.',
-      },
-    ];
-  }).flat(),
-];
-
-/**
- * One row per lithium module, indexed from `0x5036`.
- *
- * Generated from the unit's own module count rather than from a literal thirteen,
- * so the catalogue and the bank's equipment tab cannot disagree about how many
- * modules there are — see `monitoringUnit.ts` on why that count is stated as
- * hardware instead of sized from the load.
- *
- * Every one of them is `PARTIAL`, and the reason is worth reading: Battery Amount
- * catches a module **vanishing** from the bus, not one that is present and faulted.
- * A module's own BMS reporting a problem with itself is exactly the case the count
- * cannot see.
- */
-const lithiumSpecs = (modules: number): ReadonlyArray<AlarmSpec> =>
-  Array.from({length: modules}, (_unused, index): AlarmSpec => {
-    const unit = index + 1;
-
-    return {
-      address: 0x5036 + index,
-      label: `Lithium Battery ${unit} Abnormal`,
-      category: 'BATTERY',
-      huawei: 'MA',
-      checkability: 'PARTIAL',
-      meaning: `Module ${unit}'s own BMS reports a problem with itself.`,
-      corroboration: `Battery Amount is polled and should read ${modules}. It catches a module vanishing, not one present and faulted.`,
-    };
-  });
-
-/**
  * Where a row is filed, given how the site is fed.
  *
  * Only the nine AC rows move, and they move as a set. The register map calls them
@@ -692,27 +350,19 @@ const build = (spec: AlarmSpec, siteId: string, role: SitePowerRole): PlantAlarm
  * not need to be.
  */
 const assertSiteRowsHaveParts = (): void => {
-  const orphans = [...SITE_SPECS, ...solarSpecs(MAX_SSUS), ...LVD_SPECS, ...BATTERY_SPECS]
+  const orphans = [...SITE_SPECS]
     .filter((spec) => spec.category === 'SITE' && spec.part === undefined)
     .map((spec) => `${spec.label} (0x${spec.address.toString(16)})`);
 
   if (orphans.length > 0) {
     throw new Error(
-      `Cabinet alarm rows with no part, so the site tab's part filter would hide them: ${orphans.join(', ')}`,
+      `Site alarm rows with no part, so the site tab's part filter would hide them: ${orphans.join(', ')}`,
     );
   }
 };
 
-/**
- * Enough SSUs to generate every `SSU N Fault` any unit in `UNITS` could have, for the
- * check above only.
- *
- * The generated rows all take one part, so the number only has to be at least the
- * largest real shelf — it is not a claim about any site's hardware and nothing else
- * reads it.
- */
-const MAX_SSUS = 16;
-
+// At module load, so a row added without a part fails the first render rather than
+// the first screenshot — see the note above.
 assertSiteRowsHaveParts();
 
 /**
@@ -721,8 +371,8 @@ assertSiteRowsHaveParts();
  * **Address order, as the poll table is**, rather than sorted by severity or by
  * category. Two reasons: it is the order somebody comparing this page against the
  * register map or against the firmware's table will be reading in, and the
- * addresses are grouped by subsystem anyway — the `0x50` block is the plant, `0x55`
- * the battery, `0x59` the solar — so the physical grouping comes out of the sort for
+ * addresses are grouped by subsystem anyway — the `0x50` block is the plant and the
+ * `0x51` block the AC incomer — so the physical grouping comes out of the sort for
  * free.
  *
  * Returns `[]` for a site with no unit, which is twenty-four of the twenty-five.
@@ -734,14 +384,7 @@ export const plantAlarms = (
   const unit = monitoringUnit(siteId);
   if (unit === undefined) return [];
 
-  return [
-    ...SITE_SPECS,
-    ...AC_SPECS,
-    ...LVD_SPECS,
-    ...BATTERY_SPECS,
-    ...lithiumSpecs(unit.batteryModules),
-    ...solarSpecs(unit.ssus),
-  ]
+  return [...SITE_SPECS, ...AC_SPECS]
     .map((spec) => build(spec, siteId, role))
     .sort((left, right) => left.address - right.address);
 };

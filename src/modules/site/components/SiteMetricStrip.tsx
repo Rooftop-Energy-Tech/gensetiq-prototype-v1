@@ -4,10 +4,7 @@ import {Badge} from '@/components/ui/badge';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount, fuelFraction} from '@/lib/format';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
-import {hasBattery, hasSolar} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
-import {hybridPlant, hybridState, todaySoFarKwh} from '../data/hybrid';
-import {siteSeed} from '../data/siteSeed';
 import {useSiteAlarmQueue} from '../data/siteAlarmQueue';
 import {siteDcBus, siteFeed, siteLoadKw} from '../data/sites';
 import type {SiteSummary} from '../data/sites';
@@ -79,24 +76,10 @@ type StripMetric = {label: string; value: ReactNode};
  * The plant figures this site can actually answer for — see the note above.
  *
  * A list rather than one entry, and it is allowed to be empty: a site with neither
- * an array nor a set drops both columns instead of drawing them blank. Order is the
- * design's, and generation leads at a site that generates because it is the number
- * the whole hybrid was bought for.
+ * no set standing on it drops the column instead of drawing it blank.
  */
-const fittedPlantMetrics = (
-  summary: SiteSummary,
-  role: SitePowerRole,
-  now: number,
-): Array<StripMetric> => {
-  const seed = siteSeed(summary.site.id);
+const fittedPlantMetrics = (summary: SiteSummary): Array<StripMetric> => {
   const metrics: Array<StripMetric> = [];
-
-  if (seed !== undefined && hasSolar(role) && hybridPlant(seed, role).solarKwp > 0) {
-    metrics.push({
-      label: 'Generation today',
-      value: amount(Math.round(todaySoFarKwh(seed, role, now)), 'kWh'),
-    });
-  }
 
   if (summary.gensets.length > 0) {
     // Litres with the percentage behind them, as the design writes it. The litres
@@ -117,21 +100,6 @@ const fittedPlantMetrics = (
     });
   }
 
-  // Only where neither of the pair is fitted — a bank-only yard would otherwise run
-  // a strip with no plant figure at all. Hours rather than percent, for the reason
-  // the note above gives.
-  if (
-    metrics.length === 0 &&
-    seed !== undefined &&
-    hasBattery(role) &&
-    hybridPlant(seed, role).batteryKwh > 0
-  ) {
-    metrics.push({
-      label: 'Battery left',
-      value: amount(hybridState(seed, role, now).hoursLeft, 'h', 1),
-    });
-  }
-
   return metrics;
 };
 
@@ -145,12 +113,11 @@ const fittedPlantMetrics = (
 const drawMetric = (
   summary: SiteSummary,
   role: SitePowerRole,
-  now: number,
 ): StripMetric => {
   const draw = siteLoadKw(summary, summary.defaultDutyId, role);
   if (draw === null) return {label: 'Site draw', value: 'Not served'};
 
-  const bus = siteDcBus(summary, summary.defaultDutyId, role, now);
+  const bus = siteDcBus(summary, summary.defaultDutyId, role);
 
   return {
     label: 'Site draw',
@@ -183,7 +150,7 @@ const drawMetric = (
  * silhouette, and it is the treatment the alarm pill beside it already uses.
  */
 const supplyColumn = (summary: SiteSummary, role: SitePowerRole): StripMetric => {
-  const supply = supplyMeta(siteFeed(summary, summary.defaultDutyId, role), role);
+  const supply = supplyMeta(siteFeed(summary, summary.defaultDutyId, role));
   const SupplyIcon = supply.icon;
 
   return {
@@ -214,8 +181,8 @@ export const SiteMetricStrip = ({
   // strip, and a site with no array and no set simply runs three columns.
   const metrics = [
     supplyColumn(summary, role),
-    ...fittedPlantMetrics(summary, role, now),
-    drawMetric(summary, role, now),
+    ...fittedPlantMetrics(summary),
+    drawMetric(summary, role),
   ];
 
   /**
