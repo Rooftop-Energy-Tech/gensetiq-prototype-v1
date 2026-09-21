@@ -104,7 +104,7 @@ started as, and the difference works through the whole app:
 | --- | --- | --- |
 | Rail leads with | Gensets, then Deployment | **Sites**, and it both counts and lists the estate |
 | A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
-| `/deployment` screen | the dispatch feed | **gone**, see `Sidebar.tsx` |
+| `/deployment` screen | the dispatch feed, four views | **gone**, see `Sidebar.tsx` |
 | The estate summary's second question | the dispatch position | **energy** — solar's share of what carried the load |
 | Site load | 40–740 kW substations | **3–205 kW**, mostly 4–6 kW towers |
 | Genset plant | 250–1,250 kVA | **15–60 kVA**, two 500/1,000 kVA at the switching centres |
@@ -436,6 +436,9 @@ behind the code is worse than no bench, because a reader trusts it.
 | Site settings | `/sites/<id>/settings` | How the site is fed and which gensets stand on it. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design) and [gensets](#attaching-and-detaching-gensets). |
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
 | Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
+| Deployment — list | `/deployment?view=list` | The dispatch feed: a row per posting, ongoing first, seven columns with the headers as the ordering control. Not a Figma frame. |
+| Deployment — map | `/deployment?view=map` | One pin per **posting**, open in green and closed in grey, so a yard that has held four sets is four pins. Not a Figma frame. |
+| Deployment — timeline | `/deployment?view=gantt` | One lane per machine, one bar per posting, on a week-ticked axis. The only view that draws depot time — see [how-it-works](docs/how-it-works.md#the-dispatch-feed). |
 | Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
 | Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
 | Report — Genset | `/report/genset` | The engines over the same thirty days: hours, what each set burns per kilowatt-hour at the loading it holds, what part load costs the fleet in litres, diesel unaccounted for, and what is falling due. Not a Figma frame — same. |
@@ -468,6 +471,8 @@ through it:
 /gensets/brf9540/runs?from=2026-07-01&to=2026-07-31   # the range an export covers
 /sites?q=senai                        # sites list, filtered
 /sites?view=map&id=port-016&panel=true # one yard on the map, its preview open
+/deployment?state=ongoing             # the dispatch feed, only what is out
+/deployment?view=gantt&customer=east  # one division's postings on the timeline
 /sites/telco-001                      # the site page the Figma frame draws
 /sites/telco-001/runs?window=7d       # every set here, one log
 /solar?q=kedah                        # the solar register, filtered

@@ -2,6 +2,13 @@ import {Link} from '@tanstack/react-router';
 import {BoomBoxIcon, RadioTowerIcon, TruckIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
+import {deploymentSearch} from '@/modules/deployment/types/view.type';
+import type {DeploymentSearch} from '@/modules/deployment/types/view.type';
+import {gensetSearch} from '@/modules/genset/types/view.type';
+import type {GensetSearch} from '@/modules/genset/types/view.type';
+import {siteSearch} from '@/modules/site/types/view.type';
+import type {SiteSearch} from '@/modules/site/types/view.type';
+
 /**
  * The phone-width nav: a floating pill at the bottom of the screen.
  *
@@ -38,29 +45,37 @@ type MobileNavItem = {
   icon: LucideIcon;
   link: '/sites' | '/gensets' | '/deployment';
   /**
-   * The list's own default view state, for the registers that have one.
+   * The screen's own view state, whole.
    *
-   * Both registers validate their search params, and a `Link` has to name the whole
-   * object — the schema's defaults settle a URL that is *parsed*, not one that is
-   * built — so each item says which view it opens. `list` in both cases, which at
-   * this width is the only view either has.
+   * All three destinations validate their search params, and a `Link` type-checks
+   * against the *parsed* shape rather than the URL's — so each item names the
+   * complete object through that screen's own `…Search()` helper, which is where its
+   * defaults are written down. `view: 'list'` in all three cases, because at this
+   * width the list is the only view any of them has.
    *
-   * Absent on the dispatch feed: it is one table with a search box, so it carries no
-   * view state to name.
+   * No longer optional: the dispatch feed used to be one table with a search box and
+   * carried no view state to name. It is a register now — see `DeploymentPage`.
    */
-  search?: {view: 'list'};
+  search: GensetSearch | SiteSearch | DeploymentSearch;
 };
 
 const ITEMS: Array<MobileNavItem> = [
-  // First, and where `/` now lands. Its card strip is the estate's tallies, folded
-  // away by default at this width — see `SummaryCollapseButton` — so the phone gets
-  // the list first and the summary on request.
-  {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
-  // The fleet register: every machine, wherever it is standing.
-  {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
+  // First, and where `/` now lands. The fleet register: every machine, wherever it
+  // is standing. Its card strip is folded away by default at this width — see
+  // `SummaryCollapseButton` — so the phone gets the list first and the summary on
+  // request.
+  {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: gensetSearch({view: 'list'})},
   // The dispatch feed. On the bar rather than a tap away through a site, because on a
   // mobile fleet "what is out and since when" is the question asked standing in a yard.
-  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
+  {
+    label: 'Deployment',
+    icon: TruckIcon,
+    link: '/deployment',
+    search: deploymentSearch({view: 'list'}),
+  },
+  // The estate. Last here for the same reason it is last on the rail: a site is
+  // where a set was sent, not the thing you open the app to ask about.
+  {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: siteSearch({view: 'list'})},
 ];
 
 export const MobileNav = () => (

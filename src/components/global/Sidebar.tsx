@@ -12,26 +12,28 @@ import {BRAND} from '@/brands';
 /**
  * The rail, and the one place this white-label's estate changes the order.
  *
- * The mobile-fleet build put **Deployment** second and **Sites** fourth, because
- * for plant that moves the posting is the fact about a machine and a yard is only
- * where it happens to be standing this week. This estate is the other way round: a
- * tower site is a permanent installation, its genset is bolted to a plinth beside
- * it, and nobody asks where a set has been sent. So **Sites leads** — the site is
- * the asset, and the plant on it is a property of the site — and Deployment is
- * gone rather than demoted, because a destination nobody visits is worse than one
- * that isn't there.
+ * Express Mission's plant **moves**. A set is trucked to a customer, stands there
+ * for a job, and comes back — so the machine is the fact and the yard is only
+ * where it happens to be standing this week. That makes **Gensets** the rail's
+ * first destination and the app's landing screen: every question here starts at a
+ * particular engine, and the estate's tallies ride in the card strip above the
+ * rows rather than on a screen of their own.
  *
- * **Report** stood in the slot it left and has since been removed with it. It was
- * one destination over three tabs, and every figure on it was a second reading of
- * something a register already states. What the estate is burning belongs on
- * `/gensets`. A destination whose whole job is to restate other screens is one
- * more place for two numbers to disagree.
+ * **Deployment** follows it, because on a fleet that moves "what is out, where,
+ * and since when" is the next question after "what do we have" — and for the EM
+ * proof of concept it is the question the product is being judged on.
  *
- * **Overview** led the rail and has gone the same way, for the same reason applied
- * one level up. It counted the estate; `/sites` lists it and now carries those
- * tallies in the card strip above the rows — so the figure it alone held, service
- * due, moved into that strip and the destination went. A screen that counts what
- * the next screen lists is one navigation nobody needs.
+ * **Sites** is last rather than gone. A tower estate would lead with it — a site
+ * is a permanent installation and its genset is bolted to a plinth beside it — but
+ * this estate's sites are destinations plant is sent to, so the register is the
+ * place you go once you already know which machine you are asking about. The
+ * white-label's other builds reverse these two; nothing else about the rail moves.
+ *
+ * **Report** and **Overview** were destinations here and have both gone, for the
+ * same reason one level apart: each restated figures a register already states.
+ * What the estate is burning belongs on `/gensets`; what it counts belongs in that
+ * screen's card strip. A destination whose whole job is to restate another screen
+ * is one more place for two numbers to disagree.
  *
  * **Meters** and **Refuel** stood last, and were cut for a different reason again:
  * both were whole features rather than restatements, and both went to get the first
@@ -42,25 +44,20 @@ import {BRAND} from '@/brands';
  * genset line alone. A site hosts an engine; the array and the bank belong to
  * SolarIQ, and a rail offering them from this app would be claiming a surface it
  * does not have.
- *
- * ## Counting, then the fleet
- *
- * The rail is one destination that *counts and lists the estate* — Sites — over
- * the one that *lists its plant*: Gensets, the only thing this product bolts to a
- * site.
  */
 const NAV_ITEMS: Array<NavItem> = [
-  // First, and the app's landing screen: the estate counted in the card strip and
-  // listed under it. Everything below is a way of narrowing what this page counts.
-  {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
-  // The plant register: the engine, which is the whole of what this product
-  // puts at a site. A row is one machine, and the six tabs below it are the same
-  // shape every detail page in the app has.
+  // First, and the app's landing screen: the plant register, which is the whole of
+  // what this product puts anywhere. A row is one machine, and the six tabs below
+  // it are the same shape every detail page in the app has.
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
   // The dispatch feed: what is out, where, and since when. Fleet-wide like the
-  // register above it, and last because it is the question you ask after you know
-  // what the fleet is.
+  // register above it, and next to it because it is the question you ask as soon as
+  // you know what the fleet is.
   {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
+  // The estate counted in the card strip and listed under it. Last, because on a
+  // fleet that moves a site is where a machine went rather than the thing you are
+  // asking about.
+  {label: 'Sites', icon: RadioTowerIcon, link: '/sites'},
 ];
 
 export const Sidebar = () => {

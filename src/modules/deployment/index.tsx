@@ -1,218 +1,280 @@
-import {useMemo, useState} from 'react';
-import {Link} from '@tanstack/react-router';
-import {CircleIcon, SearchIcon, SearchXIcon, TruckIcon} from 'lucide-react';
+import {Suspense, lazy, useMemo, useRef, useState} from 'react';
+import {SearchXIcon} from 'lucide-react';
 
-import {Badge} from '@/components/ui/badge';
-import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
-import {amount, dayMonth, duration, stampDate} from '@/lib/format';
-import {allDeployments, deploymentTotals} from '@/modules/genset/data/deployments';
-import {gensetById} from '@/modules/genset/data/detail';
-import type {DeploymentSession} from '@/modules/genset/types/deployment.type';
-import {siteLabel} from '@/modules/site/data/siteSeed';
+import {useIsCompact} from '@/lib/useIsCompact';
+import {useVisibleRowIds} from '@/lib/useVisibleRows';
+import {
+  deploymentRows,
+  deploymentSummary,
+  filterDeployments,
+  searchDeployments,
+  sortDeployments,
+} from './data/feed';
+import {DeploymentDetailPanel} from './components/DeploymentDetailPanel';
+import {DeploymentsCards} from './components/DeploymentsCards';
+import {DeploymentsGantt} from './components/DeploymentsGantt';
+import {DeploymentsSummaryCards} from './components/DeploymentsSummaryCards';
+import {DeploymentsTable} from './components/DeploymentsTable';
+import {DeploymentsToolbar} from './components/DeploymentsToolbar';
+import {DEPLOYMENT_SORT_DEFAULT_DIRECTION} from './types/view.type';
+import type {DeploymentSearch, DeploymentSort} from './types/view.type';
+
+/**
+ * MapLibre is ~800 kB and it is on this route's first paint now that split is the
+ * default — the registers' trade, for their return: the toolbar, the strip and the
+ * table render while the map's chunk is still arriving. All three maps share the
+ * library, so whichever screen loads it first pays for all of them.
+ */
+const DeploymentsMap = lazy(() =>
+  import('./components/DeploymentsMap').then((module) => ({default: module.DeploymentsMap})),
+);
+
+/** Design width of the preview panel, and its inset from the map's edge. */
+const PANEL_WIDTH = 393;
+const PANEL_INSET = 8;
+
+type DeploymentPageProps = {
+  search: DeploymentSearch;
+  /** Patch the URL search params; anything omitted is left as-is. */
+  onSearchChange: (next: Partial<DeploymentSearch>) => void;
+};
 
 /**
  * `/deployment` — the dispatch feed.
  *
- * A flat feed of postings rather than a per-genset view, because the question it
- * answers is an operations-room question: **what is out, where, and since when?**
- * Ongoing postings lead; the completed ones underneath are the record — where
- * each machine has been, what the posting cost in hours and litres, and which
- * lorry carried it.
- *
- * The physical move is still a truck and a driver. Nothing here commands one —
+ * It answers an operations-room question: **what is out, where, and since when?**
+ * The physical move is still a truck and a driver, and nothing here commands one —
  * a posting opens when the machine is attached to a site and closes when it is
- * collected, and this feed is the paper trail those events leave.
+ * collected, and this screen is the paper trail those events leave.
  *
- * Built in the meters table's language — sticky header, fixed columns, hairline
- * rules — because it answers the same shape of question about a different object.
+ * ## It was one table, and it is now a register
+ *
+ * The feed shipped as a flat table with a search box: the right shape while it was
+ * the rail's last destination and a thing you checked. It is now the rail's *second*
+ * destination on a fleet whose plant moves, which makes it a screen people live on —
+ * so it was rebuilt to the shape `/sites` and `/gensets` already have, and Tristan's
+ * call (2026-09-21) was exactly that: give it the strip, the views, and a timeline.
+ *
+ * Four views rather than three. The registers' list, map and split do here what they
+ * do there, and the fourth is this screen's own:
+ *
+ *  - **list** — the table, seven columns, its headers the ordering control.
+ *  - **split** — table and map, the default, the map framing the rows on screen.
+ *  - **map** — where the fleet has been sent, one pin per posting.
+ *  - **gantt** — one lane per machine, one bar per posting, on a time axis. The only
+ *    view that can show a *gap*, which on a hire fleet is the fact worth money. See
+ *    `DeploymentsGantt`.
+ *
+ * ## What the strip counts, and why it is not the registers' strip
+ *
+ * The registers count things; a feed counts postings. So the headline is machines
+ * out over yards occupied, and the two figures nobody can read off the list — the
+ * typical posting length and the diesel the record burned — sit beside the chips.
+ * See `DeploymentsSummaryCards`.
  */
+export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) => {
+  const {view, q = '', id, panel, state, customer, sort, dir} = search;
 
-const COLUMNS = [
-  {label: 'Genset', width: '17%'},
-  {label: 'Status', width: '11%'},
-  {label: 'Site', width: '15%'},
-  {label: 'Window', width: '17%'},
-  {label: 'On load', width: '10%'},
-  {label: 'Energy', width: '10%'},
-  {label: 'Fuel burned', width: '10%'},
-  {label: 'Lorry', width: '10%'},
-] as const;
+  // Absent `dir` means the key's own grain — see `DEPLOYMENT_SORT_DEFAULT_DIRECTION`.
+  const direction = dir ?? DEPLOYMENT_SORT_DEFAULT_DIRECTION[sort];
 
-/** "12 Aug – ongoing" / "3 Aug – 14 Aug". The posting's span, tersely. */
-const windowLabel = (deployment: DeploymentSession): string =>
-  deployment.endedAt === null
-    ? `${dayMonth(deployment.startedAt)} – ongoing`
-    : `${dayMonth(deployment.startedAt)} – ${dayMonth(deployment.endedAt)}`;
+  /**
+   * One clock reading for the whole screen.
+   *
+   * Every open posting's elapsed time, the Gantt's right-hand edge and the strip's
+   * mean are all measured from it, so the bar, the row and the summary cannot
+   * straddle a minute boundary and disagree about how long a machine has been out.
+   */
+  const [now] = useState(() => Date.now());
 
-const matches = (deployment: DeploymentSession, needle: string): boolean => {
-  const genset = gensetById(deployment.gensetId);
-  return [
-    genset?.tag ?? '',
-    genset?.model ?? '',
-    deployment.locationLabel,
-    siteLabel(deployment.siteId),
-    deployment.lorryPlate,
-  ].some((field) => field.toLowerCase().includes(needle));
-};
+  const all = useMemo(() => deploymentRows(now), [now]);
 
-export const DeploymentPage = () => {
-  const [q, setQ] = useState('');
-  const now = useMemo(() => Date.now(), []);
+  // Over the whole feed, not the filtered view — see `deploymentSummary`.
+  const summary = useMemo(() => deploymentSummary(all), [all]);
 
-  const all = useMemo(() => allDeployments(), []);
-  const deployments = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return needle === '' ? all : all.filter((deployment) => matches(deployment, needle));
-  }, [all, q]);
+  const rows = useMemo(
+    () =>
+      sortDeployments(
+        filterDeployments(searchDeployments(all, q), {state, customer}),
+        sort,
+        direction,
+      ),
+    [all, q, state, customer, sort, direction],
+  );
 
-  const ongoing = all.filter((deployment) => deployment.endedAt === null).length;
-  const completed = all.length - ongoing;
+  // Resolved against the *filtered* feed, not the whole record: if a search hides the
+  // selected posting, the panel should say so rather than describing a row the reader
+  // can no longer see.
+  const selected = useMemo(
+    () => rows.find((row) => row.deployment.id === id),
+    [rows, id],
+  );
+
+  /**
+   * At phone width this screen is the strip and the card list — the registers' call,
+   * for their reason: neither the map's controls, nor a 393px floating panel, nor a
+   * time axis with a 168px label column has a phone form. `view` in the URL is left
+   * untouched, so the same link opens the map on a desktop and the list on a phone.
+   */
+  const compact = useIsCompact();
+
+  const showMap = (view === 'map' || view === 'split') && !compact;
+  const showGantt = view === 'gantt' && !compact;
+  const showList = (view !== 'map' && view !== 'gantt') || compact;
+  const split = showMap && showList;
+
+  // Undefaulted `panel` → the selection decides, as on the registers: a first load
+  // with nothing selected keeps the full width for the list.
+  const panelOpen = (panel ?? id !== undefined) && !compact;
+  const mapPanelInset = showMap && panelOpen ? PANEL_WIDTH + PANEL_INSET : 0;
+
+  // The rows on screen, which the map frames while the two halves are side by side.
+  const listRef = useRef<HTMLDivElement>(null);
+  const rowIds = useMemo(() => rows.map((row) => row.deployment.id), [rows]);
+  const {ids: visibleIds, suppress} = useVisibleRowIds(listRef, rowIds, split);
+
+  // Selecting a posting opens the panel whether or not the toggle was on — the
+  // registers' rule, for its reason: with the panel closed, clicking a pin tints it
+  // and does nothing else, which reads as a broken control.
+  const selectDeployment = (next: string) => onSearchChange({id: next, panel: true});
+
+  /**
+   * A column header was clicked — the registers' handler, and see `SitesPage` for
+   * why a new key picks up its own natural direction and only the key already
+   * showing flips.
+   */
+  const changeSort = (next: DeploymentSort) => {
+    if (next === sort) {
+      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc'});
+      return;
+    }
+    onSearchChange({sort: next, dir: undefined});
+  };
+
+  const deselectDeployment = () => {
+    if (id === undefined && panel === undefined) return;
+    onSearchChange({id: undefined, panel: undefined});
+  };
+
+  const empty = rows.length === 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* The fleet screen's search box, for the same job: it matches the tag,
-            the model, the yard and the lorry plate. */}
-        <InputGroup className="w-full max-w-[373px]">
-          <InputGroupAddon>
-            <SearchIcon aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            placeholder="Search deployments"
-            aria-label="Search deployments"
+      <DeploymentsToolbar
+        query={q}
+        onQueryChange={(next) => onSearchChange({q: next || undefined})}
+        view={view}
+        onViewChange={(next) => onSearchChange({view: next})}
+        panelOpen={panelOpen}
+        onPanelOpenChange={(next) => onSearchChange({panel: next})}
+        showViewControls={!compact}
+        // The table's headers are the sort control wherever the table is drawn, so
+        // the dropdown only appears where it is not — the phone's card list and the
+        // map-only view.
+        //
+        // **Not on the timeline**, which is the one view that ignores the ordering
+        // entirely: its lanes are machines and its axis is time, so a key like "fuel
+        // burned" has nowhere to apply. A dropdown there would be a control that
+        // changes nothing. See `DeploymentsGantt`.
+        showSort={compact || view === 'map'}
+        summary={summary}
+        search={search}
+        onSearchChange={onSearchChange}
+      />
+
+      <DeploymentsSummaryCards
+        summary={summary}
+        showing={rows.length}
+        search={search}
+        onSearchChange={onSearchChange}
+      />
+
+      <div className="relative flex min-h-0 flex-1 gap-3">
+        {empty ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+            <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
+            <p className="text-sm text-secondary">
+              No deployments match the current filters.
+            </p>
+          </div>
+        ) : (
+          <>
+            {showList && (
+              <div className="min-h-0 min-w-0 flex-1">
+                {compact ? (
+                  <DeploymentsCards rows={rows} />
+                ) : (
+                  <DeploymentsTable
+                    rows={rows}
+                    selectedId={id}
+                    onSelect={selectDeployment}
+                    sort={sort}
+                    direction={direction}
+                    onSortChange={changeSort}
+                    scrollRef={listRef}
+                    onBeforeAutoScroll={suppress}
+                  />
+                )}
+              </div>
+            )}
+
+            {showGantt && (
+              <div className="min-h-0 min-w-0 flex-1">
+                <DeploymentsGantt
+                  rows={rows}
+                  selectedId={id}
+                  onSelect={selectDeployment}
+                  now={now}
+                />
+              </div>
+            )}
+
+            {showMap && (
+              <div
+                className={
+                  // The registers' proportions — see `SitesPage`, including why the
+                  // column is sized for the panel whether or not it is showing.
+                  split
+                    ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
+                    : 'min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element'
+                }
+              >
+                <Suspense
+                  fallback={
+                    <div className="flex size-full items-center justify-center text-sm text-secondary">
+                      Loading map…
+                    </div>
+                  }
+                >
+                  <DeploymentsMap
+                    rows={rows}
+                    selectedId={id}
+                    onSelect={selectDeployment}
+                    onDeselect={deselectDeployment}
+                    panelInset={mapPanelInset}
+                    focusIds={split ? visibleIds : undefined}
+                  />
+                </Suspense>
+              </div>
+            )}
+          </>
+        )}
+
+        {panelOpen && (
+          <DeploymentDetailPanel
+            row={selected}
+            className={
+              // Over the map the panel floats, so the basemap keeps running
+              // underneath it. Everywhere else it takes its own column instead, so it
+              // can't sit on top of the table's last two columns or the timeline's
+              // most recent week.
+              showMap
+                ? 'absolute inset-y-2 right-2 z-10 w-[393px] shadow-lg'
+                : 'w-[393px] shrink-0'
+            }
           />
-        </InputGroup>
-
-        {/* The estate in one line: what is out now, and how deep the record goes. */}
-        <p className="text-sm text-secondary">
-          {ongoing} deployed · {completed} completed in the last 60 days
-        </p>
+        )}
       </div>
-
-      {deployments.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-          <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
-          <p className="text-sm text-secondary">No deployments match “{q}”.</p>
-        </div>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
-            <caption className="sr-only">
-              Genset deployments, ongoing first, with each posting's window and totals
-            </caption>
-            <colgroup>
-              {COLUMNS.map((column) => (
-                <col key={column.label} style={{width: column.width}} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
-                {COLUMNS.map((column) => (
-                  <th
-                    key={column.label}
-                    scope="col"
-                    className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas px-2 text-left font-medium whitespace-nowrap text-secondary"
-                  >
-                    {column.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {deployments.map((deployment) => {
-                const genset = gensetById(deployment.gensetId);
-                const totals = deploymentTotals(deployment);
-                const elapsed =
-                  (deployment.endedAt === null ? now : new Date(deployment.endedAt).getTime()) -
-                  new Date(deployment.startedAt).getTime();
-
-                return (
-                  <tr key={deployment.id}>
-                    <td className="h-13 truncate border-b border-subtle p-2 font-medium">
-                      <Link
-                        to="/gensets/$gensetId"
-                        params={{gensetId: deployment.gensetId}}
-                        className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-                      >
-                        {genset?.tag ?? deployment.gensetId}
-                      </Link>
-                      <span className="block truncate text-xs text-tertiary">
-                        {genset?.model ?? ''}
-                      </span>
-                    </td>
-
-                    <td className="h-13 border-b border-subtle p-2">
-                      {deployment.endedAt === null ? (
-                        <Badge variant="secondary">
-                          <CircleIcon className="text-severity-ok" aria-hidden="true" />
-                          Deployed
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          <TruckIcon className="text-tertiary" aria-hidden="true" />
-                          Completed
-                        </Badge>
-                      )}
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2">
-                      <Link
-                        to="/sites/$siteId"
-                        params={{siteId: deployment.siteId}}
-                        className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-                      >
-                        {siteLabel(deployment.siteId)}
-                      </Link>
-                      <span className="block truncate text-xs text-tertiary">
-                        {deployment.locationLabel}
-                      </span>
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                      <span
-                        className="block truncate"
-                        title={`${stampDate(deployment.startedAt)}${deployment.endedAt === null ? '' : ` to ${stampDate(deployment.endedAt)}`}`}
-                      >
-                        {windowLabel(deployment)}
-                      </span>
-                      <span className="block truncate text-xs text-tertiary">
-                        {duration(elapsed)}
-                      </span>
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                      <span
-                        className="block truncate"
-                        title={`${totals.starts} start${totals.starts === 1 ? '' : 's'} inside this deployment`}
-                      >
-                        {amount(totals.runtimeHours, 'h')}
-                      </span>
-                      <span className="block truncate text-xs text-tertiary">
-                        {totals.starts} start{totals.starts === 1 ? '' : 's'}
-                      </span>
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                      {amount(totals.energyKwh, 'kWh')}
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                      {amount(totals.fuelBurnedLitres, 'L')}
-                    </td>
-
-                    <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                      {deployment.lorryPlate}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 };

@@ -105,10 +105,12 @@ A **place with a load**, and the plant standing on it is a property of the site
 rather than the other way round. One or more sets, an array, a bank, one changeover,
 one thing being kept alive.
 
-This is the top of the model, and it was not always: the app began as a set of
-machine screens and the rail put deployment first. On an estate where a genset is
-bolted to a plinth beside the tower it feeds and nobody asks where a set has been
-sent, the site *is* the asset.
+Whether this is the top of the model depends on the estate, and on this one it is
+not. Where a genset is bolted to a plinth beside the tower it feeds and nobody asks
+where a set has been sent, the site *is* the asset and the rail leads with it. Where
+the plant is hired out and trucked between jobs — which is the estate this build
+carries — the machine is the fact and the yard is where it happens to be standing
+this week. The rail leads with Gensets accordingly; see [the screens](#the-screens).
 
 A genset is at one site or none, and the relationship is held on the *genset*
 (`siteId`) rather than as a member list on the site. A site therefore cannot claim a
@@ -915,12 +917,30 @@ one that would change something is enabled — you cannot start a running set.
 
 ## The screens
 
-Five destinations in the app rail. **Sites** leads and both counts and lists the
-estate; under it are three that **list its plant** — Solar, Battery, Gensets, one per
-thing bolted to a site — and Settings is pinned to the foot.
+Three destinations in the app rail, and Settings pinned to the foot. **Gensets**
+leads and is the app's landing screen — the plant register, which on a fleet whose
+machines move is the thing every question starts from. **Deployment** follows it:
+what is out, where, and since when. **Sites** is last, because on this estate a yard
+is where a set was sent rather than the subject itself. The rail's own doc comment
+argues the order at length, including what a *permanent* estate would do instead.
 
 ```
-/                    → /sites
+/                    → /gensets
+
+/gensets?view=split ─┐
+/gensets?view=list ──┼─ the tag ─→ /gensets/<id>                        Genset
+/gensets?view=map  ──┘  or panel →   ├── /analysis
+                                     ├── /runs
+                                     ├── /deployments
+                                     ├── /service
+                                     ├── /alarms
+                                     ├── /equipment
+                                     └── /settings
+
+/deployment?view=split ─┐
+/deployment?view=list ──┼─ the tag ─→ /gensets/<id>                 Deployment
+/deployment?view=map  ──┤   the site ─→ /sites/<id>
+/deployment?view=gantt ─┘   or panel →
 
 /sites?view=split ──┐
 /sites?view=list  ──┼─ the site's name ─→ /sites/<id>                    Site
@@ -928,25 +948,6 @@ thing bolted to a site — and Settings is pinned to the foot.
                                              ├── /settings
                                              └── /runs · /contract   still resolve;
                                                                      nothing links
-                                the site rail's  Asset ▸ ─┐
-                                                          │
-/gensets?view=split ─┐                                    │
-/gensets?view=list ──┼─ the tag ─→ /gensets/<id> ←────────┤              Genset
-/gensets?view=map  ──┘  or panel →   ├── /analysis        │
-                                     ├── /runs            │
-                                     ├── /service         │
-                                     ├── /alarms          │
-                                     ├── /equipment       │
-                                     └── /settings        │
-                                                          │
-/solar ────────→ /solar/<id> ←────────────────────────────┤              Solar
-                   ├── /analysis                          │
-                   ├── /equipment   (the array)           │
-                   └── /service · /alarms · /settings     │
-                                                          │
-/battery ──────→ /battery/<id> ←──────────────────────────┘              Battery
-                   └── /analysis · /service · /alarms
-                       /equipment · /settings
 
 /settings            which customer this build is
 ```
@@ -1124,6 +1125,54 @@ gensets' position and the fleet map already draws it. That is true of the
 coordinates and wrong about the question: the fleet map answers *where are my
 machines*, so a yard with three sets is three pins; this one answers *where are my
 sites, and which of them is in trouble*.
+
+### The dispatch feed
+
+`/deployment` is the third register, and the only one whose rows are **events rather
+than things**. A posting is one contiguous period during which a machine stood at one
+site — see [Deployment](#deployment) for the model — and the screen answers the
+operations-room question: *what is out, where, and since when.*
+
+It shipped as a flat table with a search box, which was the right shape while it was
+the rail's last destination and a thing you checked. It is the rail's second
+destination now, which makes it a screen people live on, so it was rebuilt to the
+registers' shape: a summary strip, a preview panel, view state in the URL, and the
+list/map/split switcher. Tristan's call, 2026-09-21.
+
+**Four views, not three.** The first three do here what they do on the estate — the
+table with its headers as the ordering control, the map, and the two side by side
+with the map framing the rows on screen. The fourth is this screen's own:
+
+**The timeline is one lane per machine and one bar per posting.** Lanes rather than
+rows is the whole design. A list of postings on a time axis would be the table again
+with a bar drawn on it; a lane per genset puts that machine's whole chain on one
+line, so **the white space between its bars is depot time** — which is the only place
+in this app a thing that *did not happen* is drawn. On a fleet that hires plant out,
+that gap is the number the business runs on.
+
+It is not a planner. Nothing drags, nothing schedules, and the axis stops at *now*,
+because a posting that has not happened yet is not in the data model. When dispatch
+becomes a write path this is the screen that grows a right-hand side; until then a
+Gantt showing empty future weeks would be promising a control that does not exist.
+
+The timeline also ignores the table's ordering, deliberately — sorting lanes by fuel
+burned would put a machine's chain at a vertical position that means nothing against
+a time axis — so the toolbar's sort dropdown is withheld there rather than left on
+screen doing nothing.
+
+**The strip counts postings, not things.** The registers count what exists; this
+counts what is happening, so the headline is two figures — machines out, and yards
+occupied — which are not the same number when two sets stand at one substation. The
+two chips are the only states a posting has, open and closed, and they filter all
+four views together. Typical posting length and the diesel the record burned sit
+beside them because they are the two figures nobody can read off the list.
+
+**Closed postings are drawn on the map as well as open ones.** A map of only what is
+out would be smaller and cleaner, and it could not answer "have we had a set at Kapit
+before" — which is the question asked before quoting one. The `Deployed` chip is one
+click away for anybody who wants the smaller map.
+
+→ `src/modules/deployment/`
 
 ### One thing's rail
 
