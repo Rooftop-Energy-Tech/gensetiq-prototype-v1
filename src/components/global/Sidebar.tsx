@@ -1,5 +1,13 @@
 import {useNavigate} from '@tanstack/react-router';
-import {BoomBoxIcon, LogOutIcon, RadioTowerIcon, SettingsIcon, TruckIcon} from 'lucide-react';
+import {
+  BoomBoxIcon,
+  FileDownIcon,
+  FuelIcon,
+  LogOutIcon,
+  RadioTowerIcon,
+  SettingsIcon,
+  TruckIcon,
+} from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
 import type {NavItem} from '@/components/global/NavButton';
@@ -61,6 +69,16 @@ const NAV_ITEMS: Array<NavItem> = [
   // register above it, and next to it because it is the question you ask as soon as
   // you know what the fleet is.
   {label: 'Deployments', icon: TruckIcon, link: '/deployments'},
+  // Diesel, in the two halves an operations room asks about: the tanks, worst first,
+  // and the orders booked against them. Under the dispatch feed because a delivery
+  // is dispatch too — the tanker rather than the lorry — and because who needs fuel
+  // is a question you ask about machines you already know are out.
+  {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
+  // The way out of the app. Not a fourth set of charts — every figure it exports is
+  // already drawn on a screen above it — but the files those screens cannot hand
+  // anybody: an invoice is settled in a spreadsheet. Last of the fleet-wide four,
+  // because it is where a reader goes once they know what they want.
+  {label: 'Reporting', icon: FileDownIcon, link: '/reporting'},
   // The estate counted in the card strip and listed under it. Last on the estates
   // that have it at all, because even where plant stands still the machine is what
   // this product is about.

@@ -19,6 +19,8 @@ export type NavItem = {
     | '/gensets'
     | '/sites'
     | '/deployments'
+    | '/fuel'
+    | '/reporting'
     | '/settings';
 };
 
