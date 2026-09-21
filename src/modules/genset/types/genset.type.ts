@@ -144,9 +144,21 @@ export type Genset = {
 export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(genset)}`;
 
 /**
- * What a machine is called — **its serial**, `CUM-739893`.
+ * What a machine is called — **its road plate**, `WVA 5385`.
  *
- * ## It used to be the site's name
+ * ## It was the serial until 2026-09-21
+ *
+ * `genset.tag`, `CUM-739893`. Unique and durable, but nobody in the yard says it:
+ * the plate is what is painted on the machine, what the driver quotes over the
+ * radio, and what a refuel docket is signed against. The serial has not gone
+ * anywhere — it is the `Asset tag` line on the detail shell, and the search box
+ * still matches it — so a reader who knows a set by its serial can still find it.
+ *
+ * Every seeded unit on both estates carries a plate and no two share one, so the
+ * register keys, sorts and reads distinctly. The fallback to the tag is for the
+ * machine that arrives without a plate recorded, which the seed allows.
+ *
+ * ## And it was the site's name before that
  *
  * `siteLabel(genset.siteId)`, falling back to the tag only for a set in the depot.
  * That was defensible on a permanent estate, where a set is bolted beside one tower
@@ -159,15 +171,15 @@ export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(ge
  * the fleet list a list of places: sort it by name and you were sorting by where
  * things happened to be.
  *
- * The serial is the machine's own, it survives the drive, and it is unique by
- * construction. Tristan's call, 2026-09-21.
+ * The serial fixed both — the machine's own, and it survives the drive — and the
+ * plate now does the same job in the words the fleet actually uses.
  *
  * Where the machine *is* has not gone anywhere — it is the `Location` column beside
  * this one on the register, and the deployment log's whole subject.
  *
  * **`gensetName` above is still the right one for a detail page**: a page titled
- * `CUM-739893` alone does not say what kind of thing it is about, and the rail it
+ * `WVA 5385` alone does not say what kind of thing it is about, and the rail it
  * sits in lists the site's other assets. A column header cannot be in two places at
  * once; a page title has to carry its own.
  */
-export const gensetLabel = (genset: Genset): string => genset.tag;
+export const gensetLabel = (genset: Genset): string => genset.plateNumber ?? genset.tag;

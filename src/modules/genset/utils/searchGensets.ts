@@ -3,7 +3,7 @@ import {gensetCustomer, gensetPowerRole} from '../data/fleetSummary';
 import {gensetStatus} from '../data/fleetStatus';
 import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
-import {RUN_STATES} from '../types/genset.type';
+import {gensetLabel, RUN_STATES} from '../types/genset.type';
 import type {AlertSeverity} from '../types/alert.type';
 import {alarmRank, alarmRankCount} from '@/modules/site/data/siteAlarmQueue';
 import {GENSET_SORT_DEFAULT_DIRECTION} from '../types/view.type';
@@ -41,7 +41,7 @@ export const searchGensets = (gensets: Array<Genset>, query: string): Array<Gens
   if (!needle) return gensets;
 
   return gensets.filter((genset) =>
-    [genset.tag, genset.model, genset.locationLabel].some((field) =>
+    [gensetLabel(genset), genset.tag, genset.model, genset.locationLabel].some((field) =>
       field.toLowerCase().includes(needle),
     ),
   );
@@ -77,7 +77,7 @@ export const sortGensets = (
    */
   counts: Record<string, Record<AlertSeverity, number>> = {},
 ): Array<Genset> => {
-  const byName = (a: Genset, b: Genset) => a.tag.localeCompare(b.tag);
+  const byName = (a: Genset, b: Genset) => gensetLabel(a).localeCompare(gensetLabel(b));
 
   /**
    * Each key's comparator, written **the way that key naturally runs**, and turned
