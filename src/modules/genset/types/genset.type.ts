@@ -1,4 +1,3 @@
-import {siteLabel} from '@/modules/site/data/siteSeed';
 
 /**
  * The three states a genset reports. Ordered by how much they want attention —
@@ -46,7 +45,20 @@ export type GensetActivity = {
 
 export type Genset = {
   id: string;
-  /** Asset tag, e.g. `BRF9540`. Unique, and what the search box matches first. */
+  /**
+   * The machine's **serial number**, e.g. `CUM-739893` — its name everywhere in the
+   * app, and what the search box matches first.
+   *
+   * It was a placename-derived asset tag: `KPT8033` at Kapit, `BLG4884` at Belaga.
+   * That is a *stationary* convention and it breaks on the first lorry — a machine
+   * called `KPT8033` standing in Tawau is a register arguing with itself, and on a
+   * fleet whose whole subject is that machines move, it would be wrong more often
+   * than right. A serial belongs to the machine and travels with it.
+   *
+   * Prefixed by the maker — `CUM`, `CAT`, `PRK`, `DNY`, `FGW`, `KHL` — because the
+   * one thing a reader most often wants off a name in a list is what kind of set it
+   * is, and the model column is not always beside it.
+   */
   tag: string;
   /** e.g. `Cummins 1000 kVa`. */
   model: string;
@@ -63,10 +75,16 @@ export type Genset = {
    * The lorry or trailer plate this machine is registered under, or `null` when it
    * has none — a set on a plinth is not a road vehicle.
    *
-   * Nullable rather than optional, for the reason `siteId` is: "this machine has
-   * no plate" is a fact the register holds, and an optional field would let every
-   * reader treat the absence as an oversight instead. The details block prints the
-   * row only when there is one.
+   * **Every machine on this estate has one**, because every machine on it moves:
+   * a set is dropped at a yard for a job measured in weeks and collected again, and
+   * the plate is how it is identified on the road and on a delivery order. It stays
+   * nullable rather than becoming required, for the reason `siteId` is: "this
+   * machine has no plate" is a fact the register must be able to hold the day a set
+   * is bolted down, and the details block already prints the row only when there is
+   * one.
+   *
+   * Not to be confused with `DeploymentSession.lorryPlate`, which is the lorry that
+   * *carried* the machine on one posting. This is the machine's own registration.
    */
   plateNumber: string | null;
   fuelLitres: number;
@@ -119,30 +137,37 @@ export type Genset = {
  * still on the `Genset` record and still what the search box matches — so restoring
  * it, or appending it where a site holds a pair, is a change to this one line.
  *
- * The model this used to carry is in the rail's info glyph, one row under the asset
- * tag. It was the right second half when the first half was already a machine's tag
- * — two sets on one plinth are told apart by what they are — but it is not what
- * identifies a set, and the name's job here is to say *what kind of thing* the page
- * is about before saying which one.
+ * The model this used to carry is in the rail's info glyph, one row under the
+ * serial. It is not what identifies a set, and the name's job here is to say *what
+ * kind of thing* the page is about before saying which one.
  */
-export const gensetName = (genset: Genset): string => `Genset | ${gensetSiteName(genset)}`;
+export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(genset)}`;
 
 /**
- * The **second half on its own** — `WPKL-0207`, no `Genset |` in front of it.
+ * What a machine is called — **its serial**, `CUM-739893`.
  *
- * For the surfaces where something beside the name has already said what kind of
- * thing this is — the **fleet register**: its column is headed `Genset name`, its page
- * is headed `Gensets`, and printing the word again is the header read once per row,
- * thirty times down a column that says it at the top. Tristan's call, 2026-09-14. The
- * register's three renderings all take it: the table, the phone cards and the preview
- * panel are one screen and must not name the same machine two ways.
+ * ## It used to be the site's name
  *
- * **`gensetName` above is still the right one for a detail page**, and that is the
- * line between them. A set, a bank, an array and a cabinet standing at one site all
- * take that site's name, so `SBH-1336` alone would title four different pages
- * identically — there the prefix is the only thing saying which of the four you are
- * reading, and the rail it sits in lists all four. A column header cannot be in two
- * places at once; a page title has to carry its own.
+ * `siteLabel(genset.siteId)`, falling back to the tag only for a set in the depot.
+ * That was defensible on a permanent estate, where a set is bolted beside one tower
+ * for its life and "the machine at PPU-022" identifies it as well as anything.
+ *
+ * On a mobile fleet it is wrong twice over. A machine posted to PPU-022 was *called*
+ * PPU-022 until the lorry came and then called something else — a name that changes
+ * when nothing about the object has — and **two sets standing in one yard had the
+ * same name**, which a register whose rows are machines cannot afford. It also made
+ * the fleet list a list of places: sort it by name and you were sorting by where
+ * things happened to be.
+ *
+ * The serial is the machine's own, it survives the drive, and it is unique by
+ * construction. Tristan's call, 2026-09-21.
+ *
+ * Where the machine *is* has not gone anywhere — it is the `Location` column beside
+ * this one on the register, and the deployment log's whole subject.
+ *
+ * **`gensetName` above is still the right one for a detail page**: a page titled
+ * `CUM-739893` alone does not say what kind of thing it is about, and the rail it
+ * sits in lists the site's other assets. A column header cannot be in two places at
+ * once; a page title has to carry its own.
  */
-export const gensetSiteName = (genset: Genset): string =>
-  genset.siteId === null ? genset.tag : siteLabel(genset.siteId);
+export const gensetLabel = (genset: Genset): string => genset.tag;

@@ -1,6 +1,9 @@
 import {ColumnsIcon, GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon} from 'lucide-react';
 
 import {FilterSelect} from '@/components/global/FilterSelect';
+import {SortSelect} from '@/components/global/SortSelect';
+import type {GensetSort} from '../types/view.type';
+import type {SortOption} from '@/components/global/SortSelect';
 import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
@@ -45,6 +48,19 @@ type GensetsToolbarProps = {
  * copied rather than generalised — see the note there for why two files beat one
  * component taking a placeholder and three labels.
  */
+/**
+ * The three orderings, worded as what lands at the top rather than as a direction.
+ *
+ * `Run state` is this register's `Alarms`: the machine to look at first. It ranks by
+ * what the set is doing — faulted, running, idle, offline — which is the fleet's
+ * equivalent of a yard's worst standing alarm.
+ */
+const GENSET_SORT_OPTIONS: ReadonlyArray<SortOption<GensetSort>> = [
+  {key: 'state', label: 'Run state', detail: 'Needs attention first'},
+  {key: 'fuel', label: 'Fuel level', detail: 'Emptiest tank first'},
+  {key: 'name', label: 'Serial', detail: 'A to Z'},
+];
+
 export const GensetsToolbar = ({
   query,
   onQueryChange,
@@ -95,6 +111,14 @@ export const GensetsToolbar = ({
           options={summary.byCustomer}
           value={search.customer}
           onChange={(next) => onSearchChange({customer: next})}
+        />
+        {/* After a rule, as on the sites register: the filters before it narrow what
+            is in the list, this one only says what order it comes in. */}
+        <span className="h-5 w-px shrink-0 bg-subtle" aria-hidden="true" />
+        <SortSelect
+          options={GENSET_SORT_OPTIONS}
+          value={search.sort}
+          onChange={(next) => onSearchChange({sort: next})}
         />
       </div>
 

@@ -233,12 +233,12 @@ export type BrandFleetSeed = {
    */
   startReason?: string;
   /**
-   * Road registration, for a set that arrived on a lorry and can leave on one —
-   * `undefined` for a machine bolted to a plinth, which is most of them.
+   * Road registration — the plate this machine is moved under.
    *
-   * Optional because absence is the ordinary case and it is not a gap: a
-   * plinth-mounted set has no plate to record, and a blank row claiming otherwise
-   * would be the asset register inventing a fact about the machine.
+   * Seeded on **every** row, because every machine on a mobile fleet arrives on a
+   * lorry and leaves on one. Still optional on the type: the day an estate seeds a
+   * set bolted to a plinth, the honest record is no plate rather than an invented
+   * one.
    */
   plateNumber?: string;
   /** Must match a `BrandSiteSeed.id` in the same dataset, or `undefined` for the workshop. */

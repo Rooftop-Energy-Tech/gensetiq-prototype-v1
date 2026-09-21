@@ -4,6 +4,7 @@ import {gensetStatus} from '../data/fleetStatus';
 import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
 import {RUN_STATES} from '../types/genset.type';
+import type {GensetSort} from '../types/view.type';
 import type {Genset} from '../types/genset.type';
 
 /** What the chips above the list narrow by. Every field is optional and ANDs. */
@@ -51,8 +52,32 @@ const stateRank = (genset: Genset) => RUN_STATES.indexOf(genset.runState);
  * `RUN_STATES` is declared attention-first for exactly this, so a turning unit leads
  * the table instead of hiding on whatever row the seed data happened to put it.
  */
-export const sortGensets = (gensets: Array<Genset>): Array<Genset> =>
-  [...gensets].sort((a, b) => stateRank(a) - stateRank(b) || a.tag.localeCompare(b.tag));
+/**
+ * Order the register. Every key falls back to the serial, so ties resolve the same
+ * way on every render — see `sortSites`, which takes the identical shape over yards.
+ *
+ * `fuel` is a **fraction**: a 200 L tank at a tenth and a 3,000 L tank at a tenth
+ * are the same urgency, and ordering by litres would rank the fleet by tank size.
+ */
+export const sortGensets = (
+  gensets: Array<Genset>,
+  sort: GensetSort = 'state',
+): Array<Genset> => {
+  const byName = (a: Genset, b: Genset) => a.tag.localeCompare(b.tag);
+
+  if (sort === 'name') return [...gensets].sort(byName);
+
+  if (sort === 'fuel') {
+    const level = (genset: Genset) =>
+      genset.fuelCapacityLitres > 0
+        ? genset.fuelLitres / genset.fuelCapacityLitres
+        : Number.POSITIVE_INFINITY;
+
+    return [...gensets].sort((a, b) => level(a) - level(b) || byName(a, b));
+  }
+
+  return [...gensets].sort((a, b) => stateRank(a) - stateRank(b) || byName(a, b));
+};
 
 /**
  * The card chips, applied. Absent fields don't narrow anything.

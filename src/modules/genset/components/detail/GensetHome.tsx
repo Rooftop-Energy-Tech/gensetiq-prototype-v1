@@ -366,7 +366,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           // missing data.
           ...(genset.plateNumber === null
             ? []
-            : [{label: 'Number plate', value: genset.plateNumber}]),
+            : [{label: 'Lorry plate', value: genset.plateNumber}]),
         ]}
       />
     </div>

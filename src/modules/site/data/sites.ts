@@ -9,6 +9,8 @@ import type {GensetDetail} from '@/modules/genset/data/detail';
 import {spreadBetween} from '@/modules/genset/data/spread';
 import {hasMains} from '../types/site.type';
 import type {MainsSupply, Site, SitePowerRole} from '../types/site.type';
+import {SITE_SORT_DEFAULT_DIRECTION} from '../types/view.type';
+import type {SiteSort, SiteSortDirection} from '../types/view.type';
 import {alarmRank, alarmRankCount} from './siteAlarmQueue';
 import {SITE_KIND_LABEL, siteSeeds} from './siteSeed';
 import {subscribeSiteOverrides} from './siteOverrides';
@@ -450,16 +452,70 @@ export const useSiteSummary = (siteId: string): SiteSummary | undefined =>
  * cleared on a site's tab re-ranks this list on the way back — and a sort that fetched
  * its own would be a second subscription reading a second moment.
  */
+/**
+ * Order the register.
+ *
+ * **Every key falls back to the name**, which is what makes the list stable: alarm
+ * rank ties across most of a quiet estate and fuel percentages collide, and a sort
+ * whose ties resolve differently between renders is a list that reorders under a
+ * reader's cursor.
+ *
+ * `fuel` is a **fraction**, not litres. A 200 L tank at a tenth and a 3,000 L tank
+ * at a tenth are the same urgency and a different number, so ordering by litres
+ * would put every small site at the top and call it a refuel queue. A site with no
+ * tank at all sorts last rather than as empty — nothing to fill is not the same
+ * claim as nothing in it.
+ */
 export const sortSites = (
   summaries: Array<SiteSummary>,
   counts: Record<string, Record<AlertSeverity, number>>,
-): Array<SiteSummary> =>
-  [...summaries].sort(
-    (left, right) =>
+  sort: SiteSort = 'alarms',
+  direction: SiteSortDirection = SITE_SORT_DEFAULT_DIRECTION[sort],
+): Array<SiteSummary> => {
+  const byName = (left: SiteSummary, right: SiteSummary) =>
+    left.site.name.localeCompare(right.site.name);
+
+  /**
+   * Each key's comparator, written **the way that key naturally runs** — A to Z,
+   * emptiest tank first, worst standing alarm first — and then turned round once,
+   * below, if the reader flipped the header.
+   *
+   * One comparator per key rather than two, so a flip cannot disagree with itself:
+   * the other direction is exactly this one reversed, and there is no second
+   * expression to fall out of step when one of these ranks changes.
+   */
+  const primary = (left: SiteSummary, right: SiteSummary): number => {
+    if (sort === 'name') return byName(left, right);
+
+    if (sort === 'fuel') {
+      const level = (summary: SiteSummary) =>
+        summary.fuelCapacityLitres > 0
+          ? summary.fuelLitres / summary.fuelCapacityLitres
+          : Number.POSITIVE_INFINITY;
+
+      return level(left) - level(right);
+    }
+
+    // Severity before volume — see `alarmRank`. The rank counts *down* from the
+    // worst, so ascending rank is the worst first; `SITE_SORT_DEFAULT_DIRECTION`
+    // calls that end `desc` because that is the reader's word for it, not the
+    // integer's.
+    return (
       alarmRank(counts[left.site.id]) - alarmRank(counts[right.site.id]) ||
-      alarmRankCount(counts[right.site.id]) - alarmRankCount(counts[left.site.id]) ||
-      left.site.name.localeCompare(right.site.name),
+      alarmRankCount(counts[right.site.id]) - alarmRankCount(counts[left.site.id])
+    );
+  };
+
+  const sign = direction === SITE_SORT_DEFAULT_DIRECTION[sort] ? 1 : -1;
+
+  // The name tie-break stays A to Z whichever way the column runs. It is not part of
+  // the ordering the reader chose — it is what stops the quiet foot of the list
+  // reshuffling between renders — and reversing it would make a flip look like it
+  // moved rows it had no business moving.
+  return [...summaries].sort(
+    (left, right) => sign * primary(left, right) || byName(left, right),
   );
+};
 
 /**
  * Free-text filter for the sites list.

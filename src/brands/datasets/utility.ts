@@ -139,34 +139,34 @@ const SITES = [
  */
 const GENSETS = [
   // — Greater Kota Kinabalu (12) — the cluster in the map view.
-  {tag: 'BRF9540', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9556, longitude: 116.0804, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57},
-  {tag: 'KLN3355', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9564, longitude: 116.0816, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45},
-  {tag: 'CYB6602', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0666, longitude: 116.1324, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1},
-  {tag: 'KJG9048', model: 'Denyo 250 kVa',       runState: 'OFFLINE', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0674, longitude: 116.1336, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'SB 3190 T'},
-  {tag: 'KLG2214', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-003',   locationLabel: 'Penampang, Sabah',           latitude: 5.9370, longitude: 116.1120, fuelLitres: 940,  fuelCapacityLitres: 1200, staleMinutes: 4},
-  {tag: 'SHA7731', model: 'Perkins 800 kVa',     runState: 'IDLE',    siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9796, longitude: 116.1284, fuelLitres: 612,  fuelCapacityLitres: 1800, staleMinutes: 12},
-  {tag: 'PCH4180', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9804, longitude: 116.1296, fuelLitres: 1338, fuelCapacityLitres: 1600, staleMinutes: 2},
-  {tag: 'KLC1027', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-005',   locationLabel: 'Kota Kinabalu City Centre',  latitude: 5.9860, longitude: 116.0760, fuelLitres: 2255, fuelCapacityLitres: 3000, staleMinutes: 3},
-  {tag: 'CHR5162', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'pe-006',    locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9496, longitude: 116.0874, fuelLitres: 1102, fuelCapacityLitres: 1800, staleMinutes: 6},
-  {tag: 'AMP8890', model: 'Kohler 400 kVa',      runState: 'IDLE',    siteId: 'pe-006',    locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9504, longitude: 116.0886, fuelLitres: 448,  fuelCapacityLitres: 900,  staleMinutes: 31},
-  {tag: 'RWG3471', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-007',     locationLabel: 'Telipok, Sabah',             latitude: 6.1230, longitude: 116.1740, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8},
-  {tag: 'SPG2093', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'ppu-008', locationLabel: 'Tanjung Aru, Kota Kinabalu', latitude: 5.9370, longitude: 116.0510, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST'},
+  {tag: 'CUM-739893', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9556, longitude: 116.0804, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57, plateNumber: 'SAC 5385 D'},
+  {tag: 'CUM-303952', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9564, longitude: 116.0816, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'SA 4562 D'},
+  {tag: 'CAT-736523', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0666, longitude: 116.1324, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1, plateNumber: 'ST 9480 A'},
+  {tag: 'DNY-201708', model: 'Denyo 250 kVa',       runState: 'OFFLINE', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0674, longitude: 116.1336, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'QA 3190 K'},
+  {tag: 'CUM-617409', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-003',   locationLabel: 'Penampang, Sabah',           latitude: 5.9370, longitude: 116.1120, fuelLitres: 940,  fuelCapacityLitres: 1200, staleMinutes: 4, plateNumber: 'QA 6414 U'},
+  {tag: 'PRK-690242', model: 'Perkins 800 kVa',     runState: 'IDLE',    siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9796, longitude: 116.1284, fuelLitres: 612,  fuelCapacityLitres: 1800, staleMinutes: 12, plateNumber: 'SB 4055 K'},
+  {tag: 'FGW-637180', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9804, longitude: 116.1296, fuelLitres: 1338, fuelCapacityLitres: 1600, staleMinutes: 2, plateNumber: 'QA 4719 D'},
+  {tag: 'CAT-639573', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-005',   locationLabel: 'Kota Kinabalu City Centre',  latitude: 5.9860, longitude: 116.0760, fuelLitres: 2255, fuelCapacityLitres: 3000, staleMinutes: 3, plateNumber: 'ST 4879 E'},
+  {tag: 'PRK-252128', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'pe-006',    locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9496, longitude: 116.0874, fuelLitres: 1102, fuelCapacityLitres: 1800, staleMinutes: 6, plateNumber: 'QM 8026 D'},
+  {tag: 'KHL-306060', model: 'Kohler 400 kVa',      runState: 'IDLE',    siteId: 'pe-006',    locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9504, longitude: 116.0886, fuelLitres: 448,  fuelCapacityLitres: 900,  staleMinutes: 31, plateNumber: 'SAC 7780 U'},
+  {tag: 'CUM-801936', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-007',     locationLabel: 'Telipok, Sabah',             latitude: 6.1230, longitude: 116.1740, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8, plateNumber: 'SD 9411 H'},
+  {tag: 'FGW-181837', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'ppu-008', locationLabel: 'Tanjung Aru, Kota Kinabalu', latitude: 5.9370, longitude: 116.0510, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST', plateNumber: 'SAB 7087 G'},
 
   // — The west-coast corridor (6): Tuaran up to Kota Marudu.
-  {tag: 'IPH7724', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'ppu-009',     locationLabel: 'Tuaran, Sabah',            latitude: 6.1766, longitude: 116.2324, fuelLitres: 1520, fuelCapacityLitres: 1800, staleMinutes: 7},
-  {tag: 'TPG1188', model: 'Kohler 400 kVa',      runState: 'IDLE',    siteId: 'ppu-009',     locationLabel: 'Tuaran, Sabah',            latitude: 6.1774, longitude: 116.2336, fuelLitres: 305,  fuelCapacityLitres: 900,  staleMinutes: 44},
-  {tag: 'PNG6015', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-010',   locationLabel: 'Kota Belud, Sabah',        latitude: 6.3506, longitude: 116.4294, fuelLitres: 2004, fuelCapacityLitres: 2450, staleMinutes: 2},
-  {tag: 'BKM4409', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'ppu-010',   locationLabel: 'Kota Belud, Sabah',        latitude: 6.3514, longitude: 116.4306, fuelLitres: 511,  fuelCapacityLitres: 1200, staleMinutes: 95},
-  {tag: 'SGP7756', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'pe-011',  locationLabel: 'Kudat, Sabah',             latitude: 6.8830, longitude: 116.8440, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 11},
-  {tag: 'ASR2260', model: 'Perkins 800 kVa',     runState: 'OFFLINE', siteId: 'mg-012',   locationLabel: 'Pulau Banggi, Kudat',      latitude: 7.2717, longitude: 117.1782, fuelLitres: 880,  fuelCapacityLitres: 1800, staleMinutes: 1_615},
+  {tag: 'PRK-230015', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'ppu-009',     locationLabel: 'Tuaran, Sabah',            latitude: 6.1766, longitude: 116.2324, fuelLitres: 1520, fuelCapacityLitres: 1800, staleMinutes: 7, plateNumber: 'QS 9297 L'},
+  {tag: 'KHL-599013', model: 'Kohler 400 kVa',      runState: 'IDLE',    siteId: 'ppu-009',     locationLabel: 'Tuaran, Sabah',            latitude: 6.1774, longitude: 116.2336, fuelLitres: 305,  fuelCapacityLitres: 900,  staleMinutes: 44, plateNumber: 'SAB 3713 E'},
+  {tag: 'CUM-930666', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-010',   locationLabel: 'Kota Belud, Sabah',        latitude: 6.3506, longitude: 116.4294, fuelLitres: 2004, fuelCapacityLitres: 2450, staleMinutes: 2, plateNumber: 'QS 7644 H'},
+  {tag: 'CUM-646777', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'ppu-010',   locationLabel: 'Kota Belud, Sabah',        latitude: 6.3514, longitude: 116.4306, fuelLitres: 511,  fuelCapacityLitres: 1200, staleMinutes: 95, plateNumber: 'SAB 6334 U'},
+  {tag: 'DNY-246845', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'pe-011',  locationLabel: 'Kudat, Sabah',             latitude: 6.8830, longitude: 116.8440, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 11, plateNumber: 'ST 8463 W'},
+  {tag: 'PRK-386403', model: 'Perkins 800 kVa',     runState: 'OFFLINE', siteId: 'mg-012',   locationLabel: 'Pulau Banggi, Kudat',      latitude: 7.2717, longitude: 117.1782, fuelLitres: 880,  fuelCapacityLitres: 1800, staleMinutes: 1_615, plateNumber: 'SA 3214 R'},
 
   // — Interior, Labuan and the south-west (6).
-  {tag: 'JHB5503', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-013',    locationLabel: 'Keningau, Sabah',          latitude: 5.3376, longitude: 116.1594, fuelLitres: 2640, fuelCapacityLitres: 3000, staleMinutes: 3},
-  {tag: 'PSG8817', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-013',    locationLabel: 'Keningau, Sabah',          latitude: 5.3384, longitude: 116.1606, fuelLitres: 1890, fuelCapacityLitres: 2450, staleMinutes: 6},
-  {tag: 'MLK3392', model: 'FG Wilson 650 kVa',   runState: 'IDLE',    siteId: 'pe-014',  locationLabel: 'Victoria, Labuan',         latitude: 5.2767, longitude: 115.2417, fuelLitres: 720,  fuelCapacityLitres: 1600, staleMinutes: 26},
-  {tag: 'SRB6644', model: 'Kohler 400 kVa',      runState: 'RUNNING', siteId: 'pe-015',     locationLabel: 'Papar, Sabah',             latitude: 5.7330, longitude: 115.9330, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST'},
-  {tag: 'KTN1970', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'pmu-016',    locationLabel: 'Sepanggar Bay, Sabah',     latitude: 6.0830, longitude: 116.1080, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9},
-  {tag: 'KBR4128', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-017',   locationLabel: 'Kemabong, Tenom',          latitude: 4.9670, longitude: 115.9640, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'SB 6742 A'},
+  {tag: 'CAT-408590', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-013',    locationLabel: 'Keningau, Sabah',          latitude: 5.3376, longitude: 116.1594, fuelLitres: 2640, fuelCapacityLitres: 3000, staleMinutes: 3, plateNumber: 'SAC 1975 A'},
+  {tag: 'CUM-245531', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-013',    locationLabel: 'Keningau, Sabah',          latitude: 5.3384, longitude: 116.1606, fuelLitres: 1890, fuelCapacityLitres: 2450, staleMinutes: 6, plateNumber: 'SB 1502 F'},
+  {tag: 'FGW-691403', model: 'FG Wilson 650 kVa',   runState: 'IDLE',    siteId: 'pe-014',  locationLabel: 'Victoria, Labuan',         latitude: 5.2767, longitude: 115.2417, fuelLitres: 720,  fuelCapacityLitres: 1600, staleMinutes: 26, plateNumber: 'SB 5661 K'},
+  {tag: 'KHL-928197', model: 'Kohler 400 kVa',      runState: 'RUNNING', siteId: 'pe-015',     locationLabel: 'Papar, Sabah',             latitude: 5.7330, longitude: 115.9330, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST', plateNumber: 'SD 5366 U'},
+  {tag: 'PRK-954710', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'pmu-016',    locationLabel: 'Sepanggar Bay, Sabah',     latitude: 6.0830, longitude: 116.1080, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9, plateNumber: 'SAB 1169 H'},
+  {tag: 'DNY-566998', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-017',   locationLabel: 'Kemabong, Tenom',          latitude: 4.9670, longitude: 115.9640, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'SAC 3446 K'},
 
   // — The interior and the east coast (13) —
   //
@@ -184,19 +184,19 @@ const GENSETS = [
   // below the reserve line, one dry, two alarming — without touching a single
   // existing row, which matters because `BRF9540` and its neighbours are pinned to
   // the Figma frames.
-  {tag: 'KKB8856', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-018', locationLabel: 'Ranau, Sabah',           latitude: 5.9536, longitude: 116.6634, fuelLitres: 220,  fuelCapacityLitres: 1000, staleMinutes: 12},
-  {tag: 'KKN4011', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'pe-018', locationLabel: 'Ranau, Sabah',           latitude: 5.9544, longitude: 116.6646, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4},
-  {tag: 'KNU2218', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'mg-019', locationLabel: 'Nabawan, Sabah',         latitude: 5.0620, longitude: 116.4370, fuelLitres: 108,  fuelCapacityLitres: 600,  staleMinutes: 38},
-  {tag: 'SDK5847', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'fdr-020', locationLabel: 'Sandakan, Sabah',        latitude: 5.8398, longitude: 118.1173, fuelLitres: 740,  fuelCapacityLitres: 1000, staleMinutes: 7},
-  {tag: 'LDU7588', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0273, longitude: 118.3276, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 21},
-  {tag: 'LWS6446', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0265, longitude: 118.3264, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3, plateNumber: 'SB 8815 L'},
-  {tag: 'KCH8566', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8556, longitude: 118.0204, fuelLitres: 2040, fuelCapacityLitres: 3000, staleMinutes: 1},
-  {tag: 'KTG7712', model: 'Caterpillar 1250 kVa',runState: 'IDLE',    siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8564, longitude: 118.0216, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16},
-  {tag: 'BTU3941', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-023',  locationLabel: 'Tawau, Sabah',           latitude: 4.2454, longitude: 117.8846, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9},
-  {tag: 'SRI7241', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'ppu-023',  locationLabel: 'Tawau, Sabah',           latitude: 4.2446, longitude: 117.8834, fuelLitres: 1936, fuelCapacityLitres: 2450, staleMinutes: 44},
-  {tag: 'MRI8502', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'mg-024',   locationLabel: 'Kalabakan, Tawau',       latitude: 4.4214, longitude: 117.4756, fuelLitres: 1544, fuelCapacityLitres: 2450, staleMinutes: 6},
-  {tag: 'LBG4884', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'mg-024',   locationLabel: 'Kalabakan, Tawau',       latitude: 4.4206, longitude: 117.4744, fuelLitres: 172,  fuelCapacityLitres: 2450, staleMinutes: 51},
-  {tag: 'KPT8033', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-025', locationLabel: 'Pulau Larapan, Semporna',latitude: 4.5340, longitude: 118.6540, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 27},
+  {tag: 'CUM-882799', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-018', locationLabel: 'Ranau, Sabah',           latitude: 5.9536, longitude: 116.6634, fuelLitres: 220,  fuelCapacityLitres: 1000, staleMinutes: 12, plateNumber: 'QS 8279 H'},
+  {tag: 'CUM-440939', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'pe-018', locationLabel: 'Ranau, Sabah',           latitude: 5.9544, longitude: 116.6646, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4, plateNumber: 'QA 5976 F'},
+  {tag: 'DNY-703725', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'mg-019', locationLabel: 'Nabawan, Sabah',         latitude: 5.0620, longitude: 116.4370, fuelLitres: 108,  fuelCapacityLitres: 600,  staleMinutes: 38, plateNumber: 'QA 6264 T'},
+  {tag: 'PRK-541815', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'fdr-020', locationLabel: 'Sandakan, Sabah',        latitude: 5.8398, longitude: 118.1173, fuelLitres: 740,  fuelCapacityLitres: 1000, staleMinutes: 7, plateNumber: 'SB 8012 P'},
+  {tag: 'DNY-359597', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0273, longitude: 118.3276, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 21, plateNumber: 'QA 8401 L'},
+  {tag: 'DNY-323530', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0265, longitude: 118.3264, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3, plateNumber: 'QA 5891 W'},
+  {tag: 'CAT-939070', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8556, longitude: 118.0204, fuelLitres: 2040, fuelCapacityLitres: 3000, staleMinutes: 1, plateNumber: 'SAB 2371 J'},
+  {tag: 'CAT-281248', model: 'Caterpillar 1250 kVa',runState: 'IDLE',    siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8564, longitude: 118.0216, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16, plateNumber: 'SAA 3805 U'},
+  {tag: 'CUM-672771', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-023',  locationLabel: 'Tawau, Sabah',           latitude: 4.2454, longitude: 117.8846, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9, plateNumber: 'SAB 9748 G'},
+  {tag: 'CUM-167879', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'ppu-023',  locationLabel: 'Tawau, Sabah',           latitude: 4.2446, longitude: 117.8834, fuelLitres: 1936, fuelCapacityLitres: 2450, staleMinutes: 44, plateNumber: 'SAB 6140 W'},
+  {tag: 'CUM-806077', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'mg-024',   locationLabel: 'Kalabakan, Tawau',       latitude: 4.4214, longitude: 117.4756, fuelLitres: 1544, fuelCapacityLitres: 2450, staleMinutes: 6, plateNumber: 'QS 8006 F'},
+  {tag: 'CUM-164691', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'mg-024',   locationLabel: 'Kalabakan, Tawau',       latitude: 4.4206, longitude: 117.4744, fuelLitres: 172,  fuelCapacityLitres: 2450, staleMinutes: 51, plateNumber: 'SA 5601 L'},
+  {tag: 'DNY-619585', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-025', locationLabel: 'Pulau Larapan, Semporna',latitude: 4.5340, longitude: 118.6540, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 27, plateNumber: 'SAB 9831 L'},
 ] as const;
 
 export const UTILITY_DATASET: BrandDataset = {
@@ -211,5 +211,5 @@ export const UTILITY_DATASET: BrandDataset = {
   // Pulau Banggi: the island mini-grid, and the only site on this estate whose
   // page carries an array, a bank and an engine at once.
   defaultSiteId: 'mg-012',
-  defaultGensetId: 'brf9540',
+  defaultGensetId: 'cum-739893',
 };

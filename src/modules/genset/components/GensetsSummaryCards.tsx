@@ -1,42 +1,26 @@
-import {useId, useState} from 'react';
-
-import {
-  CardNote,
-  FilterCard,
-  Headline,
-  SummaryCard,
-  SummaryCardRow,
-  SummaryCollapseButton,
-} from '@/components/global/SummaryCards';
+import {CountChip} from '@/components/global/SummaryCards';
 import {STATUS_META} from '../data/fleetStatus';
 import type {FleetSummary} from '../data/fleetSummary';
 import type {GensetSearch} from '../types/view.type';
 
 /**
- * The strip above the fleet list: **how much plant there is, and what needs doing to
- * it** — one narrow headline and the four readiness buckets across the rest of the row.
+ * The fleet's summary: **one row, read left to right.**
  *
- * ## What moved out
+ * It was five cards — a capped `Fleet` and four status filters — and it is the same
+ * change the estate strip took the same day, for the same reason: a summary that
+ * stands 146px above a register is competing with the register. Tristan's call,
+ * 2026-09-21.
  *
- * `Duty` and the region grouping are now dropdowns in the toolbar — see
- * `FilterSelect` for the argument and `GensetsToolbar` for where they sit. They are
- * **attributes**: a reader either wants standby sets or does not, and the counts
- * beside them are context rather than an answer. Two cards' width to say so is what
- * kept the readiness buckets in a 13rem column. The estate strip made the same move
- * first, and this is the fleet screen agreeing with it.
+ * ## The four filters became four chips
  *
- * ## Why the statuses got a card each
+ * They were `FilterCard`s: a count, a unit, and a line of explanation each. The
+ * explanation is what made them cards, and it is what goes — `Below 10% — no cover
+ * until refuelled` is worth reading once and is then furniture on every visit. It
+ * survives as the chip's `title`, so it is a hover away rather than gone.
  *
- * They are the question the screen exists to answer, so their *distribution* is the
- * information — one empty tank beside fifteen alarms is a fact you read at a glance.
- * As four rows in one card they were four counts and a `title` attribute nobody
- * hovers; as four cards they carry the figure and the line saying what the bucket
- * means, and left to right they read as the ranking `fleetStatus.ts` sets out: no
- * cover, then a fault, then a tanker to book, then nothing to do.
- *
- * They still filter, on the same terms the chips did — see `FilterCard` — and the
- * counts still hold still while you filter against them, which is `fleetSummary`'s
- * rule and the reason they are worth reading twice.
+ * What does not change is that all four are **always drawn, zero or not**. They are a
+ * fixed scale a reader learns once, and a bucket vanishing on a good day would move
+ * the other three under a cursor that had learnt where they sit.
  */
 
 type GensetsSummaryCardsProps = {
@@ -55,80 +39,41 @@ export const GensetsSummaryCards = ({
 }: GensetsSummaryCardsProps) => {
   const filtered = showing !== summary.total;
 
-  /**
-   * Folded away, at phone width only.
-   *
-   * Local state rather than a search param, unlike the `view` and `panel` next door.
-   * The rule this screen already states about `view` settles it: the reader's device
-   * decides the presentation, not the URL. A `?cards=closed` followed on a desktop
-   * would name a state that width has no control to undo, and a link is worth more
-   * naming *what is being looked at* than how one phone had it folded. It follows
-   * that the fold does not survive a reload, which is the right trade for a control
-   * one tap away.
-   *
-   * Open on arrival: a screen that starts by hiding its own controls has to be
-   * learned before it can be used.
-   */
-  const [collapsed, setCollapsed] = useState(false);
-
-  // `status`, and only `status`. Duty and region live in the toolbar now and are
-  // never folded away, so reporting them here would name state the reader can still
-  // see; `q` has its own visible field for the same reason.
-  const activeCount = search.status === undefined ? 0 : 1;
-
-  // Generated rather than a written constant: `aria-controls` has to resolve to a
-  // unique node, and `SummaryCardRow` is shared with the sites screen.
-  const cardsId = useId();
-
   return (
-    <div className="flex flex-col gap-3">
-      {/* One capped card, then four that share what is left — see `columnTemplate`. */}
-      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={1}>
-        <SummaryCard label="Fleet">
-          <Headline
-            value={summary.total}
-            unit={summary.total === 1 ? 'genset' : 'gensets'}
-            detail={
-              // The headline is the one figure that follows the filter, because
-              // "showing 6" is the sentence the rest of the screen is answering.
-              filtered
-                ? `Showing ${showing}`
-                : `Across ${summary.siteCount} ${summary.siteCount === 1 ? 'site' : 'sites'}`
-            }
-          />
-          {filtered && (
-            <CardNote>
-              {summary.siteCount} {summary.siteCount === 1 ? 'site' : 'sites'} in total
-            </CardNote>
-          )}
-        </SummaryCard>
+    <section
+      aria-label="Fleet summary"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-subtle bg-element px-3 py-2"
+    >
+      <p className="flex min-w-0 items-baseline gap-1.5">
+        <span className="text-lg leading-none font-semibold text-primary tabular-nums">
+          {summary.total}
+        </span>
+        <span className="truncate text-sm text-secondary">
+          {summary.total === 1 ? 'genset' : 'gensets'}
+          {' · across '}
+          {summary.siteCount} {summary.siteCount === 1 ? 'site' : 'sites'}
+        </span>
+      </p>
 
-        {/* Always all four, zero or not — `fleetSummary` keeps them, because these are
-            a fixed scale a reader learns once and a card vanishing on a good day would
-            move the other three. */}
+      {filtered && (
+        <span className="truncate text-sm text-tertiary">Showing {showing}</span>
+      )}
+
+      <span className="h-4 w-px shrink-0 bg-subtle" aria-hidden="true" />
+
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
         {summary.byStatus.map((tally) => (
-          <FilterCard
+          <CountChip
             key={tally.key}
             label={tally.label}
             count={tally.count}
-            unit={tally.count === 1 ? 'genset' : 'gensets'}
-            detail={STATUS_META[tally.key].detail}
             tone={STATUS_META[tally.key].tone}
             active={search.status === tally.key}
             onToggle={(next) => onSearchChange({status: next ? tally.key : undefined})}
+            title={STATUS_META[tally.key].detail}
           />
         ))}
-      </SummaryCardRow>
-
-      <SummaryCollapseButton
-        collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
-        activeCount={activeCount}
-        controls={cardsId}
-        // Four of the five cards here are filters, so the fleet strip keeps the
-        // default noun where the estate's — one filter, two links out — says
-        // "summary".
-      />
-    </div>
+      </div>
+    </section>
   );
 };

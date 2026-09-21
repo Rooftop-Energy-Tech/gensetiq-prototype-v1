@@ -1,6 +1,9 @@
 import {ColumnsIcon, GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon} from 'lucide-react';
 
 import {FilterSelect} from '@/components/global/FilterSelect';
+import {SortSelect} from '@/components/global/SortSelect';
+import type {SiteSort} from '../types/view.type';
+import type {SortOption} from '@/components/global/SortSelect';
 import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
@@ -48,6 +51,19 @@ type SitesToolbarProps = {
  * search box doing the same job, and cost three cards' width to say what three
  * buttons say. See `FilterSelect` for which filters earn a card and which do not.
  */
+/**
+ * The three orderings, and which way each runs.
+ *
+ * Worded as the *answer* rather than the field — `Worst first`, not `Descending` —
+ * because a reader choosing a sort is choosing what they want at the top of the
+ * list, and "descending" leaves them working out what it descends by.
+ */
+const SITE_SORT_OPTIONS: ReadonlyArray<SortOption<SiteSort>> = [
+  {key: 'alarms', label: 'Alarms', detail: 'Worst standing alarm first'},
+  {key: 'fuel', label: 'Fuel level', detail: 'Emptiest tank first'},
+  {key: 'name', label: 'Site name', detail: 'A to Z'},
+];
+
 export const SitesToolbar = ({
   query,
   onQueryChange,
@@ -111,6 +127,17 @@ export const SitesToolbar = ({
           options={summary.byProgram}
           value={search.program}
           onChange={(next) => onSearchChange({program: next})}
+        />
+        {/* Last in the row, and after a thin rule: the three before it narrow *what
+            is in* the list and this one only says what order it comes in. Grouped
+            with them rather than put by the view switcher because it is a property
+            of the list, not of how the list is drawn — the map reads the same order.
+            See `SITE_SORTS`. */}
+        <span className="h-5 w-px shrink-0 bg-subtle" aria-hidden="true" />
+        <SortSelect
+          options={SITE_SORT_OPTIONS}
+          value={search.sort}
+          onChange={(next) => onSearchChange({sort: next})}
         />
       </div>
 

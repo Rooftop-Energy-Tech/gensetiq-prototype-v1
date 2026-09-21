@@ -66,7 +66,7 @@ type SitesPageProps = {
  * share — came down into the strip with it. See `SitesSummaryCards`.
  */
 export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
-  const {view, q = '', id, panel, customer, role, status, program} = search;
+  const {view, q = '', id, panel, customer, role, status, program, sort} = search;
 
   // Keyed on the summaries as well as the query: attaching or detaching a genset
   // changes a site's genset count and its fuel, and moves the machine's alarms from
@@ -127,8 +127,9 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
       sortSites(
         filterSites(searchSites(all, q), {customer, role, status, program}, roles),
         alarmCounts,
+        sort,
       ),
-    [all, q, customer, role, status, program, roles, alarmCounts],
+    [all, q, customer, role, status, program, roles, alarmCounts, sort],
   );
 
   // Resolved against the *filtered* list, not the whole estate: if a search hides
@@ -217,10 +218,6 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
                   summaries={summaries}
                   counts={alarmCounts}
                   roles={roles}
-                  // The fuel column only where the table has the full width —
-                  // beside the map it is the first thing worth giving up. See
-                  // `COLUMNS` in `SitesTable`.
-                  showFuel={!showMap}
                   selectedId={id}
                   onSelect={selectSite}
                   scrollRef={listRef}

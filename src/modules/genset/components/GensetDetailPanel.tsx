@@ -7,7 +7,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
 import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
-import {gensetSiteName} from '../types/genset.type';
+import {gensetLabel} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
 const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
@@ -46,8 +46,8 @@ export const GensetDetailPanel = ({
               on the map or the selection is useless. */}
           <div className="flex items-center justify-between gap-2">
             {/* Bare: this panel is the register's own preview, opened from a row that
-                is already under a `Genset name` column. See `gensetSiteName`. */}
-            <h2 className="truncate font-medium text-primary">{gensetSiteName(genset)}</h2>
+                is already under a `Genset name` column. See `gensetLabel`. */}
+            <h2 className="truncate font-medium text-primary">{gensetLabel(genset)}</h2>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon-sm" className="size-7 shrink-0" asChild>

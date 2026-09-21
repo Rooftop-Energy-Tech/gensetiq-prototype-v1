@@ -8,7 +8,7 @@ import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
 import {useFleetAlarmCounts} from '../data/alarmViews';
 import type {AlertSeverity} from '../types/alert.type';
-import {gensetSiteName} from '../types/genset.type';
+import {gensetLabel} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
 type GensetsTableProps = {
@@ -180,10 +180,10 @@ export const GensetsTable = ({
                     onClick={(event) => event.stopPropagation()}
                     className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                   >
-                    {/* `gensetSiteName`, not `gensetName`: the column above this one
+                    {/* `gensetLabel`, not `gensetName`: the column above this one
                         says `Genset name` and the page says `Gensets`, so a `Genset |`
                         on every row is the header printed thirty more times. */}
-                    {gensetSiteName(genset)}
+                    {gensetLabel(genset)}
                   </Link>
                 </td>
                 <td className="h-13 border-b border-subtle p-2">

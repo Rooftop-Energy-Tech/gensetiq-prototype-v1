@@ -16,6 +16,17 @@ import {FLEET_STATUSES} from '../data/fleetStatus';
  */
 export const GENSET_VIEWS = ['split', 'list', 'map'] as const;
 
+/**
+ * How the fleet is ordered. `state` is the default and the register's own ranking.
+ *
+ * The sites register offers the same three questions over yards — see `SITE_SORTS`.
+ * `state` is this list's equivalent of that one's `alarms`: the machine you should
+ * look at first, by what it is doing rather than by what it is called.
+ */
+export const GENSET_SORTS = ['state', 'name', 'fuel'] as const;
+
+export type GensetSort = (typeof GENSET_SORTS)[number];
+
 export type GensetView = (typeof GENSET_VIEWS)[number];
 
 /** The fleet cards' filters: whose set, what it feeds, and what needs doing to it. */
@@ -47,6 +58,8 @@ export const gensetSearchSchema = z.object({
   customer: z.string().optional().catch(undefined),
   role: z.enum(GENSET_ROLE_FILTERS).optional().catch(undefined),
   status: z.enum(FLEET_STATUSES).optional().catch(undefined),
+  /** Ordering. Defaulted — see the sites schema's note on why it is not optional. */
+  sort: z.enum(GENSET_SORTS).default('state').catch('state'),
   /**
    * Narrow to sets inside their service window — what the overview's service tile
    * links to. Not one of the chips: it cuts across the other three rather than
@@ -84,5 +97,6 @@ export type GensetSearch = z.infer<typeof gensetSearchSchema>;
  */
 export const gensetSearch = (overrides: Partial<GensetSearch> = {}): GensetSearch => ({
   view: 'split',
+  sort: 'state',
   ...overrides,
 });

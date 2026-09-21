@@ -142,58 +142,58 @@ const GENSETS = [
   //   here that hold a pair. `BRF9540` and its twin are the Figma frame's two
   //   identical genset cards, one running and one on standby, and `BRF9540` is
   //   pinned by name in `genset/data/detail.ts` — it does not move.
-  {tag: 'BRF9540', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1105, longitude: 101.6634, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57},
-  {tag: 'KLN3355', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1113, longitude: 101.6646, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45},
-  {tag: 'JHB5503', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4923, longitude: 103.7408, fuelLitres: 1088, fuelCapacityLitres: 1200, staleMinutes: 3},
-  {tag: 'JHB5744', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4931, longitude: 103.7420, fuelLitres: 936,  fuelCapacityLitres: 1200, staleMinutes: 8},
-  {tag: 'SPG5811', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'sbh-1058',  locationLabel: 'Sepanggar, Kota Kinabalu',     latitude: 6.0664, longitude: 116.1324, fuelLitres: 977,  fuelCapacityLitres: 1200, staleMinutes: 6},
-  {tag: 'SPG5960', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'sbh-1058',  locationLabel: 'Sepanggar, Kota Kinabalu',     latitude: 6.0676, longitude: 116.1338, fuelLitres: 742,  fuelCapacityLitres: 1200, staleMinutes: 19},
+  {tag: 'CUM-739893', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1105, longitude: 101.6634, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57, plateNumber: 'SAC 5385 D'},
+  {tag: 'CUM-303952', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1113, longitude: 101.6646, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'SA 4562 D'},
+  {tag: 'CUM-408590', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4923, longitude: 103.7408, fuelLitres: 1088, fuelCapacityLitres: 1200, staleMinutes: 3, plateNumber: 'SAC 1975 A'},
+  {tag: 'CUM-142482', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4931, longitude: 103.7420, fuelLitres: 936,  fuelCapacityLitres: 1200, staleMinutes: 8, plateNumber: 'SAB 3969 B'},
+  {tag: 'CUM-222728', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'sbh-1058',  locationLabel: 'Sepanggar, Kota Kinabalu',     latitude: 6.0664, longitude: 116.1324, fuelLitres: 977,  fuelCapacityLitres: 1200, staleMinutes: 6, plateNumber: 'ST 2648 W'},
+  {tag: 'CUM-953459', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'sbh-1058',  locationLabel: 'Sepanggar, Kota Kinabalu',     latitude: 6.0676, longitude: 116.1338, fuelLitres: 742,  fuelCapacityLitres: 1200, staleMinutes: 19, plateNumber: 'SB 1812 H'},
 
   // — The aggregation hubs (5) — 60 kVA against a 22–27 kW load.
-  {tag: 'KKB8856', model: 'Perkins 60 kVa',      runState: 'RUNNING', siteId: 'sbh-1204',  locationLabel: 'Kota Kinabalu, Sabah',         latitude: 5.9804, longitude: 116.0735, fuelLitres: 220,  fuelCapacityLitres: 900,  staleMinutes: 12},
-  {tag: 'SDK7104', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'sbh-1704',  locationLabel: 'Sandakan, Sabah',              latitude: 5.8402, longitude: 118.1179, fuelLitres: 693,  fuelCapacityLitres: 900,  staleMinutes: 9},
-  {tag: 'KCH4120', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'swk-0412',  locationLabel: 'Kuching, Sarawak',             latitude: 1.5533, longitude: 110.3592, fuelLitres: 612,  fuelCapacityLitres: 900,  staleMinutes: 12},
-  {tag: 'BTU9180', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'swk-0918',  locationLabel: 'Bintulu, Sarawak',             latitude: 3.1700, longitude: 113.0410, fuelLitres: 781,  fuelCapacityLitres: 900,  staleMinutes: 4},
-  {tag: 'PNG6015', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'png-0255',  locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, fuelLitres: 774,  fuelCapacityLitres: 900,  staleMinutes: 2},
+  {tag: 'PRK-882799', model: 'Perkins 60 kVa',      runState: 'RUNNING', siteId: 'sbh-1204',  locationLabel: 'Kota Kinabalu, Sabah',         latitude: 5.9804, longitude: 116.0735, fuelLitres: 220,  fuelCapacityLitres: 900,  staleMinutes: 12, plateNumber: 'QS 8279 H'},
+  {tag: 'PRK-279322', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'sbh-1704',  locationLabel: 'Sandakan, Sabah',              latitude: 5.8402, longitude: 118.1179, fuelLitres: 693,  fuelCapacityLitres: 900,  staleMinutes: 9, plateNumber: 'QA 1204 P'},
+  {tag: 'PRK-243887', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'swk-0412',  locationLabel: 'Kuching, Sarawak',             latitude: 1.5533, longitude: 110.3592, fuelLitres: 612,  fuelCapacityLitres: 900,  staleMinutes: 12, plateNumber: 'SAB 2877 W'},
+  {tag: 'PRK-606662', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'swk-0918',  locationLabel: 'Bintulu, Sarawak',             latitude: 3.1700, longitude: 113.0410, fuelLitres: 781,  fuelCapacityLitres: 900,  staleMinutes: 4, plateNumber: 'ST 7155 W'},
+  {tag: 'PRK-930666', model: 'Perkins 60 kVa',      runState: 'IDLE',    siteId: 'png-0255',  locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, fuelLitres: 774,  fuelCapacityLitres: 900,  staleMinutes: 2, plateNumber: 'QS 7644 H'},
 
   // — The grid-backed towers (7) — 20 kVA on a plinth, idle most of the year.
   //   `TUA2910` and `SER4870` are the two sets pinned to a test exercise: turning
   //   beside a perfectly healthy incomer, which is the case that distinction
   //   exists for. `KTN1970` is the estate's silent unit — nothing heard in two
   //   days, at the one east-coast site.
-  {tag: 'TWU7880', model: 'FG Wilson 30 kVa',    runState: 'IDLE',    siteId: 'sbh-1788',  locationLabel: 'Tawau, Sabah',                 latitude: 4.2450, longitude: 117.8840, fuelLitres: 430,  fuelCapacityLitres: 600,  staleMinutes: 4},
-  {tag: 'TUA2910', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sbh-1291',  locationLabel: 'Tuaran, Sabah',                latitude: 6.1770, longitude: 116.2330, fuelLitres: 364,  fuelCapacityLitres: 400,  staleMinutes: 5,  startReason: 'TEST'},
-  {tag: 'SER4870', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'swk-0487',  locationLabel: 'Serian, Sarawak',              latitude: 1.1670, longitude: 110.5670, fuelLitres: 305,  fuelCapacityLitres: 400,  staleMinutes: 4,  startReason: 'TEST'},
-  {tag: 'SBW7210', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0721',  locationLabel: 'Sibu, Sarawak',                latitude: 2.2870, longitude: 111.8310, fuelLitres: 288,  fuelCapacityLitres: 400,  staleMinutes: 3},
-  {tag: 'MRI1027', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-1027',  locationLabel: 'Miri, Sarawak',                latitude: 4.3990, longitude: 113.9910, fuelLitres: 352,  fuelCapacityLitres: 400,  staleMinutes: 7},
-  {tag: 'KTN1970', model: 'FG Wilson 20 kVa',    runState: 'OFFLINE', siteId: 'trg-0512',  locationLabel: 'Kuala Terengganu, Terengganu', latitude: 5.3302, longitude: 103.1408, fuelLitres: 96,   fuelCapacityLitres: 400,  staleMinutes: 2_890},
+  {tag: 'FGW-431307', model: 'FG Wilson 30 kVa',    runState: 'IDLE',    siteId: 'sbh-1788',  locationLabel: 'Tawau, Sabah',                 latitude: 4.2450, longitude: 117.8840, fuelLitres: 430,  fuelCapacityLitres: 600,  staleMinutes: 4, plateNumber: 'QM 6462 S'},
+  {tag: 'FGW-467022', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sbh-1291',  locationLabel: 'Tuaran, Sabah',                latitude: 6.1770, longitude: 116.2330, fuelLitres: 364,  fuelCapacityLitres: 400,  staleMinutes: 5,  startReason: 'TEST', plateNumber: 'SA 7918 S'},
+  {tag: 'FGW-428760', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'swk-0487',  locationLabel: 'Serian, Sarawak',              latitude: 1.1670, longitude: 110.5670, fuelLitres: 305,  fuelCapacityLitres: 400,  staleMinutes: 4,  startReason: 'TEST', plateNumber: 'SD 9478 E'},
+  {tag: 'FGW-948756', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0721',  locationLabel: 'Sibu, Sarawak',                latitude: 2.2870, longitude: 111.8310, fuelLitres: 288,  fuelCapacityLitres: 400,  staleMinutes: 3, plateNumber: 'SA 8908 H'},
+  {tag: 'FGW-501869', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-1027',  locationLabel: 'Miri, Sarawak',                latitude: 4.3990, longitude: 113.9910, fuelLitres: 352,  fuelCapacityLitres: 400,  staleMinutes: 7, plateNumber: 'QM 9841 R'},
+  {tag: 'FGW-954710', model: 'FG Wilson 20 kVa',    runState: 'OFFLINE', siteId: 'trg-0512',  locationLabel: 'Kuala Terengganu, Terengganu', latitude: 5.3302, longitude: 103.1408, fuelLitres: 96,   fuelCapacityLitres: 400,  staleMinutes: 2_890, plateNumber: 'SAB 1169 H'},
 
   // — The diesel-prime sites (6) — no incomer, no storage, a duty set and a
   //   spare at the two worst-served, and the machines that have burned the most
   //   diesel on the estate. The two dry tanks are here, which is the point: a
   //   prime site's tank is the only thing between the tower and silence, and both
   //   of these are at the far end of a river or a logging road.
-  {tag: 'NBW7756', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0620, longitude: 116.4370, fuelLitres: 168,  fuelCapacityLitres: 800,  staleMinutes: 38, plateNumber: 'SB 4821 D'},
-  {tag: 'NBW7902', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0626, longitude: 116.4378, fuelLitres: 546,  fuelCapacityLitres: 800,  staleMinutes: 26},
-  {tag: 'PSG4280', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1428',  locationLabel: 'Pensiangan, Sabah',            latitude: 4.5330, longitude: 116.3170, fuelLitres: 108,  fuelCapacityLitres: 800,  staleMinutes: 9, plateNumber: 'SB 5507 K'},
-  {tag: 'KPT8033', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0170, longitude: 112.9330, fuelLitres: 96,   fuelCapacityLitres: 800,  staleMinutes: 27, plateNumber: 'QA 7130 P'},
-  {tag: 'KPT8219', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0176, longitude: 112.9338, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95},
-  {tag: 'BLG4884', model: 'Denyo 15 kVa',        runState: 'OFFLINE', siteId: 'swk-0851',  locationLabel: 'Belaga, Sarawak',              latitude: 2.7000, longitude: 113.7830, fuelLitres: 172,  fuelCapacityLitres: 800,  staleMinutes: 1_615, plateNumber: 'QA 2264 S'},
+  {tag: 'DNY-486711', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0620, longitude: 116.4370, fuelLitres: 168,  fuelCapacityLitres: 800,  staleMinutes: 38, plateNumber: 'SB 2287 W'},
+  {tag: 'DNY-368567', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'sbh-1377',  locationLabel: 'Nabawan, Sabah',               latitude: 5.0626, longitude: 116.4378, fuelLitres: 546,  fuelCapacityLitres: 800,  staleMinutes: 26, plateNumber: 'SAB 8995 B'},
+  {tag: 'DNY-367119', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'sbh-1428',  locationLabel: 'Pensiangan, Sabah',            latitude: 4.5330, longitude: 116.3170, fuelLitres: 108,  fuelCapacityLitres: 800,  staleMinutes: 9, plateNumber: 'SA 6948 T'},
+  {tag: 'DNY-619585', model: 'Denyo 15 kVa',        runState: 'RUNNING', siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0170, longitude: 112.9330, fuelLitres: 96,   fuelCapacityLitres: 800,  staleMinutes: 27, plateNumber: 'SAB 9831 L'},
+  {tag: 'DNY-215418', model: 'Denyo 15 kVa',        runState: 'IDLE',    siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0176, longitude: 112.9338, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95, plateNumber: 'SAA 3131 H'},
+  {tag: 'DNY-758670', model: 'Denyo 15 kVa',        runState: 'OFFLINE', siteId: 'swk-0851',  locationLabel: 'Belaga, Sarawak',              latitude: 2.7000, longitude: 113.7830, fuelLitres: 172,  fuelCapacityLitres: 800,  staleMinutes: 1_615, plateNumber: 'SAA 4956 W'},
 
   // — The diesel-hybrid sites (3) — the same 20 kVA machine, running in blocks
   //   to recharge a battery instead of idling all day at what a tower draws.
   //   Their tanks are the fullest on the estate for exactly that reason.
-  {tag: 'RNU5530', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sbh-1553',  locationLabel: 'Ranau, Sabah',                 latitude: 5.9540, longitude: 116.6640, fuelLitres: 502,  fuelCapacityLitres: 600,  staleMinutes: 6},
-  {tag: 'LDU7588', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1612',  locationLabel: 'Lahad Datu, Sabah',            latitude: 5.0269, longitude: 118.3270, fuelLitres: 488,  fuelCapacityLitres: 600,  staleMinutes: 21},
-  {tag: 'SNG7940', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0794',  locationLabel: 'Song, Sarawak',                latitude: 2.0170, longitude: 112.5420, fuelLitres: 331,  fuelCapacityLitres: 400,  staleMinutes: 44},
+  {tag: 'FGW-135607', model: 'FG Wilson 20 kVa',    runState: 'RUNNING', siteId: 'sbh-1553',  locationLabel: 'Ranau, Sabah',                 latitude: 5.9540, longitude: 116.6640, fuelLitres: 502,  fuelCapacityLitres: 600,  staleMinutes: 6, plateNumber: 'SAC 1492 D'},
+  {tag: 'FGW-359597', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1612',  locationLabel: 'Lahad Datu, Sabah',            latitude: 5.0269, longitude: 118.3270, fuelLitres: 488,  fuelCapacityLitres: 600,  staleMinutes: 21, plateNumber: 'QA 8401 L'},
+  {tag: 'FGW-287781', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0794',  locationLabel: 'Song, Sarawak',                latitude: 2.0170, longitude: 112.5420, fuelLitres: 331,  fuelCapacityLitres: 400,  staleMinutes: 44, plateNumber: 'ST 4461 G'},
 
   // — The solar-hybrid sites (4) — the same set again, and the least-used
   //   machines on the estate. A full tank on one of these is not neglect; it is
   //   the array having carried the site since the last delivery.
-  {tag: 'KTB3360', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1336',  locationLabel: 'Kota Belud, Sabah',            latitude: 6.3510, longitude: 116.4300, fuelLitres: 566,  fuelCapacityLitres: 600,  staleMinutes: 2},
-  {tag: 'BGI1495', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1495',  locationLabel: 'Pulau Banggi, Kudat',          latitude: 7.2717, longitude: 117.1782, fuelLitres: 588,  fuelCapacityLitres: 600,  staleMinutes: 5},
-  {tag: 'SRA5590', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0559',  locationLabel: 'Sri Aman, Sarawak',            latitude: 1.2370, longitude: 111.4630, fuelLitres: 392,  fuelCapacityLitres: 400,  staleMinutes: 31},
-  {tag: 'BKL1163', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-1163',  locationLabel: "Ba'kelalan, Sarawak",          latitude: 3.9670, longitude: 115.6170, fuelLitres: 448,  fuelCapacityLitres: 600,  staleMinutes: 73},
+  {tag: 'FGW-497643', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1336',  locationLabel: 'Kota Belud, Sabah',            latitude: 6.3510, longitude: 116.4300, fuelLitres: 566,  fuelCapacityLitres: 600,  staleMinutes: 2, plateNumber: 'QS 9224 T'},
+  {tag: 'FGW-140106', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'sbh-1495',  locationLabel: 'Pulau Banggi, Kudat',          latitude: 7.2717, longitude: 117.1782, fuelLitres: 588,  fuelCapacityLitres: 600,  staleMinutes: 5, plateNumber: 'SAC 1255 R'},
+  {tag: 'FGW-344581', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-0559',  locationLabel: 'Sri Aman, Sarawak',            latitude: 1.2370, longitude: 111.4630, fuelLitres: 392,  fuelCapacityLitres: 400,  staleMinutes: 31, plateNumber: 'SB 5161 S'},
+  {tag: 'FGW-645179', model: 'FG Wilson 20 kVa',    runState: 'IDLE',    siteId: 'swk-1163',  locationLabel: "Ba'kelalan, Sarawak",          latitude: 3.9670, longitude: 115.6170, fuelLitres: 448,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'SA 1671 S'},
 ] as const;
 
 export const CARRIER_DATASET: BrandDataset = {
@@ -209,5 +209,5 @@ export const CARRIER_DATASET: BrandDataset = {
   // is about, and the one whose site page has every band on it. Ba'kelalan is the
   // furthest site from a road on the estate, which is the case for the array.
   defaultSiteId: 'swk-1163',
-  defaultGensetId: 'brf9540',
+  defaultGensetId: 'cum-739893',
 };

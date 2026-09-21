@@ -40,7 +40,7 @@ type GensetsPageProps = {
 };
 
 export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
-  const {view, q = '', id, panel, customer, role, status, service} = search;
+  const {view, q = '', id, panel, customer, role, status, service, sort} = search;
 
   /**
    * At phone width this screen is the cards and the card list, and nothing else.
@@ -79,8 +79,9 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
     () =>
       sortGensets(
         filterGensets(searchGensets(all, q), {customer, role, status, service}, roles),
+        sort,
       ),
-    [all, q, customer, role, status, service, roles],
+    [all, q, customer, role, status, service, roles, sort],
   );
 
   // Resolved against the *filtered* list, not the whole fleet: if a search hides

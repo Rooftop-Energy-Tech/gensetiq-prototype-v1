@@ -7,7 +7,7 @@ import {RunStateBadge} from './RunStateBadge';
 import {CONDITION_META} from './detail/severityMeta';
 import {gensetDetail} from '../data/detail';
 import {gensetCondition} from '../data/fuelIntegrity';
-import {gensetSiteName} from '../types/genset.type';
+import {gensetLabel} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
 /**
@@ -41,8 +41,8 @@ const GensetCard = ({genset}: {genset: Genset}) => {
   >
     <div className="flex min-w-0 flex-1 flex-col gap-2">
       {/* Bare, like the table's cell — this is the same register at phone width and
-          the screen is headed `Gensets`. See `gensetSiteName`. */}
-      <p className="truncate text-sm font-medium text-primary">{gensetSiteName(genset)}</p>
+          the screen is headed `Gensets`. See `gensetLabel`. */}
+      <p className="truncate text-sm font-medium text-primary">{gensetLabel(genset)}</p>
 
       <div className="flex flex-wrap items-center gap-1.5">
         <RunStateBadge runState={genset.runState} />
