@@ -4,6 +4,8 @@ import {gensetStatus} from '../data/fleetStatus';
 import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
 import {RUN_STATES} from '../types/genset.type';
+import type {AlertSeverity} from '../types/alert.type';
+import {alarmRank, alarmRankCount} from '@/modules/site/data/siteAlarmQueue';
 import {GENSET_SORT_DEFAULT_DIRECTION} from '../types/view.type';
 import type {GensetSort, GensetSortDirection} from '../types/view.type';
 import type {Genset} from '../types/genset.type';
@@ -64,28 +66,64 @@ export const sortGensets = (
   gensets: Array<Genset>,
   sort: GensetSort = 'state',
   direction: GensetSortDirection = GENSET_SORT_DEFAULT_DIRECTION[sort],
+  /**
+   * Every set's standing counts, for the `alarms` key.
+   *
+   * Passed in rather than read here, for the reason `sortSites` takes the same
+   * argument: the counts are a hook's answer and this is a pure function, and the
+   * register, the map and this ordering must all rank off one reading. A set the
+   * pass has not reached sorts as quiet, which is what `alarmRank` already says
+   * about `undefined`.
+   */
+  counts: Record<string, Record<AlertSeverity, number>> = {},
 ): Array<Genset> => {
-  const flip = direction === 'desc' ? -1 : 1;
   const byName = (a: Genset, b: Genset) => a.tag.localeCompare(b.tag);
 
-  // The tiebreak is **not** flipped. Reversing a sort should reverse the thing it
-  // sorts by and leave the tiebreak alone: with `desc` on `state`, an operator still
-  // reads the serials A to Z inside each run state, and flipping both would shuffle
-  // rows that did not change rank. The sites register does the same.
-  if (sort === 'name') return [...gensets].sort((a, b) => flip * byName(a, b));
+  /**
+   * Each key's comparator, written **the way that key naturally runs**, and turned
+   * round once below if the reader flipped the header. `sortSites` is this function
+   * over yards and the two are kept identical on purpose.
+   */
+  const primary = (a: Genset, b: Genset): number => {
+    if (sort === 'name') return byName(a, b);
 
-  if (sort === 'fuel') {
-    const level = (genset: Genset) =>
-      genset.fuelCapacityLitres > 0
-        ? genset.fuelLitres / genset.fuelCapacityLitres
-        : Number.POSITIVE_INFINITY;
+    if (sort === 'fuel') {
+      const level = (genset: Genset) =>
+        genset.fuelCapacityLitres > 0
+          ? genset.fuelLitres / genset.fuelCapacityLitres
+          : Number.POSITIVE_INFINITY;
 
-    return [...gensets].sort((a, b) => flip * (level(a) - level(b)) || byName(a, b));
-  }
+      return level(a) - level(b);
+    }
 
-  return [...gensets].sort(
-    (a, b) => flip * (stateRank(a) - stateRank(b)) || byName(a, b),
-  );
+    if (sort === 'alarms') {
+      // Severity before volume — see `alarmRank`. The rank counts *down* from the
+      // worst, so ascending rank is the worst first; the default direction calls
+      // that end `desc` because that is the reader's word for it, not the integer's.
+      return (
+        alarmRank(counts[a.id]) - alarmRank(counts[b.id]) ||
+        alarmRankCount(counts[b.id]) - alarmRankCount(counts[a.id])
+      );
+    }
+
+    // `stateRank` is written so rank 0 is the machine to look at first.
+    return stateRank(a) - stateRank(b);
+  };
+
+  /**
+   * **Relative to the key's own default, not to `asc`.**
+   *
+   * This is the line that matters, and getting it wrong is silent: write it as
+   * `direction === 'asc' ? 1 : -1` and every key whose natural grain is `desc` comes
+   * out backwards — `alarms` put the quietest machines at the top of a list whose
+   * whole job is to surface the loud ones, with no error anywhere to say so.
+   */
+  const sign = direction === GENSET_SORT_DEFAULT_DIRECTION[sort] ? 1 : -1;
+
+  // The name tie-break stays A to Z whichever way the column runs: it is not part of
+  // the ordering the reader chose, it is what stops the quiet foot of the list
+  // reshuffling between renders.
+  return [...gensets].sort((a, b) => sign * primary(a, b) || byName(a, b));
 };
 
 /**

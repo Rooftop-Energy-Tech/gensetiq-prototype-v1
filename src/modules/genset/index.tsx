@@ -11,6 +11,7 @@ import {GensetsCards} from './components/GensetsCards';
 import {GensetsSummaryCards} from './components/GensetsSummaryCards';
 import {GensetsTable} from './components/GensetsTable';
 import {GensetsToolbar} from './components/GensetsToolbar';
+import {useFleetAlarmCounts} from './data/alarmViews';
 import {filterGensets, searchGensets, sortGensets} from './utils/searchGensets';
 import {GENSET_SORT_DEFAULT_DIRECTION} from './types/view.type';
 import type {GensetSearch, GensetSort} from './types/view.type';
@@ -80,6 +81,12 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   // question.
   const summary = useMemo(() => fleetSummary(all, roles), [all, roles]);
 
+  // Over the **whole** fleet rather than the filtered list, so a set's rank is a
+  // fact about the set and not about what else is on screen — and so the table
+  // below, the map's pins and this ordering all read one pass. See
+  // `useFleetAlarmCounts`.
+  const alarmCounts = useFleetAlarmCounts(all);
+
   /**
    * A column header was clicked.
    *
@@ -111,8 +118,9 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         filterGensets(searchGensets(all, q), {customer, role, status, service}, roles),
         sort,
         direction,
+        alarmCounts,
       ),
-    [all, q, customer, role, status, service, roles, sort, direction],
+    [all, q, customer, role, status, service, roles, sort, direction, alarmCounts],
   );
 
   // Resolved against the *filtered* list, not the whole fleet: if a search hides

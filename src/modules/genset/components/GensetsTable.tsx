@@ -65,7 +65,7 @@ const COLUMNS = [
   // summary over the rows, and a register is read to find work, so it shows the
   // rows. The pill is a link to the set's own Alarms tab.
   {label: 'Run state', width: '13%', dense: '20%', beside: true, sort: 'state'},
-  {label: 'Alarm', width: '14%', dense: '20%', beside: true, sort: undefined},
+  {label: 'Alarm', width: '14%', dense: '20%', beside: true, sort: 'alarms'},
   {label: 'Fuel level', width: '14%', dense: '22%', beside: true, sort: 'fuel'},
   // `beside: false` — dropped in the split view, kept on the full-width list. Both
   // truncated to nothing useful beside the map: `Bangsar S…` and `1 hour …` are the

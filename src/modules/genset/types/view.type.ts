@@ -23,7 +23,7 @@ export const GENSET_VIEWS = ['split', 'list', 'map'] as const;
  * `state` is this list's equivalent of that one's `alarms`: the machine you should
  * look at first, by what it is doing rather than by what it is called.
  */
-export const GENSET_SORTS = ['state', 'name', 'fuel'] as const;
+export const GENSET_SORTS = ['state', 'alarms', 'name', 'fuel'] as const;
 
 export type GensetSort = (typeof GENSET_SORTS)[number];
 
@@ -42,6 +42,10 @@ export type GensetSortDirection = (typeof GENSET_SORT_DIRECTIONS)[number];
  */
 export const GENSET_SORT_DEFAULT_DIRECTION: Record<GensetSort, GensetSortDirection> = {
   state: 'asc',
+  // Worst standing alarm first, which is `desc` for the same reason it is on the
+  // estate register: `alarmRank` counts *down* from critical, so the severe end is
+  // the low end and reaching it means reversing. See `SITE_SORT_DEFAULT_DIRECTION`.
+  alarms: 'desc',
   fuel: 'asc',
   name: 'asc',
 };
