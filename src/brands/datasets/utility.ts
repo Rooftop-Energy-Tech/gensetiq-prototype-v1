@@ -1,215 +1,215 @@
 import type {BrandDataset} from '../types';
 
 /**
- * The utility estate: **a state distribution licensee's own injection points**.
+ * The utility estate: **a distribution licensee's pencawang elektrik in Peninsular
+ * Malaysia**.
  *
- * Twenty-five substations, feeder points and rural mini-grids across Sabah and
- * Labuan, with thirty-seven machines standing on them. Recovered from
- * `feat/sesb-demo`, which is where it was stranded — the branch predates the
- * hybrid plant, the generation series and the energy screen, and every one of
- * those was invisible on it.
+ * Twenty-five distribution substations from Kepong down to Johor Bahru, with
+ * thirty-seven machines standing on them.
  *
- * ## Why the power roles are re-expressed rather than restored
+ * ## Why every site is a `PE`
  *
- * The SESB branch shipped a two-entry vocabulary: `STANDBY` (a mains incomer, a
- * genset behind it) and `PRIME` (the genset *is* the supply). Today's model is the
- * same two under this product's own names.
+ * The estate this build serves is a *mobile* one — a machine is posted to a yard
+ * for a period and collected again — and on a distribution network the yard it is
+ * posted to is almost always a pencawang elektrik. An intake substation takes a
+ * transmission feed and a main distribution substation steps it down; both are
+ * sites a utility staffs, and both already have their own standby plant bolted
+ * down. The PE is the one sitting unmanned at the end of an 11 kV spur, and it is
+ * where a lorry actually goes.
  *
- * Restoring the old two would have made this dataset a second product model
- * wearing a brand's name, and every hybrid screen would be dark on it. So the
- * mapping is:
+ * So the estate is one kind of site rather than five. `SITE_KIND_LABELS` still
+ * exists, and still carries one entry, because the label is read from it wherever a
+ * site's class is printed — a second kind is an entry in that map and nothing else.
  *
- *  - `STANDBY` → `GRID_BACKUP`, unchanged in meaning. Twenty of the twenty-five.
- *  - `PRIME` → `DIESEL_PRIME`, the no-incomer configuration.
+ * ## Why five of them are `DIESEL_PRIME`
  *
- * The five mini-grids are where that second line is a judgement, and it is worth
- * stating rather than hiding. They were all `PRIME`, and a rural island grid
- * running trucked diesel is precisely the site a hybrid conversion is proposed
- * for, so three now carry an array, one carries storage alone, and **Kalabakan
- * stays pure diesel prime on purpose** — a demo that converted everything would
- * have nothing left to compare a conversion against. That is a plausible estate,
- * not a recorded one, and nobody should quote these five roles back to SESB as
- * their own plan.
+ * A pencawang elektrik has an incomer, so on the face of it every site here is
+ * `GRID_BACKUP`. The exceptions are the ones the mobile fleet exists for: a PE
+ * **isolated for refurbishment** has had its transformer or its switchgear taken
+ * out, and for the length of that job the set standing in the compound is not
+ * backing the supply up — it *is* the supply. That is `DIESEL_PRIME`, it is the
+ * circuit the single-line diagram should draw at those five, and it is the case the
+ * whole temporary-supply business is about.
+ *
+ * Five of twenty-five, all filed under the refurbishment programme: Rawang, Teluk
+ * Intan, Butterworth, Kulai and Kuantan.
  *
  * These are mock sites carrying mock figures, the same standing as every other
- * number in this prototype.
+ * number in this prototype. The placenames and coordinates are real; the
+ * substations at them are not. Nobody should read a row here as a record of a
+ * pencawang that exists.
  */
 
 /**
- * Distribution zones, and the sun each one gets.
+ * The distribution states this estate is divided by.
  *
- * The zone list is SESB's own operating divisions, in the order a control room
- * reads the state — west coast first, then the northern tip, the interior, and
- * down the east coast. `peakSunHours` is new here: the branch this came from had
- * no solar in it at all, so the figures are Sabah regional irradiance estimates, pulled
- * back in the interior where the highlands hold cloud and pushed up on the two
- * island-facing zones.
+ * A Peninsular licensee organises by state rather than by region, so the grouping
+ * is the state list — Wilayah Persekutuan first, since the densest sixth of the
+ * estate is there, then out through Selangor and the corridors north and south.
  */
 const CUSTOMERS = [
-  {id: 'west-coast', name: 'West Coast Distribution', shortName: 'West Coast'},
-  {id: 'kudat', name: 'Kudat Distribution', shortName: 'Kudat'},
-  {id: 'interior', name: 'Interior Distribution', shortName: 'Interior'},
-  {id: 'sandakan', name: 'Sandakan Distribution', shortName: 'Sandakan'},
-  {id: 'lahad-datu', name: 'Lahad Datu Distribution', shortName: 'Lahad Datu'},
-  {id: 'tawau', name: 'Tawau Distribution', shortName: 'Tawau'},
-  {id: 'labuan', name: 'Labuan Distribution', shortName: 'Labuan'},
+  {id: 'wilayah', name: 'Wilayah Persekutuan', shortName: 'WP'},
+  {id: 'selangor', name: 'Selangor', shortName: 'Selangor'},
+  {id: 'perak', name: 'Perak', shortName: 'Perak'},
+  {id: 'pulau-pinang', name: 'Pulau Pinang', shortName: 'P. Pinang'},
+  {id: 'johor', name: 'Johor', shortName: 'Johor'},
+  {id: 'negeri-sembilan', name: 'Negeri Sembilan', shortName: 'N. Sembilan'},
+  {id: 'pahang', name: 'Pahang', shortName: 'Pahang'},
 ] as const;
 
 /**
  * The capital programmes this estate's sites are filed under.
  *
  * Two, and **most sites are in neither** — which is the honest shape of a utility's
- * capital plan and the reason `program` is optional. A distribution substation that
- * has been standing in Luyang for thirty years is not part of a programme; it is
- * just the network. The programmes are the work being *done to* the estate, and
- * filing every row under one to avoid a blank would make the grouping useless the
- * moment somebody filtered by it.
+ * capital plan and the reason `program` is optional. A pencawang that has been
+ * standing in Bangsar for thirty years is not part of a programme; it is just the
+ * network. The programmes are the work being *done to* the estate, and filing every
+ * row under one to avoid a blank would make the grouping useless the moment
+ * somebody filtered by it.
  */
 const PROGRAMS = [
   {
-    id: 'rural-electrification',
-    name: 'Rural Electrification Programme',
-    shortName: 'Rural Electrification',
-    blurb: 'The off-grid mini-grids — island and interior supply, and the diesel behind it.',
+    id: 'substation-refurbishment',
+    name: 'Substation Refurbishment',
+    shortName: 'Refurbishment',
+    blurb: 'Transformers and switchgear replaced — the sites running on temporary supply.',
   },
   {
-    id: 'east-coast-reinforcement',
-    name: 'East Coast Reinforcement',
-    shortName: 'East Coast Reinforcement',
-    blurb: 'The Sandakan, Lahad Datu and Tawau injection points being reinforced.',
+    id: 'demand-growth',
+    name: 'Demand Growth Reinforcement',
+    shortName: 'Demand Growth',
+    blurb: 'The industrial and port corridors being reinforced ahead of load.',
   },
 ] as const;
 
 /**
  * What kind of node on the network a site is.
  *
- * The utility equivalent of the carrier's tower classes, and it does the same job:
- * it sets the load scale a reader should expect. An intake substation is a few
- * hundred kilowatts and a rural mini-grid is tens, so the same figure means
- * opposite things at two rows of the same table.
+ * One entry, because this estate is one kind of site — see the note at the top of
+ * this file. The map is kept rather than collapsed to a constant so that adding an
+ * intake or a main distribution substation later is a line here, not a refactor.
  */
 const SITE_KIND_LABELS = {
-  PMU: 'Intake substation',
-  PPU: 'Main distribution substation',
   PE: 'Distribution substation',
-  FEEDER: 'Feeder injection point',
-  MINI_GRID: 'Rural mini-grid',
 } as const;
 
 const SITES = [
-  // — Greater Kota Kinabalu — the cluster in the map view.
-  {id: 'ppu-001', name: 'PPU-001', kind: 'PPU',       locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9560, longitude: 116.0810, loadKw: 205, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'ppu-002', name: 'PPU-002', kind: 'PPU',       locationLabel: 'Sepanggar, Sabah',           latitude: 6.0670, longitude: 116.1330, loadKw: 380, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-003',  name: 'PE-003',  kind: 'PE',        locationLabel: 'Penampang, Sabah',           latitude: 5.9370, longitude: 116.1120, loadKw: 177, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-004',  name: 'PE-004',  kind: 'PE',        locationLabel: 'Inanam, Sabah',              latitude: 5.9800, longitude: 116.1290, loadKw: 233, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'ppu-005', name: 'PPU-005', kind: 'PPU',       locationLabel: 'Kota Kinabalu City Centre',  latitude: 5.9860, longitude: 116.0760, loadKw: 332, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-006',  name: 'PE-006',  kind: 'PE',        locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9500, longitude: 116.0880, loadKw: 742, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-007',  name: 'PE-007',  kind: 'PE',        locationLabel: 'Telipok, Sabah',             latitude: 6.1230, longitude: 116.1740, loadKw: 102, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'ppu-008', name: 'PPU-008', kind: 'PPU',       locationLabel: 'Tanjung Aru, Kota Kinabalu', latitude: 5.9370, longitude: 116.0510, loadKw: 169, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  // — The west-coast corridor north and south of the city.
-  {id: 'ppu-009', name: 'PPU-009', kind: 'PPU',       locationLabel: 'Tuaran, Sabah',              latitude: 6.1770, longitude: 116.2330, loadKw: 313, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'ppu-010', name: 'PPU-010', kind: 'PPU',       locationLabel: 'Kota Belud, Sabah',          latitude: 6.3510, longitude: 116.4300, loadKw: 364, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-011',  name: 'PE-011',  kind: 'PE',        locationLabel: 'Kudat, Sabah',               latitude: 6.8830, longitude: 116.8440, loadKw: 71,  customer: 'kudat',      powerRole: 'GRID_BACKUP'},
-  {id: 'mg-012',  name: 'MG-012',  kind: 'MINI_GRID', locationLabel: 'Pulau Banggi, Kudat',        latitude: 7.2717, longitude: 117.1782, loadKw: 248, customer: 'kudat',      powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
-  {id: 'ppu-013', name: 'PPU-013', kind: 'PPU',       locationLabel: 'Keningau, Sabah',            latitude: 5.3380, longitude: 116.1600, loadKw: 242, customer: 'interior',   powerRole: 'GRID_BACKUP'},
-  {id: 'pe-014',  name: 'PE-014',  kind: 'PE',        locationLabel: 'Victoria, Labuan',           latitude: 5.2767, longitude: 115.2417, loadKw: 218, customer: 'labuan',     powerRole: 'GRID_BACKUP'},
-  {id: 'pe-015',  name: 'PE-015',  kind: 'PE',        locationLabel: 'Papar, Sabah',               latitude: 5.7330, longitude: 115.9330, loadKw: 175, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'pmu-016', name: 'PMU-016', kind: 'PMU',       locationLabel: 'Sepanggar Bay, Sabah',       latitude: 6.0830, longitude: 116.1080, loadKw: 281, customer: 'west-coast', powerRole: 'GRID_BACKUP'},
-  {id: 'mg-017',  name: 'MG-017',  kind: 'MINI_GRID', locationLabel: 'Kemabong, Tenom',            latitude: 4.9670, longitude: 115.9640, loadKw: 64,  customer: 'interior',   powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
-  // — The interior and the east coast — where the mini-grids are.
-  //
-  // The five `PRIME` yards are isolated schemes: an island off Kudat or an
-  // interior settlement past the end of the 11 kV network is fed by its
-  // gensets and nothing else, which is the case `SitePowerRole` draws the
-  // distinction for. At east-coast distances the drive is most of any
-  // intervention, which is what the buckets are for.
-  {id: 'pe-018',  name: 'PE-018',  kind: 'PE',        locationLabel: 'Ranau, Sabah',              latitude: 5.9540, longitude: 116.6640, loadKw: 188, customer: 'interior',   powerRole: 'GRID_BACKUP'},
-  {id: 'mg-019',  name: 'MG-019',  kind: 'MINI_GRID', locationLabel: 'Nabawan, Sabah',            latitude: 5.0620, longitude: 116.4370, loadKw: 42,  customer: 'interior',   powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
-  {id: 'fdr-020', name: 'FDR-020', kind: 'FEEDER',    locationLabel: 'Sandakan, Sabah',           latitude: 5.8402, longitude: 118.1179, loadKw: 132, customer: 'sandakan',   powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
-  {id: 'fdr-021', name: 'FDR-021', kind: 'FEEDER',    locationLabel: 'Lahad Datu, Sabah',         latitude: 5.0269, longitude: 118.3270, loadKw: 58,  customer: 'lahad-datu', powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
-  {id: 'ppu-022', name: 'PPU-022', kind: 'PPU',       locationLabel: 'Batu Sapi, Sandakan',       latitude: 5.8560, longitude: 118.0210, loadKw: 296, customer: 'sandakan',   powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
-  {id: 'ppu-023', name: 'PPU-023', kind: 'PPU',       locationLabel: 'Tawau, Sabah',              latitude: 4.2450, longitude: 117.8840, loadKw: 415, customer: 'tawau',      powerRole: 'GRID_BACKUP', program: 'east-coast-reinforcement'},
-  {id: 'mg-024',  name: 'MG-024',  kind: 'MINI_GRID', locationLabel: 'Kalabakan, Tawau',          latitude: 4.4210, longitude: 117.4750, loadKw: 267, customer: 'tawau',      powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
-  {id: 'mg-025',  name: 'MG-025',  kind: 'MINI_GRID', locationLabel: 'Pulau Larapan, Semporna',   latitude: 4.5340, longitude: 118.6540, loadKw: 37,  customer: 'tawau',      powerRole: 'DIESEL_PRIME', program: 'rural-electrification'},
+  // — Wilayah Persekutuan (6) — the cluster in the map view.
+  {id: 'pe-001', name: 'PE-001', kind: 'PE', locationLabel: 'Bangsar, Kuala Lumpur',          latitude: 3.1290, longitude: 101.6700, loadKw: 412, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-002', name: 'PE-002', kind: 'PE', locationLabel: 'Setapak, Kuala Lumpur',          latitude: 3.1980, longitude: 101.7200, loadKw: 288, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-003', name: 'PE-003', kind: 'PE', locationLabel: 'Cheras, Kuala Lumpur',           latitude: 3.1000, longitude: 101.7400, loadKw: 355, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-004', name: 'PE-004', kind: 'PE', locationLabel: 'Sentul, Kuala Lumpur',           latitude: 3.1830, longitude: 101.6900, loadKw: 196, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-005', name: 'PE-005', kind: 'PE', locationLabel: 'Putrajaya',                      latitude: 2.9264, longitude: 101.6964, loadKw: 534, customer: 'wilayah',         powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-006', name: 'PE-006', kind: 'PE', locationLabel: 'Kepong, Kuala Lumpur',           latitude: 3.2100, longitude: 101.6300, loadKw: 243, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+
+  // — Selangor (5) — the Klang corridor, and Rawang on temporary supply.
+  {id: 'pe-007', name: 'PE-007', kind: 'PE', locationLabel: 'Shah Alam, Selangor',            latitude: 3.0730, longitude: 101.5180, loadKw: 618, customer: 'selangor',        powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-008', name: 'PE-008', kind: 'PE', locationLabel: 'Klang, Selangor',                latitude: 3.0440, longitude: 101.4450, loadKw: 471, customer: 'selangor',        powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-009', name: 'PE-009', kind: 'PE', locationLabel: 'Petaling Jaya, Selangor',        latitude: 3.1070, longitude: 101.6060, loadKw: 327, customer: 'selangor',        powerRole: 'GRID_BACKUP'},
+  {id: 'pe-010', name: 'PE-010', kind: 'PE', locationLabel: 'Rawang, Selangor',               latitude: 3.3210, longitude: 101.5770, loadKw: 164, customer: 'selangor',        powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-011', name: 'PE-011', kind: 'PE', locationLabel: 'Banting, Selangor',              latitude: 2.8160, longitude: 101.5000, loadKw: 118, customer: 'selangor',        powerRole: 'GRID_BACKUP'},
+
+  // — Perak (4) — Ipoh, and the coast road down to Sitiawan.
+  {id: 'pe-012', name: 'PE-012', kind: 'PE', locationLabel: 'Ipoh, Perak',                    latitude: 4.5975, longitude: 101.0901, loadKw: 302, customer: 'perak',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-013', name: 'PE-013', kind: 'PE', locationLabel: 'Taiping, Perak',                 latitude: 4.8500, longitude: 100.7400, loadKw: 147, customer: 'perak',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-014', name: 'PE-014', kind: 'PE', locationLabel: 'Teluk Intan, Perak',             latitude: 4.0230, longitude: 101.0210, loadKw: 96,  customer: 'perak',           powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-015', name: 'PE-015', kind: 'PE', locationLabel: 'Sitiawan, Perak',                latitude: 4.2160, longitude: 100.6960, loadKw: 205, customer: 'perak',           powerRole: 'GRID_BACKUP'},
+
+  // — Pulau Pinang (3) — the island, and the mainland crossing.
+  {id: 'pe-016', name: 'PE-016', kind: 'PE', locationLabel: 'George Town, Pulau Pinang',      latitude: 5.4141, longitude: 100.3288, loadKw: 389, customer: 'pulau-pinang',    powerRole: 'GRID_BACKUP'},
+  {id: 'pe-017', name: 'PE-017', kind: 'PE', locationLabel: 'Bayan Lepas, Pulau Pinang',      latitude: 5.2940, longitude: 100.2770, loadKw: 742, customer: 'pulau-pinang',    powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-018', name: 'PE-018', kind: 'PE', locationLabel: 'Butterworth, Pulau Pinang',      latitude: 5.3990, longitude: 100.3630, loadKw: 133, customer: 'pulau-pinang',    powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+
+  // — Johor (4) — Johor Bahru, the port, and up the trunk road.
+  {id: 'pe-019', name: 'PE-019', kind: 'PE', locationLabel: 'Johor Bahru, Johor',             latitude: 1.4927, longitude: 103.7414, loadKw: 448, customer: 'johor',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-020', name: 'PE-020', kind: 'PE', locationLabel: 'Pasir Gudang, Johor',            latitude: 1.4720, longitude: 103.8920, loadKw: 695, customer: 'johor',           powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-021', name: 'PE-021', kind: 'PE', locationLabel: 'Kulai, Johor',                   latitude: 1.6580, longitude: 103.6030, loadKw: 171, customer: 'johor',           powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-022', name: 'PE-022', kind: 'PE', locationLabel: 'Batu Pahat, Johor',              latitude: 1.8548, longitude: 102.9325, loadKw: 224, customer: 'johor',           powerRole: 'GRID_BACKUP'},
+
+  // — Negeri Sembilan (2) and Pahang (1) — the south coast, and the road across.
+  {id: 'pe-023', name: 'PE-023', kind: 'PE', locationLabel: 'Seremban, Negeri Sembilan',      latitude: 2.7297, longitude: 101.9381, loadKw: 266, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-024', name: 'PE-024', kind: 'PE', locationLabel: 'Port Dickson, Negeri Sembilan',  latitude: 2.5228, longitude: 101.7960, loadKw: 109, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-025', name: 'PE-025', kind: 'PE', locationLabel: 'Kuantan, Pahang',                latitude: 3.8077, longitude: 103.3260, loadKw: 187, customer: 'pahang',          powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
 ] as const;
 
 /**
- * The machines. Thirty-seven, against the carrier estate's twenty-nine — a
- * utility's substations hold pairs and triples far more often than a tower does.
+ * The machines. Thirty-seven across twenty-five yards — a substation compound holds
+ * a pair far more often than a tower does, so twelve of the sites carry two.
+ *
+ * Their tank levels are chosen rather than scattered. `rulesFor` deals alarms from a
+ * hash of the tag, so a fleet seeded without thought lands almost everything in the
+ * alarm bucket and leaves "Low fuel" reading zero on a screen built to show it.
+ * These are picked to put real numbers in all four readiness buckets — two dry, a
+ * handful below the reserve line — alongside a spread of run states including a set
+ * on a test exercise and two that have not reported in days.
+ *
+ * Plates carry the state prefix of the yard the machine is posted to, which is what
+ * a lorry's paperwork would say: `W` in the Federal Territory, `B` in Selangor, `A`
+ * in Perak, `P` in Pulau Pinang, `J` in Johor, `N` in Negeri Sembilan, `C` in
+ * Pahang.
  */
 const GENSETS = [
-  // — Greater Kota Kinabalu (12) — the cluster in the map view.
-  {tag: 'CUM-739893', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9556, longitude: 116.0804, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57, plateNumber: 'SAC 5385 D'},
-  {tag: 'CUM-303952', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'ppu-001',   locationLabel: 'Luyang, Kota Kinabalu',      latitude: 5.9564, longitude: 116.0816, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'SA 4562 D'},
-  {tag: 'CAT-736523', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0666, longitude: 116.1324, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1, plateNumber: 'ST 9480 A'},
-  {tag: 'DNY-201708', model: 'Denyo 250 kVa',       runState: 'OFFLINE', siteId: 'ppu-002',    locationLabel: 'Sepanggar, Sabah',           latitude: 6.0674, longitude: 116.1336, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'QA 3190 K'},
-  {tag: 'CUM-617409', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-003',   locationLabel: 'Penampang, Sabah',           latitude: 5.9370, longitude: 116.1120, fuelLitres: 940,  fuelCapacityLitres: 1200, staleMinutes: 4, plateNumber: 'QA 6414 U'},
-  {tag: 'PRK-690242', model: 'Perkins 800 kVa',     runState: 'IDLE',    siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9796, longitude: 116.1284, fuelLitres: 612,  fuelCapacityLitres: 1800, staleMinutes: 12, plateNumber: 'SB 4055 K'},
-  {tag: 'FGW-637180', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'pe-004',     locationLabel: 'Inanam, Sabah',              latitude: 5.9804, longitude: 116.1296, fuelLitres: 1338, fuelCapacityLitres: 1600, staleMinutes: 2, plateNumber: 'QA 4719 D'},
-  {tag: 'CAT-639573', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-005',   locationLabel: 'Kota Kinabalu City Centre',  latitude: 5.9860, longitude: 116.0760, fuelLitres: 2255, fuelCapacityLitres: 3000, staleMinutes: 3, plateNumber: 'ST 4879 E'},
-  {tag: 'PRK-252128', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'pe-006',    locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9496, longitude: 116.0874, fuelLitres: 1102, fuelCapacityLitres: 1800, staleMinutes: 6, plateNumber: 'QM 8026 D'},
-  {tag: 'KHL-306060', model: 'Kohler 400 kVa',      runState: 'IDLE',    siteId: 'pe-006',    locationLabel: 'Bukit Padang, Kota Kinabalu',latitude: 5.9504, longitude: 116.0886, fuelLitres: 448,  fuelCapacityLitres: 900,  staleMinutes: 31, plateNumber: 'SAC 7780 U'},
-  {tag: 'CUM-801936', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-007',     locationLabel: 'Telipok, Sabah',             latitude: 6.1230, longitude: 116.1740, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8, plateNumber: 'SD 9411 H'},
-  {tag: 'FGW-181837', model: 'FG Wilson 650 kVa',   runState: 'RUNNING', siteId: 'ppu-008', locationLabel: 'Tanjung Aru, Kota Kinabalu', latitude: 5.9370, longitude: 116.0510, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST', plateNumber: 'SAB 7087 G'},
+  // — Wilayah Persekutuan (9).
+  {tag: 'CUM-739893', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-001', locationLabel: 'Bangsar, Kuala Lumpur',        latitude: 3.1286, longitude: 101.6694, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57, plateNumber: 'WVA 5385'},
+  {tag: 'CUM-303952', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-001', locationLabel: 'Bangsar, Kuala Lumpur',        latitude: 3.1294, longitude: 101.6706, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'WXQ 4562'},
+  {tag: 'PRK-690242', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-002', locationLabel: 'Setapak, Kuala Lumpur',        latitude: 3.1976, longitude: 101.7194, fuelLitres: 1338, fuelCapacityLitres: 1800, staleMinutes: 12, plateNumber: 'WPK 4055'},
+  {tag: 'CAT-639573', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-003', locationLabel: 'Cheras, Kuala Lumpur',         latitude: 3.0996, longitude: 101.7394, fuelLitres: 2255, fuelCapacityLitres: 3000, staleMinutes: 3,  plateNumber: 'WTE 4879'},
+  {tag: 'KHL-306060', model: 'Kohler 400 kVa',       runState: 'IDLE',    siteId: 'pe-003', locationLabel: 'Cheras, Kuala Lumpur',         latitude: 3.1004, longitude: 101.7406, fuelLitres: 448,  fuelCapacityLitres: 900,  staleMinutes: 31, plateNumber: 'WSD 7780'},
+  {tag: 'CUM-801936', model: 'Cummins 500 kVa',      runState: 'RUNNING', siteId: 'pe-004', locationLabel: 'Sentul, Kuala Lumpur',         latitude: 3.1830, longitude: 101.6900, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8,  plateNumber: 'WHB 9411'},
+  {tag: 'CAT-736523', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9260, longitude: 101.6958, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1,  plateNumber: 'WLA 9480'},
+  {tag: 'DNY-201708', model: 'Denyo 250 kVa',        runState: 'OFFLINE', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9268, longitude: 101.6970, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'WKC 3190'},
+  {tag: 'FGW-181837', model: 'FG Wilson 650 kVa',    runState: 'RUNNING', siteId: 'pe-006', locationLabel: 'Kepong, Kuala Lumpur',         latitude: 3.2100, longitude: 101.6300, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST', plateNumber: 'WGP 7087'},
 
-  // — The west-coast corridor (6): Tuaran up to Kota Marudu.
-  {tag: 'PRK-230015', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'ppu-009',     locationLabel: 'Tuaran, Sabah',            latitude: 6.1766, longitude: 116.2324, fuelLitres: 1520, fuelCapacityLitres: 1800, staleMinutes: 7, plateNumber: 'QS 9297 L'},
-  {tag: 'KHL-599013', model: 'Kohler 400 kVa',      runState: 'IDLE',    siteId: 'ppu-009',     locationLabel: 'Tuaran, Sabah',            latitude: 6.1774, longitude: 116.2336, fuelLitres: 305,  fuelCapacityLitres: 900,  staleMinutes: 44, plateNumber: 'SAB 3713 E'},
-  {tag: 'CUM-930666', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-010',   locationLabel: 'Kota Belud, Sabah',        latitude: 6.3506, longitude: 116.4294, fuelLitres: 2004, fuelCapacityLitres: 2450, staleMinutes: 2, plateNumber: 'QS 7644 H'},
-  {tag: 'CUM-646777', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'ppu-010',   locationLabel: 'Kota Belud, Sabah',        latitude: 6.3514, longitude: 116.4306, fuelLitres: 511,  fuelCapacityLitres: 1200, staleMinutes: 95, plateNumber: 'SAB 6334 U'},
-  {tag: 'DNY-246845', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'pe-011',  locationLabel: 'Kudat, Sabah',             latitude: 6.8830, longitude: 116.8440, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 11, plateNumber: 'ST 8463 W'},
-  {tag: 'PRK-386403', model: 'Perkins 800 kVa',     runState: 'OFFLINE', siteId: 'mg-012',   locationLabel: 'Pulau Banggi, Kudat',      latitude: 7.2717, longitude: 117.1782, fuelLitres: 880,  fuelCapacityLitres: 1800, staleMinutes: 1_615, plateNumber: 'SA 3214 R'},
+  // — Selangor (8).
+  {tag: 'CUM-930666', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-007', locationLabel: 'Shah Alam, Selangor',          latitude: 3.0726, longitude: 101.5174, fuelLitres: 2004, fuelCapacityLitres: 2450, staleMinutes: 2,  plateNumber: 'BQH 7644'},
+  {tag: 'CUM-646777', model: 'Cummins 500 kVa',      runState: 'IDLE',    siteId: 'pe-007', locationLabel: 'Shah Alam, Selangor',          latitude: 3.0734, longitude: 101.5186, fuelLitres: 511,  fuelCapacityLitres: 1200, staleMinutes: 95, plateNumber: 'BMU 6334'},
+  {tag: 'CAT-939070', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-008', locationLabel: 'Klang, Selangor',              latitude: 3.0436, longitude: 101.4444, fuelLitres: 2040, fuelCapacityLitres: 3000, staleMinutes: 1,  plateNumber: 'BJN 2371'},
+  {tag: 'CAT-281248', model: 'Caterpillar 1250 kVa', runState: 'IDLE',    siteId: 'pe-008', locationLabel: 'Klang, Selangor',              latitude: 3.0444, longitude: 101.4456, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16, plateNumber: 'BRU 3805'},
+  {tag: 'PRK-252128', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-009', locationLabel: 'Petaling Jaya, Selangor',      latitude: 3.1066, longitude: 101.6054, fuelLitres: 1102, fuelCapacityLitres: 1800, staleMinutes: 6,  plateNumber: 'BND 8026'},
+  {tag: 'PRK-230015', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-010', locationLabel: 'Rawang, Selangor',             latitude: 3.3206, longitude: 101.5764, fuelLitres: 1520, fuelCapacityLitres: 1800, staleMinutes: 7,  plateNumber: 'BQL 9297'},
+  {tag: 'KHL-599013', model: 'Kohler 400 kVa',       runState: 'IDLE',    siteId: 'pe-010', locationLabel: 'Rawang, Selangor',             latitude: 3.3214, longitude: 101.5776, fuelLitres: 305,  fuelCapacityLitres: 900,  staleMinutes: 44, plateNumber: 'BME 3713'},
+  {tag: 'DNY-246845', model: 'Denyo 250 kVa',        runState: 'RUNNING', siteId: 'pe-011', locationLabel: 'Banting, Selangor',            latitude: 2.8160, longitude: 101.5000, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 11, plateNumber: 'BTW 8463'},
 
-  // — Interior, Labuan and the south-west (6).
-  {tag: 'CAT-408590', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-013',    locationLabel: 'Keningau, Sabah',          latitude: 5.3376, longitude: 116.1594, fuelLitres: 2640, fuelCapacityLitres: 3000, staleMinutes: 3, plateNumber: 'SAC 1975 A'},
-  {tag: 'CUM-245531', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-013',    locationLabel: 'Keningau, Sabah',          latitude: 5.3384, longitude: 116.1606, fuelLitres: 1890, fuelCapacityLitres: 2450, staleMinutes: 6, plateNumber: 'SB 1502 F'},
-  {tag: 'FGW-691403', model: 'FG Wilson 650 kVa',   runState: 'IDLE',    siteId: 'pe-014',  locationLabel: 'Victoria, Labuan',         latitude: 5.2767, longitude: 115.2417, fuelLitres: 720,  fuelCapacityLitres: 1600, staleMinutes: 26, plateNumber: 'SB 5661 K'},
-  {tag: 'KHL-928197', model: 'Kohler 400 kVa',      runState: 'RUNNING', siteId: 'pe-015',     locationLabel: 'Papar, Sabah',             latitude: 5.7330, longitude: 115.9330, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST', plateNumber: 'SD 5366 U'},
-  {tag: 'PRK-954710', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'pmu-016',    locationLabel: 'Sepanggar Bay, Sabah',     latitude: 6.0830, longitude: 116.1080, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9, plateNumber: 'SAB 1169 H'},
-  {tag: 'DNY-566998', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-017',   locationLabel: 'Kemabong, Tenom',          latitude: 4.9670, longitude: 115.9640, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'SAC 3446 K'},
+  // — Perak (6).
+  {tag: 'CAT-408590', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-012', locationLabel: 'Ipoh, Perak',                  latitude: 4.5971, longitude: 101.0895, fuelLitres: 2640, fuelCapacityLitres: 3000, staleMinutes: 3,  plateNumber: 'AKA 1975'},
+  {tag: 'CUM-245531', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-012', locationLabel: 'Ipoh, Perak',                  latitude: 4.5979, longitude: 101.0907, fuelLitres: 1890, fuelCapacityLitres: 2450, staleMinutes: 6,  plateNumber: 'AFB 1502'},
+  {tag: 'FGW-691403', model: 'FG Wilson 650 kVa',    runState: 'IDLE',    siteId: 'pe-013', locationLabel: 'Taiping, Perak',               latitude: 4.8500, longitude: 100.7400, fuelLitres: 720,  fuelCapacityLitres: 1600, staleMinutes: 26, plateNumber: 'AKM 5661'},
+  {tag: 'DNY-703725', model: 'Denyo 250 kVa',        runState: 'RUNNING', siteId: 'pe-014', locationLabel: 'Teluk Intan, Perak',           latitude: 4.0226, longitude: 101.0204, fuelLitres: 108,  fuelCapacityLitres: 600,  staleMinutes: 38, plateNumber: 'ATQ 6264'},
+  {tag: 'CUM-617409', model: 'Cummins 500 kVa',      runState: 'RUNNING', siteId: 'pe-014', locationLabel: 'Teluk Intan, Perak',           latitude: 4.0234, longitude: 101.0216, fuelLitres: 940,  fuelCapacityLitres: 1200, staleMinutes: 4,  plateNumber: 'AUF 6414'},
+  {tag: 'KHL-928197', model: 'Kohler 400 kVa',       runState: 'RUNNING', siteId: 'pe-015', locationLabel: 'Sitiawan, Perak',              latitude: 4.2160, longitude: 100.6960, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST', plateNumber: 'AUD 5366'},
 
-  // — The interior and the east coast (13) —
-  //
-  // The far half of the state is where the interesting half of this estate is.
-  // The `PRIME` yards here are rural mini-grids, which is not a coincidence: an
-  // island off Kudat or a settlement past the end of the 11 kV network has no
-  // mains incomer to back up, and the sets there *are* the supply. That is the case the overview's outer split exists
-  // to separate — and at these road distances the drive is most of any
-  // intervention, which is what the buckets are for.
-  //
-  // Their tank levels are chosen rather than scattered. `rulesFor` deals alarms from
-  // a hash of the tag, so a fleet seeded without thought lands almost everything in
-  // the alarm bucket and leaves "Low fuel" reading zero on a screen built to show
-  // it. These thirteen are picked to put real numbers in all four buckets — five
-  // below the reserve line, one dry, two alarming — without touching a single
-  // existing row, which matters because `BRF9540` and its neighbours are pinned to
-  // the Figma frames.
-  {tag: 'CUM-882799', model: 'Cummins 500 kVa',     runState: 'RUNNING', siteId: 'pe-018', locationLabel: 'Ranau, Sabah',           latitude: 5.9536, longitude: 116.6634, fuelLitres: 220,  fuelCapacityLitres: 1000, staleMinutes: 12, plateNumber: 'QS 8279 H'},
-  {tag: 'CUM-440939', model: 'Cummins 500 kVa',     runState: 'IDLE',    siteId: 'pe-018', locationLabel: 'Ranau, Sabah',           latitude: 5.9544, longitude: 116.6646, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4, plateNumber: 'QA 5976 F'},
-  {tag: 'DNY-703725', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'mg-019', locationLabel: 'Nabawan, Sabah',         latitude: 5.0620, longitude: 116.4370, fuelLitres: 108,  fuelCapacityLitres: 600,  staleMinutes: 38, plateNumber: 'QA 6264 T'},
-  {tag: 'PRK-541815', model: 'Perkins 800 kVa',     runState: 'RUNNING', siteId: 'fdr-020', locationLabel: 'Sandakan, Sabah',        latitude: 5.8398, longitude: 118.1173, fuelLitres: 740,  fuelCapacityLitres: 1000, staleMinutes: 7, plateNumber: 'SB 8012 P'},
-  {tag: 'DNY-359597', model: 'Denyo 250 kVa',       runState: 'RUNNING', siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0273, longitude: 118.3276, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 21, plateNumber: 'QA 8401 L'},
-  {tag: 'DNY-323530', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'fdr-021', locationLabel: 'Lahad Datu, Sabah',      latitude: 5.0265, longitude: 118.3264, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3, plateNumber: 'QA 5891 W'},
-  {tag: 'CAT-939070', model: 'Caterpillar 1250 kVa',runState: 'RUNNING', siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8556, longitude: 118.0204, fuelLitres: 2040, fuelCapacityLitres: 3000, staleMinutes: 1, plateNumber: 'SAB 2371 J'},
-  {tag: 'CAT-281248', model: 'Caterpillar 1250 kVa',runState: 'IDLE',    siteId: 'ppu-022',  locationLabel: 'Batu Sapi, Sandakan',    latitude: 5.8564, longitude: 118.0216, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16, plateNumber: 'SAA 3805 U'},
-  {tag: 'CUM-672771', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'ppu-023',  locationLabel: 'Tawau, Sabah',           latitude: 4.2454, longitude: 117.8846, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9, plateNumber: 'SAB 9748 G'},
-  {tag: 'CUM-167879', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'ppu-023',  locationLabel: 'Tawau, Sabah',           latitude: 4.2446, longitude: 117.8834, fuelLitres: 1936, fuelCapacityLitres: 2450, staleMinutes: 44, plateNumber: 'SAB 6140 W'},
-  {tag: 'CUM-806077', model: 'Cummins 1000 kVa',    runState: 'RUNNING', siteId: 'mg-024',   locationLabel: 'Kalabakan, Tawau',       latitude: 4.4214, longitude: 117.4756, fuelLitres: 1544, fuelCapacityLitres: 2450, staleMinutes: 6, plateNumber: 'QS 8006 F'},
-  {tag: 'CUM-164691', model: 'Cummins 1000 kVa',    runState: 'IDLE',    siteId: 'mg-024',   locationLabel: 'Kalabakan, Tawau',       latitude: 4.4206, longitude: 117.4744, fuelLitres: 172,  fuelCapacityLitres: 2450, staleMinutes: 51, plateNumber: 'SA 5601 L'},
-  {tag: 'DNY-619585', model: 'Denyo 250 kVa',       runState: 'IDLE',    siteId: 'mg-025', locationLabel: 'Pulau Larapan, Semporna',latitude: 4.5340, longitude: 118.6540, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 27, plateNumber: 'SAB 9831 L'},
+  // — Pulau Pinang (5) — Bayan Lepas carries the estate's heaviest pair.
+  {tag: 'CUM-882799', model: 'Cummins 500 kVa',      runState: 'RUNNING', siteId: 'pe-016', locationLabel: 'George Town, Pulau Pinang',    latitude: 5.4137, longitude: 100.3282, fuelLitres: 220,  fuelCapacityLitres: 1000, staleMinutes: 12, plateNumber: 'PHQ 8279'},
+  {tag: 'CUM-440939', model: 'Cummins 500 kVa',      runState: 'IDLE',    siteId: 'pe-016', locationLabel: 'George Town, Pulau Pinang',    latitude: 5.4145, longitude: 100.3294, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4,  plateNumber: 'PFA 5976'},
+  {tag: 'CUM-672771', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-017', locationLabel: 'Bayan Lepas, Pulau Pinang',    latitude: 5.2944, longitude: 100.2776, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9,  plateNumber: 'PGW 9748'},
+  {tag: 'CUM-167879', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-017', locationLabel: 'Bayan Lepas, Pulau Pinang',    latitude: 5.2936, longitude: 100.2764, fuelLitres: 1936, fuelCapacityLitres: 2450, staleMinutes: 44, plateNumber: 'PWG 6140'},
+  {tag: 'PRK-541815', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-018', locationLabel: 'Butterworth, Pulau Pinang',    latitude: 5.3990, longitude: 100.3630, fuelLitres: 740,  fuelCapacityLitres: 1000, staleMinutes: 7,  plateNumber: 'PPB 8012'},
+
+  // — Johor (6).
+  {tag: 'FGW-637180', model: 'FG Wilson 650 kVa',    runState: 'RUNNING', siteId: 'pe-019', locationLabel: 'Johor Bahru, Johor',           latitude: 1.4923, longitude: 103.7408, fuelLitres: 1338, fuelCapacityLitres: 1600, staleMinutes: 2,  plateNumber: 'JDD 4719'},
+  {tag: 'PRK-386403', model: 'Perkins 800 kVa',      runState: 'OFFLINE', siteId: 'pe-019', locationLabel: 'Johor Bahru, Johor',           latitude: 1.4931, longitude: 103.7420, fuelLitres: 880,  fuelCapacityLitres: 1800, staleMinutes: 1_615, plateNumber: 'JRA 3214'},
+  {tag: 'CUM-806077', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-020', locationLabel: 'Pasir Gudang, Johor',          latitude: 1.4716, longitude: 103.8914, fuelLitres: 1544, fuelCapacityLitres: 2450, staleMinutes: 6,  plateNumber: 'JFQ 8006'},
+  {tag: 'CUM-164691', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-020', locationLabel: 'Pasir Gudang, Johor',          latitude: 1.4724, longitude: 103.8926, fuelLitres: 172,  fuelCapacityLitres: 2450, staleMinutes: 51, plateNumber: 'JLA 5601'},
+  {tag: 'DNY-359597', model: 'Denyo 250 kVa',        runState: 'RUNNING', siteId: 'pe-021', locationLabel: 'Kulai, Johor',                 latitude: 1.6576, longitude: 103.6024, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 21, plateNumber: 'JLQ 8401'},
+  {tag: 'DNY-323530', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-022', locationLabel: 'Batu Pahat, Johor',            latitude: 1.8548, longitude: 102.9325, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3,  plateNumber: 'JWQ 5891'},
+
+  // — Negeri Sembilan (2) and Pahang (1).
+  {tag: 'PRK-954710', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-023', locationLabel: 'Seremban, Negeri Sembilan',    latitude: 2.7297, longitude: 101.9381, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9,  plateNumber: 'NHA 1169'},
+  {tag: 'DNY-566998', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-024', locationLabel: 'Port Dickson, Negeri Sembilan',latitude: 2.5228, longitude: 101.7960, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'NKC 3446'},
+  {tag: 'DNY-619585', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-025', locationLabel: 'Kuantan, Pahang',              latitude: 3.8077, longitude: 103.3260, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 27, plateNumber: 'CLB 9831'},
 ] as const;
 
 export const UTILITY_DATASET: BrandDataset = {
   id: 'utility',
   label: 'Utility distribution estate',
-  groupingLabel: 'By zone',
+  groupingLabel: 'By state',
   customers: CUSTOMERS,
   programs: PROGRAMS,
   siteKindLabels: SITE_KIND_LABELS,
   sites: SITES,
   gensets: GENSETS,
-  // Pulau Banggi: the island mini-grid, and the only site on this estate whose
-  // page carries an array, a bank and an engine at once.
-  defaultSiteId: 'mg-012',
+  // Rawang: a pencawang isolated for refurbishment, so its page draws the
+  // diesel-prime circuit rather than an incomer with a set behind it.
+  defaultSiteId: 'pe-010',
   defaultGensetId: 'cum-739893',
 };

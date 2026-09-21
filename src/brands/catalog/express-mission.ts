@@ -5,10 +5,11 @@ import type {BrandIdentity} from '../types';
 /**
  * Express Mission — the PoC customer this build is for.
  *
- * A mobile genset fleet across telecom and remote sites in **Sabah and Labuan**,
- * which is why it walks the `utility` estate: that dataset is the one seeded in the
- * right geography, and a vendor's machines are posted where the operator's network
- * is. See `product-gensetiq/sites/express-mission-site-profile.md`.
+ * A mobile genset fleet posted to distribution substations across **Peninsular
+ * Malaysia**, which is why it walks the `utility` estate: that dataset is the
+ * pencawang elektrik one, and a vendor's machines stand where the licensee's
+ * network needs temporary supply. See
+ * `product-gensetiq/sites/express-mission-site-profile.md`.
  *
  * ## One asset, used twice
  *
@@ -33,7 +34,7 @@ import type {BrandIdentity} from '../types';
 export const EXPRESS_MISSION: BrandIdentity = {
   id: 'express-mission',
   name: 'Express Mission',
-  blurb: 'The PoC fleet — mobile gensets across Sabah and Labuan, in their green.',
+  blurb: 'The PoC fleet — mobile gensets at pencawang elektrik across the Peninsular, in their green.',
   logo: mark,
   mark,
   logoSize: {width: 48, height: 48},
