@@ -376,6 +376,29 @@ each prototype owns a hundred and they all run side by side.
 
 Any email and password gets you in.
 
+### The rail drops Sites on a mobile estate
+
+**`DATASET.plant` decides whether the rail offers Sites**, and it is the only thing
+about the rail that an estate changes.
+
+A `'stationary'` estate keeps it. A set there is bolted to a plinth beside the thing
+it feeds, the site is a subject in its own right, and the register is a place a
+reader starts from. The carrier tower estate — what the unbranded `gensetiq` build
+walks — is one, so that build shows three destinations.
+
+A `'mobile'` estate drops it. A yard on a fleet that moves is where a machine was
+sent rather than something anyone opens the app to ask about, and the question the
+register used to be asked — what is out, where, and since when — is the one
+`/deployments` now answers properly. Express Mission is a vendor whose sets are
+trucked to an injection point for a job and brought back, so its build shows two.
+
+**The routes stay on both.** `/sites`, `/sites/<id>` and the breadcrumb into one all
+still resolve on a mobile build; a link from elsewhere is not broken. What a mobile
+estate withholds is the *door*, not the room — which is the only reason this is
+allowed to be configuration at all. A brand cannot state it: `PlantKind` in
+[`src/brands/types.ts`](src/brands/types.ts) explains why the fact belongs to the
+estate rather than to whoever is paying for the build.
+
 ## The component gallery
 
 **`/gallery`** — every shared component, every state, one page. Dev only: the
@@ -430,7 +453,7 @@ behind the code is worse than no bench, because a reader trusts it.
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
 | Genset runs | `/gensets/<id>/runs` | The run log: a timeline strip, totals for the chosen window, the list, and a CSV export. Not a Figma frame — see [below](#the-runs-tab-is-not-in-the-design). |
 | Alarms / Equipment / Settings | `/gensets/<id>/alarms`, … | Named in the design's tab strip but not drawn — labelled placeholders so the strip isn't dead. Settings says what would belong on it: the [fuel leakage alarm](#fuel-leakage-is-not-in-the-design)'s switch and threshold, tags, notification routing. |
-| Sites — list | `/sites?view=list` | 17 sites, worst standing alarm first, with the alarm pill as a column. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
+| Sites — list | `/sites?view=list` | 17 sites, worst standing alarm first, with the alarm pill as a column. **Reachable but not in the rail on a mobile estate** — see [below](#the-rail-drops-sites-on-a-mobile-estate). Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Sites — map | `/sites?view=map` | One pin per yard, coloured by the site's status bucket and sized by how many sets stand there. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Site home | `/sites/<id>` | Matches the Figma frame: the site's single-line diagram, then one row per genset with its run and its controls. All 17 sites have one. |
 | Site settings | `/sites/<id>/settings` | How the site is fed, which gensets stand on it and under which job, and a way to start one. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design). |

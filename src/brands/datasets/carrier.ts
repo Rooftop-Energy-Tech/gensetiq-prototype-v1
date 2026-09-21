@@ -200,6 +200,9 @@ export const CARRIER_DATASET: BrandDataset = {
   id: 'carrier',
   label: 'Carrier tower network',
   groupingLabel: 'By region',
+  // Bolted to a plinth at the foot of a tower, which is the assumption every
+  // screen on this estate makes. The rail keeps Sites.
+  plant: 'stationary',
   customers: CUSTOMERS,
   programs: PROGRAMS,
   siteKindLabels: SITE_KIND_LABELS,
