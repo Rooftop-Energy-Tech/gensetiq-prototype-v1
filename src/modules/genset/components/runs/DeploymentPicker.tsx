@@ -1,48 +1,42 @@
 import {useState} from 'react';
-import {CheckIcon, ChevronDownIcon, MapPinIcon} from 'lucide-react';
+import {CheckIcon, ChevronDownIcon, TruckIcon} from 'lucide-react';
 
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {dayMonth} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {siteLabel} from '@/modules/site/data/siteSeed';
-import type {Installation} from '../../types/installation.type';
+import type {DeploymentSession} from '../../types/deployment.type';
 
 /**
- * The third way of choosing a window: **by installation**.
+ * The third way of choosing a window: **by posting**.
  *
  * The presets and the calendar name a stretch of *time*; this names a stretch of
- * *service* — one fitting, from the day the set was commissioned onto a plinth to
- * the day it came off. It is exact where the calendar is day-granular, so the
- * totals under it reconcile with the installation record rather than
- * approximately agreeing with it.
+ * *work* — one deployment, from the lorry dropping the set to the lorry
+ * collecting it. It is the window the questions are actually asked of ("what did
+ * the Ranau posting burn?"), and it is exact where the calendar is day-granular,
+ * so the totals under it reconcile with the same posting's row on the dispatch
+ * feed rather than approximately agreeing with it.
  *
- * ## Why it usually is not on screen
- *
- * It hides below two entries, and on this estate almost every set has one — see
- * `installations.ts`. A picker offering a single choice that is also the default
- * is a control that cannot do anything, and the honest treatment of one is not to
- * draw it. It returns the moment a set has been swapped out and back, which is
- * exactly when "which fitting was that under" becomes a real question.
- *
- * A popover of rows rather than a native select, in the range calendar's pattern:
- * each entry needs two lines — where, and when — and an option element holds one.
+ * A popover of rows rather than a native select, in the range calendar's
+ * pattern: each posting needs two lines — where, and when — and an option
+ * element holds one.
  */
-export const InstallationPicker = ({
+export const DeploymentPicker = ({
   deployments,
   selectedId,
   onSelect,
 }: {
   /** This genset's postings, newest first — the open one at the head. */
-  deployments: Array<Installation>;
+  deployments: Array<DeploymentSession>;
   selectedId: string | undefined;
   onSelect: (deploymentId: string | undefined) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const selected = deployments.find((deployment) => deployment.id === selectedId);
 
-  if (deployments.length < 2) return null;
+  if (deployments.length === 0) return null;
 
-  const label = (deployment: Installation): string =>
+  const label = (deployment: DeploymentSession): string =>
     deployment.endedAt === null
       ? `${dayMonth(deployment.startedAt)} – ongoing`
       : `${dayMonth(deployment.startedAt)} – ${dayMonth(deployment.endedAt)}`;
@@ -60,7 +54,7 @@ export const InstallationPicker = ({
               : 'border-transparent bg-element text-secondary hover:text-primary',
           )}
         >
-          <MapPinIcon className="size-3.5" aria-hidden="true" />
+          <TruckIcon className="size-3.5" aria-hidden="true" />
           {selected === undefined
             ? 'By deployment'
             : `${siteLabel(selected.siteId)} · ${label(selected)}`}

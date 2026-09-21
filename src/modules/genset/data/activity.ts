@@ -2,7 +2,7 @@ import {useSyncExternalStore} from 'react';
 
 import type {Genset, GensetActivity} from '../types/genset.type';
 import type {ServiceRecord} from '../types/service.type';
-import {gensetInstallations} from './installations';
+import {gensetDeployments} from './deployments';
 
 /**
  * The activity log, assembled from the systems that actually witness events.
@@ -24,7 +24,7 @@ import {gensetInstallations} from './installations';
  *  - **Controller** — the machine's own event stream: starts with their
  *    reason, stops, faults. Seeded in `fleet.ts`, as telemetry would be.
  *  - **Dispatch** — one line when a posting opens, one when it closes, read
- *    off the same `Installation` rows the dispatch feed lists.
+ *    off the same `DeploymentSession` rows the dispatch feed lists.
  *  - **Service log** — one line per recorded service, as before.
  *  - **Manual** — an operator's own note, typed on the dashboard and held in
  *    `localStorage` with the same posture as every other override store in
@@ -96,7 +96,7 @@ export const useActivityNotes = (): Array<ActivityNote> =>
 // ─── The merged log ───────────────────────────────────────────────────────────
 
 /**
- * The installation's own two entries: commissioned here, and removed if it ever
+ * The posting's own two entries: dropped here, and collected if it ever
  * was.
  *
  * On this estate the first of those is years old and the second has not
@@ -106,24 +106,24 @@ export const useActivityNotes = (): Array<ActivityNote> =>
  * this machine been the one on this plinth" is the question a fault report
  * starts with.
  */
-const installationEntries = (genset: Genset): Array<GensetActivity> =>
-  gensetInstallations(genset.id).flatMap((installation) => {
+const deploymentEntries = (genset: Genset): Array<GensetActivity> =>
+  gensetDeployments(genset.id).flatMap((deployment) => {
     const entries: Array<GensetActivity> = [
       {
-        id: `${installation.id}-open`,
+        id: `${deployment.id}-open`,
         kind: 'DEPLOY',
-        message: `Commissioned at ${installation.locationLabel} by ${installation.installer}`,
-        at: installation.startedAt,
+        message: `Deployed to ${deployment.locationLabel} on ${deployment.lorryPlate}`,
+        at: deployment.startedAt,
         source: 'Asset register',
       },
     ];
 
-    if (installation.endedAt !== null) {
+    if (deployment.endedAt !== null) {
       entries.push({
-        id: `${installation.id}-close`,
+        id: `${deployment.id}-close`,
         kind: 'DEPLOY',
-        message: `Removed from ${installation.locationLabel}`,
-        at: installation.endedAt,
+        message: `Collected from ${deployment.locationLabel}`,
+        at: deployment.endedAt,
         source: 'Asset register',
       });
     }
@@ -173,7 +173,7 @@ export const gensetActivityLog = (
 
   return [
     ...controller,
-    ...installationEntries(genset),
+    ...deploymentEntries(genset),
     ...serviceEntries(genset, records),
     ...noteEntries(genset, allNotes),
   ].sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime());

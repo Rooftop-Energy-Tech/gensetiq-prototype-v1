@@ -1,10 +1,5 @@
 import {useNavigate} from '@tanstack/react-router';
-import {
-  BoomBoxIcon,
-  LogOutIcon,
-  RadioTowerIcon,
-  SettingsIcon,
-} from 'lucide-react';
+import {BoomBoxIcon, LogOutIcon, RadioTowerIcon, SettingsIcon, TruckIcon} from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
 import type {NavItem} from '@/components/global/NavButton';
@@ -62,6 +57,10 @@ const NAV_ITEMS: Array<NavItem> = [
   // puts at a site. A row is one machine, and the six tabs below it are the same
   // shape every detail page in the app has.
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
+  // The dispatch feed: what is out, where, and since when. Fleet-wide like the
+  // register above it, and last because it is the question you ask after you know
+  // what the fleet is.
+  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
 ];
 
 export const Sidebar = () => {

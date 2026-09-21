@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, RadioTowerIcon} from 'lucide-react';
+import {BoomBoxIcon, RadioTowerIcon, TruckIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 /**
@@ -36,19 +36,19 @@ import type {LucideIcon} from 'lucide-react';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/sites' | '/gensets';
+  link: '/sites' | '/gensets' | '/deployment';
   /**
-   * The list's own default view state.
+   * The list's own default view state, for the registers that have one.
    *
-   * All three screens validate their search params, and a `Link` has to name the
-   * whole object — the schema's defaults settle a URL that is *parsed*, not one that
-   * is built — so each item says which view it opens. `list` in every case, which at
-   * this width is the only view any of them has.
+   * Both registers validate their search params, and a `Link` has to name the whole
+   * object — the schema's defaults settle a URL that is *parsed*, not one that is
+   * built — so each item says which view it opens. `list` in both cases, which at
+   * this width is the only view either has.
    *
-   * `/solar` used to take none, because its register had no view state to carry. It
-   * has all three views now, so it names the same one its neighbours do.
+   * Absent on the dispatch feed: it is one table with a search box, so it carries no
+   * view state to name.
    */
-  search: {view: 'list'};
+  search?: {view: 'list'};
 };
 
 const ITEMS: Array<MobileNavItem> = [
@@ -56,8 +56,11 @@ const ITEMS: Array<MobileNavItem> = [
   // away by default at this width — see `SummaryCollapseButton` — so the phone gets
   // the list first and the summary on request.
   {label: 'Sites', icon: RadioTowerIcon, link: '/sites', search: {view: 'list'}},
-  // The array register, which is where solar lives now that the report is gone.
+  // The fleet register: every machine, wherever it is standing.
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets', search: {view: 'list'}},
+  // The dispatch feed. On the bar rather than a tap away through a site, because on a
+  // mobile fleet "what is out and since when" is the question asked standing in a yard.
+  {label: 'Deployment', icon: TruckIcon, link: '/deployment'},
 ];
 
 export const MobileNav = () => (

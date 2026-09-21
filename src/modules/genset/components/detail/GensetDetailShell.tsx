@@ -1,14 +1,5 @@
 import {Outlet} from '@tanstack/react-router';
-import {
-  BellIcon,
-  BoomBoxIcon,
-  ChartLineIcon,
-  CircuitBoardIcon,
-  InfoIcon,
-  PlayIcon,
-  SettingsIcon,
-  WrenchIcon,
-} from 'lucide-react';
+import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, PlayIcon, SettingsIcon, TruckIcon, WrenchIcon} from 'lucide-react';
 
 import {
   DetailSidebar,
@@ -19,7 +10,7 @@ import type {DetailNavEntry} from '@/components/global/DetailSidebar';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {fuelLevel, relativeTime, stampDate} from '@/lib/format';
 import {siteSeed} from '@/modules/site/data/siteSeed';
-import {currentInstallation} from '../../data/installations';
+import {openDeployment} from '../../data/deployments';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 
@@ -47,6 +38,9 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
     {label: 'Genset', icon: BoomBoxIcon, to: '/gensets/$gensetId', params, end: true},
     {label: 'Analysis', icon: ChartLineIcon, to: '/gensets/$gensetId/analysis', params},
     {label: 'Runs', icon: PlayIcon, to: '/gensets/$gensetId/runs', params},
+    // After Runs, because a posting is the window the runs inside it are read over —
+    // see `deployment.type.ts` on why both exist.
+    {label: 'Deployments', icon: TruckIcon, to: '/gensets/$gensetId/deployments', params},
     {label: 'Service', icon: WrenchIcon, to: '/gensets/$gensetId/service', params},
     {label: 'Alarms', icon: BellIcon, to: '/gensets/$gensetId/alarms', params},
     {label: 'Devices', icon: CircuitBoardIcon, to: '/gensets/$gensetId/equipment', params},
@@ -75,7 +69,7 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
  * site, so there is nothing to return to.
  */
 export const GensetDetailShell = ({genset}: {genset: Genset}) => {
-  const installation = currentInstallation(genset.id);
+  const deployment = openDeployment(genset.id);
   const site = genset.siteId === null ? undefined : siteSeed(genset.siteId);
 
   return (
@@ -105,10 +99,10 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                   <span>
                     Tank · {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
                   </span>
-                  {installation !== undefined && (
+                  {deployment !== undefined && (
                     <span>
-                      Commissioned · {stampDate(installation.startedAt)} by{' '}
-                      {installation.installer}
+                      Posted · {stampDate(deployment.startedAt)} ·{' '}
+                      {deployment.lorryPlate}
                     </span>
                   )}
                   <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>

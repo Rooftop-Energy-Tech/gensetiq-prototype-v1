@@ -37,7 +37,7 @@ export const gensetCustomer = (genset: Genset): CustomerId | undefined =>
  *
  * `undefined` in the depot, and that is the honest answer rather than a third
  * bucket dressed up as a role: standby and prime are properties of an
- * *installation*, and a machine on a lorry has no installation. The card labels
+ * *posting*, and a machine on a lorry has no posting. The card labels
  * that group "Depot" for the same reason the customer card does.
  *
  * `roles` is passed in rather than read from the store, so every set in one render

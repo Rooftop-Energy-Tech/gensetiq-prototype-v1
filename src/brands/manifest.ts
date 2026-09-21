@@ -86,7 +86,7 @@ export const BRAND_MANIFEST: Record<BrandId, BrandManifestEntry> = {
     dataset: 'carrier',
     tab: {
       title: 'telcoIQ',
-      description: 'Telco site power and solar hybrid monitoring',
+      description: 'Telco site genset monitoring',
       // The IQ glyph cut out of the wordmark. TelcoIQ has no square mark of its
       // own, and the glyph is the half of the lockup that survives 16px.
       faviconPath: 'favicon-telcoiq.png',
