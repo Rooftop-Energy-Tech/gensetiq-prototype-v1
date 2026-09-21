@@ -5,18 +5,11 @@
   "packageManager": "bun@1.3.14",
   "scripts": {
     "dev": "vite dev --port 3400",
-    "dev:celcomdigi": "VITE_BRAND=celcomdigi vite dev --port 3403",
-    "dev:sesb": "VITE_BRAND=sesb vite dev --port 3401",
     "dev:unbranded": "VITE_BRAND=gensetiq vite dev --port 3402",
     "build": "tsc --noEmit && vite build",
-    "build:celcomdigi": "tsc --noEmit && VITE_BRAND=celcomdigi vite build --outDir dist-celcomdigi",
-    "build:sesb": "tsc --noEmit && VITE_BRAND=sesb vite build --outDir dist-sesb",
     "build:unbranded": "tsc --noEmit && VITE_BRAND=gensetiq vite build --outDir dist-unbranded",
     "preview": "vite preview --port 3400",
-    "typecheck": "tsc --noEmit",
-    "check:equipment": "node scripts/check-equipment-boxes.mjs",
-    "dev:telcoiq": "VITE_BRAND=telcoiq vite dev --port 3404",
-    "build:telcoiq": "tsc --noEmit && VITE_BRAND=telcoiq vite build --outDir dist-telcoiq"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

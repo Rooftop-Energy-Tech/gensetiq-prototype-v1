@@ -136,7 +136,7 @@ export const GalleryPage = () => (
         <div className="flex min-w-0 flex-col">
           <h1 className="text-sm font-semibold text-primary">Component gallery</h1>
           <p className="truncate text-xs text-secondary">
-            telcoiq-frontend · running as {BRAND.name}
+            gensetiq-frontend · running as {BRAND.name}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-3">

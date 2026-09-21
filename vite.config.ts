@@ -13,7 +13,7 @@ import type {BrandId} from './src/brands/types';
  * The default when `VITE_BRAND` is unset — a developer running `npm run dev`,
  * not a typo. Kept in step with nothing else: this is the only statement of it.
  */
-const FALLBACK_BRAND: BrandId = 'redtone';
+const FALLBACK_BRAND: BrandId = 'express-mission';
 
 const VIRTUAL_ID = 'virtual:brands';
 const RESOLVED_VIRTUAL_ID = '\0virtual:brands';
@@ -94,18 +94,23 @@ const brands = (): PluginOption => {
         }),
       ];
 
+      // Keys are **quoted**, because a brand id is data and not an identifier.
+      // Every id happened to be a bare-legal one until `express-mission`, whose
+      // hyphen emitted `express-mission: EXPRESS_MISSION,` and took the whole
+      // registry out with a syntax error at module load. Quoting costs nothing and
+      // the next id with a hyphen in it is somebody's customer, not a mistake.
       const identities = entries
-        .map((entry) => `  ${entry.brandId}: ${entry.binding},`)
+        .map((entry) => `  ${JSON.stringify(entry.brandId)}: ${entry.binding},`)
         .join('\n');
 
       const datasets = datasetIds
-        .map((datasetId) => `  ${datasetId}: ${DATASET_MANIFEST[datasetId].binding},`)
+        .map((datasetId) => `  ${JSON.stringify(datasetId)}: ${DATASET_MANIFEST[datasetId].binding},`)
         .join('\n');
 
       // Tab strings are inlined as literals rather than imported, so `manifest.ts`
       // — which names every customer — stays out of the client module graph.
       const tabs = entries
-        .map((entry) => `  ${entry.brandId}: ${JSON.stringify(entry.tab)},`)
+        .map((entry) => `  ${JSON.stringify(entry.brandId)}: ${JSON.stringify(entry.tab)},`)
         .join('\n');
 
       return [

@@ -65,8 +65,6 @@
   --color-fuel-tip: var(--fuel-tip);
 
   /* Hybrid plant */
-  --color-solar: var(--solar);
-  --color-solar-tip: var(--solar-tip);
   --color-battery: var(--battery);
   --color-battery-tip: var(--battery-tip);
 

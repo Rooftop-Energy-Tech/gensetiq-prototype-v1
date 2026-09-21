@@ -212,11 +212,9 @@ const SIDEBAR: ColorMap = {
   // The active brand's rail colour, from `brands/identity.ts`. A dark surface in
   // the light mode this app actually ships, hence the mode-invariant foregrounds.
   //
-  // On CelcomDigi that is navy rather than the bright blue beside it,
-  // deliberately: the rail carries the brand mark, whose own gradient runs
-  // #009BDF → #0064DC, and a rail painted the mark's own blue would swallow it.
-  // Navy is the ground that
-  // gradient was drawn to sit on.
+  // On Express Mission that is #0A2723 rather than the mark's own #045832,
+  // deliberately: the rail carries the brand mark, and a rail painted the mark's own
+  // green would swallow it. The near-black green is the ground it was drawn to sit on.
   sidebar: {
     light: BRAND.theme.sidebar,
     dark: BRAND.theme.sidebar,
@@ -295,59 +293,24 @@ const FUEL: ColorMap = {
 };
 
 /**
- * Solar — `bg-solar`, `bg-solar-tip`.
- *
- * A deep amber, and **not** CelcomDigi's own `#FFE000`, which is what this token
- * started as. Their yellow is a brand colour and it is superb at brand jobs: it
- * is one of the two halves of the mark, it sits on navy, it fills a hero. It is
- * unusable as a data mark on a light ground. Against the `element` surface every
- * chart in this app draws on, `#FFE000` measures **1.2:1** — below the 3:1 floor
- * a graphic element needs to be seen at all — so a bar in it reads as an absence
- * where a reader is trying to compare heights.
- *
- * `#C2660C` measures 3.8:1 on that surface and 3.5:1 on the canvas, holds the
- * warm gold a reader expects daylight generation in, and stays 1.9:1 clear of
- * `severity-warning` so the two are still separable when they appear together.
- * The brand yellow keeps every job it was good at; it just stops being asked to
- * be a bar.
- *
- * Distinct in lightness as well as hue from `fuel` and `battery`, because the
- * energy-mix bar stacks all three and a monochrome screenshot of it still has to
- * be readable.
- *
- * The dark value is the inverse problem and takes the inverse answer: on
- * `#151C28` the deep amber is the one that disappears, so dark mode keeps a
- * bright one.
- */
-const SOLAR: ColorMap = {
-  solar: {light: '#C2660C', dark: '#FBBF24', figma: ''},
-  // A step lighter, for the topmost segment of a stacked bar.
-  'solar-tip': {light: '#E08A2E', dark: '#FCD34D', figma: ''},
-};
-
-/**
  * Battery — `bg-battery`, `bg-battery-tip`.
  *
- * `--colour--celcom-blue` from the same stylesheet, the lighter blue their mark's
- * gradient starts at. Storage sits between generation and load in the diagram, and
- * it sits between solar and diesel here.
+ * The only thing left that draws a battery is `BatteryGlyph`, and what it draws is a
+ * **starter battery**: the one on the engine that has to turn it over, which is a
+ * genset fact and stays. The storage bank this token was originally for is gone with
+ * the rest of the hybrid plant.
  *
- * It is *not* `brand`: the brand blue is a control colour on this build — the
- * login CTA, the primary button — and a battery drawn in it would read as
- * something to click.
+ * It is *not* `brand`: the brand colour is a control colour on this build — the login
+ * CTA, the primary button — and a battery drawn in it would read as something to
+ * click.
+ *
+ * Product-owned rather than per-brand. It used to fall back to the product's when a
+ * brand had no storage colour of its own; no brand supplies one now, and a customer
+ * with no opinion about a starter battery should not be asked to invent one.
  */
 const PRODUCT_BATTERY = {base: '#009BDF', tip: '#4FBCEA'};
 
-/**
- * Optional per brand, unlike the three above.
- *
- * A brand that has a storage colour of its own gets it; a brand that does not
- * keeps the product's. CelcomDigi is the first case — `--colour--celcom-blue`
- * happens to be a good storage hue — and SESB is the second, which is the normal
- * one. Storage is a *data* colour, and a customer with no opinion about it should
- * not be made to invent one.
- */
-const BATTERY_COLORS = BRAND.theme.battery ?? PRODUCT_BATTERY;
+const BATTERY_COLORS = PRODUCT_BATTERY;
 
 const BATTERY: ColorMap = {
   battery: {light: BATTERY_COLORS.base, dark: BATTERY_COLORS.base, figma: ''},
@@ -441,11 +404,6 @@ export const fuel = (): ColorMap => {
   return FUEL;
 };
 
-/** Solar color tokens (the yellow the hybrid plant's PV is drawn in). */
-export const solar = (): ColorMap => {
-  return SOLAR;
-};
-
 /** Battery color tokens. */
 export const battery = (): ColorMap => {
   return BATTERY;
@@ -464,7 +422,6 @@ const GROUPS: Array<ColorMap> = [
   SIDEBAR,
   STATUS,
   FUEL,
-  SOLAR,
   BATTERY,
   SEVERITY,
   MISC,

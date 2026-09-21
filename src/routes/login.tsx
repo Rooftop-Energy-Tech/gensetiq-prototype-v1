@@ -53,12 +53,26 @@ const LoginPage = () => {
             "gensetIQ, powered by gensetIQ" is the failure mode of a white label with
             nobody in the white. */}
         <div className="flex flex-col items-center gap-3">
+          {/* Sized by the artwork's own shape, not by one hardcoded width.
+              
+              `w-60` was that width, and it is right for a *lockup* — four-or-more to
+              one, a name set on a line. Express Mission's identity is a round badge
+              at 48px, and 240px of it was a five-times upscale of a raster: the door
+              opened on a blurred logo, which is the one thing a login screen must not
+              do. So a wide mark takes the lockup width and a square one is drawn at
+              the size it was made, which is small and sharp rather than large and
+              soft. */}
           <img
             src={BRAND.logo}
             alt={BRAND.name}
             width={BRAND.logoSize.width}
             height={BRAND.logoSize.height}
-            className="w-60 object-contain"
+            className="object-contain"
+            style={
+              BRAND.logoSize.width / BRAND.logoSize.height >= 2
+                ? {width: '15rem'}
+                : {width: BRAND.logoSize.width, height: BRAND.logoSize.height}
+            }
           />
           {BRAND.id !== 'gensetiq' && (
             <div className="flex items-center gap-1.5">

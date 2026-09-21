@@ -78,24 +78,20 @@ export const Sidebar = () => {
     // do have mobile layouts are the ones the floating bar offers.
     <aside className="hidden h-full w-[94px] flex-col items-center pt-2 md:flex">
       <div className="flex w-full items-center justify-center py-3.5">
-        {/* Whatever of the customer's lockup reads at 94px — which is a per-brand
-            call, and the two brands here answer it differently. CelcomDigi's is
-            *cropped* out of their official artwork, the left edge to the start of
-            the "c" (viewBox `-6 0 408 439.61`), because their full wordmark has no
-            legible form at this width — the same call the IQ mark made for the
-            product's own brand. Redtone's is the whole wordmark: seven letters on
-            one line, and it holds up at 76px.
+        {/* Whatever of the customer's mark reads at 94px — which is a per-brand call,
+            and the two brands here answer it differently. Express Mission's is a
+            circular badge, square and legible at any size the rail could give it. The
+            product's own is the IQ mark, cropped out of the wordmark because seven
+            letters have no legible form at this width.
 
-            Whichever it is, it is the cut drawn for a *dark* ground, because the
-            rail always is one. CelcomDigi's inverted artwork only whitens the
-            wordmark their crop drops, so their two cuts are identical here and
-            navy (#001871) is chosen so the mark's own #009BDF → #0064DC gradient
-            has something to sit on; Redtone ships two genuinely different cuts and
-            this is the one whose "tone" is white.
+            Whichever it is, it wants a *dark* ground, because the rail always is one.
+            EM's badge is dark green on transparent, so the rail is `#0A2723` — a shade
+            off the badge's own ring rather than the ring itself, since a mark on its
+            own colour has no silhouette.
 
             Both dimensions are set so the flex row cannot stretch it, and
-            `object-contain` so a `markSize` that rounds off the artwork's own
-            ratio letterboxes by half a pixel rather than squashing the letters. */}
+            `object-contain` so a `markSize` that rounds off the artwork's own ratio
+            letterboxes by half a pixel rather than squashing it. */}
         <img
           src={BRAND.mark}
           alt={BRAND.name}

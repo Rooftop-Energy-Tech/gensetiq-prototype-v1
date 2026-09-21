@@ -28,8 +28,8 @@ document.head.append(style);
  * `index.html` is stamped at build time by the `brandHtml` plugin, which is what
  * makes the title correct before any JavaScript loads — no flash of the wrong
  * customer's name. But the Settings picker can switch brand for a session, and a
- * build-time title cannot know that: an SESB session would sit in a tab reading
- * "CelcomDigi Site Power", which is exactly the mismatch `brands/active.ts` throws
+ * build-time title cannot know that: a gensetIQ session would sit in a tab reading
+ * "Express Mission Genset Monitoring", which is exactly the mismatch `brands/active.ts` throws
  * on a bad `VITE_BRAND` to prevent.
  *
  * So the plugin gets the first paint right and this gets the session right. Both

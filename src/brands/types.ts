@@ -62,7 +62,7 @@
  */
 
 /** The brands this build can be compiled as. Add a customer by adding an entry. */
-export const BRAND_IDS = ['redtone', 'celcomdigi', 'sesb', 'gensetiq', 'telcoiq'] as const;
+export const BRAND_IDS = ['express-mission', 'gensetiq'] as const;
 
 export type BrandId = (typeof BRAND_IDS)[number];
 
@@ -71,9 +71,9 @@ export const DATASET_IDS = ['carrier', 'utility'] as const;
 export type DatasetId = (typeof DATASET_IDS)[number];
 
 /**
- * The four colours that are the customer's and not the product's.
+ * The three colours that are the customer's and not the product's.
  *
- * Deliberately four, and not "the palette". Every other token in `colors.ts` is
+ * Deliberately three, and not "the palette". Every other token in `colors.ts` is
  * the design system's and is shared by every brand — a customer who wanted their
  * own `bg-canvas` would be asking for a different product, and a customer whose
  * yellow fails contrast as a data mark does not get to make bars invisible (see
@@ -86,14 +86,15 @@ export type DatasetId = (typeof DATASET_IDS)[number];
  *   button loses its label, which is why it is here and not derived.
  * - `sidebar` — the rail, in both modes. The one surface that does not follow the
  *   app's light/dark polarity, because it carries the customer's mark.
- * - `battery` — the storage series in charts, as a base and a lighter tip.
- *   Optional: a brand that does not supply one gets the product's own.
+ * Three, where there were four. `battery` was the fourth — a brand's own storage
+ * colour for the charts — and it went with the storage: nothing on a genset estate
+ * draws a bank, and the one battery left is the starter on the engine, whose colour
+ * is the product's.
  */
 export type BrandTheme = {
   brand: string;
   brandForeground: string;
   sidebar: string;
-  battery?: {base: string; tip: string};
 };
 
 /**

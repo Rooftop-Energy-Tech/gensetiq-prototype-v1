@@ -5,7 +5,6 @@ import {
   fuel,
   severity,
   sidebar,
-  solar,
   status,
   text,
 } from '@/styles/colors';
@@ -48,7 +47,6 @@ const GROUPS: ReadonlyArray<{title: string; note: string; map: ColorMap}> = [
   {title: 'Sidebar', note: 'The rail, which a brand recolours independently of the app.', map: sidebar()},
   {title: 'Run states', note: 'Running, idle, offline — the genset state colours.', map: status()},
   {title: 'Fuel', note: 'The tank body and the meniscus on its topmost filled bar.', map: fuel()},
-  {title: 'Solar', note: 'The yellow the hybrid plant draws PV in.', map: solar()},
   {title: 'Battery', note: 'Healthy charge only — low and critical come from the severity group.', map: battery()},
   {title: 'Severity', note: 'Critical, warning, ok. Everything that ranks an alarm reads these.', map: severity()},
 ];

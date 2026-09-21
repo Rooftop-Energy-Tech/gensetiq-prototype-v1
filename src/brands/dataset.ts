@@ -10,7 +10,7 @@ import type {BrandDataset, DatasetId} from './types';
  * unlike `identity.ts`, this module is heavy and is not on the pre-paint path.
  *
  * The estates come from the generated registry, which carries only the ones the
- * included brands name. A CelcomDigi deployment therefore has no utility dataset
+ * included brands name. A gensetIQ-only deployment therefore has no utility dataset
  * in it at all: not hidden, absent. Twenty-five substation names and thirty-seven
  * machine tags are the most identifiable thing a bundle could leak about another
  * customer, and a UI flag cannot un-ship them.

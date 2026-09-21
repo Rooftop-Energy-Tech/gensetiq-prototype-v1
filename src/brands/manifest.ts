@@ -39,57 +39,16 @@ export type BrandManifestEntry = {
 };
 
 export const BRAND_MANIFEST: Record<BrandId, BrandManifestEntry> = {
-  redtone: {
-    module: '/src/brands/catalog/redtone.ts',
-    binding: 'REDTONE',
-    dataset: 'carrier',
-    tab: {
-      title: 'REDTONE Site Power',
-      description: 'Site power monitoring for REDTONE, powered by gensetIQ',
-      // The product's, until the customer supplies theirs. A favicon cut from the
-      // wordmark is illegible at 16px — it is seven letters wide — and inventing a
-      // monogram they do not use would put a mark on the tab that is nobody's.
-      faviconPath: 'favicon-gensetiq.svg',
-    },
-  },
-  celcomdigi: {
-    module: '/src/brands/catalog/celcomdigi.ts',
-    binding: 'CELCOMDIGI',
-    dataset: 'carrier',
-    tab: {
-      title: 'CelcomDigi Site Power',
-      description: 'Site power monitoring for CelcomDigi, powered by gensetIQ',
-      // Their own 256px apple-touch-icon cut, transparent. One file rather than a
-      // set: every browser downscales it to 16 and 32, and what it replaced was a
-      // hand-redrawn approximation — an approximation of a logo is a worse asset
-      // than the logo, whatever it costs in bytes.
-      faviconPath: 'favicon-celcomdigi.png',
-    },
-  },
-  sesb: {
-    module: '/src/brands/catalog/sesb.ts',
-    binding: 'SESB',
+  'express-mission': {
+    module: '/src/brands/catalog/express-mission.ts',
+    binding: 'EXPRESS_MISSION',
     dataset: 'utility',
     tab: {
-      title: 'SESB Genset Monitoring',
-      description: 'Genset monitoring for Sabah Electricity, powered by gensetIQ',
-      // The product mark, not SESB's: their assets are the wide lockup and a mark
-      // with type in it, neither of which survives 16px. A brand with no square
-      // mark is better served by the product's than by an unreadable crop of its
-      // own.
+      title: 'Express Mission Genset Monitoring',
+      description: 'Mobile genset fleet monitoring for Express Mission, powered by gensetIQ',
+      // The product's, until EM supply theirs. Their own mark is a 48px raster with
+      // rings inside it — cut to 16px it is a green dot, which is nobody's.
       faviconPath: 'favicon-gensetiq.svg',
-    },
-  },
-  telcoiq: {
-    module: '/src/brands/catalog/telcoiq.ts',
-    binding: 'TELCOIQ',
-    dataset: 'carrier',
-    tab: {
-      title: 'telcoIQ',
-      description: 'Telco site genset monitoring',
-      // The IQ glyph cut out of the wordmark. TelcoIQ has no square mark of its
-      // own, and the glyph is the half of the lockup that survives 16px.
-      faviconPath: 'favicon-telcoiq.png',
     },
   },
   gensetiq: {
@@ -104,7 +63,6 @@ export const BRAND_MANIFEST: Record<BrandId, BrandManifestEntry> = {
   },
 };
 
-/** Where each estate lives, for the same reason the brands' modules are listed. */
 export const DATASET_MANIFEST: Record<DatasetId, {module: string; binding: string}> = {
   carrier: {module: '/src/brands/datasets/carrier.ts', binding: 'CARRIER_DATASET'},
   utility: {module: '/src/brands/datasets/utility.ts', binding: 'UTILITY_DATASET'},
