@@ -18,7 +18,6 @@ import type {
   ReadingGroup,
   ReadingKind,
 } from '../types/telemetry.type';
-import {fleet} from './deployment';
 import {GENSETS} from './fleet';
 import {seededHoursSinceService} from './serviceSeed';
 import {spread} from './spread';
@@ -1453,12 +1452,12 @@ const DETAILS: Record<string, GensetDetail> = (() => {
 
 export const gensetDetail = (gensetId: string): GensetDetail | undefined => DETAILS[gensetId];
 
-/**
- * The fleet row for an id — the home page needs both halves.
- *
- * Reads the **deployed** fleet, not the seed, so a set that has been moved reports
- * the yard it is actually standing in. `DETAILS` above stays on the seed and stays
- * correct: nothing it derives looks at where a machine is.
+/*
+ * `gensetById` used to sit here, and it moved to `./deployment` — the module that
+ * owns the deployed fleet. It is a lookup over placement rather than a piece of a
+ * machine's detail, and keeping it here made this file import placement, which
+ * placement now derives from the deployment record: `detail → deployment → store →
+ * seed → history → detail` is a circle, and it broke the run log's own build.
+ * `DETAILS` above stays on the seed and stays correct, because nothing it derives
+ * looks at where a machine is.
  */
-export const gensetById = (gensetId: string): Genset | undefined =>
-  fleet().find((genset) => genset.id === gensetId);

@@ -8,7 +8,8 @@ import type {
 import {CONDITION_OF_SEVERITY, conditionOf, worstCondition} from '../types/alert.type';
 import type {GensetCondition} from '../types/alert.type';
 import {SEVERITY_OF_FUEL_LEVEL, fuelLevelKind} from '../types/fuelLevel.type';
-import {gensetById, gensetDetail} from './detail';
+import {seededGenset} from './fleet';
+import {gensetDetail} from './detail';
 import {standingAlarms} from './alarms';
 import {
   flowMeterAgeMinutes,
@@ -72,7 +73,7 @@ const NOW = Date.now();
  */
 const feeds = (gensetId: string): {levelFeed: InstrumentFeed; flowFeed: InstrumentFeed} => {
   const instruments = instrumentsOf(gensetId);
-  const genset = gensetById(gensetId);
+  const genset = seededGenset(gensetId);
 
   const panelSilent = genset === undefined || genset.runState === 'OFFLINE';
 
@@ -272,7 +273,7 @@ export const machineCondition = (gensetId: string, now: number = NOW): GensetCon
  * and a full tank still is `ATTENTION`.
  */
 export const gensetCondition = (gensetId: string, now: number = NOW): GensetCondition => {
-  const genset = gensetById(gensetId);
+  const genset = seededGenset(gensetId);
   if (genset === undefined) return 'OPTIMUM';
 
   const machine = machineCondition(gensetId, now);

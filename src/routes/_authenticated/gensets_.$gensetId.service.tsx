@@ -1,7 +1,7 @@
 import {createFileRoute, useParams} from '@tanstack/react-router';
 
 import {GensetService} from '@/modules/genset/components/service/GensetService';
-import {gensetById} from '@/modules/genset/data/detail';
+import {gensetById} from '@/modules/genset/data/deployment';
 
 /**
  * The service tab — whether this genset is due, and every service on record.

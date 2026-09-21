@@ -50,9 +50,12 @@ const INITIAL_ZOOM = 5;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
-/** The two states, and the one place their colours are written down. */
+/** The three states, and the one place their colours are written down. */
 const STATE_COLOR = {
-  ongoing: lightToken['severity-ok'],
+  active: lightToken['severity-ok'],
+  // The brand accent, for the reason `stateMeta.ts` gives: a booked job is not a
+  // condition, so it does not take a severity colour.
+  planned: lightToken.brand,
   // A literal rather than `lightToken.tertiary`, which is the text scale's 40%
   // black-on-white: an alpha colour over a basemap takes the roads' own colour
   // through it, and a pin that changes hue as it crosses a motorway is not a
@@ -76,12 +79,12 @@ type DeploymentsMapProps = {
 };
 
 /**
- * Only the postings whose yard is still in the dataset can be drawn.
+ * Only the jobs whose yard is still in the dataset can be drawn.
  *
- * A posting keeps its placename but not its coordinates — see `DeploymentSession`,
- * where the label is copied so history survives a rename — so a site dropped from a
- * brand's dataset leaves rows the table can still print and the map cannot place.
- * They are filtered out here rather than drawn at [0, 0] in the Gulf of Guinea.
+ * A job keeps its placename but not its coordinates — see `Deployment`, where the
+ * label is copied so history survives a rename — so a site dropped from a brand's
+ * dataset leaves rows the table can still print and the map cannot place. They are
+ * filtered out here rather than drawn at [0, 0] in the Gulf of Guinea.
  */
 const placed = (rows: Array<DeploymentRow>): Array<DeploymentRow> =>
   rows.filter((row) => row.latitude !== undefined && row.longitude !== undefined);
@@ -100,7 +103,11 @@ const toFeatureCollection = (
     },
     properties: {
       id: row.deployment.id,
-      state: row.ongoing ? 'ongoing' : 'completed',
+      state: row.state,
+      // The pin's size says how much plant is standing there, which is the sites
+      // map's channel and the same question here: one set for a fortnight and three
+      // for a fortnight are not the same job.
+      members: row.members.length,
       selected: row.deployment.id === selectedId,
     },
   })),
@@ -109,8 +116,10 @@ const toFeatureCollection = (
 const stateColor = (): maplibregl.ExpressionSpecification => [
   'match',
   ['get', 'state'],
-  'ongoing',
-  STATE_COLOR.ongoing,
+  'active',
+  STATE_COLOR.active,
+  'planned',
+  STATE_COLOR.planned,
   'completed',
   STATE_COLOR.completed,
   STATE_COLOR.completed,
@@ -119,33 +128,44 @@ const stateColor = (): maplibregl.ExpressionSpecification => [
 /**
  * The per-state tallies each cluster carries up — the donut ring inside its count.
  *
- * Open first, so the ring is drawn from twelve o'clock in the same order every time
- * and the eye learns where to look. Namespaced like the sites map's, which costs
+ * Standing first, so the ring is drawn from twelve o'clock in the same order every
+ * time and the eye learns where to look. Namespaced like the sites map's, which costs
  * nothing and is what keeps two vocabularies from colliding the day a second one
  * arrives.
  */
 const stateKey = (state: string) => `state:${state}`;
 
 const CLUSTER_PROPERTIES = Object.fromEntries(
-  (['ongoing', 'completed'] as const).map((state) => [
+  (['active', 'planned', 'completed'] as const).map((state) => [
     stateKey(state),
     ['+', ['case', ['==', ['get', 'state'], state], 1, 0]],
   ]),
 ) as Record<string, maplibregl.ExpressionSpecification>;
 
 /**
- * An open posting draws larger than a closed one, before selection is considered.
+ * A standing job draws larger than a booked or closed one, and a job with more
+ * machines on it larger again.
  *
- * Size is the second channel after colour, and it is spent on the same distinction
- * rather than on a new one: a stack of a year's history at a yard should not out-shout
- * the machine standing in it today. 1.5× when selected, the ratio every pin in this
- * app keeps.
+ * Two channels doing two jobs. Colour is the state; size is *how much is there*,
+ * which is the sites map's own channel and the question this map is asked next: a
+ * stack of last year's history at a yard should not out-shout three sets standing in
+ * it today. 1.5× when selected, the ratio every pin in this app keeps.
  */
-const POINT_RADIUS: maplibregl.ExpressionSpecification = [
+const stateBase: maplibregl.ExpressionSpecification = [
   'case',
-  ['get', 'selected'],
-  ['case', ['==', ['get', 'state'], 'ongoing'], 15, 12],
-  ['case', ['==', ['get', 'state'], 'ongoing'], 10, 8],
+  ['==', ['get', 'state'], 'active'],
+  10,
+  ['==', ['get', 'state'], 'planned'],
+  8,
+  7,
+];
+
+const POINT_RADIUS: maplibregl.ExpressionSpecification = [
+  '*',
+  ['case', ['get', 'selected'], 1.5, 1],
+  // A third machine adds as much as a second, and a fourth would too: the growth is
+  // linear and capped by there being three sets at most on this fleet's jobs.
+  ['+', stateBase, ['*', 1.5, ['-', ['min', ['get', 'members'], 4], 1]]],
 ];
 
 export const DeploymentsMap = ({
@@ -261,10 +281,17 @@ export const DeploymentsMap = ({
         paint: {
           'circle-radius': POINT_RADIUS,
           'circle-color': stateColor(),
-          // A closed posting draws thinner and paler than an open one, so a stack of
-          // history reads as a background the live pin sits on rather than as a crowd
-          // competing with it.
-          'circle-opacity': ['case', ['==', ['get', 'state'], 'ongoing'], 1, 0.8],
+          // A closed job draws paler than a standing one, so a stack of history
+          // reads as a background the live pin sits on rather than as a crowd
+          // competing with it. A booked job is paler still: nothing is there yet.
+          'circle-opacity': [
+            'case',
+            ['==', ['get', 'state'], 'active'],
+            1,
+            ['==', ['get', 'state'], 'planned'],
+            0.65,
+            0.8,
+          ],
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
           'circle-stroke-color': [
             'case',
@@ -332,7 +359,7 @@ export const DeploymentsMap = ({
       sourceId: SOURCE,
       clusterLayerId: LAYER.clusterCore,
       segmentsFor: (properties) =>
-        (['ongoing', 'completed'] as const).map((state) => ({
+        (['active', 'planned', 'completed'] as const).map((state) => ({
           color: STATE_COLOR[state],
           count: clusterCount(properties, stateKey(state)),
         })),

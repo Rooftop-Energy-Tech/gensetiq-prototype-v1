@@ -5,6 +5,7 @@ import {
   ComponentIcon,
   LandPlotIcon,
   SettingsIcon,
+  TruckIcon,
 } from 'lucide-react';
 
 import {DetailSidebar} from '@/components/global/DetailSidebar';
@@ -98,6 +99,10 @@ const navEntries = (summary: SiteSummary): Array<DetailNavEntry> => {
     // without an exact match the landing row stays lit on all of them.
     {label: 'Site', icon: LandPlotIcon, to: '/sites/$siteId', params, end: true},
     {label: 'Alarms', icon: BellIcon, to: '/sites/$siteId/alarms', params},
+    // The yard over time. It is a row rather than a band on the home page because
+    // it is a *history* — the home page answers what is standing here now, and a
+    // list of closed jobs under it would push the plant off the screen.
+    {label: 'Deployments', icon: TruckIcon, to: '/sites/$siteId/deployments', params},
     // Dropped rather than drawn empty at a site with nothing fitted: `Asset ▸`
     // opening onto an empty list is a worse answer than not offering it.
     ...(assets.length === 0

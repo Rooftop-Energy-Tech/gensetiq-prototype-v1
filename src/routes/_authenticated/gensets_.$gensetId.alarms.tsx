@@ -1,7 +1,7 @@
 import {createFileRoute, useParams} from '@tanstack/react-router';
 
 import {GensetAlarms} from '@/modules/genset/components/alarms/GensetAlarms';
-import {gensetById} from '@/modules/genset/data/detail';
+import {gensetById} from '@/modules/genset/data/deployment';
 import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';
 import type {FromSearch} from '@/modules/site/types/fromSearch.type';
 

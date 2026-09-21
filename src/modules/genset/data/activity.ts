@@ -2,7 +2,8 @@ import {useSyncExternalStore} from 'react';
 
 import type {Genset, GensetActivity} from '../types/genset.type';
 import type {ServiceRecord} from '../types/service.type';
-import {gensetDeployments} from './deployments';
+import {gensetPostings} from '@/modules/deployment/data/store';
+import {postingEnd} from '@/modules/deployment/types/deployment.type';
 
 /**
  * The activity log, assembled from the systems that actually witness events.
@@ -107,24 +108,33 @@ export const useActivityNotes = (): Array<ActivityNote> =>
  * starts with.
  */
 const deploymentEntries = (genset: Genset): Array<GensetActivity> =>
-  gensetDeployments(genset.id).flatMap((deployment) => {
+  gensetPostings(genset.id).flatMap((posting) => {
+    const {deployment, membership} = posting;
+    const end = postingEnd(posting);
+
     const entries: Array<GensetActivity> = [
       {
-        id: `${deployment.id}-open`,
+        id: `${membership.id}-open`,
         kind: 'DEPLOY',
-        message: `Deployed to ${deployment.locationLabel} on ${deployment.lorryPlate}`,
-        at: deployment.startedAt,
-        source: 'Asset register',
+        // The job's reference leads, because that is what the operations room
+        // called the move: "on DEP-0042 to Kapit" is one fact, and the placename
+        // alone left a reader with no way back to the job.
+        message: `Deployed to ${deployment.locationLabel} on ${membership.lorryPlate} · ${deployment.reference}`,
+        at: deployment.startsAt,
+        source: 'Deployment register',
       },
     ];
 
-    if (deployment.endedAt !== null) {
+    if (end !== null) {
       entries.push({
-        id: `${deployment.id}-close`,
+        id: `${membership.id}-close`,
         kind: 'DEPLOY',
-        message: `Collected from ${deployment.locationLabel}`,
-        at: deployment.endedAt,
-        source: 'Asset register',
+        message:
+          membership.collectedAt === null
+            ? `Collected from ${deployment.locationLabel} · ${deployment.reference}`
+            : `Collected early from ${deployment.locationLabel} · ${deployment.reference}`,
+        at: end,
+        source: 'Deployment register',
       });
     }
 

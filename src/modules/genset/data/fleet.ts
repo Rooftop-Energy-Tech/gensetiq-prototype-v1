@@ -197,3 +197,23 @@ const buildFleet = (): Array<Genset> => {
 };
 
 export const GENSETS: Array<Genset> = buildFleet();
+
+const SEEDED_BY_ID = new Map(GENSETS.map((genset) => [genset.id, genset]));
+
+/**
+ * The seeded row for an id: nameplate, tank, run state, and the yard the seed put
+ * the machine in.
+ *
+ * **Not the deployed row.** `data/deployment.ts` exports `gensetById` for that, and
+ * everything a reader sees should use it, because a set that has been put on a job
+ * elsewhere is standing elsewhere.
+ *
+ * This exists for the two modules that must not depend on placement at all:
+ * `history.ts` and `fuelInstruments`/`fuelIntegrity`. Placement is derived from the
+ * deployment record, the record's fuel figures are read off this ladder, and the
+ * ladder is built from a machine's tank — so a ladder that asked where the machine
+ * was standing would be a circle, and it recursed until the stack gave out. Nothing
+ * these callers read is touched by placement: it only ever rewrites `siteId`,
+ * `locationLabel` and the coordinates.
+ */
+export const seededGenset = (gensetId: string): Genset | undefined => SEEDED_BY_ID.get(gensetId);

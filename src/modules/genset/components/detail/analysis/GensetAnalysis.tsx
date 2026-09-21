@@ -2,7 +2,8 @@ import {useMemo, useState} from 'react';
 
 import {relativeTime} from '@/lib/format';
 import {cn} from '@/lib/utils';
-import {gensetDeployments} from '../../../data/deployments';
+import {gensetPostings} from '@/modules/deployment/data/store';
+import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import {PLOTTABLE_READING_GROUPS, PLOTTABLE_READING_KEYS} from '../../../data/detail';
 import type {GensetDetail} from '../../../data/detail';
 import {gensetRuns, historyStart, readingSeries, runsInWindow} from '../../../data/history';
@@ -55,10 +56,26 @@ export const GensetAnalysis = ({
   const [now] = useState(() => Date.now());
 
   const runs = useMemo(() => gensetRuns(genset.id), [genset.id]);
-  const deployments = useMemo(() => gensetDeployments(genset.id), [genset.id]);
+  const postings = useMemo(() => gensetPostings(genset.id), [genset.id]);
+  /**
+   * The postings as plain windows, which is all `analysisRange` needs.
+   *
+   * Each ends at *this machine's* end rather than the job's: a set collected on day
+   * nine of a fortnight has nine days of readings, and drawing the job's full window
+   * would put five days of another machine's work behind this one's trace.
+   */
+  const windows = useMemo(
+    () =>
+      postings.map((posting) => ({
+        id: posting.deployment.id,
+        startedAt: posting.deployment.startsAt,
+        endedAt: postingEnd(posting),
+      })),
+    [postings],
+  );
   const keys = selectedKeys(search);
   const earliest = historyStart();
-  const range = analysisRange(search, runs, now, earliest, deployments);
+  const range = analysisRange(search, runs, now, earliest, windows);
 
   const readings: Array<Reading> = PLOTTABLE_READING_KEYS.map(
     (key) => detail.readings[key],
@@ -111,7 +128,7 @@ export const GensetAnalysis = ({
             onCustomChange={(from, to) => onSearchChange({...clearedRange(search), from, to})}
           />
           <DeploymentPicker
-            deployments={deployments}
+            postings={postings}
             selectedId={range.kind === 'deployment' ? search.dep : undefined}
             onSelect={(dep) => onSearchChange({...clearedRange(search), dep})}
           />

@@ -1,7 +1,8 @@
 import {createFileRoute, notFound, useLoaderData} from '@tanstack/react-router';
 
 import {GensetDetailShell} from '@/modules/genset/components/detail/GensetDetailShell';
-import {gensetById, gensetDetail} from '@/modules/genset/data/detail';
+import {gensetById} from '@/modules/genset/data/deployment';
+import {gensetDetail} from '@/modules/genset/data/detail';
 import {gensetName} from '@/modules/genset/types/genset.type';
 import type {Genset} from '@/modules/genset/types/genset.type';
 import {fromSearchSchema} from '@/modules/site/types/fromSearch.type';

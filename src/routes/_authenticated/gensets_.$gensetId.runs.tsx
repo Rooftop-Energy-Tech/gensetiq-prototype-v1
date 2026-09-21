@@ -1,7 +1,7 @@
 import {createFileRoute, useNavigate, useParams} from '@tanstack/react-router';
 
 import {GensetRuns} from '@/modules/genset/components/runs/GensetRuns';
-import {gensetById} from '@/modules/genset/data/detail';
+import {gensetById} from '@/modules/genset/data/deployment';
 import {runsSearchSchema} from '@/modules/genset/types/runsView.type';
 import type {RunsSearch} from '@/modules/genset/types/runsView.type';
 import {fromSearchSchema, keepFrom} from '@/modules/site/types/fromSearch.type';

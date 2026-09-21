@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {ArrowRightIcon, CircleIcon, TruckIcon} from 'lucide-react';
+import {ArrowRightIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
 import {Badge} from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {amount, duration, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {DeploymentRow} from '../data/feed';
+import {DEPLOYMENT_STATE_META} from './stateMeta';
 
 const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
   <div className="flex items-center gap-px">
@@ -21,27 +22,30 @@ const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
 );
 
 /**
- * The posting preview beside the list, over the map, and under the Gantt.
+ * The job preview beside the list, over the map, and under the timeline.
  *
  * The registers' panels are the model and the rule is theirs: it states the facts a
- * pin cannot, and it carries a way out of itself. What differs is that a posting has
- * **two** ways out — the machine and the yard — and neither is more obviously the
- * one a reader wants. The arrow in the header opens the genset, because that is the
- * object the posting is *of*; the site is a link in the body.
+ * pin cannot, and it carries a way out of itself. The arrow in the header opens the
+ * **job's own page**, which is the one destination a preview of a job can have — it
+ * used to open the machine, and a job with three sets has no single machine to open.
  *
- * ## Why the totals are here and half of them are not in the table
+ * ## The machines are a list here and a count in the table
  *
- * Energy came off the table when it grew a fourth view, and it lives here. The table
- * is read down a column — every figure in it has to be worth the width on eighty
- * rows — and a panel is read about one thing, where the fourth figure costs a line
- * nobody else pays for. Same argument, opposite answer, which is what a preview is
- * for.
+ * A column has to be worth its width on eighty rows, so the table says `3 gensets`
+ * and puts the tags in a tooltip. A panel is read about one thing, so it can spend
+ * three lines naming them, each linking to the machine and each saying whether it has
+ * been collected. Same fact, opposite treatment, which is what a preview is for.
+ *
+ * The plate rides with the machine rather than with the job, because that is where it
+ * belongs: three sets on a job arrived on three lorries.
  */
 export const DeploymentDetailPanel = ({
   row,
+  now,
   className,
 }: {
   row: DeploymentRow | undefined;
+  now: number;
   className?: string;
 }) => (
   <aside
@@ -59,36 +63,39 @@ export const DeploymentDetailPanel = ({
       <>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="truncate font-medium text-primary">{row.tag}</h2>
-            <p className="truncate text-xs text-secondary">{row.model}</p>
+            <h2 className="truncate font-medium text-primary">{row.deployment.reference}</h2>
+            <p className="truncate text-xs text-secondary">{row.locationLabel}</p>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon-sm" className="size-7 shrink-0" asChild>
                 <Link
-                  to="/gensets/$gensetId"
-                  params={{gensetId: row.deployment.gensetId}}
-                  aria-label={`Open ${row.tag}`}
+                  to="/deployments/$deploymentId"
+                  params={{deploymentId: row.deployment.id}}
+                  aria-label={`Open ${row.deployment.reference}`}
                 >
                   <ArrowRightIcon aria-hidden="true" />
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left">Open genset</TooltipContent>
+            <TooltipContent side="left">Open deployment</TooltipContent>
           </Tooltip>
         </div>
 
-        {row.ongoing ? (
-          <Badge variant="element" className="border-subtle">
-            <CircleIcon className="text-severity-ok" aria-hidden="true" />
-            Deployed · {duration(row.elapsedMs)}
-          </Badge>
-        ) : (
-          <Badge variant="element" className="border-subtle">
-            <TruckIcon className="text-tertiary" aria-hidden="true" />
-            Completed · {duration(row.elapsedMs)}
-          </Badge>
-        )}
+        {(() => {
+          const meta = DEPLOYMENT_STATE_META[row.state];
+          const Icon = meta.icon;
+          return (
+            <Badge variant="element" className="border-subtle">
+              <Icon className={meta.iconClassName} aria-hidden="true" />
+              {meta.label}
+              {' · '}
+              {row.state === 'planned'
+                ? `in ${duration(row.startedMs - now)}`
+                : duration(row.elapsedMs)}
+            </Badge>
+          );
+        })()}
 
         <dl className="flex flex-col">
           <DetailRow label="Site">
@@ -100,50 +107,83 @@ export const DeploymentDetailPanel = ({
               {row.siteName}
             </Link>
           </DetailRow>
-          <DetailRow label="Location">{row.locationLabel}</DetailRow>
-          <DetailRow label="Out since">{stampDate(row.deployment.startedAt)}</DetailRow>
-          <DetailRow label="Collected">
-            {row.deployment.endedAt === null ? (
-              <span className="text-secondary">Still on site</span>
+          <DetailRow label={row.state === 'planned' ? 'Starts' : 'Out since'}>
+            {stampDate(row.deployment.startsAt)}
+          </DetailRow>
+          <DetailRow label={row.state === 'completed' ? 'Collected' : 'Agreed end'}>
+            {row.deployment.endsAt === null ? (
+              <span className="text-secondary">No agreed end</span>
             ) : (
-              stampDate(row.deployment.endedAt)
+              stampDate(row.deployment.endsAt)
             )}
           </DetailRow>
-          <DetailRow label="Lorry">{row.deployment.lorryPlate}</DetailRow>
         </dl>
 
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-2">
           <h3 className="font-medium text-primary">
-            What the posting cost
+            Gensets
             <span className="font-normal text-secondary">
               {' · '}
-              {row.totals.starts} start{row.totals.starts === 1 ? '' : 's'}
+              {row.members.length}
             </span>
           </h3>
 
-          <dl className="flex flex-col">
-            <DetailRow label="On load">{amount(row.totals.runtimeHours, 'h')}</DetailRow>
-            <DetailRow label="Energy">{amount(row.totals.energyKwh, 'kWh')}</DetailRow>
-            <DetailRow label="Fuel burned">
-              {amount(row.totals.fuelBurnedLitres, 'L')}
-            </DetailRow>
-            {/* The tank at each end of the posting, which is the pair of readings the
-                fuel figure above is reconciled against — and the one place this app
-                states the level a machine *left* with. `endFuelLitres` is null while
-                the posting is open, because the live level is telemetry rather than a
-                stored figure; see `DeploymentSession`. */}
-            <DetailRow label="Tank at start">
-              {amount(row.deployment.startFuelLitres, 'L')}
-            </DetailRow>
-            <DetailRow label="Tank at close">
-              {row.deployment.endFuelLitres === null ? (
-                <span className="text-secondary">—</span>
-              ) : (
-                amount(row.deployment.endFuelLitres, 'L')
-              )}
-            </DetailRow>
-          </dl>
+          {row.members.length === 0 ? (
+            <p className="text-secondary">
+              Nothing on this job yet. Its own page is where machines go on.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {row.members.map((member) => (
+                <li key={member.membership.id} className="flex items-baseline justify-between gap-2">
+                  <Link
+                    to="/gensets/$gensetId"
+                    params={{gensetId: member.membership.gensetId}}
+                    className="truncate rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+                  >
+                    {member.tag}
+                  </Link>
+                  <span className="shrink-0 text-xs text-tertiary">
+                    {member.collected ? 'collected' : member.membership.lorryPlate}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
+
+        {/* A planned job has no runs to report and no litres to account for. The
+            section is dropped rather than drawn with dashes in it, which is this app's
+            rule about offering only what is there. */}
+        {row.state !== 'planned' && (
+          <section className="flex flex-col gap-3">
+            <h3 className="font-medium text-primary">
+              What the job cost
+              <span className="font-normal text-secondary">
+                {' · '}
+                {row.totals.starts} start{row.totals.starts === 1 ? '' : 's'}
+              </span>
+            </h3>
+
+            <dl className="flex flex-col">
+              <DetailRow label="On load">{amount(row.totals.runtimeHours, 'h')}</DetailRow>
+              <DetailRow label="Energy">{amount(row.totals.energyKwh, 'kWh')}</DetailRow>
+              <DetailRow label="Fuel burned">{amount(row.totals.fuelBurnedLitres, 'L')}</DetailRow>
+              <DetailRow label="Fuel delivered">{amount(row.fuelDeliveredLitres, 'L')}</DetailRow>
+              {/* The figure the whole model exists to make readable: what the job
+                  produced against what it drank. Withheld rather than printed as
+                  `0.00` where nothing turned, because a ratio over no energy is not a
+                  ratio. */}
+              <DetailRow label="Efficiency">
+                {row.totals.energyKwh < 1 ? (
+                  <span className="text-secondary">Nothing on load yet</span>
+                ) : (
+                  `${(row.totals.fuelBurnedLitres / row.totals.energyKwh).toFixed(2)} L/kWh`
+                )}
+              </DetailRow>
+            </dl>
+          </section>
+        )}
       </>
     )}
   </aside>

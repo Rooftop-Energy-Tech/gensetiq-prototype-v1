@@ -1,7 +1,8 @@
 import {useMemo, useState} from 'react';
 
 import {downloadText} from '@/lib/download';
-import {gensetDeployments} from '../../data/deployments';
+import {gensetPostings} from '@/modules/deployment/data/store';
+import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import {gensetDetail} from '../../data/detail';
 import {gensetRuns, historyStart} from '../../data/history';
 import {runsCsv, runsCsvFilename} from '../../data/runsCsv';
@@ -41,17 +42,15 @@ export const GensetRuns = ({
   // thing the URL can name, and its window is exact — the totals under it have
   // to reconcile with the same posting's row on the dispatch feed, which a
   // day-granular custom range cannot promise.
-  const deployments = useMemo(() => gensetDeployments(genset.id), [genset.id]);
-  const deployment = deployments.find((candidate) => candidate.id === search.dep);
+  const postings = useMemo(() => gensetPostings(genset.id), [genset.id]);
+  const posting = postings.find((candidate) => candidate.deployment.id === search.dep);
+  const postingTo = posting === undefined ? null : postingEnd(posting);
   const range: RunRange =
-    deployment === undefined
+    posting === undefined
       ? runsRange(search, now, earliest)
       : {
-          from: Math.max(earliest, new Date(deployment.startedAt).getTime()),
-          to: Math.min(
-            now,
-            deployment.endedAt === null ? now : new Date(deployment.endedAt).getTime(),
-          ),
+          from: Math.max(earliest, new Date(posting.deployment.startsAt).getTime()),
+          to: Math.min(now, postingTo === null ? now : new Date(postingTo).getTime()),
           kind: 'deployment',
           requested: undefined,
         };
@@ -95,8 +94,8 @@ export const GensetRuns = ({
       energyNote={undefined}
       deploymentPicker={
         <DeploymentPicker
-          deployments={deployments}
-          selectedId={deployment?.id}
+          postings={postings}
+          selectedId={posting?.deployment.id}
           onSelect={(dep) => onSearchChange({...search, from: undefined, to: undefined, dep})}
         />
       }

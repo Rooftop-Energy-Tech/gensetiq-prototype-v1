@@ -9,32 +9,44 @@ import type {DeploymentSummary} from '../data/feed';
 import type {DeploymentSearch} from '../types/view.type';
 
 /**
- * The dispatch summary: **one row, read left to right** — the sites strip's shape,
+ * The deployment summary: **one row, read left to right** — the sites strip's shape,
  * and see `SitesSummaryCards` for the argument that a summary taking a fifth of the
  * viewport is a summary competing with its own subject.
  *
- * What it counts is this screen's own. The registers count *things*; a feed counts
- * *postings*, and the headline is therefore two numbers rather than one: how many
+ * What it counts is this screen's own. The registers count *things*; this counts
+ * *jobs*, and the headline is therefore two numbers rather than one: how many
  * machines are out, and how many yards they are standing in. Those are not the same
  * figure — two sets at one substation is one yard's worth of logistics and two
  * machines' worth of fuel — and a strip that gave only the first would be quietly
  * answering the easier question.
  *
- * ## The chips are the two states, and they filter
+ * The headline carries a third clause when there is one: **how many machines are
+ * committed to a job that has not started.** That figure did not exist while a
+ * deployment was only ever the present, and it is the one a dispatcher is caught out
+ * by, because a set that is free today may be booked from Thursday.
  *
- * `Deployed` and `Completed`, which is the whole of what a posting can be here. They
- * are `CountChip`s rather than a sentence for the reason the estate's status chips
- * are: they are the one part of the strip that *does* something, and clicking
- * `Deployed` narrows the table, the map and the Gantt together.
+ * ## The chips are the three states, and they filter
  *
- * ## Why mean posting length is on the strip
+ * `Planned`, `Deployed` and `Completed`, which is the whole of what a job can be.
+ * They are `CountChip`s rather than a sentence for the reason the estate's status
+ * chips are: they are the one part of the strip that *does* something, and clicking
+ * one narrows the table, the map and the timeline together.
+ *
+ * ## Why mean job length is on the strip
  *
  * It is the one figure here nobody can read off the list. Litres and hours are on
  * every row; how long a job *typically* runs is the fleet's own cadence, and it is
- * the number a dispatcher checks a quoted hire against. Measured over closed
- * postings only — an open one has not finished, and folding it in would drag the
- * mean down by however recently the last lorry left.
+ * the number a dispatcher checks a quoted hire against. Measured over closed jobs
+ * only — an open one has not finished, and folding it in would drag the mean down by
+ * however recently the last lorry left.
  */
+
+/** What each chip means, spelled out where a reader can hover it. */
+const CHIP_TITLE: Record<string, string> = {
+  planned: 'Booked to start later — the machines are committed and nothing has moved',
+  active: 'Standing now — the machines are at the site',
+  completed: 'Closed in the last 60 days',
+};
 
 type DeploymentsSummaryCardsProps = {
   summary: DeploymentSummary;
@@ -68,6 +80,7 @@ export const DeploymentsSummaryCards = ({
           {summary.deployedGensets === 1 ? 'genset' : 'gensets'} out
           {' · '}
           {summary.occupiedSites} {summary.occupiedSites === 1 ? 'site' : 'sites'}
+          {summary.committedGensets > 0 && ` · ${summary.committedGensets} committed`}
         </span>
       </p>
 
@@ -84,14 +97,10 @@ export const DeploymentsSummaryCards = ({
             key={tally.key}
             label={tally.label}
             count={tally.count}
-            tone={tally.key === 'ongoing' ? 'ok' : 'neutral'}
+            tone={tally.key === 'active' ? 'ok' : 'neutral'}
             active={search.state === tally.key}
             onToggle={(next) => onSearchChange({state: next ? tally.key : undefined})}
-            title={
-              tally.key === 'ongoing'
-                ? 'Postings still open — the machine is standing at the site'
-                : 'Postings closed in the last 60 days'
-            }
+            title={CHIP_TITLE[tally.key]}
           />
         ))}
       </div>
@@ -102,7 +111,7 @@ export const DeploymentsSummaryCards = ({
           getting through them. Plain text rather than chips — neither narrows
           anything, and a chip that does not filter is a button lying about itself. */}
       <p className="flex min-w-0 items-baseline gap-1.5 text-sm">
-        <span className="text-secondary">Typical posting</span>
+        <span className="text-secondary">Typical job</span>
         <span className="font-medium text-primary tabular-nums">
           {summary.meanCompletedMs === 0 ? '—' : durationCompact(summary.meanCompletedMs)}
         </span>
@@ -116,13 +125,14 @@ export const DeploymentsSummaryCards = ({
       </p>
 
       {/* Hard right on a wide row, and in reading order on a wrapped one. The one
-          item here that *leads somewhere else* rather than narrowing this feed, so it
-          keeps the arrow every other way-out in this app carries.
+          item here that *leads somewhere else* rather than narrowing this register, so
+          it keeps the arrow every other way-out in this app carries.
 
-          What it counts is the complement of everything left of it: a machine with no
-          open posting is standing in the yard, and on a fleet that hires plant out
-          that is the number a dispatcher is asked for when the phone rings. It leads
-          to the fleet register, because the next question is *which ones*. */}
+          What it counts is the complement of everything left of it: a machine on no
+          active job is standing in a yard with nobody paying for it, and on a fleet
+          that hires plant out that is the number a dispatcher is asked for when the
+          phone rings. It leads to the fleet register, because the next question is
+          *which ones*. */}
       <Link
         to="/gensets"
         search={gensetSearch()}
