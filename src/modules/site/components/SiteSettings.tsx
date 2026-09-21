@@ -7,7 +7,6 @@ import type {SitePowerRole} from '../types/site.type';
 import {setSitePowerRole, useSitePowerRole} from '../data/siteConfig';
 import type {SiteSummary} from '../data/sites';
 import {SiteIdentityPanel} from './settings/SiteIdentityPanel';
-import {SitePlantScene} from './SitePlantScene';
 import {SiteGensets} from './SiteGensets';
 
 /**
@@ -185,29 +184,11 @@ export const SiteSettings = ({summary}: {summary: SiteSummary}) => {
 
       <hr className="border-subtle" />
 
-      {/* The setting's own effect, drawn. Cheap — `SitePlantScene` is already a pure
-          function of `(summary, dutyId, role)` — and it is the most useful thing the
-          page can show: the choice above is about a picture, so the picture is the
-          argument. It uses the site's real duty set and real incomer reading, which is
-          why this is the site page's own scene rather than an illustration of one.
-
-          It was the single-line schematic until that was removed: a circuit of an
-          incomer, a bus and a set is a telco DC plant drawing, and this product puts a
-          genset in a yard. */}
-      <section aria-label="Site preview" className="flex flex-col gap-5 px-6 py-7">
-        <h2 className="text-sm font-medium text-primary">
-          {summary.site.name} as {ROLE_COPY[role].label.toLowerCase()}
-        </h2>
-
-        {summary.gensets.length === 0 && role === 'DIESEL_PRIME' ? (
-          <p className="text-sm text-secondary">
-            Nothing supplies this site. It is set to run on its own gensets and none are
-            fitted.
-          </p>
-        ) : (
-          <SitePlantScene summary={summary} dutyId={summary.defaultDutyId} role={role} />
-        )}
-      </section>
+      {/* There was a drawing of the setting's own effect here — first the single-line
+          schematic, then the plant scene — and both are gone for the same reason: a
+          mast, a bus and a cabinet line-up draw a telco site, and this product posts a
+          genset to a yard. The choice above states its effect in words on each card,
+          which is what it did in the caption anyway. */}
     </div>
   );
 };
