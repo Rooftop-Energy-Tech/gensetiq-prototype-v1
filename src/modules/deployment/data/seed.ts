@@ -14,6 +14,7 @@ import type {
   GensetPosting,
 } from '../types/deployment.type';
 import {postingEnd, windowsOverlap} from '../types/deployment.type';
+import {REAL_DEPLOYMENTS, REAL_GENSET_ID, REAL_MEMBERSHIPS} from './realJobs';
 
 /**
  * Deployment history, in place of the deployment API this prototype doesn't have.
@@ -75,7 +76,13 @@ const locationOf = (siteId: string): string =>
 const seededOccupancy = (): Map<string, Array<string>> => {
   const byYard = new Map<string, Array<string>>();
   for (const genset of GENSETS) {
-    if (genset.siteId === null) continue;
+    // A machine in the workshop stands at no yard. `fleet.ts` resolves that to `''`
+    // rather than `null`, so testing for `null` alone let the empty string through
+    // and dealt an active job at a yard called nothing.
+    if (!genset.siteId) continue;
+    // The measured machine is not dealt at all — its record is the eight postings in
+    // `realJobs.ts`, and a dealt job on top of them would be a ninth place it stood.
+    if (genset.id === REAL_GENSET_ID) continue;
     const members = byYard.get(genset.siteId) ?? [];
     members.push(genset.id);
     byYard.set(genset.siteId, members);
@@ -119,6 +126,12 @@ const deal = (): Dealt => {
   /** Every window a machine is already on, so nothing gets double-booked. */
   const committed = new Map<string, Array<Deployment>>();
 
+  // `free()` alone is not enough to keep the measured machine off the dealt record:
+  // it only refuses an *overlapping* window, and `BRF9540` has months of daylight
+  // between its eight postings that a dealt job would happily fill. Every pick below
+  // skips it by id, so its record is exactly what Express Mission's export says.
+
+
   const commit = (deployment: Deployment, gensetIds: Array<string>, salt: string) => {
     const startMs = new Date(deployment.startsAt).getTime();
     const endMs = deployment.endsAt === null ? null : new Date(deployment.endsAt).getTime();
@@ -136,6 +149,17 @@ const deal = (): Dealt => {
 
   const free = (gensetId: string, candidate: Deployment): boolean =>
     (committed.get(gensetId) ?? []).every((held) => !windowsOverlap(held, candidate));
+
+  // 0. The measured record, before anything is dealt. Committing it first is what
+  //    puts `BRF9540`'s eight windows into `committed`, so `free()` keeps every
+  //    dealt job off this machine without any other rule having to know about it.
+  for (const deployment of REAL_DEPLOYMENTS) {
+    deployments.push(deployment);
+    committed.set(REAL_GENSET_ID, [...(committed.get(REAL_GENSET_ID) ?? []), deployment]);
+  }
+  // Its memberships carry recorded tank readings rather than ladder ones, so they
+  // are pushed as they stand instead of going through `membership()`.
+  memberships.push(...REAL_MEMBERSHIPS);
 
   const occupancy = seededOccupancy();
   const yards = [...occupancy.keys()].sort();
@@ -201,6 +225,7 @@ const deal = (): Dealt => {
       const picked: Array<string> = [];
       for (let step = 0; step < GENSETS.length && picked.length < wanted; step += 1) {
         const genset = GENSETS[(offset + step) % GENSETS.length]!;
+        if (genset.id === REAL_GENSET_ID) continue;
         if (free(genset.id, candidate)) picked.push(genset.id);
       }
 
@@ -235,6 +260,7 @@ const deal = (): Dealt => {
     const picked: Array<string> = [];
     for (let step = 0; step < GENSETS.length && picked.length < wanted; step += 1) {
       const genset = GENSETS[(offset + step) % GENSETS.length]!;
+      if (genset.id === REAL_GENSET_ID) continue;
       if (free(genset.id, candidate)) picked.push(genset.id);
     }
 

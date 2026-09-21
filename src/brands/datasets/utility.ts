@@ -139,6 +139,19 @@ const SITES = [
   {id: 'pe-023', name: 'PE-023', kind: 'PE', locationLabel: 'Seremban, Negeri Sembilan',      latitude: 2.7297, longitude: 101.9381, loadKw: 266, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
   {id: 'pe-024', name: 'PE-024', kind: 'PE', locationLabel: 'Port Dickson, Negeri Sembilan',  latitude: 2.5228, longitude: 101.7960, loadKw: 109, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
   {id: 'pe-025', name: 'PE-025', kind: 'PE', locationLabel: 'Kuantan, Pahang',                latitude: 3.8077, longitude: 103.3260, loadKw: 187, customer: 'pahang',          powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+
+  // — The six yards `BRF9540` actually stood at, May–September 2026. Named as the
+  //   job sheet names them rather than `PE-0nn`: these came off Express Mission's
+  //   own deployment record, and `PE Kapar L. Ind Park` is what the operations room
+  //   says out loud. Their `loadKw` is the mean load the set carried there, read off
+  //   the controller — not a surveyed substation rating like the twenty-five above.
+  //   ⚠️ Coordinates are the placename's, not a survey.
+  {id: 'pe-026', name: 'PE Kapar L. Ind Park', kind: 'PE', locationLabel: 'Kapar, Selangor', latitude: 3.1167, longitude: 101.3833, loadKw: 44, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-027', name: 'PE Sek Men Vokasional Sg. Buloh', kind: 'PE', locationLabel: 'Sungai Buloh, Selangor', latitude: 3.2064, longitude: 101.5806, loadKw: 180, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-028', name: 'PE Taman Pantai Makmur 2', kind: 'PE', locationLabel: 'Pantai Makmur, Selangor', latitude: 3.1550, longitude: 101.3250, loadKw: 104, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-029', name: 'PE Tmn Sementa Jaya', kind: 'PE', locationLabel: 'Sementa, Selangor', latitude: 3.0900, longitude: 101.3600, loadKw: 347, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-030', name: 'PE Pusat Ternakan Itik', kind: 'PE', locationLabel: 'Jeram, Selangor', latitude: 3.2167, longitude: 101.3167, loadKw: 22, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-031', name: 'PE Alam Perdana No 3', kind: 'PE', locationLabel: 'Bandar Puncak Alam, Selangor', latitude: 3.2300, longitude: 101.4200, loadKw: 172, customer: 'selangor', powerRole: 'GRID_BACKUP'},
 ] as const;
 
 /**
@@ -206,6 +219,20 @@ const GENSETS = [
   {tag: 'PRK-954710', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-023', locationLabel: 'Seremban, Negeri Sembilan',    latitude: 2.7297, longitude: 101.9381, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9,  plateNumber: 'NHA 1169'},
   {tag: 'DNY-566998', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-024', locationLabel: 'Port Dickson, Negeri Sembilan',latitude: 2.5228, longitude: 101.7960, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'NKC 3446'},
   {tag: 'DNY-619585', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-025', locationLabel: 'Kuantan, Pahang',              latitude: 3.8077, longitude: 103.3260, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 27, plateNumber: 'CLB 9831'},
+
+  // — The one real machine on this estate. —
+  //
+  // `BRF9540` is not dealt. Every figure on it is read off Express Mission's own
+  // gateway, `em-gw-001`, exported 2026-09-21: its eight postings, their windows and
+  // their tank readings are in `deployment/data/realJobs.ts`, and its runs are the
+  // engine actually turning, in `history.ts`. Nothing else in this file is measured.
+  //
+  // **It stands at no yard.** Its last posting closed on 16 September and it has not
+  // been sent out since, which is what `siteId: undefined` means — the machine is
+  // back in the workshop, and it is the only row here in that state. Its
+  // `fuelLitres` is a real gauge reading rather than a chosen number: 1,428 L, the
+  // level when it came off PE Alam Perdana No 3.
+  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 1428, fuelCapacityLitres: 2450, staleMinutes: 7_400, plateNumber: 'BRF9540'},
 ] as const;
 
 export const UTILITY_DATASET: BrandDataset = {

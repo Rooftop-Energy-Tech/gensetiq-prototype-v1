@@ -4,6 +4,7 @@ import {GENSETS, seededGenset} from './fleet';
 import {READING_SWING, gensetDetail, sfcLitresPerKwh} from './detail';
 import {lossRateOf, lossStartedHoursAgo} from './fuelInstruments';
 import {spread, spreadBetween} from './spread';
+import {REAL_GENSET_ID, REAL_RUNS} from '@/modules/deployment/data/realJobs';
 
 /**
  * The past, in place of the time-series API this prototype doesn't have.
@@ -79,6 +80,15 @@ const CLOCK = Date.now();
  * broken by an outage, so the gaps are the long part.
  */
 const buildRuns = (gensetId: string): Array<GensetRun> => {
+  // The measured machine's runs are the engine actually turning on its eight
+  // postings — newest first, like every other log here. Nothing is dealt on top: a
+  // generated run between two real ones would be an outage that never happened.
+  if (gensetId === REAL_GENSET_ID) {
+    return [...REAL_RUNS]
+      .reverse()
+      .map(({meanLoadKw: _mean, peakLoadKw: _peak, ...run}) => run);
+  }
+
   const detail = gensetDetail(gensetId);
   if (detail === undefined) return [];
 
@@ -420,6 +430,22 @@ const fuelLadder = (gensetId: string): Array<number> => {
  * and one day of a sixty-day grid is ninety-six additions.
  */
 export const meteredBurn = (gensetId: string, from: number, to: number): number => {
+  // The measured machine's burn is what the tank actually fell by on each posting,
+  // prorated across the run. Re-deriving it from SFC × load would put a *third*
+  // figure on a page that already states two measured ones — the gauge readings at
+  // the window's edges — and they disagreed by 235 L on the first job alone.
+  if (gensetId === REAL_GENSET_ID) {
+    let total = 0;
+    for (const run of REAL_RUNS) {
+      const startMs = new Date(run.startedAt).getTime();
+      const endMs = new Date(run.endedAt).getTime();
+      if (endMs <= startMs) continue;
+      const clipped = Math.max(0, Math.min(endMs, to) - Math.max(startMs, from));
+      total += run.fuelConsumedLitres * (clipped / (endMs - startMs));
+    }
+    return total;
+  }
+
   const runs = gensetRuns(gensetId);
   const ratedKw = gensetDetail(gensetId)?.ratedKw ?? 0;
   const hours = LADDER_STEP / HOUR;

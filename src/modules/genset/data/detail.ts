@@ -21,6 +21,7 @@ import type {
 import {GENSETS} from './fleet';
 import {seededHoursSinceService} from './serviceSeed';
 import {spread} from './spread';
+import {REAL_GENSET_ID, REAL_RUNS} from '@/modules/deployment/data/realJobs';
 
 /**
  * Everything the genset home page needs beyond the fleet row, in place of the
@@ -1122,6 +1123,17 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
   // rather than overwrite the reading afterwards. Forcing `active-power` at the end
   // would leave the gauge reading 928 kW over a run costed at 205 kW's worth of
   // diesel — the one thing this file exists to prevent. Setting it here instead
+  // The newest measured run, for the one machine that has any. `undefined` for every
+  // other id, which is what keeps the branches below on their generated path.
+  const newestRealRun =
+    genset.id === REAL_GENSET_ID ? REAL_RUNS[REAL_RUNS.length - 1] : undefined;
+  const realRunHours =
+    newestRealRun === undefined
+      ? 0
+      : (new Date(newestRealRun.endedAt).getTime() -
+          new Date(newestRealRun.startedAt).getTime()) /
+        HOUR;
+
   // carries through to the burn rate, the phase currents and the runway together.
   const overloadFraction = Math.max(
     0,
@@ -1130,29 +1142,47 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
     ),
   );
 
-  // `BRF9540` is pinned to 205 kW because that is the load whose fuel rate puts its
-  // run at the design's "12 hours"; every other unit takes a stable 22–55% of
+  // `BRF9540` used to be pinned to 205 kW — the load whose fuel rate put its run at
+  // the design's "12 hours" — back when that id named the Figma frame's fixture. It
+  // names a **measured** machine now, so the pin is the load the set actually
+  // carried on its last posting. Every other unit takes a stable 22–55% of
   // nameplate, or whatever its overload alarm says it is carrying.
   const loadFraction = 0.22 + spread(genset.id, 'load') * 0.33;
   const loadKw =
-    genset.id === 'brf9540'
-      ? 205
+    genset.id === REAL_GENSET_ID
+      ? (newestRealRun?.meanLoadKw ?? 0)
       : Math.round(ratedKw * (overloadFraction > 0 ? overloadFraction : loadFraction));
   const litresPerHour = Math.round(sfcLitresPerKwh(loadKw / ratedKw) * loadKw * 10) / 10;
 
   // Run length: how long the engine has been turning (open run) or was turning
   // (closed run). 3–14 hours — see `RUN_HOURS_MAX` in `history.ts` for why a single
   // run does not pass about half a day. `BRF9540` is pinned to the design's 12.
-  const runHours = genset.id === 'brf9540' ? 12 : 3 + Math.round(spread(genset.id, 'runHours') * 11);
+  const runHours =
+    genset.id === REAL_GENSET_ID
+      ? realRunHours
+      : 3 + Math.round(spread(genset.id, 'runHours') * 11);
   const lastUpdatedMs = new Date(genset.lastUpdated).getTime();
   // A closed run ended when the engine stopped, which is the event the fleet's
   // newest activity entry records — so anchor it to `lastUpdated` rather than to
   // `now`, or a unit idle for two days would show a run that ended this minute.
-  const endedMs = running ? null : lastUpdatedMs;
-  const startedMs = (endedMs ?? now) - runHours * HOUR;
+  // The measured machine's last run is not anchored to `lastUpdated` but *is* the
+  // newest run in its log — the same object the Runs tab lists first. The whole
+  // point of the anchor below is that the card and the log cannot drift, and for
+  // this one machine the log is the thing that is true.
+  const endedMs = running
+    ? null
+    : genset.id === REAL_GENSET_ID && newestRealRun !== undefined
+      ? new Date(newestRealRun.endedAt).getTime()
+      : lastUpdatedMs;
+  const startedMs =
+    genset.id === REAL_GENSET_ID && newestRealRun !== undefined
+      ? new Date(newestRealRun.startedAt).getTime()
+      : (endedMs ?? now) - runHours * HOUR;
 
   const run: GensetRun = {
-    id: `${genset.id}-run-current`,
+    id: genset.id === REAL_GENSET_ID && newestRealRun !== undefined
+      ? newestRealRun.id
+      : `${genset.id}-run-current`,
     gensetId: genset.id,
     startedAt: new Date(startedMs).toISOString(),
     endedAt: endedMs === null ? null : new Date(endedMs).toISOString(),
@@ -1160,8 +1190,14 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
     // these are the run's *totals*, not a reconciliation of the tank level: a
     // genset meters fuel at the injector and level at the tank, and the two are
     // separate instruments.
-    energyProducedKwh: Math.round(loadKw * runHours),
-    fuelConsumedLitres: Math.round(litresPerHour * runHours),
+    energyProducedKwh:
+      genset.id === REAL_GENSET_ID && newestRealRun !== undefined
+        ? newestRealRun.energyProducedKwh
+        : Math.round(loadKw * runHours),
+    fuelConsumedLitres:
+      genset.id === REAL_GENSET_ID && newestRealRun !== undefined
+        ? newestRealRun.fuelConsumedLitres
+        : Math.round(litresPerHour * runHours),
   };
 
   // Refuel runway: litres above the reserve line, divided by the burn rate.
