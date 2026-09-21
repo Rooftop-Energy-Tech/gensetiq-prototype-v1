@@ -1,4 +1,5 @@
 import {Link} from '@tanstack/react-router';
+import {ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon} from 'lucide-react';
 import {useEffect} from 'react';
 import type {KeyboardEvent, RefObject} from 'react';
 
@@ -9,6 +10,7 @@ import {RunStateBadge} from './RunStateBadge';
 import {useFleetAlarmCounts} from '../data/alarmViews';
 import type {AlertSeverity} from '../types/alert.type';
 import {gensetLabel} from '../types/genset.type';
+import type {GensetSort, GensetSortDirection} from '../types/view.type';
 import type {Genset} from '../types/genset.type';
 
 type GensetsTableProps = {
@@ -25,6 +27,14 @@ type GensetsTableProps = {
    * screen — see `useVisibleRowIds`. Optional, because the list-only view has no
    * map to drive and nothing to observe with.
    */
+  sort: GensetSort;
+  direction: GensetSortDirection;
+  /**
+   * A header was clicked. The page decides what that means — a new key takes its own
+   * natural direction, the key already showing flips — so the two registers cannot
+   * answer the same click differently. See `changeSort` in the sites page.
+   */
+  onSortChange: (next: GensetSort) => void;
   scrollRef?: RefObject<HTMLDivElement | null>;
   /**
    * Called just before this table scrolls itself, so the page can tell a scroll it
@@ -47,29 +57,39 @@ type GensetsTableProps = {
 const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
 
 const COLUMNS = [
-  {label: 'Genset name', width: '27%', dense: '38%', beside: true},
+  {label: 'Genset name', width: '27%', dense: '38%', beside: true, sort: 'name'},
   // `Alarm` sits next to run state because the two together are the row's verdict:
   // what the machine is doing, and what is standing against it. It read `Health` —
   // the `GensetCondition` verdict — until 2026-09-14 and now draws the counts, for
   // the reasons `SitesTable` and `SolarTable` give: the verdict is this app's
   // summary over the rows, and a register is read to find work, so it shows the
   // rows. The pill is a link to the set's own Alarms tab.
-  {label: 'Run state', width: '13%', dense: '20%', beside: true},
-  {label: 'Alarm', width: '14%', dense: '20%', beside: true},
-  {label: 'Fuel level', width: '14%', dense: '22%', beside: true},
+  {label: 'Run state', width: '13%', dense: '20%', beside: true, sort: 'state'},
+  {label: 'Alarm', width: '14%', dense: '20%', beside: true, sort: undefined},
+  {label: 'Fuel level', width: '14%', dense: '22%', beside: true, sort: 'fuel'},
   // `beside: false` — dropped in the split view, kept on the full-width list. Both
   // truncated to nothing useful beside the map: `Bangsar S…` and `1 hour …` are the
   // halves of each that carry no meaning. `SolarTable` drops `Capacity` and
   // `SitesTable` drops `Fuel on site` the same way and for the same reason — a
   // column dropped is a fact a reader can still get to, a column mangled is one
   // they cannot read at all.
-  {label: 'Location', width: '18%', dense: '0%', beside: false},
-  {label: 'Last updated', width: '14%', dense: '0%', beside: false},
-] as const;
+  {label: 'Location', width: '18%', dense: '0%', beside: false, sort: undefined},
+  {label: 'Last updated', width: '14%', dense: '0%', beside: false, sort: undefined},
+] as const satisfies ReadonlyArray<{
+  label: string;
+  width: string;
+  dense: string;
+  beside: boolean;
+  /** The key this header sorts by, or `undefined` where the column is not sortable. */
+  sort: GensetSort | undefined;
+}>;
 
 export const GensetsTable = ({
   gensets,
   wide,
+  sort,
+  direction,
+  onSortChange,
   selectedId,
   onSelect,
   scrollRef,
@@ -135,15 +155,66 @@ export const GensetsTable = ({
         </colgroup>
         <thead>
           <tr>
-            {columns.map((column) => (
-              <th
-                key={column.label}
-                scope="col"
-                className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas px-2 text-left font-medium whitespace-nowrap text-secondary"
-              >
-                {column.label}
-              </th>
-            ))}
+            {columns.map((column) => {
+              const active = column.sort !== undefined && column.sort === sort;
+              const Icon = !active
+                ? ChevronsUpDownIcon
+                : direction === 'asc'
+                  ? ArrowUpIcon
+                  : ArrowDownIcon;
+
+              return (
+                <th
+                  key={column.label}
+                  scope="col"
+                  // `none` on the sortable-but-inactive ones and omitted entirely on
+                  // the three that cannot sort. That distinction is the point: `none`
+                  // announces "this is a control you have not used", and putting it on
+                  // `Location` would offer a screen-reader user a header that does
+                  // nothing when clicked.
+                  aria-sort={
+                    column.sort === undefined
+                      ? undefined
+                      : active
+                        ? direction === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                  }
+                  className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas px-2 text-left font-medium whitespace-nowrap text-secondary"
+                >
+                  {column.sort === undefined ? (
+                    column.label
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onSortChange(column.sort)}
+                      className={cn(
+                        'group/sort -mx-1 flex cursor-pointer items-center gap-1 rounded-sm px-1 py-0.5',
+                        'transition-colors outline-none hover:text-primary',
+                        'focus-visible:ring-2 focus-visible:ring-outline',
+                        active && 'text-primary',
+                      )}
+                    >
+                      {column.label}
+                      <Icon
+                        className={cn(
+                          'size-3.5 shrink-0 transition-opacity',
+                          !active &&
+                            'opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100',
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="sr-only">
+                        {active
+                          ? `Sorted by ${column.label.toLowerCase()} — click to reverse`
+                          : `Sort by ${column.label.toLowerCase()}`}
+                      </span>
+                    </button>
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

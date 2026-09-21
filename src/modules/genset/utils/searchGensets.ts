@@ -4,7 +4,8 @@ import {gensetStatus} from '../data/fleetStatus';
 import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
 import {RUN_STATES} from '../types/genset.type';
-import type {GensetSort} from '../types/view.type';
+import {GENSET_SORT_DEFAULT_DIRECTION} from '../types/view.type';
+import type {GensetSort, GensetSortDirection} from '../types/view.type';
 import type {Genset} from '../types/genset.type';
 
 /** What the chips above the list narrow by. Every field is optional and ANDs. */
@@ -62,10 +63,16 @@ const stateRank = (genset: Genset) => RUN_STATES.indexOf(genset.runState);
 export const sortGensets = (
   gensets: Array<Genset>,
   sort: GensetSort = 'state',
+  direction: GensetSortDirection = GENSET_SORT_DEFAULT_DIRECTION[sort],
 ): Array<Genset> => {
+  const flip = direction === 'desc' ? -1 : 1;
   const byName = (a: Genset, b: Genset) => a.tag.localeCompare(b.tag);
 
-  if (sort === 'name') return [...gensets].sort(byName);
+  // The tiebreak is **not** flipped. Reversing a sort should reverse the thing it
+  // sorts by and leave the tiebreak alone: with `desc` on `state`, an operator still
+  // reads the serials A to Z inside each run state, and flipping both would shuffle
+  // rows that did not change rank. The sites register does the same.
+  if (sort === 'name') return [...gensets].sort((a, b) => flip * byName(a, b));
 
   if (sort === 'fuel') {
     const level = (genset: Genset) =>
@@ -73,10 +80,12 @@ export const sortGensets = (
         ? genset.fuelLitres / genset.fuelCapacityLitres
         : Number.POSITIVE_INFINITY;
 
-    return [...gensets].sort((a, b) => level(a) - level(b) || byName(a, b));
+    return [...gensets].sort((a, b) => flip * (level(a) - level(b)) || byName(a, b));
   }
 
-  return [...gensets].sort((a, b) => stateRank(a) - stateRank(b) || byName(a, b));
+  return [...gensets].sort(
+    (a, b) => flip * (stateRank(a) - stateRank(b)) || byName(a, b),
+  );
 };
 
 /**

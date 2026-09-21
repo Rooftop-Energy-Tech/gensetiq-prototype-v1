@@ -17,8 +17,12 @@ export const SITE_ROLE_FILTERS = ['GRID_BACKUP', 'DIESEL_PRIME'] as const;
  * How the register is ordered. `alarms` is the default and the list's own ranking.
  *
  * Three, because three is what the columns can answer for: who the site is, what is
- * standing against it, and whether it needs a tanker. Each runs one way — see
- * `SortSelect` on why a direction toggle is not offered.
+ * standing against it, and whether it needs a tanker — and the control is those
+ * columns' own headers, so the set of keys and the set of sortable columns are the
+ * same set by construction.
+ *
+ * Each key has a natural direction and can be flipped from it — see
+ * `SITE_SORT_DEFAULT_DIRECTION`.
  */
 export const SITE_SORTS = ['alarms', 'name', 'fuel'] as const;
 

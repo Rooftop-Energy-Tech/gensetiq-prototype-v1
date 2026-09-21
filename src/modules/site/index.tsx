@@ -13,7 +13,8 @@ import {SitesCards} from './components/SitesCards';
 import {SitesSummaryCards} from './components/SitesSummaryCards';
 import {SitesTable} from './components/SitesTable';
 import {SitesToolbar} from './components/SitesToolbar';
-import type {SiteSearch} from './types/view.type';
+import {SITE_SORT_DEFAULT_DIRECTION} from './types/view.type';
+import type {SiteSearch, SiteSort} from './types/view.type';
 
 /**
  * MapLibre is ~800 kB, and it is on this route's first paint now that the split
@@ -66,7 +67,10 @@ type SitesPageProps = {
  * share — came down into the strip with it. See `SitesSummaryCards`.
  */
 export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
-  const {view, q = '', id, panel, customer, role, status, program, sort} = search;
+  const {view, q = '', id, panel, customer, role, status, program, sort, dir} = search;
+
+  // Absent `dir` means the key's own grain — see `SITE_SORT_DEFAULT_DIRECTION`.
+  const direction = dir ?? SITE_SORT_DEFAULT_DIRECTION[sort];
 
   // Keyed on the summaries as well as the query: attaching or detaching a genset
   // changes a site's genset count and its fuel, and moves the machine's alarms from
@@ -128,8 +132,9 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         filterSites(searchSites(all, q), {customer, role, status, program}, roles),
         alarmCounts,
         sort,
+        direction,
       ),
-    [all, q, customer, role, status, program, roles, alarmCounts, sort],
+    [all, q, customer, role, status, program, roles, alarmCounts, sort, direction],
   );
 
   // Resolved against the *filtered* list, not the whole estate: if a search hides
@@ -169,6 +174,27 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
   // deliberate one.
   const selectSite = (next: string) => onSearchChange({id: next, panel: true});
 
+  /**
+   * A column header was clicked.
+   *
+   * A new column picks up its own natural direction — worst alarms first, emptiest
+   * tank first, A to Z — because that is the answer somebody clicking `Fuel on site`
+   * came for, and making them click twice to get it would be the control asking a
+   * question it already knows the answer to. The column that is already the order
+   * flips instead, which is the only way to reach the other end of it.
+   *
+   * `dir: undefined` rather than the key's default written out: the default belongs
+   * to the key, so storing it would put a redundant `dir` in every shared URL and
+   * freeze today's grain into yesterday's link.
+   */
+  const changeSort = (next: SiteSort) => {
+    if (next === sort) {
+      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc'});
+      return;
+    }
+    onSearchChange({sort: next, dir: undefined});
+  };
+
   // Clicking the basemap puts the selection down and the preview away — the fleet
   // screen's rule and its reasoning, including why `panel` returns to unset rather
   // than to `false`.
@@ -189,6 +215,9 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
         panelOpen={panelOpen}
         onPanelOpenChange={(next) => onSearchChange({panel: next})}
         showViewControls={!compact}
+        // The table's headers are the sort control wherever the table is drawn, so
+        // the dropdown only appears where it is not: the phone's card list, and the
+        // map-only view. See `SitesTable`.
         summary={summary}
         search={search}
         onSearchChange={onSearchChange}
@@ -220,6 +249,9 @@ export const SitesPage = ({search, onSearchChange}: SitesPageProps) => {
                   roles={roles}
                   selectedId={id}
                   onSelect={selectSite}
+                  sort={sort}
+                  direction={direction}
+                  onSortChange={changeSort}
                   scrollRef={listRef}
                   onBeforeAutoScroll={suppress}
                 />
