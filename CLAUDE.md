@@ -67,24 +67,69 @@ Commit messages here are a sentence about the product, in the present tense —
 
 ## Working alongside other Claude sessions
 
-**The owner often runs several sessions against this prototype at once.** Assume
-another agent is editing this repo while you are, and that it cannot see you.
+**The owner often runs several sessions against this prototype at once.**
+Assume another agent is editing this repo while you are, and that it cannot
+see you. That is the normal condition here, not an incident.
 
-- **Never `git add -A`, `git add .`, or `git commit -a`.** Another session's
-  half-written file is one command away from landing in your commit under your
-  message. Stage the exact paths you touched, by name.
-- **Before you commit, re-read what you are about to stage.** If a file you edited
-  has changed since you read it, someone else is in it — say so and stop rather than
-  committing over them.
-- **A failed `git` command may be a race, not a fault.** `Unable to create
-  '.git/index.lock': File exists` means another session is mid-commit. Wait and
-  retry once; do not delete the lock file.
-- **Do not start a dev server that is already running.** Ports 3400–3404 are one per
-  brand, and a second session's server on the same port will refuse to start —
-  attach to the running one instead of picking a new port, or the owner ends up with
-  two builds and no idea which tab is which.
-- **Say which files you changed when you finish.** It is how the owner reconciles
-  two sessions that touched the same page.
+**Every rule below ends in a move.** If you are about to finish a turn with
+"another session is editing this, tell me how to proceed", you have missed the
+rule that covers it. Waiting for the tree to go quiet is not a plan — it does
+not go quiet.
+
+### Committing
+
+- **Stage the exact paths you touched, by name.** Never `git add -A`,
+  `git add .` or `git commit -a`. Another session's half-written file is one
+  command away from ending up in your commit under your message.
+- **Commit as soon as your change verifies.** Do not hold work back because
+  the tree is dirty. The dirt belongs to someone else and it will still be
+  there later; everyone committing their own paths promptly is the only thing
+  that clears it.
+- **Do not push.** Pushing is the owner's call.
+- **A file you edited has also been edited by someone else — commit it
+  anyway**, and name their hunks in the commit body: which lines are not
+  yours, and what they appear to do. A commit that says plainly it contains
+  two changesets is worth more than a tree nobody will commit.
+- **Your file imports one they have not committed yet — commit yours**, and
+  say in your report that the tree will not build standalone until theirs is
+  committed. Do not commit their file for them, and do not wait.
+- **`Unable to create '.git/index.lock': File exists` is a race, not a
+  fault.** Another session is mid-commit. Wait a few seconds and retry once.
+  Never delete the lock file.
+- Never force-push or rewrite history.
+
+### Verifying
+
+- **A typecheck or build error in a file you never opened is not yours.**
+  Check it against `git diff --name-only` rather than assuming. If the failing
+  file is not in your set, retry once after a pause — in-flight edits usually
+  settle within a minute — then report it as another session's and move on. Do
+  not debug it, and do not treat it as a blocker on your own change.
+- **A blank screen or a stale HMR error is often a half-saved file, not a
+  break.** Reload before concluding anything.
+- **The dev server on 3400 belongs to whoever started it.** Do not kill it,
+  and do not restart it to pick up your change.
+- **If 3400 is taken, it is another session's — serve your own on 3450** with
+  `bun run build && bunx vite preview --port 3450`, and say which port you are
+  on when you report. Two servers is fine; two servers and no way to tell them
+  apart is not.
+
+### Reporting
+
+- **Say which files you changed.** It is how the owner reconciles two sessions
+  that touched the same page.
+- **Mention another session's work only when it affects the owner**: it
+  blocked you, it changed something you built, or it is sitting uncommitted
+  alongside your commit. An inventory of every foreign file you noticed is
+  noise — the owner knows the other session is there, because they started it.
+
+### When the rules genuinely run out
+
+Two sessions rewriting the same module at the same time is the one case these
+rules do not cover. Say so plainly, name the files, and put the choice to the
+owner: sequence the two, or open a channel with the `coordinate` skill (the
+`skill-coordinate` repo, mounted at `.claude/skills/coordinate/`). That is an
+answer. "Another session is editing this" on its own is not.
 
 ## Before you say you are done
 
