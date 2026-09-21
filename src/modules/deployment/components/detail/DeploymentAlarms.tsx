@@ -85,7 +85,7 @@ export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) 
         <p className="max-w-3xl rounded-lg border border-dashed border-subtle px-4 py-6 text-center text-sm text-secondary">
           {row.state === 'active'
             ? 'Nothing standing. The controllers on this job are reporting and asserting nothing.'
-            : 'Nothing on the record for this window. Alarms here are what is asserting now rather than a log, so a closed job usually has none.'}
+            : 'Nothing on the record for this window. Alarms here are a live view of what is asserting now, so a closed job usually has none.'}
         </p>
       ) : (
         <div className="max-w-3xl">

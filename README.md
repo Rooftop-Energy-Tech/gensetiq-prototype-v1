@@ -81,7 +81,7 @@ has to keep working after the next feature lands — which makes it config.
 ### The SESB brand is not the SESB branch restored
 
 Worth knowing before you show it. `feat/sesb-demo` had a two-entry power vocabulary
-(`STANDBY` / `PRIME`) and a `/deployment` screen for hire sets on the move. The
+(`STANDBY` / `PRIME`) and a `/deployments` register for hire sets on the move. The
 current product replaced the first with four configurations and removed the second.
 
 So the `sesb` brand is **SESB's places and machines under today's product**, not a
@@ -104,7 +104,7 @@ started as, and the difference works through the whole app:
 | --- | --- | --- |
 | Rail leads with | Gensets, then Deployment | **Sites**, and it both counts and lists the estate |
 | A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
-| `/deployment` screen | the dispatch feed, four views | **gone**, see `Sidebar.tsx` |
+| `/deployments` register | the jobs, four views | **gone**, see `Sidebar.tsx` |
 | The estate summary's second question | the dispatch position | **energy** — solar's share of what carried the load |
 | Site load | 40–740 kW substations | **3–205 kW**, mostly 4–6 kW towers |
 | Genset plant | 250–1,250 kVA | **15–60 kVA**, two 500/1,000 kVA at the switching centres |
@@ -433,12 +433,19 @@ behind the code is worse than no bench, because a reader trusts it.
 | Sites — list | `/sites?view=list` | 17 sites, worst standing alarm first, with the alarm pill as a column. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Sites — map | `/sites?view=map` | One pin per yard, coloured by the site's status bucket and sized by how many sets stand there. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
 | Site home | `/sites/<id>` | Matches the Figma frame: the site's single-line diagram, then one row per genset with its run and its controls. All 17 sites have one. |
-| Site settings | `/sites/<id>/settings` | How the site is fed and which gensets stand on it. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design) and [gensets](#attaching-and-detaching-gensets). |
+| Site settings | `/sites/<id>/settings` | How the site is fed, which gensets stand on it and under which job, and a way to start one. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design). |
+| Site deployments | `/sites/<id>/deployments` | Every job this yard has held, newest first — the answer to "have we had a set here before". Not a Figma frame. |
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
 | Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
-| Deployment — list | `/deployment?view=list` | The dispatch feed: a row per posting, ongoing first, seven columns with the headers as the ordering control. Not a Figma frame. |
-| Deployment — map | `/deployment?view=map` | One pin per **posting**, open in green and closed in grey, so a yard that has held four sets is four pins. Not a Figma frame. |
-| Deployment — timeline | `/deployment?view=gantt` | One lane per machine, one bar per posting, on a week-ticked axis. The only view that draws depot time — see [how-it-works](docs/how-it-works.md#the-dispatch-feed). |
+| Deployments — list | `/deployments?view=list` | The register: a row per **job**, the ones standing first, six columns with the headers as the ordering control. Not a Figma frame. |
+| Deployments — map | `/deployments?view=map` | One pin per job, green standing, brand-tinted booked, grey closed, sized by how much plant is on it. Not a Figma frame. |
+| Deployments — timeline | `/deployments?view=gantt` | One lane per machine, one bar per job it is on, on a week-ticked axis that runs past today. The only view that draws depot time — see [how-it-works](docs/how-it-works.md#the-deployments-register). |
+| Deployment home | `/deployments/<id>` | The job: its window, its state, what it cost in hours, energy and litres, the ratio between the last two, and the machines on it. Not a Figma frame. |
+| Deployment gensets | `/deployments/<id>/gensets` | **Where machines go on and come off.** The candidate list offers what is free for the window and names the job blocking anything that is not. |
+| Deployment runs | `/deployments/<id>/runs` | The runs of its machines inside the window. No range picker: the window is the job. |
+| Deployment alarms | `/deployments/<id>/alarms` | The site's own queue, filtered to this job's machines and window. |
+| Deployment settings | `/deployments/<id>/settings` | The reference, the yard, the dates, close, and delete (a booking only). |
+| `/deployment` | → `/deployments` | The singular path redirects, so links in decks and docs keep working. |
 | Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
 | Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
 | Report — Genset | `/report/genset` | The engines over the same thirty days: hours, what each set burns per kilowatt-hour at the loading it holds, what part load costs the fleet in litres, diesel unaccounted for, and what is falling due. Not a Figma frame — same. |
@@ -471,8 +478,10 @@ through it:
 /gensets/brf9540/runs?from=2026-07-01&to=2026-07-31   # the range an export covers
 /sites?q=senai                        # sites list, filtered
 /sites?view=map&id=port-016&panel=true # one yard on the map, its preview open
-/deployment?state=ongoing             # the dispatch feed, only what is out
-/deployment?view=gantt&customer=east  # one division's postings on the timeline
+/deployments?state=active             # the register, only what is standing
+/deployments?state=planned            # what is booked and has not started
+/deployments?view=gantt&customer=east # one division's jobs on the timeline
+/deployments/ppu-013-job-0/gensets    # one job's machines, and the way to change them
 /sites/telco-001                      # the site page the Figma frame draws
 /sites/telco-001/runs?window=7d       # every set here, one log
 /solar?q=kedah                        # the solar register, filtered
@@ -1104,25 +1113,30 @@ Five things worth knowing, in order of how much they matter.
    colleague opening the same site sees the default. It does not sync, and the page says
    so rather than implying a server.
 
-### Attaching and detaching gensets
+### Putting gensets on a job
 
 The design has no such control, and the app had no way to express one: `Genset.siteId`
-was seeded and permanent. The Settings tab's own placeholder promised "which gensets
-are installed here", so this is the other half of that page.
+was seeded and permanent. It then became a `localStorage` override a site's Settings tab
+could write, which placed a machine with **no window** behind it — and a window is the
+thing a hire fleet is managed in. So the control moved to the job: a machine goes on a
+deployment from `/deployments/<id>/gensets`, and `Genset.siteId` is **derived** from
+whichever membership is active. A site offers one control now, and it starts a job.
 
-Six things worth knowing.
+Seven things worth knowing.
 
-1. **Attaching moves the machine.** A site is a customer's *yard* — `fleet.ts` puts
-   co-sited units within a hundred metres of each other because that is what sharing a
-   site means. So a set takes on the site's placename and a spot in its yard, and its
-   pin moves on the fleet map. That is forced rather than chosen: membership you could
-   set without moving anything would let a Penang set belong to a Petaling Jaya site,
-   and every figure that made a site *a place* would describe two places at once. The
-   picker says so — *"Attaching moves the set to Kota Bharu, Kelantan."*
+1. **A job going active moves its machines.** A site is a customer's *yard* —
+   `fleet.ts` puts co-sited units within a hundred metres of each other because that is
+   what sharing a site means. So a set takes on the site's placename and a spot in its
+   yard, and its pin moves on the fleet map. That is forced rather than chosen:
+   membership you could set without moving anything would let a Penang set belong to a
+   Petaling Jaya site, and every figure that made a site *a place* would describe two
+   places at once.
 
-   **Detaching moves nothing.** The set goes to the depot but is still standing in that
-   yard until somebody collects it. Inventing a depot coordinate would be a claim about
-   the physical world this app has not earned.
+   **Collecting moves nothing.** The set leaves the job and is still standing in that
+   yard until somebody comes for it, so the site is derived and the coordinates are
+   last known. Inventing a depot coordinate would be a claim about the physical world
+   this app has not earned. **A planned job moves nothing either**: the commitment is
+   real and the lorry has not been called.
 
 2. **A site's position and load are now seeded, not derived.** Both used to come from
    the members — placename from the first genset, coordinates from their mean — and
@@ -1132,13 +1146,16 @@ Six things worth knowing.
    the site's position from it is a loop with no fixed point. Every seeded value is
    exactly what the old derivation produced, so nothing moved.
 
-3. **`Genset.siteId` is nullable now,** and "a unit is always at exactly one site" —
-   previously documented as a virtue — is the half of that invariant deliberately given
-   up. It was true only because nothing could move a machine. Gensets genuinely exist
-   before deployment and while away being serviced, and the alternative was forcing
-   every removal to be a transfer to somewhere the set is not. The load-bearing half
-   survives: membership is still held on the genset, so a set is at one site or none,
-   never two.
+3. **`Genset.siteId` is nullable, and derived.** "A unit is always at exactly one site"
+   was documented as a virtue and is the half of that invariant deliberately given up:
+   it was true only because nothing could move a machine. Gensets genuinely exist before
+   deployment and while away being serviced, and the alternative was forcing every
+   removal to be a transfer to somewhere the set is not.
+
+   The load-bearing half survives, and it moved from being a property of a map's shape
+   to being **a rule the store enforces on every write**: a machine may not be on two
+   jobs whose windows overlap, so it is at one site or none, never two. The refusal
+   names the job in the way, because "already out" is not an answer a reader can act on.
 
 4. **The site load is a site fact.** It was scaled off installed genset capacity — a
    convenience that quietly made the customer's consumption a function of the machinery
@@ -1162,9 +1179,17 @@ Six things worth knowing.
    leaving the seed in `sites.ts` closes an import cycle. Pure data at the bottom of
    the graph breaks it.
 
-Left out deliberately: the **Deployment** route, whose placeholder already reads
-"moving gensets between sites" and which is the proper fleet-wide home for a depot
-view. Detached sets stay reachable from any site's attach picker in the meantime.
+7. **Nothing in `deployment/data/` computes at import time**, and that is not tidiness.
+   The record's deal reads the fuel ladder, the ladder comes off a machine's detail, and
+   a machine's detail used to read placement to answer *where is this machine* — a circle
+   that is fine as imports and fatal as an execution order. It recursed until the stack
+   gave out. `gensetById` moved to the placement module, `history.ts` and
+   `fuelIntegrity.ts` read the **seeded** row through `seededGenset()`, and the deal
+   happens on first access.
+
+Left out deliberately: a machine **joining a job mid-window**. A shared window cannot
+express a fourth set arriving in week three, and the escape hatch is a successor job.
+If Express Mission's real jobs work that way, the two dates move onto the membership.
 Creating and deleting *sites* is also absent — a different feature with its own
 questions.
 
