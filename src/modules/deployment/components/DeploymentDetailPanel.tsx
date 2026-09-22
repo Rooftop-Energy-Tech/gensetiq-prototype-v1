@@ -170,12 +170,18 @@ export const DeploymentDetailPanel = ({
               {/* The figure the whole model exists to make readable: what the job
                   produced against what it drank. Withheld rather than printed as
                   `0.00` where nothing turned, because a ratio over no energy is not a
-                  ratio. */}
+                  ratio.
+
+                  `kWh/L` — energy out per litre in — matching the runs log, its
+                  CSV and the leak detector. This printed `L/kWh` until
+                  2026-09-22, so a reader moving from here to the runs beside it
+                  met 0.12 and then 8.6 for one machine: the same fact, inverted,
+                  and nothing on either screen said so. */}
               <DetailRow label="Efficiency">
                 {row.totals.energyKwh < 1 ? (
                   <span className="text-secondary">Nothing on load yet</span>
                 ) : (
-                  `${(row.totals.fuelBurnedLitres / row.totals.energyKwh).toFixed(2)} L/kWh`
+                  `${(row.totals.energyKwh / row.totals.fuelBurnedLitres).toFixed(2)} kWh/L`
                 )}
               </DetailRow>
             </dl>

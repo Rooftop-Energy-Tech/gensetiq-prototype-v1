@@ -37,8 +37,14 @@ import type {Deployment, DeploymentMembership} from '../types/deployment.type';
  *
  * ⚠️ The first six jobs' litres are therefore endpoint arithmetic on hand-written
  * figures, and any refuel inside those windows is invisible. Job 2's 1,348 L against
- * 11,603 kWh is 0.12 L/kWh where a diesel set runs 0.25–0.30, which is very likely a
- * missed fill of about 1,700 L. Do not quote May–June fuel efficiency as a benchmark.
+ * 11,603 kWh works out at **8.6 kWh/L** where a diesel set returns 3.3–4.0, which is
+ * very likely a missed fill of about 1,700 L. Do not quote May–June fuel efficiency
+ * as a benchmark.
+ *
+ * Stated as `kWh/L` throughout, which is the app's one convention — energy out per
+ * litre in, so a bigger number is a better one. The same figures read 0.12 and
+ * 0.25–0.30 the other way round, and both directions were in use here until
+ * 2026-09-22.
  */
 export const REAL_GENSET_ID = 'brf9540';
 

@@ -151,7 +151,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
                     Nothing on load yet
                   </span>
                 ) : (
-                  `${(row.totals.fuelBurnedLitres / row.totals.energyKwh).toFixed(2)} L/kWh`
+                  `${(row.totals.energyKwh / row.totals.fuelBurnedLitres).toFixed(2)} kWh/L`
                 ),
             },
           ]}
