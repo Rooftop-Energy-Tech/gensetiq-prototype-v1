@@ -148,6 +148,15 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
   // the machine is rated 300 or 1,250.
   const loadPercent =
     detail.ratedKw > 0 ? Math.round(((detail.loadKw ?? 0) / detail.ratedKw) * 100) : 0;
+
+  // What this run could have produced at full load: the rating over the hours it has
+  // actually turned. `1` as a floor so a run a minute old cannot divide by zero and
+  // peg the bar at full.
+  const runHours =
+    (((detail.run.endedAt === null ? now : new Date(detail.run.endedAt).getTime()) -
+      new Date(detail.run.startedAt).getTime()) /
+      3_600_000) || 0;
+  const runCapacityKwh = Math.max(1, Math.round(detail.ratedKw * runHours));
   const posting = activePosting(genset.id, now);
   const postingHours =
     posting === undefined
@@ -361,6 +370,13 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
                 {label: 'Freq', value: detail.readings['frequency']?.value ?? 0, unit: 'Hz', min: 45, max: 55, precision: 1},
                 {label: 'Load', value: loadPercent, unit: '%', min: 0, max: 100},
                 {label: 'Power', value: detail.loadKw ?? 0, unit: 'kW', min: 0, max: Math.round(detail.ratedKw)},
+                // Energy has no nameplate to sit against, so its ceiling is what
+                // this run *could* have made: the machine's rating over the hours it
+                // has turned. The bar then reads as the run's load factor — a set
+                // that ran eight hours at a third of capacity fills a third of it —
+                // which is the only scale that makes a kWh total comparable between
+                // two runs of different lengths.
+                {label: 'Energy', value: detail.run.energyProducedKwh, unit: 'kWh', min: 0, max: runCapacityKwh},
               ]}
             />
           </div>
