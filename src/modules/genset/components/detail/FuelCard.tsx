@@ -7,7 +7,7 @@ import type {LucideIcon} from 'lucide-react';
 import type {ComponentType, ReactNode, SVGProps} from 'react';
 
 import {TankGlyph} from '@/components/global/TankGlyph';
-import {amount, fuelFraction, fuelHeadline, runtimeSpan, stampDate} from '@/lib/format';
+import {amount, fuelFraction, fuelHeadline, stampDate} from '@/lib/format';
 import type {GensetDetail} from '../../data/detail';
 import {fuelRunway} from '../../types/fuelLevel.type';
 import type {Genset} from '../../types/genset.type';
@@ -141,7 +141,6 @@ export const FuelColumn = ({
   detail: GensetDetail;
   running: boolean;
 }) => {
-  const belowReserve = genset.fuelLitres <= detail.fuel.reserveFraction * detail.fuel.maxLitres;
 
   return (
     <Column title="Fuel">
@@ -166,9 +165,15 @@ export const FuelColumn = ({
           <p className="text-sm font-semibold whitespace-pre text-primary">
             {fuelHeadline(genset.fuelLitres, detail.fuel.maxLitres)}
           </p>
-          <p className="text-xs text-secondary">
-            {fuelRunway(genset.fuelLitres, detail.fuel, running)}
-          </p>
+          {/* Only while it is turning, for the same reason as the two rows. On a
+              stopped set `fuelRunway` reads "9 hours of runtime left", which is a
+              countdown of a clock that is not running: the machine may sit at that
+              level for a month. */}
+          {running && (
+            <p className="text-xs text-secondary">
+              {fuelRunway(genset.fuelLitres, detail.fuel, running)}
+            </p>
+          )}
         </div>
 
         <dl className="flex min-w-0 flex-1 flex-col divide-y divide-subtle">
@@ -179,15 +184,28 @@ export const FuelColumn = ({
               this is computed from the electrical load, a good estimate and not a
               measurement. `instrumentsOf` still knows which machines have one, so
               restoring it is a word in this label or a suffix on the value. */}
-          <Row label={running ? 'Fuel burn rate' : 'Fuel burn rate, last run'} icon={FuelIcon}>
-            {amount(detail.fuel.litresPerHour, 'L/hr', 1)}
+          {/* A stopped set is burning nothing, so the rate is an em dash rather
+              than what it *was* burning. The last run's figure is real and was
+              labelled as such, but on a card that otherwise reports the present it
+              read as the current rate to anybody who did not read the label. It is
+              still on the run card, against the run it belongs to. */}
+          <Row label="Fuel burn rate" icon={FuelIcon}>
+            {running ? (
+              amount(detail.fuel.litresPerHour, 'L/hr', 1)
+            ) : (
+              <span className="text-tertiary">—</span>
+            )}
           </Row>
-          <Row label={running ? 'Refuel by' : 'Runtime to reserve'} icon={HourglassIcon}>
-            {running
-              ? stampDate(detail.fuel.refuelBy)
-              : belowReserve
-                ? 'none'
-                : runtimeSpan(detail.fuel.hoursToReserve)}
+          {/* Same rule. `Runtime to reserve` was the honest version of a refuel
+              date for a stopped set — runtime it *would* get, not wall-clock — and
+              it is still a projection of a burn that is not happening. A parked set
+              reaches its reserve line when somebody starts it, not on a Tuesday. */}
+          <Row label="Refuel by" icon={HourglassIcon}>
+            {running ? (
+              stampDate(detail.fuel.refuelBy)
+            ) : (
+              <span className="text-tertiary">—</span>
+            )}
           </Row>
         </dl>
       </div>
