@@ -8,6 +8,7 @@ import {GENSETS} from '@/modules/genset/data/fleet';
 import {refuelsIn} from '@/modules/genset/data/history';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 import {DepotTank} from './DepotTank';
+import {DEPOTS} from './data/depotTank';
 
 /**
  * `/fuel` — diesel, in the two halves an operations room asks about.
@@ -94,7 +95,14 @@ export const FuelPage = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pt-3 pb-4">
-      <DepotTank />
+      {/* One card per yard. A grid rather than a row: four of these on a wide band
+          would each be 320px and the tank inside would shrink to a smudge, and at
+          phone width a row would scroll sideways. */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {DEPOTS.map((depot) => (
+          <DepotTank key={depot.id} depot={depot} />
+        ))}
+      </div>
 
       <section className="flex min-h-0 flex-col gap-2">
         <header className="flex flex-wrap items-baseline justify-between gap-2">

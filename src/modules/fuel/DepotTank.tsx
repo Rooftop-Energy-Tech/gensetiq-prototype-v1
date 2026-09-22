@@ -1,6 +1,7 @@
 import {amount} from '@/lib/format';
 import {DepotTankGlyph} from './DepotTankGlyph';
-import {depotCapacityLitres, depotSeries} from './data/depotTank';
+import {depotFleet, depotSeries} from './data/depotTank';
+import type {Depot} from './data/depotTank';
 
 /**
  * The yard's bulk tank, drawn as a genset's is.
@@ -24,15 +25,21 @@ import {depotCapacityLitres, depotSeries} from './data/depotTank';
  * of warning, so the glyph carries the level and the capacity and nothing about
  * urgency — the reconciliation beside it is where this page raises alarms.
  */
-export const DepotTank = () => {
-  const series = depotSeries();
-  const capacity = depotCapacityLitres();
+export const DepotTank = ({depot}: {depot: Depot}) => {
+  const series = depotSeries(depot.id);
+  const capacity = depot.capacityLitres;
+  const served = depotFleet(depot.id).length;
   const level = series.at(-1)?.litres ?? 0;
   const fraction = capacity > 0 ? level / capacity : 0;
 
   return (
     <section className="flex min-w-0 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
-      <h2 className="text-xs font-medium tracking-wide text-secondary uppercase">Depot</h2>
+      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-xs font-medium tracking-wide text-secondary uppercase">
+          {depot.name} depot
+        </h2>
+        <p className="text-xs text-tertiary">{depot.locationLabel}</p>
+      </header>
 
       <div className="flex items-start gap-4 py-1.5">
         <div className="flex w-[200px] shrink-0 flex-col items-center gap-1.5">
@@ -49,13 +56,13 @@ export const DepotTank = () => {
               {amount(capacity, 'L')}
             </dd>
           </div>
-          {/* Said out loud because it is not a nameplate: the tank is sized at half
-              again the heaviest month this fleet has drawn, so it grows with the
-              estate. A reader seeing 350,000 L should know where it came from. */}
+          {/* How many machines draw from here. The variance beside it is a figure
+              about this catchment and not the estate, and a reader comparing two
+              yards needs to know one serves seventeen sets and another five. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">Sized for</dt>
+            <dt className="shrink-0 text-sm font-medium text-secondary">Machines served</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
-              Heaviest month + 50%
+              {served}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-4 py-1.5">

@@ -43,24 +43,72 @@ const HOUR = 3_600_000;
 // way.
 const STEP = HOUR;
 
-/**
- * 200,000 L — Afifah's figure, 2026-09-22.
- *
- * Stated rather than derived. It was computed from the record for a while, at half
- * again the heaviest 30-day draw, which landed on 350,000; a round number a reader
- * can hold is worth more here than one that follows the seed, and 200,000 is about
- * four fifths of this fleet's busiest month — a yard that takes a delivery every few
- * weeks rather than one that could sit out a quarter.
- *
- * What it must not be is small enough to run dry. The walk refills *before* the hour
- * it is about to serve for that reason: a tank that reaches the floor mid-fall loses
- * the rest of the drop, and the page then reports machines receiving fuel the yard
- * never released.
- */
-export const depotCapacityLitres = (): number => 200_000;
+/** A depot's capacity. Held on the row so one yard can differ from the others. */
+export const depotCapacityLitres = (depotId: string): number =>
+  DEPOTS.find((depot) => depot.id === depotId)?.capacityLitres ?? 200_000;
 
 /** Below this the supplier is called, and the tank steps back up. */
 const REORDER_FRACTION = 0.18;
+
+/**
+ * The yards fuel is issued from.
+ *
+ * Four, placed where the estate's machines actually are: the Klang valley holds
+ * seventeen of the thirty-eight, and Perak, Penang and Johor take the rest between
+ * them. A single national depot would be a fiction on an estate 700 km end to end —
+ * nobody trucks diesel from Klang to Bayan Lepas — and it would also make the one
+ * number on this page an average that no yard manager recognises.
+ *
+ * Each holds 200,000 L. Uniform because they are the same kind of installation and
+ * a reader comparing two variances should not have to hold two capacities in mind;
+ * the day one of them is genuinely a different size, it is a field on this row.
+ */
+export type Depot = {
+  id: string;
+  name: string;
+  locationLabel: string;
+  latitude: number;
+  longitude: number;
+  capacityLitres: number;
+};
+
+export const DEPOTS: ReadonlyArray<Depot> = [
+  {id: 'klang', name: 'Klang', locationLabel: 'Klang, Selangor', latitude: 3.0449, longitude: 101.4455, capacityLitres: 200_000},
+  {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', latitude: 4.5975, longitude: 101.0901, capacityLitres: 200_000},
+  {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', latitude: 5.3991, longitude: 100.3639, capacityLitres: 200_000},
+  {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914, capacityLitres: 200_000},
+];
+
+/**
+ * Which depot serves a machine: the nearest one, by straight-line distance.
+ *
+ * Distance on the raw coordinates rather than a great circle. Over 700 km of one
+ * peninsula the two answers differ by a rounding, and the question here is only
+ * *which of four is closest* — a figure that would have to be wrong by 200 km to
+ * change the answer.
+ */
+const depotFor = (latitude: number, longitude: number): Depot => {
+  let nearest = DEPOTS[0];
+  let best = Number.POSITIVE_INFINITY;
+
+  for (const depot of DEPOTS) {
+    const dx = depot.latitude - latitude;
+    const dy = depot.longitude - longitude;
+    const distance = dx * dx + dy * dy;
+    if (distance < best) {
+      best = distance;
+      nearest = depot;
+    }
+  }
+
+  return nearest;
+};
+
+/** The machines each depot fuels, by id. */
+export const depotFleet = (depotId: string): ReadonlyArray<string> =>
+  GENSETS.filter((genset) => depotFor(genset.latitude, genset.longitude).id === depotId).map(
+    (genset) => genset.id,
+  );
 
 export type DepotSample = {t: number; litres: number};
 
@@ -73,14 +121,18 @@ export type DepotSample = {t: number; litres: number};
  * walk lands. That is also the honest shape: a yard's tank is a consequence of what
  * it has issued, not a figure somebody states.
  */
-const buildSeries = (): Array<DepotSample> => {
+const buildSeries = (depotId: string): Array<DepotSample> => {
   const from = historyStart();
   const to = Date.now();
 
   // Every delivery the fleet took, as a lookup by the step it falls in. Each one is
   // fuel that left this tank at that moment.
+  const served = new Set(depotFleet(depotId));
+  const capacity = depotCapacityLitres(depotId);
+
   const outByStep = new Map<number, number>();
   for (const genset of GENSETS) {
+    if (!served.has(genset.id)) continue;
     for (const refuel of refuelsIn(genset.id, from, to)) {
       const step = Math.floor((refuel.at - from) / STEP);
       outByStep.set(step, (outByStep.get(step) ?? 0) + refuel.litres);
@@ -89,12 +141,12 @@ const buildSeries = (): Array<DepotSample> => {
 
   // The unaccounted side. A slow ullage loss every step — evaporation, the dregs of
   // a hose, a meter reading long — and one larger drop that nobody wrote down.
-  const ullagePerStep = spreadBetween('depot', 'ullage', 0.07, 0.19);
-  const mysteryStep = Math.floor(spread('depot', 'mystery-when') * ((to - from) / STEP));
-  const mysteryLitres = spreadBetween('depot', 'mystery-litres', 700, 1_400);
+  const ullagePerStep = spreadBetween(depotId, 'ullage', 0.07, 0.19);
+  const mysteryStep = Math.floor(spread(depotId, 'mystery-when') * ((to - from) / STEP));
+  const mysteryLitres = spreadBetween(depotId, 'mystery-litres', 700, 1_400);
 
   const samples: Array<DepotSample> = [];
-  let level = depotCapacityLitres();
+  let level = capacity;
 
   for (let step = 0; from + step * STEP <= to; step += 1) {
     const t = from + step * STEP;
@@ -113,8 +165,8 @@ const buildSeries = (): Array<DepotSample> => {
     // serve, so every litre issued is a fall the sensor can see. The rise gets a
     // sample of its own, because a sample carrying both a fill and a draw nets to
     // whichever is larger and the other vanishes from the reconciliation.
-    if (level - issued < depotCapacityLitres() * REORDER_FRACTION) {
-      level = depotCapacityLitres();
+    if (level - issued < capacity * REORDER_FRACTION) {
+      level = capacity;
       samples.push({t, litres: Math.round(level)});
     }
 
@@ -125,10 +177,17 @@ const buildSeries = (): Array<DepotSample> => {
   return samples;
 };
 
-let series: Array<DepotSample> | undefined;
+const seriesByDepot = new Map<string, Array<DepotSample>>();
 
 /** Dealt on first access, for the reason `deployment/data/seed.ts` gives. */
-export const depotSeries = (): ReadonlyArray<DepotSample> => (series ??= buildSeries());
+export const depotSeries = (depotId: string): ReadonlyArray<DepotSample> => {
+  const held = seriesByDepot.get(depotId);
+  if (held !== undefined) return held;
+
+  const built = buildSeries(depotId);
+  seriesByDepot.set(depotId, built);
+  return built;
+};
 
 export type DepotReconciliation = {
   /** Litres that left the bulk tank — the sum of its falls. */
@@ -151,8 +210,13 @@ export type DepotReconciliation = {
  * Falls only on the depot side — see the note above on why a supplier delivery must
  * not net against the week's issues.
  */
-export const reconcile = (from: number, to: number): DepotReconciliation => {
-  const samples = depotSeries();
+export const reconcile = (
+  depotId: string,
+  from: number,
+  to: number,
+): DepotReconciliation => {
+  const samples = depotSeries(depotId);
+  const served = new Set(depotFleet(depotId));
 
   // ## Both sides are counted on the sensor's grid, not the clock's
   //
@@ -189,6 +253,7 @@ export const reconcile = (from: number, to: number): DepotReconciliation => {
   let deliveredLitres = 0;
   let deliveries = 0;
   for (const genset of GENSETS) {
+    if (!served.has(genset.id)) continue;
     for (const refuel of refuelsIn(genset.id, windowFrom, windowTo)) {
       deliveredLitres += refuel.litres;
       deliveries += 1;
