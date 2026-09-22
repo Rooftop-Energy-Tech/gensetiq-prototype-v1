@@ -86,7 +86,7 @@ export const estateSummary = (
   };
   const customerCounts = new Map<CustomerId, number>();
   const programCounts = new Map<string, number>();
-  const statusCounts: Record<FleetStatus, number> = {EMPTY: 0, ALARM: 0, REFUEL: 0, OK: 0};
+  const statusCounts: Record<FleetStatus, number> = {ALARM: 0, REFUEL: 0, OK: 0};
   let gensetCount = 0;
 
   for (const summary of summaries) {

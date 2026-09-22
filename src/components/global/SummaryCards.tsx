@@ -23,7 +23,8 @@ import {cn} from '@/lib/utils';
  *
  * Nothing here invents colour of its own. A count that carries a verdict is given
  * the same token the badge in the table uses, passed in by the caller as `tone`, so
- * a red "Tank empty" here and a red `Critical` badge two rows down are the same red.
+ * a red "Alarms raised" here and a red `Critical` badge two rows down are the same
+ * red.
  */
 
 type SummaryCardRowProps = {
