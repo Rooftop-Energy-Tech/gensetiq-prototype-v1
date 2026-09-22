@@ -71,6 +71,12 @@ const Row = ({label, children}: {label: string; children: ReactNode}) => (
  * whatever each holds — a four-row card and a six-row card with different bottoms
  * read as two unfinished things rather than two groups.
  *
+ * The heading is `text-secondary`, the same 60% every label on this page carries.
+ * It was `text-tertiary` at 40% on the argument that a group's name is a step below
+ * the readings in it — true in the abstract, and wrong here: three cards whose
+ * titles are the palest text on the band read as three faded things beside a strip
+ * whose labels are solid. One page, one label colour.
+ *
  * **The surface is `MetricStrip`'s, down to the padding.** That strip is what draws
  * `Fuel level` and `Fuel remaining` at the top of this page, and a card lower down
  * the same page in a different shade would read as a different *kind* of thing
@@ -80,7 +86,7 @@ const Row = ({label, children}: {label: string; children: ReactNode}) => (
  */
 const Column = ({title, children}: {title: string; children: ReactNode}) => (
   <section className="flex min-w-0 flex-1 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
-    <h3 className="text-xs font-medium tracking-wide text-tertiary uppercase">{title}</h3>
+    <h3 className="text-xs font-medium tracking-wide text-secondary uppercase">{title}</h3>
     {children}
   </section>
 );
@@ -233,7 +239,7 @@ export const FuelColumn = ({
             tone="fuel"
             size="xl"
           />
-          <p className="text-sm font-medium whitespace-pre text-primary">
+          <p className="text-sm font-semibold whitespace-pre text-primary">
             {fuelHeadline(genset.fuelLitres, detail.fuel.maxLitres)}
           </p>
           <p className="text-xs text-secondary">
