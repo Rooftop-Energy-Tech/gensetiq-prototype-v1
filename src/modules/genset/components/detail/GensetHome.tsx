@@ -21,13 +21,18 @@ import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {
   ActivityIcon,
   BatteryChargingIcon,
+  ClockIcon,
   GaugeIcon,
   PlugZapIcon,
   ThermometerIcon,
+  TruckIcon,
 } from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 import type {ComponentType, SVGProps} from 'react';
 
+import {gensetTotalsIn} from '@/modules/deployment/data/seed';
+import {activePosting} from '@/modules/deployment/data/store';
+import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import {ControlPad} from './ControlPad';
 import {OilCanIcon} from './OilCanIcon';
 import {PhaseBars} from './PhaseBars';
@@ -131,6 +136,25 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
   const [now] = useState(() => Date.now());
 
   const running = genset.runState === 'RUNNING';
+
+  // The two counters that ride with the live marks. `engineHours` is the machine's
+  // own; `postingHours` is its runtime clipped to the job it is standing on, and is
+  // `undefined` where it stands on none — the same totals the deployment's own page
+  // reads, so the two cannot disagree.
+  const engineHours = detail.readings['engine-hours']?.value;
+  const posting = activePosting(genset.id, now);
+  const postingHours =
+    posting === undefined
+      ? undefined
+      : gensetTotalsIn(
+          genset.id,
+          new Date(posting.deployment.startsAt).getTime(),
+          (() => {
+            const end = postingEnd(posting);
+            return end === null ? now : new Date(end).getTime();
+          })(),
+          now,
+        ).runtimeHours;
 
   /**
    * The site this set stands at, for the strip's energy figure and the chart.
@@ -256,31 +280,64 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
       <div className="flex flex-wrap items-stretch gap-4 py-4">
         <FuelColumn genset={genset} detail={detail} running={running} />
 
-        {running && (
-          <div className="flex min-w-0 flex-1 flex-col gap-6 md:min-w-[520px]">
-            <div className="flex flex-wrap items-start gap-8">
-              {detail.gauges.map((gauge) => (
-                <ReadingTile
-                  key={gauge.key}
-                  reading={gauge}
-                  icon={READING_ICON[gauge.key] ?? GaugeIcon}
-                  // The dial carried its range on its face. A tile has nowhere for
-                  // it, so the one reading that is genuinely read against limits
-                  // rather than as a number keeps them as a note. The other four sit
-                  // at nominal whenever they are well, and a band under them would
-                  // be four lines of type saying "still fine".
-                  note={gauge.key === 'oil-pressure' ? `${gauge.min}–${gauge.max} bar` : undefined}
-                />
-              ))}
-            </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-6 md:min-w-[520px]">
+          <div className="flex flex-wrap items-start gap-8">
+            {detail.gauges.map((gauge) => (
+              <ReadingTile
+                key={gauge.key}
+                label={gauge.label}
+                value={gauge.value.toLocaleString('en-MY', {
+                  minimumFractionDigits: gauge.precision ?? 0,
+                  maximumFractionDigits: gauge.precision ?? 0,
+                })}
+                unit={gauge.unit}
+                icon={READING_ICON[gauge.key] ?? GaugeIcon}
+                // The dial carried its range on its face. A tile has nowhere for
+                // it, so the one reading that is genuinely read against limits
+                // rather than as a number keeps them as a note. The other four sit
+                // at nominal whenever they are well, and a band under them would
+                // be four lines of type saying "still fine".
+                note={gauge.key === 'oil-pressure' ? `${gauge.min}–${gauge.max} bar` : undefined}
+              />
+            ))}
 
+            {/* The two hour figures, and they sit **outside** the running gate the
+                five marks are inside. They are counters rather than live readings:
+                a stopped set has run for just as many hours as it had a minute
+                before it stopped, and they were the only two things the conditions
+                card held that the marks do not. Gating them with the marks would
+                have taken them off the page for every idle machine, which is most
+                of the estate. */}
+            <ReadingTile
+              label="Running hours"
+              value={engineHours === undefined ? '—' : engineHours.toLocaleString('en-MY')}
+              unit="h"
+              icon={ClockIcon}
+            />
+            <ReadingTile
+              label="On deployment"
+              value={
+                postingHours === undefined
+                  ? 'Not deployed'
+                  : postingHours.toLocaleString('en-MY', {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })
+              }
+              unit={postingHours === undefined ? undefined : 'h'}
+              icon={TruckIcon}
+              note={posting?.deployment.reference}
+            />
+          </div>
+
+          {running && (
             <div className="flex flex-wrap items-start gap-y-6 md:gap-x-18">
               {detail.phases.map((group) => (
                 <PhaseBars key={group.label} group={group} />
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
       </div>
 
@@ -295,7 +352,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           // Three columns that share the band and wrap together — see
           // `GeneratorColumns`. Each is `flex-1` with `min-w-0`, so a narrow window
           // drops one under the others rather than truncating all three.
-          <GeneratorColumns genset={genset} detail={detail} now={now} />
+          <GeneratorColumns detail={detail} />
         ) : (
           <StandbyPanel genset={genset} readings={detail.readings} now={now} />
         )}

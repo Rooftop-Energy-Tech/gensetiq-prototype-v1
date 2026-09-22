@@ -1,15 +1,11 @@
-import {OilCanIcon} from './OilCanIcon';
 import {
   ActivityIcon,
   BatteryChargingIcon,
-  ClockIcon,
   ContainerIcon,
   FuelIcon,
   GaugeIcon,
   HourglassIcon,
   PlugZapIcon,
-  ThermometerIcon,
-  TruckIcon,
   WavesIcon,
   ZapIcon,
 } from 'lucide-react';
@@ -18,9 +14,6 @@ import type {ComponentType, ReactNode, SVGProps} from 'react';
 
 import {TankGlyph} from '@/components/global/TankGlyph';
 import {amount, fuelFraction, fuelHeadline, runtimeSpan, stampDate} from '@/lib/format';
-import {gensetTotalsIn} from '@/modules/deployment/data/seed';
-import {activePosting} from '@/modules/deployment/data/store';
-import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import type {GensetDetail} from '../../data/detail';
 import {fuelRunway} from '../../types/fuelLevel.type';
 import type {Genset} from '../../types/genset.type';
@@ -140,39 +133,8 @@ const value = (reading: Reading | undefined): string =>
         maximumFractionDigits: reading.precision ?? 0,
       })}${reading.unit === '' ? '' : ` ${reading.unit}`}`;
 
-/** `195.4 h`, to a tenth — the resolution a service interval is quoted at. */
-const hours = (given: number): string =>
-  `${given.toLocaleString('en-MY', {minimumFractionDigits: 1, maximumFractionDigits: 1})} h`;
-
-export const GeneratorColumns = ({
-  genset,
-  detail,
-  now,
-}: {
-  genset: Genset;
-  detail: GensetDetail;
-  now: number;
-}) => {
+export const GeneratorColumns = ({detail}: {detail: GensetDetail}) => {
   const read = (key: string): Reading | undefined => detail.readings[key];
-
-  // Hours on the job this machine is standing on. `undefined` where it is standing
-  // on none — a set in the workshop between postings has no current deployment, and
-  // an hours figure against a job that does not exist would be a number about
-  // nothing. The totals are the same ones the deployment's own page reads, clipped
-  // to the posting's window, so the two cannot disagree.
-  const posting = activePosting(genset.id, now);
-  const postingHours =
-    posting === undefined
-      ? undefined
-      : gensetTotalsIn(
-          genset.id,
-          new Date(posting.deployment.startsAt).getTime(),
-          (() => {
-            const end = postingEnd(posting);
-            return end === null ? now : new Date(end).getTime();
-          })(),
-          now,
-        ).runtimeHours;
 
   const loadKw = detail.loadKw ?? 0;
   // Load as a share of the nameplate. The kW figure is the fact and this is its
@@ -185,26 +147,7 @@ export const GeneratorColumns = ({
     .filter((entry): entry is number => entry !== undefined);
 
   return (
-    <>
-      <Column title="Generator conditions">
-        <dl className="flex flex-col divide-y divide-subtle">
-          <Row label="Oil pressure" icon={OilCanIcon}>{value(read('oil-pressure'))}</Row>
-          <Row label="Coolant temperature" icon={ThermometerIcon}>{value(read('coolant-temp'))}</Row>
-          <Row label="Running hours" icon={ClockIcon}>{value(read('engine-hours'))}</Row>
-          {/* Named for the job rather than as "this deployment", so the row reads on
-              its own: a reader who has not scrolled to the posting card still knows
-              which window the hours belong to. */}
-          <Row label="Hours on current deployment" icon={TruckIcon}>
-            {postingHours === undefined ? (
-              <span className="text-tertiary">Not deployed</span>
-            ) : (
-              hours(postingHours)
-            )}
-          </Row>
-        </dl>
-      </Column>
-
-      <Column title="Generator output">
+    <Column title="Generator output">
         <dl className="flex flex-col divide-y divide-subtle">
           {/* Three phases on one row, separated rather than stacked: the reader's
               question is whether they agree, and three figures side by side answer
@@ -228,8 +171,7 @@ export const GeneratorColumns = ({
             {`${Math.round(detail.run.energyProducedKwh).toLocaleString('en-MY')} kWh`}
           </Row>
         </dl>
-      </Column>
-    </>
+    </Column>
   );
 };
 

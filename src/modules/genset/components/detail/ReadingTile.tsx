@@ -1,7 +1,6 @@
 import type {LucideIcon} from 'lucide-react';
 import type {ComponentType, SVGProps} from 'react';
 
-import type {GaugeReading} from '../../types/telemetry.type';
 
 /**
  * One live reading as a mark, a name and a figure — the reference controller's
@@ -21,6 +20,14 @@ import type {GaugeReading} from '../../types/telemetry.type';
  * pictures, and after a day of use a reader finds the one they want without reading
  * anything at all — which is the reference UI's argument, and it is a good one.
  *
+ * ## Not only live readings
+ *
+ * It takes a formatted string rather than a `Reading`, because two of the tiles on
+ * this band are not readings at all: running hours is a counter and hours on the
+ * current deployment is arithmetic over a window. A tile that only accepted the
+ * controller's own shape would have sent those two back to a list, which is the
+ * arrangement they were pulled out of.
+ *
  * ## The scale ends go with the needle
  *
  * A dial carried its own range on its face: `45` and `55` either side of the
@@ -30,11 +37,17 @@ import type {GaugeReading} from '../../types/telemetry.type';
  * the reading has one, rather than dropped silently.
  */
 export const ReadingTile = ({
-  reading,
+  label,
+  value,
+  unit,
   icon: Icon,
   note,
 }: {
-  reading: GaugeReading;
+  label: string;
+  /** Pre-formatted: the caller knows its own precision, and `Not deployed` is a
+   *  legitimate value for a tile whose figure does not exist. */
+  value: string;
+  unit?: string;
   icon: LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
   /** The band this figure is healthy in, e.g. `2–8 bar`. */
   note?: string;
@@ -49,13 +62,12 @@ export const ReadingTile = ({
     </span>
 
     <div className="flex flex-col items-center gap-0.5">
-      <p className="text-xs font-medium text-secondary">{reading.label}</p>
+      <p className="text-xs font-medium text-secondary">{label}</p>
       <p className="text-lg font-semibold text-primary tabular-nums">
-        {reading.value.toLocaleString('en-MY', {
-          minimumFractionDigits: reading.precision ?? 0,
-          maximumFractionDigits: reading.precision ?? 0,
-        })}
-        {reading.unit === '' ? '' : <span className="text-sm text-secondary"> {reading.unit}</span>}
+        {value}
+        {unit === undefined || unit === '' ? null : (
+          <span className="text-sm text-secondary"> {unit}</span>
+        )}
       </p>
       {note !== undefined && <p className="text-xs text-tertiary">{note}</p>}
     </div>
