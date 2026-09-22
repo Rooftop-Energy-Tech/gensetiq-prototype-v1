@@ -6,12 +6,9 @@ import {gensetTotalsIn} from '@/modules/deployment/data/seed';
 import {activePosting} from '@/modules/deployment/data/store';
 import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import type {GensetDetail} from '../../data/detail';
-import {instrumentsOf} from '../../data/fuelInstruments';
-import type {FuelIntegrityState} from '../../types/fuelIntegrity.type';
 import {fuelRunway} from '../../types/fuelLevel.type';
 import type {Genset} from '../../types/genset.type';
 import type {Reading} from '../../types/telemetry.type';
-import {LeakBadge} from './LeakBadge';
 
 /**
  * What the set is doing, in the questions a reader actually arrives with.
@@ -174,14 +171,11 @@ export const FuelColumn = ({
   genset,
   detail,
   running,
-  integrity,
 }: {
   genset: Genset;
   detail: GensetDetail;
   running: boolean;
-  integrity: FuelIntegrityState;
 }) => {
-  const metered = instrumentsOf(genset.id).flowMeter !== null;
   const belowReserve = genset.fuelLitres <= detail.fuel.reserveFraction * detail.fuel.maxLitres;
 
   return (
@@ -200,22 +194,14 @@ export const FuelColumn = ({
 
       <dl className="flex flex-col divide-y divide-subtle">
         <Row label="Max capacity">{amount(detail.fuel.maxLitres, 'L')}</Row>
-        {/* Metered or estimated, said out loud. Without a flow meter this figure is
-            computed from the electrical load — a good estimate, and not a
-            measurement — and the difference is the whole premise of the leak alarm.
-            Presenting the two identically would make the one screen that depends on
-            the distinction the one screen that hides it. */}
-        <Row
-          label={
-            running
-              ? metered
-                ? 'Metered rate'
-                : 'Estimated rate'
-              : metered
-                ? 'Metered, last run'
-                : 'Estimated, last run'
-          }
-        >
+        {/* ⚠️ The label no longer says whether the figure is metered or estimated.
+            It read `Metered rate` / `Estimated rate` until 2026-09-22 — Afifah's
+            call — and the distinction is real: without a flow meter this is computed
+            from the electrical load, which is a good estimate and not a measurement.
+            Where a machine has no meter the figure is inferred, and nothing on this
+            row says so any more. `instrumentsOf` still knows, so putting it back is
+            a word in this label or a suffix on the value. */}
+        <Row label={running ? 'Fuel burn rate' : 'Fuel burn rate, last run'}>
           {amount(detail.fuel.litresPerHour, 'L/hr', 1)}
         </Row>
         <Row label={running ? 'Refuel by' : 'Runtime to reserve'}>
@@ -224,11 +210,6 @@ export const FuelColumn = ({
             : belowReserve
               ? 'none'
               : runtimeSpan(detail.fuel.hoursToReserve)}
-        </Row>
-        {/* The verdict only. The arithmetic behind it is a nine-row derivation and
-            belongs beside the threshold that governs it. */}
-        <Row label="Leak check">
-          <LeakBadge gensetId={genset.id} state={integrity} />
         </Row>
       </dl>
     </Column>

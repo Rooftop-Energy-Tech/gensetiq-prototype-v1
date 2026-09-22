@@ -7,7 +7,6 @@ import type {ControlMode} from '../../types/telemetry.type';
 import {serviceHeadline} from '../../types/service.type';
 import type {GensetDetail} from '../../data/detail';
 import {useServiceStatus} from '../../data/services';
-import {useFuelIntegrity} from '../../data/fuelIntegrity';
 import {fuelRemainingHeadline} from '../../types/fuelLevel.type';
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
@@ -117,10 +116,6 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
   // reading in band 3 and clear the overdue notice without a reload. Measured
   // against the same `now` as everything else on the page.
   const service = useServiceStatus(genset.id, now);
-
-  // Live for the same reason: switching the alarm off, or moving its threshold,
-  // has to change band 1's verdict and band 3's list without a reload.
-  const integrity = useFuelIntegrity(genset.id, now);
 
   /**
    * One subscription for both alarm sources on this page.
@@ -233,7 +228,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             **Outside the branch** because the tank does not vanish with the engine.
             On a standby estate a stopped set is exactly when its level is the page's
             most useful fact: what is in it now is what the next outage gets. */}
-        <FuelColumn genset={genset} detail={detail} running={running} integrity={integrity} />
+        <FuelColumn genset={genset} detail={detail} running={running} />
 
         {running ? (
           // `md:flex-1` so the readings take the slack and the pad stays beside
