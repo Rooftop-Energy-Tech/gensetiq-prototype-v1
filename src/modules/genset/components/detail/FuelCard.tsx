@@ -1,13 +1,7 @@
 import {
-  ActivityIcon,
-  BatteryChargingIcon,
   ContainerIcon,
   FuelIcon,
-  GaugeIcon,
   HourglassIcon,
-  PlugZapIcon,
-  WavesIcon,
-  ZapIcon,
 } from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 import type {ComponentType, ReactNode, SVGProps} from 'react';
@@ -17,31 +11,26 @@ import {amount, fuelFraction, fuelHeadline, runtimeSpan, stampDate} from '@/lib/
 import type {GensetDetail} from '../../data/detail';
 import {fuelRunway} from '../../types/fuelLevel.type';
 import type {Genset} from '../../types/genset.type';
-import type {Reading} from '../../types/telemetry.type';
 
 /**
- * What the set is doing, in the questions a reader actually arrives with.
+ * The tank card: a glyph, what is in it, and the three figures beside them.
  *
- * ## Why this replaced five dials and two bar charts
+ * ## What used to be here
  *
- * The band was a gauge row — frequency, active power, oil pressure, coolant and the
- * charge alternator — with line voltage and phase current drawn as bars under it.
- * A needle earns its place where a reading *moves* and the movement is the
- * diagnosis: oil pressure falling through a run, coolant climbing towards its
- * shutdown. It earns nothing on **frequency**, which a governor holds at 50.0 Hz
- * until something is very wrong, or on **active power**, whose whole meaning is a
- * number against a nameplate rather than a needle position. Afifah's call.
+ * This file held `GeneratorColumns` — conditions and output as two cards of
+ * label/value rows — from the day the gauge row was replaced by lists until
+ * 2026-09-22, when every figure on them moved into the band above as a mark or a
+ * bar. Nothing was dropped in the move: oil and coolant became marks, running hours
+ * and hours on deployment became counter tiles, and line voltage, phase current,
+ * power factor, frequency, load, active power and energy produced became bars. A
+ * card restating them a rule apart is a second place for the same numbers to
+ * disagree.
  *
- * ## The split, and why these headings
- *
- * **Conditions** is the engine's own health — what a fitter looks at. **Output** is
- * what the alternator is delivering — what an operations room bills and plans on.
- * **Fuel** is how long either can continue. A reader arrives with one of the three
- * and almost never all, so each gets a column rather than being interleaved by
- * instrument type, which is how a gauge row orders things and is nobody's question.
- *
- * Running hours sit under Conditions because they are wear: a service falls due on
- * hours turned, not on kWh sold.
+ * The tank stayed a card because it is the one reading with a shape. `Row` and
+ * `Column` stayed with it — they were written for the two cards that have gone, and
+ * the one that remains is built from them. `Column` is exported: the marks band
+ * takes the same card, so the two sit on one surface at one padding rather than
+ * being two shapes that happen to look alike.
  */
 
 /**
@@ -117,63 +106,13 @@ const Row = ({
  * the app's one rule for a raised surface; `px-5 py-4` is the strip's own, matched
  * here so the two do not drift by a pixel either.
  */
-const Column = ({title, children}: {title: string; children: ReactNode}) => (
+export const Column = ({title, children}: {title: string; children: ReactNode}) => (
   <section className="flex min-w-0 flex-1 basis-0 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
     <h3 className="text-xs font-medium tracking-wide text-secondary uppercase">{title}</h3>
     {children}
   </section>
 );
 
-/** A reading's value and unit, or an em dash where the controller reports nothing. */
-const value = (reading: Reading | undefined): string =>
-  reading === undefined
-    ? '—'
-    : `${reading.value.toLocaleString('en-MY', {
-        minimumFractionDigits: reading.precision ?? 0,
-        maximumFractionDigits: reading.precision ?? 0,
-      })}${reading.unit === '' ? '' : ` ${reading.unit}`}`;
-
-export const GeneratorColumns = ({detail}: {detail: GensetDetail}) => {
-  const read = (key: string): Reading | undefined => detail.readings[key];
-
-  const loadKw = detail.loadKw ?? 0;
-  // Load as a share of the nameplate. The kW figure is the fact and this is its
-  // altitude: 236 kW means nothing until you know whether the machine is rated 300
-  // or 1,250, and a reader scanning a fleet reads the percentage first.
-  const loadPercent = detail.ratedKw > 0 ? Math.round((loadKw / detail.ratedKw) * 100) : 0;
-
-  const lineVoltages = ['voltage-l1l2', 'voltage-l2l3', 'voltage-l3l1']
-    .map((key) => read(key)?.value)
-    .filter((entry): entry is number => entry !== undefined);
-
-  return (
-    <Column title="Generator output">
-        <dl className="flex flex-col divide-y divide-subtle">
-          {/* Three phases on one row, separated rather than stacked: the reader's
-              question is whether they agree, and three figures side by side answer
-              it faster than three labelled rows. The label carries their order. */}
-          <Row label="Line voltage L1-L2 / L2-L3 / L3-L1" icon={ZapIcon}>
-            {lineVoltages.length === 0
-              ? '—'
-              : `${lineVoltages.map((entry) => Math.round(entry)).join(' / ')} V`}
-          </Row>
-          <Row label="Power factor" icon={WavesIcon}>{value(read('power-factor'))}</Row>
-          <Row label="Load" icon={GaugeIcon}>
-            {`${loadPercent}% of ${Math.round(detail.ratedKw).toLocaleString('en-MY')} kW`}
-          </Row>
-          <Row label="Active power" icon={PlugZapIcon}>{`${Math.round(loadKw).toLocaleString('en-MY')} kW`}</Row>
-          <Row label="Frequency" icon={ActivityIcon}>{value(read('frequency'))}</Row>
-          {/* This run's, not the day's and not the machine's life. The run card
-              below carries the same figure; it is here because a reader asking what
-              the set is producing is asking the output column, and sending them down
-              the page for the last of six answers is the band failing at its job. */}
-          <Row label="Energy produced" icon={BatteryChargingIcon}>
-            {`${Math.round(detail.run.energyProducedKwh).toLocaleString('en-MY')} kWh`}
-          </Row>
-        </dl>
-    </Column>
-  );
-};
 
 /**
  * The tank, beside the generator columns rather than a band below them.

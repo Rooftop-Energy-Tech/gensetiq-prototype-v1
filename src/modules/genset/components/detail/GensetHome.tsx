@@ -38,7 +38,7 @@ import {OilCanIcon} from './OilCanIcon';
 import {OutputBars} from './OutputBars';
 import {PhaseBars} from './PhaseBars';
 import {ReadingTile} from './ReadingTile';
-import {FuelColumn, GeneratorColumns} from './GeneratorColumns';
+import {Column, FuelColumn} from './FuelCard';
 import {CurrentRunCard} from './CurrentRunCard';
 import {StandbyPanel} from './StandbyPanel';
 
@@ -295,8 +295,12 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
       <div className="flex flex-wrap items-stretch gap-4 py-4">
         <FuelColumn genset={genset} detail={detail} running={running} />
 
-        <div className="flex min-w-0 flex-1 basis-0 flex-col gap-6">
-          <div className="flex flex-wrap items-start gap-8">
+        {/* The marks in a card of their own, titled like the tank beside them. They
+            stood bare on the band until 2026-09-22, which made it read as one carded
+            thing next to a loose group of tiles; the heading also gives seven marks
+            a name, which they had none of. */}
+        <Column title="Generator conditions">
+          <div className="flex flex-wrap items-start gap-x-8 gap-y-6 pt-1">
             {detail.gauges.map((gauge) => (
               <ReadingTile
                 key={gauge.key}
@@ -344,64 +348,68 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
               note={posting?.deployment.reference}
             />
           </div>
+        </Column>
 
-        </div>
+        {/* The third card: what is coming out, with the bars that carry a whole
+            question each at the bottom of it.
 
-        {/* The two bar groups as their own column on the band, an equal third of it
-            like the tank and the marks either side — `flex-1 basis-0` on all three,
-            so none of them sizes to its content and the band splits evenly whatever
-            each holds.
+            **Output first, phases last** — Afifah's call, 2026-09-22. The five
+            output lines are five separate readings and are scanned; line voltage and
+            phase current are two sets of three asked whether they agree with one
+            another, which is a comparison rather than a scan. A comparison reads
+            fine at the foot of a card; five readings buried under six bars do not. */}
+        <Column title="Generator output">
+          {running ? (
+            <div className="flex flex-col gap-6 pt-1">
+              <OutputBars
+                lines={[
+                  {label: 'PF', value: detail.readings['power-factor']?.value ?? 0, unit: '', min: 0, max: 1, precision: 2},
+                  // 45–55 rather than 0–55: a 0-based bar sits at 91% for every
+                  // healthy set and moves a pixel on the 2 Hz droop it exists to show.
+                  {label: 'Freq', value: detail.readings['frequency']?.value ?? 0, unit: 'Hz', min: 45, max: 55, precision: 1},
+                  {label: 'Load', value: loadPercent, unit: '%', min: 0, max: 100},
+                  {label: 'Power', value: detail.loadKw ?? 0, unit: 'kW', min: 0, max: Math.round(detail.ratedKw)},
+                  // Energy has no nameplate to sit against, so its ceiling is what
+                  // this run *could* have made: the machine's rating over the hours
+                  // it has turned. The bar then reads as the run's load factor.
+                  {label: 'Energy', value: detail.run.energyProducedKwh, unit: 'kWh', min: 0, max: runCapacityKwh},
+                ]}
+              />
 
-            Rather than a second row under the marks. They answer a different question from the marks —
-            the marks are five unrelated readings, these are three phases each asked
-            *do you agree with each other* — and a column keeps that question whole
-            instead of laying it across the width of the page. */}
-        {running && (
-          <div className="flex min-w-0 flex-1 basis-0 flex-col gap-6">
-            {detail.phases.map((group) => (
-              <PhaseBars key={group.label} group={group} />
-            ))}
+              {detail.phases.map((group) => (
+                <PhaseBars key={group.label} group={group} />
+              ))}
+            </div>
+          ) : (
+            // A stopped alternator is delivering nothing, and five bars at zero
+            // would say that five times over.
+            <p className="pt-1 text-sm text-secondary">Nothing on load — the engine is stopped.</p>
+          )}
+        </Column>
 
-            <OutputBars
-              lines={[
-                {label: 'PF', value: detail.readings['power-factor']?.value ?? 0, unit: '', min: 0, max: 1, precision: 2},
-                // 45–55 rather than 0–55: a 0-based bar sits at 91% for every
-                // healthy set and moves a pixel on the 2 Hz droop it exists to show.
-                {label: 'Freq', value: detail.readings['frequency']?.value ?? 0, unit: 'Hz', min: 45, max: 55, precision: 1},
-                {label: 'Load', value: loadPercent, unit: '%', min: 0, max: 100},
-                {label: 'Power', value: detail.loadKw ?? 0, unit: 'kW', min: 0, max: Math.round(detail.ratedKw)},
-                // Energy has no nameplate to sit against, so its ceiling is what
-                // this run *could* have made: the machine's rating over the hours it
-                // has turned. The bar then reads as the run's load factor — a set
-                // that ran eight hours at a third of capacity fills a third of it —
-                // which is the only scale that makes a kWh total comparable between
-                // two runs of different lengths.
-                {label: 'Energy', value: detail.run.energyProducedKwh, unit: 'kWh', min: 0, max: runCapacityKwh},
-              ]}
-            />
+      </div>
+
+      <hr className="border-subtle" />
+
+      {/* The pre-start readings, and only when the engine is stopped. The generator
+          output card stood here until 2026-09-22 and every figure on it is now a bar
+          or a mark in the band above — line voltage and phase current in their
+          groups, power factor, frequency, load, active power and energy produced in
+          `OutputBars`. A card restating five bars a rule apart is a second place for
+          the same numbers to disagree.
+
+          `StandbyPanel` is not a placeholder for it: the readings that survive a
+          shutdown are the pre-start ones, and they are what the pad's question —
+          start it? — actually turns on. */}
+      {!running && (
+        <>
+          <div className="flex flex-wrap items-stretch gap-4 py-4">
+            <StandbyPanel genset={genset} readings={detail.readings} now={now} />
           </div>
-        )}
 
-      </div>
-
-      <hr className="border-subtle" />
-
-      {/* `items-stretch` so the two cards share a bottom edge — see `Column`.
-          `gap-4` because the groups carry their own borders and the border is
-          already doing the separating. */}
-      <div className="flex flex-wrap items-stretch gap-4 py-4">
-        {running ? (
-          // `md:flex-1` so the readings take the slack and the pad stays beside
-          // Three columns that share the band and wrap together — see
-          // `GeneratorColumns`. Each is `flex-1` with `min-w-0`, so a narrow window
-          // drops one under the others rather than truncating all three.
-          <GeneratorColumns detail={detail} />
-        ) : (
-          <StandbyPanel genset={genset} readings={detail.readings} now={now} />
-        )}
-      </div>
-
-      <hr className="border-subtle" />
+          <hr className="border-subtle" />
+        </>
+      )}
 
       {/* Band 3 — the run, the day, and the tank.
 
