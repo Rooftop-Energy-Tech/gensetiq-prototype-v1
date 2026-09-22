@@ -221,6 +221,20 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           phone width rather than beside them — four tap targets squeezed next to a
           column of figures is the one thing in this band that must not happen. */}
       <div className="flex flex-wrap items-start gap-6 py-4 md:gap-12">
+        {/* Fuel first, and outside the branch on both counts.
+
+            **Leftmost** because it is the column that is always there. The two
+            beside it describe a machine in motion and are replaced by the standby
+            panel when it stops; a band whose first column changes identity with the
+            run state gives a reader a different page to learn twice. Reading order
+            also happens to be decision order here — how much is left, then how hard
+            it is working, then what it is putting out.
+
+            **Outside the branch** because the tank does not vanish with the engine.
+            On a standby estate a stopped set is exactly when its level is the page's
+            most useful fact: what is in it now is what the next outage gets. */}
+        <FuelColumn genset={genset} detail={detail} running={running} integrity={integrity} />
+
         {running ? (
           // `md:flex-1` so the readings take the slack and the pad stays beside
           // Three columns that share the band and wrap together — see
@@ -230,11 +244,6 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
         ) : (
           <StandbyPanel genset={genset} readings={detail.readings} now={now} />
         )}
-
-        {/* Outside the branch, deliberately. The two generator columns describe a
-            machine in motion and vanish with it; the tank does not, and a stopped
-            standby set is exactly when its level is the page's most useful fact. */}
-        <FuelColumn genset={genset} detail={detail} running={running} integrity={integrity} />
       </div>
 
       <hr className="border-subtle" />
