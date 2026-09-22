@@ -1,9 +1,9 @@
+import {OilCanIcon} from './OilCanIcon';
 import {
   ActivityIcon,
   BatteryChargingIcon,
   ClockIcon,
   ContainerIcon,
-  DropletIcon,
   FuelIcon,
   GaugeIcon,
   HourglassIcon,
@@ -14,7 +14,7 @@ import {
   ZapIcon,
 } from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
-import type {ReactNode} from 'react';
+import type {ComponentType, ReactNode, SVGProps} from 'react';
 
 import {TankGlyph} from '@/components/global/TankGlyph';
 import {amount, fuelFraction, fuelHeadline, runtimeSpan, stampDate} from '@/lib/format';
@@ -69,7 +69,8 @@ const Row = ({
   children,
 }: {
   label: string;
-  icon: LucideIcon;
+  /** Lucide's, or a hand-drawn one of the same construction — see `OilCanIcon`. */
+  icon: LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
   children: ReactNode;
 }) => (
   <div className="flex items-center justify-between gap-4 py-1.5">
@@ -187,7 +188,7 @@ export const GeneratorColumns = ({
     <>
       <Column title="Generator conditions">
         <dl className="flex flex-col divide-y divide-subtle">
-          <Row label="Oil pressure" icon={DropletIcon}>{value(read('oil-pressure'))}</Row>
+          <Row label="Oil pressure" icon={OilCanIcon}>{value(read('oil-pressure'))}</Row>
           <Row label="Coolant temperature" icon={ThermometerIcon}>{value(read('coolant-temp'))}</Row>
           <Row label="Running hours" icon={ClockIcon}>{value(read('engine-hours'))}</Row>
           {/* Named for the job rather than as "this deployment", so the row reads on

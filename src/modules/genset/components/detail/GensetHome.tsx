@@ -18,9 +18,20 @@ import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {countBySeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
+import {
+  ActivityIcon,
+  BatteryChargingIcon,
+  GaugeIcon,
+  PlugZapIcon,
+  ThermometerIcon,
+} from 'lucide-react';
+import type {LucideIcon} from 'lucide-react';
+import type {ComponentType, SVGProps} from 'react';
+
 import {ControlPad} from './ControlPad';
+import {OilCanIcon} from './OilCanIcon';
 import {PhaseBars} from './PhaseBars';
-import {TickGauge} from './TickGauge';
+import {ReadingTile} from './ReadingTile';
 import {FuelColumn, GeneratorColumns} from './GeneratorColumns';
 import {CurrentRunCard} from './CurrentRunCard';
 import {StandbyPanel} from './StandbyPanel';
@@ -81,6 +92,26 @@ import {StandbyPanel} from './StandbyPanel';
  * needs to shrink or scroll sideways — the pad in particular is four **tap targets**
  * and a control shrunk below a thumb is worse than no reflow at all.
  */
+/**
+ * A mark per live reading, keyed by the reading's own id.
+ *
+ * Matched to the reference controller's set rather than chosen freshly: an operator
+ * who reads one of these screens all day should not have to learn a second
+ * vocabulary here. The oil can is drawn in `OilCanIcon` because Lucide has none;
+ * the rest are Lucide's, which the app already uses everywhere else.
+ *
+ * `GaugeIcon` is the fallback for a reading that gains a dial later without gaining
+ * a mark — visibly generic, so it shows up as something to fix rather than passing
+ * as a decision.
+ */
+const READING_ICON: Record<string, LucideIcon | ComponentType<SVGProps<SVGSVGElement>>> = {
+  'oil-pressure': OilCanIcon,
+  'coolant-temp': ThermometerIcon,
+  'charge-alt-voltage': BatteryChargingIcon,
+  'active-power': PlugZapIcon,
+  frequency: ActivityIcon,
+};
+
 export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDetail}) => {
   /**
    * Control mode is the one thing on this page a person can change, and it lives
@@ -218,7 +249,17 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           <div className="flex flex-col gap-6 py-4">
             <div className="flex flex-wrap items-start gap-8">
               {detail.gauges.map((gauge) => (
-                <TickGauge key={gauge.key} reading={gauge} />
+                <ReadingTile
+                  key={gauge.key}
+                  reading={gauge}
+                  icon={READING_ICON[gauge.key] ?? GaugeIcon}
+                  // The dial carried its range on its face. A tile has nowhere for
+                  // it, so the one reading that is genuinely read against limits
+                  // rather than as a number keeps them as a note. The other four sit
+                  // at nominal whenever they are well, and a band under them would
+                  // be four lines of type saying "still fine".
+                  note={gauge.key === 'oil-pressure' ? `${gauge.min}–${gauge.max} bar` : undefined}
+                />
               ))}
             </div>
 
