@@ -159,7 +159,8 @@ export const FuelColumn = ({
         <div className="flex shrink-0 flex-col items-center gap-1.5">
           <TankGlyph
             fraction={fuelFraction(genset.fuelLitres, detail.fuel.maxLitres)}
-            tone="fuel"
+            // The output card's teal, not the app's diesel violet — see `TONES`.
+            tone="teal"
             size="2xl"
           />
           <p className="text-sm font-semibold whitespace-pre text-primary">

@@ -37,6 +37,16 @@ import {cn} from '@/lib/utils';
  */
 const TONES = {
   fuel: {fill: 'bg-fuel', tip: 'bg-fuel-tip'},
+  // The teal every bar on the genset page's output card is drawn in. Added
+  // 2026-09-22 — Afifah's call — so the tank beside them fills in the same colour
+  // as the lines it shares a band with.
+  //
+  // ⚠️ It crosses the rule the note above states: hue says *what kind of job it is*,
+  // violet for diesel and teal for the electrical side, so a tank drawn teal is a
+  // fuel figure wearing the electrical colour. The tank on `/fuel`, the droplets on
+  // the fleet cards and the fuel badges are all still violet, so the same machine's
+  // level is now two colours on two screens. Worth settling in one direction.
+  teal: {fill: 'bg-teal', tip: 'bg-teal/70'},
 } as const;
 
 /**
