@@ -1,6 +1,14 @@
+import {TriangleAlertIcon} from 'lucide-react';
 import {amount} from '@/lib/format';
 import {DepotTankGlyph} from './DepotTankGlyph';
-import {depotCapacityLitres, depotFleet, depotSeries, reconcile} from './data/depotTank';
+import {cn} from '@/lib/utils';
+import {
+  depotCapacityLitres,
+  depotFleet,
+  depotSeries,
+  reconcile,
+  varianceSeverity,
+} from './data/depotTank';
 import type {Depot} from './data/depotTank';
 
 /**
@@ -33,16 +41,40 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
   // worth it: `reconcile` walks a 60-day hourly series once per card and the page
   // draws four.
   const movement = reconcile(depot.id, Date.now() - 30 * 24 * 3_600_000, Date.now());
+  // 2% of what was issued, or 100 L, whichever is larger — and half that to warn.
+  // A tanker meter and a tank float never agree exactly, so a threshold in percent
+  // alone cries wolf on a quiet yard where 40 L of noise is 8%, and one in litres
+  // alone stays silent through a busy month where 90 L is lost in the rounding.
+  const severity = varianceSeverity(movement.outLitres, movement.varianceLitres);
   const level = series.at(-1)?.litres ?? 0;
   const fraction = capacity > 0 ? level / capacity : 0;
 
   return (
     <section className="flex min-w-0 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h2 className="text-xs font-medium tracking-wide text-secondary uppercase">
           {depot.name} depot
         </h2>
-        <p className="text-xs text-tertiary">{depot.locationLabel}</p>
+
+        {/* The verdict, where a reader's eye lands first on a grid of four yards.
+            Absent when the two sides agree, rather than a green `Reconciled` chip:
+            four cards each declaring success is four things to read past to find
+            the one that did not. */}
+        {severity === undefined ? (
+          <p className="text-xs text-tertiary">{depot.locationLabel}</p>
+        ) : (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
+              severity === 'CRITICAL'
+                ? 'border-severity-critical/25 bg-severity-critical/10 text-severity-critical'
+                : 'border-severity-warning/25 bg-severity-warning/10 text-severity-warning',
+            )}
+          >
+            <TriangleAlertIcon className="size-3" aria-hidden="true" />
+            {severity === 'CRITICAL' ? 'Unaccounted fuel' : 'Check reconciliation'}
+          </span>
+        )}
       </header>
 
       <div className="flex items-start gap-4 py-1.5">
@@ -82,9 +114,48 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
               )}
             </dd>
           </div>
-          {/* Kept because the two figures above are a catchment's, not the
-              estate's: a yard serving twenty-one sets issues four times what one
-              serving five does, and neither is remarkable. */}
+          {/* The other side of the reconciliation: what the machines' own tanks
+              recorded arriving, summed across this yard's catchment. Issued is a
+              depot instrument, this is thirty-eight separate ones, and the gap
+              between them is the only thing on this page that is anybody's
+              problem. */}
+          <div className="flex items-baseline justify-between gap-4 py-1.5">
+            <dt className="shrink-0 text-sm font-medium text-secondary">Delivered at sites</dt>
+            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+              {amount(movement.deliveredLitres, 'L')}
+            </dd>
+          </div>
+
+          {/* Signed, and the sign is the story. **Positive means fuel left the yard
+              and never arrived** — the case worth chasing. Negative means machines
+              recorded more than the depot released, which is not theft in reverse
+              but an instrument disagreeing: a float reading long, or a top-up from
+              a drum nobody put through the yard. */}
+          <div className="flex items-baseline justify-between gap-4 py-1.5">
+            <dt className="shrink-0 text-sm font-medium text-secondary">Variance</dt>
+            <dd
+              className={cn(
+                'text-right text-sm font-semibold tabular-nums',
+                severity === 'CRITICAL'
+                  ? 'text-severity-critical'
+                  : severity === 'WARNING'
+                    ? 'text-severity-warning'
+                    : 'text-primary',
+              )}
+            >
+              {movement.varianceLitres > 0 ? '+' : ''}
+              {amount(movement.varianceLitres, 'L')}
+              {movement.variancePercent !== null && (
+                <span className="font-medium text-secondary">
+                  {` (${movement.variancePercent > 0 ? '+' : ''}${movement.variancePercent.toFixed(1)}%)`}
+                </span>
+              )}
+            </dd>
+          </div>
+
+          {/* Kept because the figures above are a catchment's, not the estate's: a
+              yard serving twenty-one sets issues four times what one serving five
+              does, and neither is remarkable. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
             <dt className="shrink-0 text-sm font-medium text-secondary">Machines served</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
