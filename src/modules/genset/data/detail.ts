@@ -1476,9 +1476,18 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
           {
             label: 'Line voltage',
             unit: 'V',
-            // Nominal 415 V plus headroom, so a phase sitting where it should
-            // does not peg the bar at full.
-            scale: 520,
+            // 460, from `BRF 9540`'s own range: 9,912 samples at running speed
+            // span 392–419 V, with 415–418 between the 5th and 95th percentiles.
+            //
+            // It was 520, which is nominal plus a quarter — headroom for a fault
+            // nothing on this estate produces. The cost was resolution where it is
+            // actually read: a healthy 416 V filled 80% of the bar, and the 4 V of
+            // imbalance between three phases that a reader is looking for moved it
+            // by less than one percent of its length. At 460 the same phase sits at
+            // 90%, the over-voltage alarm's 441 V still fits, and the gap between
+            // L1-L2 and L2-L3 is visible without reading the numbers — which is the
+            // only reason to draw three bars rather than print three figures.
+            scale: 460,
             channels: [
               {label: 'L1-L2', key: 'voltage-l1l2', value: readings['voltage-l1l2'].value},
               {label: 'L2-L3', key: 'voltage-l2l3', value: readings['voltage-l2l3'].value},
@@ -1489,6 +1498,17 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
             label: 'Phase current',
             unit: 'A',
             // Nameplate current: the set's kVA at its rated line voltage.
+            //
+            // **Unchanged, and `BRF 9540` is why.** Its nameplate works out at
+            // 1,391 A and its hardest moment across four months drew 997 — 72% of
+            // the bar, on a job that also pushed 706 kW through an 800 kW machine.
+            // So the ceiling is the right one: real load reaches most of it under
+            // stress and never passes it, which is exactly what a scale should do.
+            //
+            // The typical reading sits low as a result — this set's median is
+            // 184 A, 13% of the bar — and that is the truth about standby plant
+            // rather than a scaling fault. A bar sized to the ordinary load would
+            // have nowhere to go on the day that matters.
             scale: Math.round((kva * 1_000) / (Math.sqrt(3) * 415)),
             channels: [
               {label: 'L1', key: 'current-l1', value: readings['current-l1'].value},
