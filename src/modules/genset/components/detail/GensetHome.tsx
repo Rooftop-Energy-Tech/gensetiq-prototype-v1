@@ -35,6 +35,7 @@ import {activePosting} from '@/modules/deployment/data/store';
 import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import {ControlPad} from './ControlPad';
 import {OilCanIcon} from './OilCanIcon';
+import {OutputBars} from './OutputBars';
 import {PhaseBars} from './PhaseBars';
 import {ReadingTile} from './ReadingTile';
 import {FuelColumn, GeneratorColumns} from './GeneratorColumns';
@@ -142,6 +143,11 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
   // `undefined` where it stands on none — the same totals the deployment's own page
   // reads, so the two cannot disagree.
   const engineHours = detail.readings['engine-hours']?.value;
+  // Load as a share of nameplate, for the bar beside the phases. The kW figure is
+  // the fact and this is its altitude — 236 kW means nothing until you know whether
+  // the machine is rated 300 or 1,250.
+  const loadPercent =
+    detail.ratedKw > 0 ? Math.round(((detail.loadKw ?? 0) / detail.ratedKw) * 100) : 0;
   const posting = activePosting(genset.id, now);
   const postingHours =
     posting === undefined
@@ -346,6 +352,17 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             {detail.phases.map((group) => (
               <PhaseBars key={group.label} group={group} />
             ))}
+
+            <OutputBars
+              lines={[
+                {label: 'PF', value: detail.readings['power-factor']?.value ?? 0, unit: '', min: 0, max: 1, precision: 2},
+                // 45–55 rather than 0–55: a 0-based bar sits at 91% for every
+                // healthy set and moves a pixel on the 2 Hz droop it exists to show.
+                {label: 'Freq', value: detail.readings['frequency']?.value ?? 0, unit: 'Hz', min: 45, max: 55, precision: 1},
+                {label: 'Load', value: loadPercent, unit: '%', min: 0, max: 100},
+                {label: 'Power', value: detail.loadKw ?? 0, unit: 'kW', min: 0, max: Math.round(detail.ratedKw)},
+              ]}
+            />
           </div>
         )}
 
