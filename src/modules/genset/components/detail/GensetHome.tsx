@@ -235,7 +235,12 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
   ).standing;
 
   return (
-    <div className="flex flex-col gap-5 px-4 pb-24 md:pb-6">
+    // `gap-3` between bands, down from `gap-5` on 2026-09-22. The gap applies on
+    // both sides of every rule, so 20px was really 40px of air around a 1px line,
+    // and the card bands carried their own `py-4` on top of that — close to 56px
+    // between one card's bottom edge and the next card's top. The padding goes with
+    // it: the gap is the separation now, stated in one place.
+    <div className="flex flex-col gap-3 px-4 pb-24 md:pb-6">
       {/* Band 1 — the three figures that decide whether somebody is sent out.
 
           Two diesel and one service, and the pairing is the point: the tank says
@@ -340,7 +345,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           vanish with the engine; the tank does not, and a band whose first element
           changed with the run state would give a reader two pages to learn. It is
           the same argument that put the tank first among the cards before them. */}
-      <div className="flex flex-wrap items-stretch gap-4 py-4">
+      <div className="flex flex-wrap items-stretch gap-4">
         <FuelColumn genset={genset} detail={detail} running={running} />
 
         {/* The marks in a card of their own, titled like the tank beside them. They
@@ -452,7 +457,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           start it? — actually turns on. */}
       {!running && (
         <>
-          <div className="flex flex-wrap items-stretch gap-4 py-4">
+          <div className="flex flex-wrap items-stretch gap-4">
             <StandbyPanel genset={genset} readings={detail.readings} now={now} />
           </div>
 
