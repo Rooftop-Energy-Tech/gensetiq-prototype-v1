@@ -399,10 +399,23 @@ export const reconcile = (
  * size, because machines recording more than the yard released cannot be a loss and
  * can only be a measurement.
  *
- * **A shortfall past 2% of what was issued: fuel did not arrive.** Fuel left the
- * yard and reached no machine, which is the case this page exists for. Percent
- * rather than litres at this grade because 600 L missing from a small yard's month
- * is a different event from 600 L missing from Klang's.
+ * **A shortfall past 0.5% of what was issued, or past 1,000 L: fuel did not
+ * arrive.**
+ * Fuel left the yard and reached no machine, which is the case this page exists for.
+ *
+ * Two tests rather than one, and the flat litre figure is the important half. The
+ * percentage alone graded Klang's missing 1,271 L below Butterworth's missing
+ * 1,181 — the busier yard allowed to lose more before anyone shouted. That reasoning holds for *measurement error*, which scales
+ * with throughput, and fails for *missing fuel*, which is the same diesel whoever's
+ * yard it left. A thousand litres is a large amount anywhere — Afifah's line,
+ * 2026-09-22.
+ *
+ * The percentage stays alongside it so a small yard is caught early, and it is
+ * **0.5%** — Afifah's figure, tightened from 2% on 2026-09-22. Two percent let a
+ * yard lose a fiftieth of everything it issued before the page said so, which on
+ * Klang's month is most of a tanker compartment. At a half percent the line is
+ * 680 L there and 151 L at Butterworth, and the 100 L noise floor underneath stops
+ * the small yards from crying wolf.
  */
 export type VarianceVerdict = {
   severity: 'CRITICAL' | 'WARNING';
@@ -417,8 +430,9 @@ export const varianceSeverity = (
   const gap = Math.abs(varianceLitres);
   if (gap < 100) return undefined;
 
-  // A shortfall large enough to be about fuel rather than measurement.
-  if (varianceLitres > 0 && gap >= Math.max(100, outLitres * 0.02)) {
+  // A shortfall large enough to be about fuel rather than measurement: either a
+  // proportional gap at this yard, or a thousand litres anywhere.
+  if (varianceLitres > 0 && (gap >= 1_000 || gap >= outLitres * 0.005)) {
     return {severity: 'CRITICAL', kind: 'shortfall'};
   }
 
