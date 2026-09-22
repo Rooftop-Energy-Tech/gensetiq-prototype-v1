@@ -117,33 +117,6 @@ const READING_ICON: Record<string, LucideIcon | ComponentType<SVGProps<SVGSVGEle
   frequency: ActivityIcon,
 };
 
-/**
- * The conditions card's tiles, in the order they are laid out.
- *
- * Three to a row at the band's usual width, so this reads as:
- *
- *     coolant     battery      running hours
- *     frequency   active power oil pressure
- *     on deployment
- *
- * The first two rows were the other way round until 2026-09-22 — Afifah's call,
- * looking at the card. Stated as a list rather than left to `detail.gauges`' own
- * order because a counter now sits in the middle of the marks, and the catalogue
- * has no opinion about where a counter goes.
- *
- * The two counter keys are this page's, not the controller's: `running-hours` and
- * `on-deployment` name figures no register carries.
- */
-const TILE_ORDER = [
-  'coolant-temp',
-  'battery-voltage',
-  'running-hours',
-  'frequency',
-  'active-power',
-  'oil-pressure',
-  'on-deployment',
-] as const;
-
 export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDetail}) => {
   /**
    * Control mode is the one thing on this page a person can change, and it lives
@@ -337,74 +310,54 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             thing next to a loose group of tiles; the heading also gives seven marks
             a name, which they had none of. */}
         <Column title="Generator conditions">
-          {/* One ordered list rather than "the marks, then the counters".
-              
-              The two rows swapped on 2026-09-22 — Afifah's call — and a swap puts
-              `Running hours` in the top row, between the battery and the frequency.
-              Rendering the gauges as a block and appending the counters cannot
-              express that: it can only ever put both counters last. So the order is
-              stated here, and each entry finds its own reading.
-              
-              A gauge missing from `detail.gauges` drops out of the list rather than
-              rendering empty, which is what a stopped set does — `gauges` is empty
-              then, and what is left is the two counters, in this same order. */}
           <div className="flex flex-wrap items-start gap-x-8 gap-y-6 pt-1">
-            {TILE_ORDER.map((key) => {
-              if (key === 'running-hours') {
-                return (
-                  <ReadingTile
-                    key={key}
-                    label="Running hours"
-                    value={engineHours === undefined ? '—' : engineHours.toLocaleString('en-MY')}
-                    unit="hrs"
-                    icon={ClockIcon}
-                  />
-                );
+            {detail.gauges.map((gauge) => (
+              <ReadingTile
+                key={gauge.key}
+                label={gauge.label}
+                value={gauge.value.toLocaleString('en-MY', {
+                  minimumFractionDigits: gauge.precision ?? 0,
+                  maximumFractionDigits: gauge.precision ?? 0,
+                })}
+                unit={gauge.unit}
+                icon={READING_ICON[gauge.key] ?? GaugeIcon}
+                // The dial carried its range on its face. A tile has nowhere for
+                // it, so the one reading that is genuinely read against limits
+                // rather than as a number keeps them as a note. The other four sit
+                // at nominal whenever they are well, and a band under them would
+                // be four lines of type saying "still fine".
+                note={gauge.key === 'oil-pressure' ? `${gauge.min}–${gauge.max} bar` : undefined}
+                severity={severityByReading.get(gauge.key)}
+              />
+            ))}
+
+            {/* The two hour figures, and they sit **outside** the running gate the
+                five marks are inside. They are counters rather than live readings:
+                a stopped set has run for just as many hours as it had a minute
+                before it stopped, and they were the only two things the conditions
+                card held that the marks do not. Gating them with the marks would
+                have taken them off the page for every idle machine, which is most
+                of the estate. */}
+            <ReadingTile
+              label="Running hours"
+              value={engineHours === undefined ? '—' : engineHours.toLocaleString('en-MY')}
+              unit="hrs"
+              icon={ClockIcon}
+            />
+            <ReadingTile
+              label="On deployment"
+              value={
+                postingHours === undefined
+                  ? 'Not deployed'
+                  : postingHours.toLocaleString('en-MY', {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })
               }
-
-              if (key === 'on-deployment') {
-                return (
-                  <ReadingTile
-                    key={key}
-                    label="On deployment"
-                    value={
-                      postingHours === undefined
-                        ? 'Not deployed'
-                        : postingHours.toLocaleString('en-MY', {
-                            minimumFractionDigits: 1,
-                            maximumFractionDigits: 1,
-                          })
-                    }
-                    unit={postingHours === undefined ? undefined : 'hrs'}
-                    icon={TruckIcon}
-                    note={posting?.deployment.reference}
-                  />
-                );
-              }
-
-              const gauge = detail.gauges.find((entry) => entry.key === key);
-              if (gauge === undefined) return null;
-
-              return (
-                <ReadingTile
-                  key={key}
-                  label={gauge.label}
-                  value={gauge.value.toLocaleString('en-MY', {
-                    minimumFractionDigits: gauge.precision ?? 0,
-                    maximumFractionDigits: gauge.precision ?? 0,
-                  })}
-                  unit={gauge.unit}
-                  icon={READING_ICON[gauge.key] ?? GaugeIcon}
-                  // The dial carried its range on its face. A tile has nowhere for
-                  // it, so the one reading that is genuinely read against limits
-                  // rather than as a number keeps them as a note. The others sit at
-                  // nominal whenever they are well, and a band under them would be
-                  // four lines of type saying "still fine".
-                  note={gauge.key === 'oil-pressure' ? `${gauge.min}–${gauge.max} bar` : undefined}
-                  severity={severityByReading.get(gauge.key)}
-                />
-              );
-            })}
+              unit={postingHours === undefined ? undefined : 'hrs'}
+              icon={TruckIcon}
+              note={posting?.deployment.reference}
+            />
           </div>
         </Column>
 
