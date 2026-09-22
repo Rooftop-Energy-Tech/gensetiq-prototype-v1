@@ -63,7 +63,25 @@ export const DepotTankGlyph = ({
         </clipPath>
       </defs>
 
-      {/* The diesel. Drawn first so every line of the vessel sits over it. */}
+      {/* ## Two solid tones, as `TankGlyph` has
+          The genset tank fills its segments in teal and leaves the rest in
+          `tertiary` — a solid colour either way, so the reader sees a boundary
+          between two materials rather than a shape with some paint in it. This drew
+          its empty half as bare card, which read as an outline drawing that happened
+          to have liquid in the bottom. */}
+      <rect
+        x={14}
+        y={top}
+        width={172}
+        height={height}
+        clipPath={`url(#${clipId})`}
+        fill="currentColor"
+        stroke="none"
+        className="text-tertiary/45"
+      />
+
+      {/* The diesel over it. Both are drawn before every line of the vessel, so the
+          outline and the seams sit on top of whichever tone they cross. */}
       <rect
         x={14}
         y={surface}

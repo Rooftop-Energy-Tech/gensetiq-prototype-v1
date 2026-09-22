@@ -82,7 +82,7 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
 
       <div className="flex items-start gap-4 py-1.5">
         <div className="flex w-[200px] shrink-0 flex-col items-center gap-1.5">
-          <DepotTankGlyph fraction={fraction} className="w-full text-secondary" />
+          <DepotTankGlyph fraction={fraction} className="w-full text-primary/70" />
           <p className="text-sm font-semibold whitespace-pre text-primary">
             {`${amount(level, 'L')}  |  ${Math.round(fraction * 100)}%`}
           </p>
