@@ -280,7 +280,44 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
         }}
       />
 
-      {/* Band 2 — the dials, and the two bar charts under them.
+      {/* Band 2 — the run, and the controls that act on it.
+
+          Above the readings since 2026-09-22 — Afifah's call. A reader arrives
+          knowing what they came for: the title says whether the engine is turning
+          and what it is carrying, this band says what the current start has done
+          and offers the four buttons that change it. The three cards of figures
+          below are what you consult once you have looked.
+
+          A column below `md` rather than a wrapping row. Wrapping is what the desktop
+          band wants — two halves that break onto two lines when the window narrows —
+          but on a phone both halves *can* squeeze into one line once they are allowed
+          to shrink, and the result is two 170px columns with the labels truncated
+          away. The two questions are separate; at this width they are separate rows. */}
+      <div className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-stretch">
+        {/* The 560px floor is a desktop instruction — "keep the run beside the state
+            or wrap the whole band" — and on a 390px screen it is unsatisfiable, so
+            it would win over `flex-wrap` and push the page into a sideways scroll.
+            `min-w-0` replaces it below `md`: a flex item's automatic minimum is its
+            content's, so without it the run card's widest line — a timestamp that
+            must not wrap — becomes the floor for the whole band. */}
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
+          <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
+        </div>
+
+        {/* Where the fuel panel stood until 2026-09-22. The pad comes down from
+            band 2 to take it, which is the better home for it on two counts: the
+            readings band above is now three columns of figures and a control column
+            beside them made the page's only interactive thing compete with its
+            densest reading, and a reader reaching for START has usually just read
+            the run state a few pixels to the left of here. */}
+        <div className="flex min-w-0 flex-1 items-center p-3 md:min-w-[420px] md:justify-end">
+          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
+        </div>
+      </div>
+
+      <hr className="border-subtle" />
+
+      {/* Band 3 — the dials, and the two bar charts under them.
 
           Back on 2026-09-22 after a week as label/value rows. The argument for
           taking them out still holds for *some* of them — a governor holds 50.0 Hz
@@ -292,7 +329,8 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
 
           Absent when the engine is stopped: `detail.gauges` and `detail.phases` are
           empty then, and a row of needles pinned at zero says less than one line of
-          text saying the engine is off — which is what `StandbyPanel` below is. */}
+          text saying the engine is off — which is what `StandbyPanel` is, in the
+          output card's place. */}
       {/* The tank leads the band, with the live readings to its right. Both halves
           answer "what is it doing right now" — the tank says how long it can keep
           going, the marks say how it is going — and a reader takes the pair in
@@ -421,41 +459,6 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           <hr className="border-subtle" />
         </>
       )}
-
-      {/* Band 3 — the run, the day, and the tank.
-
-          The run card carries two columns now — this run, and everything since
-          midnight — so the band reads at three horizons without gaining a third
-          card: what one start did, what the day's starts did together, and how
-          many more starts are left in the tank beside them.
-          A column below `md` rather than a wrapping row. Wrapping is what the desktop
-          band wants — two halves that break onto two lines when the window narrows —
-          but on a phone both halves *can* squeeze into one line once they are allowed
-          to shrink, and the result is two 170px columns with the labels truncated
-          away. The two questions are separate; at this width they are separate rows. */}
-      <div className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-stretch">
-        {/* The 560px floor is a desktop instruction — "keep the run beside the state
-            or wrap the whole band" — and on a 390px screen it is unsatisfiable, so
-            it would win over `flex-wrap` and push the page into a sideways scroll.
-            `min-w-0` replaces it below `md`: a flex item's automatic minimum is its
-            content's, so without it the run card's widest line — a timestamp that
-            must not wrap — becomes the floor for the whole band. */}
-        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
-          <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
-        </div>
-
-        {/* Where the fuel panel stood until 2026-09-22. The pad comes down from
-            band 2 to take it, which is the better home for it on two counts: the
-            readings band above is now three columns of figures and a control column
-            beside them made the page's only interactive thing compete with its
-            densest reading, and a reader reaching for START has usually just read
-            the run state a few pixels to the left of here. */}
-        <div className="flex min-w-0 flex-1 items-center p-3 md:min-w-[420px] md:justify-end">
-          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
-        </div>
-      </div>
-
-      <hr className="border-subtle" />
 
       {/* Band 4 — what the machine is, in the `DetailBand` all four detail pages
           share, and last of the bands that describe it rather than report on it.
