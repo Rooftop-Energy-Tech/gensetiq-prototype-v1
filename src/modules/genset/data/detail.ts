@@ -154,8 +154,8 @@ type ReadingSpec = {
  */
 const READING_SPECS: Array<ReadingSpec> = [
   // Engine.
-  {key: 'engine-speed', label: 'Engine speed', unit: 'rpm', base: 1_500, vary: 30, engineOnly: true},
-  {key: 'coolant-temp', label: 'Coolant temperature', unit: '°C', base: 84, vary: 8},
+  {key: 'engine-speed', label: 'Engine speed', unit: 'rpm', base: 1_500, vary: 1, engineOnly: true},
+  {key: 'coolant-temp', label: 'Coolant temperature', unit: '°C', base: 68, vary: 2},
   {key: 'coolant-level', label: 'Coolant level', unit: '%', base: 90, vary: 8},
   {
     key: 'oil-pressure',
@@ -163,7 +163,7 @@ const READING_SPECS: Array<ReadingSpec> = [
     unit: 'bar',
     precision: 1,
     base: 4.3,
-    vary: 0.8,
+    vary: 0.2,
     engineOnly: true,
   },
   {key: 'oil-temp', label: 'Oil temperature', unit: '°C', base: 96, vary: 7},
@@ -181,16 +181,16 @@ const READING_SPECS: Array<ReadingSpec> = [
     label: 'Starter battery voltage',
     unit: 'V',
     precision: 1,
-    base: 26.6,
-    vary: 1.4,
+    base: 29.4,
+    vary: 0.4,
   },
   {
     key: 'charge-alt-voltage',
     label: 'Charge alternator voltage',
     unit: 'V',
     precision: 1,
-    base: 27.9,
-    vary: 0.9,
+    base: 29.4,
+    vary: 0.3,
     engineOnly: true,
   },
   // Fuel. `fuel-level` and `fuel-rate` are overwritten from the fleet row and
@@ -213,8 +213,13 @@ const READING_SPECS: Array<ReadingSpec> = [
     label: 'Power factor',
     unit: '',
     precision: 2,
-    base: 0.93,
-    vary: 0.04,
+    // `BRF 9540` runs at unity — median 0.99, and 1.00 at the 95th percentile.
+    // Centred at 0.98 rather than 0.99 so the top of the band lands *on* 1.00 and
+    // not past it: a power factor above unity is not a high reading, it is an
+    // impossible one, and a gauge that shows 1.01 tells a reader the instrument
+    // is wrong.
+    base: 0.98,
+    vary: 0.02,
     engineOnly: true,
   },
   {
@@ -223,31 +228,31 @@ const READING_SPECS: Array<ReadingSpec> = [
     unit: 'Hz',
     precision: 1,
     base: 50,
-    vary: 0.3,
+    vary: 0.1,
     engineOnly: true,
   },
   {
     key: 'voltage-l1l2',
     label: 'Line voltage L1-L2',
     unit: 'V',
-    base: 405,
-    vary: 6,
+    base: 416,
+    vary: 2,
     engineOnly: true,
   },
   {
     key: 'voltage-l2l3',
     label: 'Line voltage L2-L3',
     unit: 'V',
-    base: 405,
-    vary: 6,
+    base: 416,
+    vary: 2,
     engineOnly: true,
   },
   {
     key: 'voltage-l3l1',
     label: 'Line voltage L3-L1',
     unit: 'V',
-    base: 405,
-    vary: 6,
+    base: 416,
+    vary: 2,
     engineOnly: true,
   },
   {key: 'current-l1', label: 'Phase current L1', unit: 'A', base: 0, vary: 0, engineOnly: true},
@@ -1113,6 +1118,10 @@ const rulesFor = (genset: Genset): Array<AlertRule> => {
 const buildDetail = (genset: Genset, now: number): GensetDetail => {
   const running = genset.runState === 'RUNNING';
   const kva = ratingKva(genset.model);
+  // 500 kVA and under starts on a 12 V bank rather than 24 V. Named once, because
+  // it decides both the voltage readings and the face they are drawn on, and those
+  // two disagreeing is exactly the bug it prevents.
+  const smallSet = kva <= 500;
   const ratedKw = Math.round(kva * POWER_FACTOR);
 
   // Dealt first, because one of them changes the load — and the load is what the
@@ -1232,6 +1241,25 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
             10 ** (spec.precision ?? 0),
         ) / 10 ** (spec.precision ?? 0),
     };
+  }
+
+  // **A 500 kVA set and under runs a 12 V starting system, not 24 V.**
+  //
+  // Every band above is `BRF 9540`'s, measured — and that is an 800 kW machine on
+  // a 24 V bank, charging at 29.4 V. Halving it is not a fudge: a 12 V system's
+  // charging voltage *is* half a 24 V one's, because both are the same lead-acid
+  // chemistry in series, so 14.7 V is the same fact about the same alternator
+  // regulating the same cells. Reading a small Denyo at 29 V would put a 24 V
+  // bank in a machine that does not have one.
+  //
+  // The 500 kVA line is where the estates actually divide: the Cummins 500s, the
+  // Kohler 400s and the Denyo 250s below them, against the 650 kVA and up.
+  if (smallSet) {
+    for (const key of ['battery-voltage', 'charge-alt-voltage']) {
+      const reading = readings[key];
+      if (reading === undefined) continue;
+      readings[key] = {...reading, value: Math.round(reading.value * 5) / 10};
+    }
   }
 
   // Phase current from the load: I = P / (√3 · V · pf).
@@ -1431,9 +1459,16 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
           // window in which the charging circuit can be proved is while the engine
           // is turning — which makes it precisely a running-set reading, and the
           // one alarm on the home page's list (`AL Battery Charger`, < 26 V) with
-          // no instrument behind it. 20–32 spans a 24 V system from flat to fully
-          // charged, putting the 26 V alarm six ticks below a healthy 27.9.
-          gauge('charge-alt-voltage', 20, 32),
+          // no instrument behind it.
+          //
+          // **The scale follows the system.** 20–32 spans a 24 V bank from flat to
+          // fully charged, putting the 26 V alarm six ticks below a healthy 29.4.
+          // A 500 kVA set and under is 12 V, and drawing its 14.7 V against a 24 V
+          // face would peg the needle at a quarter scale and read as a dying bank.
+          // Halved ends keep the same resolution per tick on both.
+          smallSet
+            ? gauge('charge-alt-voltage', 10, 16)
+            : gauge('charge-alt-voltage', 20, 32),
         ]
       : [],
     phases: running
