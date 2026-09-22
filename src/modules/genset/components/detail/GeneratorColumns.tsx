@@ -1,3 +1,19 @@
+import {
+  ActivityIcon,
+  BatteryChargingIcon,
+  ClockIcon,
+  ContainerIcon,
+  DropletIcon,
+  FuelIcon,
+  GaugeIcon,
+  HourglassIcon,
+  PlugZapIcon,
+  ThermometerIcon,
+  TruckIcon,
+  WavesIcon,
+  ZapIcon,
+} from 'lucide-react';
+import type {LucideIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
 import {TankGlyph} from '@/components/global/TankGlyph';
@@ -47,9 +63,32 @@ import type {Reading} from '../../types/telemetry.type';
  * grey set differently. Two kinds of label on one page is one kind too many, and the
  * strip is the one that was there first.
  */
-const Row = ({label, children}: {label: string; children: ReactNode}) => (
-  <div className="flex items-baseline justify-between gap-4 py-1.5">
-    <dt className="shrink-0 text-sm font-medium text-secondary">{label}</dt>
+const Row = ({
+  label,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  icon: LucideIcon;
+  children: ReactNode;
+}) => (
+  <div className="flex items-center justify-between gap-4 py-1.5">
+    <dt className="flex min-w-0 shrink items-center gap-2.5 text-sm font-medium text-secondary">
+      {/* The glyph in a tinted square, which is the reference UI's treatment and
+          worth borrowing: a row of labels all set in the same grey is scanned by
+          reading, where a column of small marks is scanned by shape, and a reader
+          coming back to this page twice a day is looking for *the coolant row*
+          rather than for the word.
+
+          `bg-highlight` rather than the reference's saturated fill. Ten saturated
+          squares down two cards would make the marks the loudest thing on a band
+          whose subject is the figures beside them; the tint is enough to read as a
+          chip without competing. */}
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-highlight">
+        <Icon className="size-4 text-secondary" aria-hidden="true" />
+      </span>
+      <span className="truncate">{label}</span>
+    </dt>
     <dd className="min-w-0 truncate text-right text-sm font-semibold text-primary tabular-nums">
       {children}
     </dd>
@@ -148,13 +187,13 @@ export const GeneratorColumns = ({
     <>
       <Column title="Generator conditions">
         <dl className="flex flex-col divide-y divide-subtle">
-          <Row label="Oil pressure">{value(read('oil-pressure'))}</Row>
-          <Row label="Coolant temperature">{value(read('coolant-temp'))}</Row>
-          <Row label="Running hours">{value(read('engine-hours'))}</Row>
+          <Row label="Oil pressure" icon={DropletIcon}>{value(read('oil-pressure'))}</Row>
+          <Row label="Coolant temperature" icon={ThermometerIcon}>{value(read('coolant-temp'))}</Row>
+          <Row label="Running hours" icon={ClockIcon}>{value(read('engine-hours'))}</Row>
           {/* Named for the job rather than as "this deployment", so the row reads on
               its own: a reader who has not scrolled to the posting card still knows
               which window the hours belong to. */}
-          <Row label="Hours on current deployment">
+          <Row label="Hours on current deployment" icon={TruckIcon}>
             {postingHours === undefined ? (
               <span className="text-tertiary">Not deployed</span>
             ) : (
@@ -169,22 +208,22 @@ export const GeneratorColumns = ({
           {/* Three phases on one row, separated rather than stacked: the reader's
               question is whether they agree, and three figures side by side answer
               it faster than three labelled rows. The label carries their order. */}
-          <Row label="Line voltage L1-L2 / L2-L3 / L3-L1">
+          <Row label="Line voltage L1-L2 / L2-L3 / L3-L1" icon={ZapIcon}>
             {lineVoltages.length === 0
               ? '—'
               : `${lineVoltages.map((entry) => Math.round(entry)).join(' / ')} V`}
           </Row>
-          <Row label="Power factor">{value(read('power-factor'))}</Row>
-          <Row label="Load">
+          <Row label="Power factor" icon={WavesIcon}>{value(read('power-factor'))}</Row>
+          <Row label="Load" icon={GaugeIcon}>
             {`${loadPercent}% of ${Math.round(detail.ratedKw).toLocaleString('en-MY')} kW`}
           </Row>
-          <Row label="Active power">{`${Math.round(loadKw).toLocaleString('en-MY')} kW`}</Row>
-          <Row label="Frequency">{value(read('frequency'))}</Row>
+          <Row label="Active power" icon={PlugZapIcon}>{`${Math.round(loadKw).toLocaleString('en-MY')} kW`}</Row>
+          <Row label="Frequency" icon={ActivityIcon}>{value(read('frequency'))}</Row>
           {/* This run's, not the day's and not the machine's life. The run card
               below carries the same figure; it is here because a reader asking what
               the set is producing is asking the output column, and sending them down
               the page for the last of six answers is the band failing at its job. */}
-          <Row label="Energy produced">
+          <Row label="Energy produced" icon={BatteryChargingIcon}>
             {`${Math.round(detail.run.energyProducedKwh).toLocaleString('en-MY')} kWh`}
           </Row>
         </dl>
@@ -248,17 +287,17 @@ export const FuelColumn = ({
         </div>
 
         <dl className="flex min-w-0 flex-1 flex-col divide-y divide-subtle">
-          <Row label="Max capacity">{amount(detail.fuel.maxLitres, 'L')}</Row>
+          <Row label="Max capacity" icon={ContainerIcon}>{amount(detail.fuel.maxLitres, 'L')}</Row>
           {/* ⚠️ The label no longer says whether the figure is metered or
               estimated. It read `Metered rate` / `Estimated rate` until 2026-09-22
               — Afifah's call — and the distinction is real: without a flow meter
               this is computed from the electrical load, a good estimate and not a
               measurement. `instrumentsOf` still knows which machines have one, so
               restoring it is a word in this label or a suffix on the value. */}
-          <Row label={running ? 'Fuel burn rate' : 'Fuel burn rate, last run'}>
+          <Row label={running ? 'Fuel burn rate' : 'Fuel burn rate, last run'} icon={FuelIcon}>
             {amount(detail.fuel.litresPerHour, 'L/hr', 1)}
           </Row>
-          <Row label={running ? 'Refuel by' : 'Runtime to reserve'}>
+          <Row label={running ? 'Refuel by' : 'Runtime to reserve'} icon={HourglassIcon}>
             {running
               ? stampDate(detail.fuel.refuelBy)
               : belowReserve
