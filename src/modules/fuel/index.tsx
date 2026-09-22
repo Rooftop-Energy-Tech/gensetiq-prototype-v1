@@ -158,10 +158,19 @@ export const FuelPage = () => {
             No delivery in this period.
           </p>
         ) : (
-          // `overflow-x-auto` only. The table sets its own height and the page
-          // carries it; what it must still do is scroll sideways rather than push
-          // the whole page wide on a narrow window.
-          <div className="overflow-x-auto rounded-md border border-subtle">
+          // No overflow of any kind on this wrapper, and that is deliberate.
+          //
+          // It carried `overflow-x-auto` so a narrow window would scroll the table
+          // sideways rather than the page — and that alone put the vertical scroll
+          // back inside the box. CSS computes `overflow-y: visible` to `auto`
+          // whenever the other axis is not visible, so asking for a horizontal
+          // scrollbar asks for both, and the reader was back to dragging a list of
+          // hundreds inside a frame.
+          //
+          // Four columns of short cells do not need sideways scrolling; if they ever
+          // do, the page's own `overflow-y-auto` gives it for the same reason, one
+          // level up, where it scrolls the page instead of trapping the table.
+          <div className="rounded-md border border-subtle">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-element">
                 <tr className="text-left text-xs text-secondary">
