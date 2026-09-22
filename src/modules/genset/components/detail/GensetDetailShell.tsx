@@ -1,5 +1,5 @@
 import {Outlet} from '@tanstack/react-router';
-import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, PlayIcon, SettingsIcon, TruckIcon, WrenchIcon} from 'lucide-react';
+import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, PlayIcon, SettingsIcon, WrenchIcon} from 'lucide-react';
 
 import {
   DetailSidebar,
@@ -39,10 +39,14 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
     // `end` on the landing row alone: `/gensets/x` prefixes all six below it.
     {label: 'Genset', icon: BoomBoxIcon, to: '/gensets/$gensetId', params, end: true},
     {label: 'Analysis', icon: ChartLineIcon, to: '/gensets/$gensetId/analysis', params},
+    // Runs carries the postings too since 2026-09-22 — a posting's yard, window,
+    // lorry and tank readings sit above the runs it contains, and the separate
+    // `Deployments` tab that held them is gone. Two tabs asking about one machine's
+    // work, where the second's `On load` column was the first's `Time running` for
+    // one window, is the split that made them confusing.
     {label: 'Runs', icon: PlayIcon, to: '/gensets/$gensetId/runs', params},
     // After Runs, because a posting is the window the runs inside it are read over —
     // see `deployment.type.ts` on why both exist.
-    {label: 'Deployments', icon: TruckIcon, to: '/gensets/$gensetId/deployments', params},
     {label: 'Service', icon: WrenchIcon, to: '/gensets/$gensetId/service', params},
     {label: 'Alarms', icon: BellIcon, to: '/gensets/$gensetId/alarms', params},
     {label: 'Devices', icon: CircuitBoardIcon, to: '/gensets/$gensetId/equipment', params},

@@ -11,6 +11,7 @@ import type {RunRange} from '../../types/runsView.type';
 import {clearedRunsRange, runTotals, runsOverlapping, runsRange} from '../../types/runsView.type';
 import type {RunWindow, RunsSearch} from '../../types/runsView.type';
 import {DeploymentPicker} from './DeploymentPicker';
+import {PostingContext} from './PostingContext';
 import {RunsPanel} from './RunsPanel';
 
 /**
@@ -44,6 +45,11 @@ export const GensetRuns = ({
   // day-granular custom range cannot promise.
   const postings = useMemo(() => gensetPostings(genset.id), [genset.id]);
   const posting = postings.find((candidate) => candidate.deployment.id === search.dep);
+  // Where the machine is now, for the unscoped summary — the deployments tab's third
+  // tile. `undefined` in the workshop, which the block words as `In depot`.
+  const standingAt = postings.find(
+    (candidate) => postingEnd(candidate) === null,
+  )?.deployment.locationLabel;
   const postingTo = posting === undefined ? null : postingEnd(posting);
   const range: RunRange =
     posting === undefined
@@ -92,6 +98,13 @@ export const GensetRuns = ({
       heldCount={all.length}
       showAsset={false}
       energyNote={undefined}
+      postingContext={
+        <PostingContext
+          posting={posting}
+          postings={postings}
+          standingAt={standingAt}
+        />
+      }
       deploymentPicker={
         <DeploymentPicker
           postings={postings}

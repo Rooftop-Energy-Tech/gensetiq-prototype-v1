@@ -50,6 +50,7 @@ export const RunsPanel = ({
   showAsset,
   energyNote,
   deploymentPicker,
+  postingContext,
   onWindowChange,
   onCustomChange,
   onExport,
@@ -74,6 +75,12 @@ export const RunsPanel = ({
    * and should not have to say so.
    */
   deploymentPicker?: ReactNode;
+  /**
+   * The posting the window is scoped to, or this machine's posting record when it
+   * is not — the deployment log, folded into this tab. A slot for the same reason
+   * the picker is one: a site's runs log has no posting to describe.
+   */
+  postingContext?: ReactNode;
   onWindowChange: (window: RunWindow) => void;
   onCustomChange: (from: string, to: string) => void;
   onExport: () => void;
@@ -106,6 +113,8 @@ export const RunsPanel = ({
           Export CSV
         </Button>
       </div>
+
+      {postingContext}
 
       {heldCount > 0 && (
         <RunsTimeline lanes={lanes} from={range.from} to={range.to} now={now} />
