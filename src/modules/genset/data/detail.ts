@@ -1426,15 +1426,25 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
     // fifth of its scale is a reading whose drift is invisible, and drift is the
     // whole diagnostic value of a live dial. So each pair below is set to put the
     // healthy value near mid-scale and keep every alarm limit on the face.
-    // **Engine first, electrical after** — the two rows swapped on 2026-09-22.
-    //
-    // The card these fill is titled `Generator conditions`, and it led with
-    // frequency and active power: two readings about what the machine is
-    // *delivering*, met before the oil. Lubrication, cooling and the charging
-    // circuit are the three that kill a running set, so they take the first row and
-    // the electrical pair follows. The order here is the order on the card.
     gauges: running
       ? [
+          // Frequency in place of engine speed. On a four-pole 50 Hz set the two
+          // are one measurement — 1500 rpm *is* 50 Hz, as the `Speed & frequency`
+          // tag says — and of the pair frequency is the one the load actually
+          // sees, so showing rpm here spent a dial on the less useful half.
+          //
+          // 45–55, not 0–60. Centred on nominal, 0.26 Hz per tick: the ±0.25%
+          // ISO 8528 G3 steady-state band is about a tick, and the 48/52 alarm
+          // limits sit six either side. A 0–60 scale would put nominal at 83% and
+          // render a 2 Hz droop — a governor fault — as one tick of movement.
+          gauge('frequency', 45, 55),
+          // 1.2 × rating, not rating. `AL Overload Wrn` fires at 100% and
+          // `AL Overload BOC` at 110%, so a dial ending at rated pegs full for
+          // both and cannot distinguish a set at its limit from one past it.
+          // Headroom is also what makes the *low* end readable: below 30% of
+          // rating a diesel wet-stacks, and that is a third of this face rather
+          // than a number to be compared against a rating held in your head.
+          gauge('active-power', 0, Math.round(ratedKw * 1.2)),
           // 0–8 stands. Zero is a real and catastrophic reading for oil pressure —
           // the one gauge here where the bottom of the scale means something — and
           // healthy 4.3 already sits mid-face with the 2.5 warning and 1.5
@@ -1467,23 +1477,6 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
           smallSet
             ? gauge('battery-voltage', 10, 16)
             : gauge('battery-voltage', 20, 32),
-          // Frequency in place of engine speed. On a four-pole 50 Hz set the two
-          // are one measurement — 1500 rpm *is* 50 Hz, as the `Speed & frequency`
-          // tag says — and of the pair frequency is the one the load actually
-          // sees, so showing rpm here spent a dial on the less useful half.
-          //
-          // 45–55, not 0–60. Centred on nominal, 0.26 Hz per tick: the ±0.25%
-          // ISO 8528 G3 steady-state band is about a tick, and the 48/52 alarm
-          // limits sit six either side. A 0–60 scale would put nominal at 83% and
-          // render a 2 Hz droop — a governor fault — as one tick of movement.
-          gauge('frequency', 45, 55),
-          // 1.2 × rating, not rating. `AL Overload Wrn` fires at 100% and
-          // `AL Overload BOC` at 110%, so a dial ending at rated pegs full for
-          // both and cannot distinguish a set at its limit from one past it.
-          // Headroom is also what makes the *low* end readable: below 30% of
-          // rating a diesel wet-stacks, and that is a third of this face rather
-          // than a number to be compared against a rating held in your head.
-          gauge('active-power', 0, Math.round(ratedKw * 1.2)),
         ]
       : [],
     phases: running
