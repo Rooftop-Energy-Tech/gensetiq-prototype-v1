@@ -225,44 +225,41 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             most useful fact: what is in it now is what the next outage gets. */}
         <FuelColumn genset={genset} detail={detail} running={running} />
 
-        {/* The pad comes up here on 2026-09-22 — Afifah's call. It is the page's one
+        {/* The run, between the tank and the controls. Three things a reader takes
+            in before any figure: how much is left, what this start has done, and
+            what they can do about it. The card carries its own border, so it sits
+            in the band beside the tank card rather than inside a wrapper. */}
+        <div className="flex min-w-0 flex-1 items-stretch md:min-w-[420px]">
+          <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
+        </div>
+
+        {/* The pad came up here on 2026-09-22 — Afifah's call. It is the page's one
             interactive thing, and a reader who has come to *do* something should not
-            have to scroll past two cards of figures to reach it. Beside the tank
-            rather than under it: those are the two things a reader acts on, where
-            everything below is what they act with. */}
-        <div className="flex shrink-0 items-center md:ml-auto">
+            have to scroll past two cards of figures to reach it. */}
+        <div className="flex shrink-0 items-center">
           <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
         </div>
       </div>
 
       <hr className="border-subtle" />
 
-      {/* Band 3 — the run, the day, and the tank.
+      {/* Band 3 — the figures behind the band above.
 
-          The run card carries two columns now — this run, and everything since
-          midnight — so the band reads at three horizons without gaining a third
-          card: what one start did, what the day's starts did together, and how
-          many more starts are left in the tank beside them.
+          Conditions and output, or the standby panel in their place when the engine
+          is stopped. The run card and the tank left this band on 2026-09-22 for the
+          one above, which is where a reader looks first; what is left here is what
+          they read second.
+
           A column below `md` rather than a wrapping row. Wrapping is what the desktop
           band wants — two halves that break onto two lines when the window narrows —
           but on a phone both halves *can* squeeze into one line once they are allowed
           to shrink, and the result is two 170px columns with the labels truncated
           away. The two questions are separate; at this width they are separate rows. */}
       <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch">
-        {/* The 560px floor is a desktop instruction — "keep the run beside the state
-            or wrap the whole band" — and on a 390px screen it is unsatisfiable, so
-            it would win over `flex-wrap` and push the page into a sideways scroll.
-            `min-w-0` replaces it below `md`: a flex item's automatic minimum is its
-            content's, so without it the run card's widest line — a timestamp that
-            must not wrap — becomes the floor for the whole band. */}
-        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
-          <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
-        </div>
-
         {/* The readings, under the run they belong to. They led the page until
             2026-09-22 and sit here now: a reader arrives asking what the machine is
-            doing — which the title's run state and the tank answer in one line each
-            — and only then asks for the figures behind it. */}
+            doing — which the title's run state, the tank and the run card answer
+            above — and only then asks for the figures behind it. */}
         {running ? (
           <GeneratorColumns genset={genset} detail={detail} now={now} />
         ) : (
