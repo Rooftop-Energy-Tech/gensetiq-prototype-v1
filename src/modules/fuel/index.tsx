@@ -7,7 +7,7 @@ import {seededDeployments, seededMemberships} from '@/modules/deployment/data/se
 import {GENSETS} from '@/modules/genset/data/fleet';
 import {refuelsIn} from '@/modules/genset/data/history';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
-import {FleetTanks} from './FleetTanks';
+import {DepotTank} from './DepotTank';
 
 /**
  * `/fuel` — diesel, in the two halves an operations room asks about.
@@ -94,7 +94,7 @@ export const FuelPage = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pt-3 pb-4">
-      <FleetTanks />
+      <DepotTank />
 
       <section className="flex min-h-0 flex-col gap-2">
         <header className="flex flex-wrap items-baseline justify-between gap-2">
