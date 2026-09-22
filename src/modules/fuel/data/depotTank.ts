@@ -43,9 +43,48 @@ const HOUR = 3_600_000;
 // way.
 const STEP = HOUR;
 
-/** A depot's capacity. Held on the row so one yard can differ from the others. */
-export const depotCapacityLitres = (depotId: string): number =>
-  DEPOTS.find((depot) => depot.id === depotId)?.capacityLitres ?? 200_000;
+/**
+ * A depot's tank: **half again the heaviest month its own catchment has drawn.**
+ *
+ * The rule Afifah set for the single depot, applied per yard now that there are
+ * four. Half again over the worst month is the headroom that stops a tank reaching
+ * the floor mid-fall — which is the failure that makes this whole page lie, because
+ * a clipped fall reads as fuel arriving at machines that the yard never released.
+ *
+ * Rounded up to the nearest 10,000 L. A bulk tank comes in whole sizes, and a
+ * capacity reading `47,431 L` would look computed in the one place a reader expects
+ * a nameplate. A yard with an unusual tank states it on its own row instead.
+ */
+const capacities = new Map<string, number>();
+
+export const depotCapacityLitres = (depotId: string): number => {
+  const stated = DEPOTS.find((depot) => depot.id === depotId)?.capacityLitres;
+  if (stated !== undefined) return stated;
+
+  const held = capacities.get(depotId);
+  if (held !== undefined) return held;
+
+  const to = Date.now();
+  const from = historyStart();
+  const MONTH = 30 * 24 * HOUR;
+  const served = new Set(depotFleet(depotId));
+
+  // Every 30-day window in the record, stepped a day at a time, and the fullest of
+  // them. One fixed month would miss a busy fortnight that straddles two.
+  let heaviest = 0;
+  for (let start = from; start + MONTH <= to; start += 24 * HOUR) {
+    let month = 0;
+    for (const genset of GENSETS) {
+      if (!served.has(genset.id)) continue;
+      for (const refuel of refuelsIn(genset.id, start, start + MONTH)) month += refuel.litres;
+    }
+    heaviest = Math.max(heaviest, month);
+  }
+
+  const sized = Math.max(20_000, Math.ceil((heaviest * 1.5) / 10_000) * 10_000);
+  capacities.set(depotId, sized);
+  return sized;
+};
 
 /** Below this the supplier is called, and the tank steps back up. */
 const REORDER_FRACTION = 0.18;
@@ -59,9 +98,11 @@ const REORDER_FRACTION = 0.18;
  * nobody trucks diesel from Klang to Bayan Lepas — and it would also make the one
  * number on this page an average that no yard manager recognises.
  *
- * Each holds 200,000 L. Uniform because they are the same kind of installation and
- * a reader comparing two variances should not have to hold two capacities in mind;
- * the day one of them is genuinely a different size, it is a field on this row.
+ * Their tanks are **not** the same size, because their catchments are not. Klang
+ * fuels twenty-one machines and the others five or six, so a uniform 200,000 L gave
+ * the three smaller yards five months of cover — tanks that never took a delivery in
+ * the whole record and sat there draining. Each is sized from what it actually
+ * issues; see `depotCapacityLitres`.
  */
 export type Depot = {
   id: string;
@@ -69,14 +110,18 @@ export type Depot = {
   locationLabel: string;
   latitude: number;
   longitude: number;
-  capacityLitres: number;
+  /**
+   * Written down only where a yard's tank is not what its catchment implies.
+   * Absent, the capacity is derived — see `depotCapacityLitres`.
+   */
+  capacityLitres?: number;
 };
 
 export const DEPOTS: ReadonlyArray<Depot> = [
-  {id: 'klang', name: 'Klang', locationLabel: 'Klang, Selangor', latitude: 3.0449, longitude: 101.4455, capacityLitres: 200_000},
-  {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', latitude: 4.5975, longitude: 101.0901, capacityLitres: 200_000},
-  {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', latitude: 5.3991, longitude: 100.3639, capacityLitres: 200_000},
-  {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914, capacityLitres: 200_000},
+  {id: 'klang', name: 'Klang', locationLabel: 'Klang, Selangor', latitude: 3.0449, longitude: 101.4455},
+  {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', latitude: 4.5975, longitude: 101.0901},
+  {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', latitude: 5.3991, longitude: 100.3639},
+  {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914},
 ];
 
 /**

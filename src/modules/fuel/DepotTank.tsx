@@ -1,6 +1,6 @@
 import {amount} from '@/lib/format';
 import {DepotTankGlyph} from './DepotTankGlyph';
-import {depotFleet, depotSeries} from './data/depotTank';
+import {depotCapacityLitres, depotFleet, depotSeries} from './data/depotTank';
 import type {Depot} from './data/depotTank';
 
 /**
@@ -27,7 +27,7 @@ import type {Depot} from './data/depotTank';
  */
 export const DepotTank = ({depot}: {depot: Depot}) => {
   const series = depotSeries(depot.id);
-  const capacity = depot.capacityLitres;
+  const capacity = depotCapacityLitres(depot.id);
   const served = depotFleet(depot.id).length;
   const level = series.at(-1)?.litres ?? 0;
   const fraction = capacity > 0 ? level / capacity : 0;
