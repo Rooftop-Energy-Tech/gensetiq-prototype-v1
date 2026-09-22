@@ -74,7 +74,7 @@ export const fleetSummary = (
     WORKSHOP: 0,
   };
   const customerCounts = new Map<CustomerId | 'WORKSHOP', number>();
-  const statusCounts: Record<FleetStatus, number> = {EMPTY: 0, ALARM: 0, REFUEL: 0, OK: 0};
+  const statusCounts: Record<FleetStatus, number> = {ALARM: 0, REFUEL: 0, OK: 0};
   const sites = new Set<string>();
 
   for (const genset of gensets) {
@@ -107,8 +107,9 @@ export const fleetSummary = (
       {key: 'WORKSHOP' as SitePowerRole | 'WORKSHOP', label: 'Workshop', count: workshopCount},
     ].filter((tally) => tally.count > 0),
     // Every bucket is kept, zero or not. Unlike the role and customer rows, these
-    // four are a fixed scale a reader learns once — dropping "Tank empty" on a good
-    // day would move the other three and make the card read differently every load.
+    // three are a fixed scale a reader learns once — dropping "Alarms raised" on a
+    // good day would move the other two and make the card read differently every
+    // load.
     byStatus: FLEET_STATUSES.map((status) => ({
       key: status,
       label: STATUS_META[status].label,

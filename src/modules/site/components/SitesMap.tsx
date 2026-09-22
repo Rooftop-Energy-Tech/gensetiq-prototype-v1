@@ -20,8 +20,8 @@ import type {SiteSummary} from '../data/sites';
  *
  *  - **pins are coloured by the site's status bucket, not by run state.** A site has
  *    no run state — it is a place with a load, and the machines standing on it are
- *    what turn. Its own colour is the worst bucket among them — `Tank empty`, `Alarms
- *    raised`, `Refuel soon`, `OK` — which is the vocabulary of the `Status` card and
+ *    what turn. Its own colour is the worst bucket among them — `Alarms raised`,
+ *    `Low fuel`, `All OK` — which is the vocabulary of the `Status` card and
  *    the chip that filters this map, so the two controls on the screen agree. It was
  *    the condition verdict until 2026-09-14; see `statusColor`.
  *  - **a pin's size carries how many sets stand there.** On the fleet map every
@@ -103,7 +103,7 @@ const toFeatureCollection = (
 });
 
 /**
- * The four buckets → pin fill, built from `STATUS_META` for the reason the fleet map
+ * The three buckets → pin fill, built from `STATUS_META` for the reason the fleet map
  * builds its own from `RUN_STATE_META`: the arms come from the `FleetStatus` union, so
  * they cannot fall out of step with the tiles that share the record.
  *
@@ -118,7 +118,7 @@ const toFeatureCollection = (
  * `Status` card sitting directly above this map and of the chip that filters it, so a
  * reader clicking `Alarms raised` now watches the red pins survive the filter — the two
  * controls on this screen finally name their colours the same way. And a colour is read
- * as a *category* before it is read as a rank: `Tank empty` is a tanker and `Alarms
+ * as a *category* before it is read as a rank: `Low fuel` is a tanker and `Alarms
  * raised` is an engineer, which is the decision somebody glancing at a map is making.
  * `STATUS_META` argues that at length.
  *

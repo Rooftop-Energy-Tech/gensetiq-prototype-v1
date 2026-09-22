@@ -50,21 +50,21 @@ type GensetsTableProps = {
  * The mock-up floats the detail panel over the table, so all five columns keep
  * full width and the last two simply disappear underneath it. Here the panel
  * takes its own column instead, which leaves ~900px to divide — and split
- * evenly that truncates `BRF9540 | Cummins 1000 kVa` in every row. The name
+ * evenly that truncates `BRF9540 | Cummins 1000 kVa` in every row. The plate
  * gets the slack; the fixed-shape columns (a badge, a litre figure) give it up.
  */
 /** A set the counts pass has not reached — `SitesTable`'s constant, for its reason. */
 const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
 
 const COLUMNS = [
-  {label: 'Genset name', width: '27%', dense: '38%', beside: true, sort: 'name'},
+  {label: 'Number plate', width: '27%', dense: '38%', beside: true, sort: 'name'},
   // `Alarm` sits next to run state because the two together are the row's verdict:
   // what the machine is doing, and what is standing against it. It read `Health` —
   // the `GensetCondition` verdict — until 2026-09-14 and now draws the counts, for
   // the reasons `SitesTable` and `SolarTable` give: the verdict is this app's
   // summary over the rows, and a register is read to find work, so it shows the
   // rows. The pill is a link to the set's own Alarms tab.
-  {label: 'Run state', width: '13%', dense: '20%', beside: true, sort: 'state'},
+  {label: 'Status', width: '13%', dense: '20%', beside: true, sort: 'state'},
   {label: 'Alarm', width: '14%', dense: '20%', beside: true, sort: 'alarms'},
   {label: 'Fuel level', width: '14%', dense: '22%', beside: true, sort: 'fuel'},
   // `beside: false` — dropped in the split view, kept on the full-width list. Both
@@ -252,7 +252,7 @@ export const GensetsTable = ({
                     className="block truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                   >
                     {/* `gensetLabel`, not `gensetName`: the column above this one
-                        says `Genset name` and the page says `Gensets`, so a `Genset |`
+                        says `Number plate` and the page says `Gensets`, so a `Genset |`
                         on every row is the header printed thirty more times. */}
                     {gensetLabel(genset)}
                   </Link>

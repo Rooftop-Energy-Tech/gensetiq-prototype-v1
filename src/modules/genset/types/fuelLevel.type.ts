@@ -16,10 +16,24 @@ import type {Genset} from './genset.type';
  * sitting at 8% of capacity showed a green `Optimum` beside a dry tank, which is
  * the page contradicting itself about the most consequential fact on it.
  *
- * So the two lines the buckets already draw are written here once, and read three
- * ways: as an alarm on the genset's own page, as the fleet's `EMPTY` and `REFUEL`
- * buckets, and as the reserve line the refuel runway counts down to. One pair of
- * numbers, so a tank cannot be low on the overview and fine on its own page.
+ * So the line the buckets already draw is written here once, and read three ways: as
+ * an alarm on the genset's own page, as the fleet's `REFUEL` bucket, and as the
+ * reserve line the refuel runway counts down to. One number, so a tank cannot be low
+ * on the overview and fine on its own page.
+ *
+ * ## There was a second line until 2026-09-22
+ *
+ * `EMPTY_FRACTION`, a tenth of capacity, with its own `empty` kind, its own
+ * `CRITICAL`, and its own `Tank empty` bucket on the overview. It is gone because the
+ * estate does not reach it: a set is refuelled off the reserve line, and the tank
+ * never gets a third of the way down from there. The tier was modelling a state the
+ * fleet does not have, and four exhaustive buckets where one can never be occupied is
+ * a tile that reads `0` for the life of the product.
+ *
+ * What is left says the same thing in the words the fleet uses — a tank is fuelled or
+ * it is low, and low is a tanker booking. The seeded sets that sat under the old line
+ * are still the emptiest in the estate; they are now the worst of the low ones, which
+ * is what `FleetTanks` sorts them to the top for.
  *
  * ## Why it is not in the register map
  *
@@ -31,14 +45,14 @@ import type {Genset} from './genset.type';
  * register and bit. A reader has to be able to tell the panel talking from the app
  * talking, and the source line is how they already do it.
  *
- * ## Why the lines sit here rather than in Settings
+ * ## Why the line sits here rather than in Settings
  *
- * They are fixed, deliberately, and the Settings tab itself is empty. The rule the
- * app works to: a setpoint that lives in the panel is not editable from a screen
- * that cannot issue the command. These two are the app's own, so they *could* be editable —
- * but they are also what the overview's four buckets are defined as, and a
- * per-genset reserve line would leave the fleet tiles counting to a different
- * definition on every row. If they ever move, they move for the estate.
+ * It is fixed, deliberately, and the Settings tab itself is empty. The rule the app
+ * works to: a setpoint that lives in the panel is not editable from a screen that
+ * cannot issue the command. This one is the app's own, so it *could* be editable — but
+ * it is also what the overview's three buckets are defined as, and a per-genset
+ * reserve line would leave the fleet tiles counting to a different definition on every
+ * row. If it ever moves, it moves for the estate.
  */
 
 /**
@@ -51,63 +65,51 @@ import type {Genset} from './genset.type';
 export const RESERVE_FRACTION = 0.3;
 
 /**
- * Where the tank stops being a scheduling problem and becomes an outage.
+ * Which line has been crossed. One, since 2026-09-22 — see the note at the top.
  *
- * A third of the reserve line. Below this a set will pick up air in the fuel
- * system before it finishes a long callout, and bleeding it is a second visit —
- * so the distinction being drawn is not "less fuel" but "a different job".
- *
- * Deliberately not zero. A gauge reading exactly zero is a sensor fault as often
- * as it is an empty tank, and waiting for it would mean the alarm fires after the
- * machine has already failed to start.
+ * Still a list rather than a bare string, and still ordered worst-first, because the
+ * three readers below are all written as lookups over it: putting a tier back is this
+ * line plus one entry in each of the three records, rather than a reshape.
  */
-export const EMPTY_FRACTION = 0.1;
-
-/** Which line has been crossed. Ordered worst-first, like every other ranking here. */
-export const FUEL_LEVEL_KINDS = ['empty', 'low'] as const;
+export const FUEL_LEVEL_KINDS = ['low'] as const;
 
 export type FuelLevelKind = (typeof FUEL_LEVEL_KINDS)[number];
 
 /**
  * The line each kind fires on, as a fraction of capacity.
  *
- * The single place the two constants above are attached to the two states, so the
- * card's threshold caption and the test that raised it cannot come apart.
+ * The single place the constant above is attached to the state, so the card's
+ * threshold caption and the test that raised it cannot come apart.
  */
 export const FUEL_LEVEL_LIMIT: Record<FuelLevelKind, number> = {
-  empty: EMPTY_FRACTION,
   low: RESERVE_FRACTION,
 };
 
 /**
- * How loudly each reads, in the alert module's own three-value ranking.
+ * How loudly it reads, in the alert module's own three-value ranking.
  *
- * `empty` is `CRITICAL` and that is not an overreach: at a standby site the whole
- * reason the machine is there is to pick the load up, and one that cannot is as
- * unavailable as one that has shut down. `low` is `WARNING` — a real job, with
- * time to plan it.
+ * `WARNING`, and nothing here is a `CRITICAL` any more. A tank below the reserve line
+ * is a real job with a lead time — book a tanker — and that is a warning's job
+ * exactly. The `CRITICAL` this record used to carry belonged to the `empty` tier, and
+ * went with it.
  *
- * Note this deliberately departs from the rule `rulesFor` works to, that a
- * critical belongs only to a set which has actually stopped. That rule is about
- * *register-map* criticals, every one of which is a protection that stops the
- * engine — a running set carrying one is a contradiction. A dry tank stops
- * nothing; it is a statement about cover, and a running set can perfectly well be
- * about to run out. The fuel leak alarm already draws the same distinction.
+ * That leaves the tank unable to raise a critical at all, which is the right shape:
+ * every other critical in this app is a register-map protection that has stopped the
+ * engine, and a low tank stops nothing. It is a statement about cover, and the fleet
+ * refuels well before cover is actually at risk.
  */
 export const SEVERITY_OF_FUEL_LEVEL: Record<FuelLevelKind, AlertSeverity> = {
-  empty: 'CRITICAL',
   low: 'WARNING',
 };
 
 /**
- * The two words each kind is called, everywhere it appears.
+ * The two words it is called, everywhere it appears.
  *
- * The same pair the overview's buckets use, and shared with them rather than
- * retyped: a reader who filtered the fleet by "Tank empty" and then opened one of
- * the results should meet the phrase they clicked, not a synonym for it.
+ * The same phrase the overview's `REFUEL` bucket uses, and shared with it rather than
+ * retyped: a reader who filtered the fleet by "Low fuel" and then opened one of the
+ * results should meet the phrase they clicked, not a synonym for it.
  */
 export const FUEL_LEVEL_LABEL: Record<FuelLevelKind, string> = {
-  empty: 'Tank empty',
   low: 'Low fuel',
 };
 
@@ -138,15 +140,14 @@ export const fuelFraction = (litres: number, capacityLitres: number): number =>
   capacityLitres > 0 ? litres / capacityLitres : 0;
 
 /**
- * Which line this level has crossed, or `undefined` for a tank above both.
+ * Which line this level has crossed, or `undefined` for a tank above it.
  *
- * `<=` on both, matching the buckets exactly: a tank at precisely the reserve line
- * is at the line, and a rule that only fires strictly below it would leave a set
- * sitting on 30.0% filed as fine.
+ * `<=`, matching the bucket exactly: a tank at precisely the reserve line is at the
+ * line, and a rule that only fires strictly below it would leave a set sitting on
+ * 30.0% filed as fine.
  *
- * Worst wins, and the two are checked in that order — a tank below the empty line
- * is also below the reserve line, and reporting both would put one machine's one
- * tank in the alert list twice.
+ * `find` over the list rather than a comparison written out, so worst-wins is still
+ * how this reads if a tier is ever put back above `low`.
  */
 export const fuelLevelKind = (
   litres: number,
@@ -157,7 +158,7 @@ export const fuelLevelKind = (
   );
 
 /**
- * The notice for a tank below one of its lines, or `undefined` for a fuelled one.
+ * The notice for a tank below its reserve line, or `undefined` for a fuelled one.
  *
  * The message leads with the percentage because that is what the rule compared,
  * and follows it with the litres because that is what somebody ordering a delivery
@@ -246,10 +247,7 @@ export const fuelLevelNotice = (genset: Genset): FuelLevelNotice | undefined => 
   return {
     gensetId: genset.id,
     kind,
-    message:
-      kind === 'empty'
-        ? `Tank at ${percent}% — ${litres} of ${capacity}. No cover until it is refuelled`
-        : `Tank at ${percent}% — ${litres} of ${capacity}. Below the ${limitPercent}% reserve line`,
+    message: `Tank at ${percent}% — ${litres} of ${capacity}. Below the ${limitPercent}% reserve line`,
     source: 'Tank level',
     litres: genset.fuelLitres,
     capacityLitres: genset.fuelCapacityLitres,

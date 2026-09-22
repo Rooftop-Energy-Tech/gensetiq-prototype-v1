@@ -798,37 +798,37 @@ fuel onto the ground is a live fault, and a genset doing that while its page rea
 
 ### Tank level
 
-**A number, and two lines drawn on it.** The panel sends a level; the app compares
-it with the tank's capacity and files the result. Two thresholds, both fractions of
-capacity:
+**A number, and one line drawn on it.** The panel sends a level; the app compares it
+with the tank's capacity and files the result. One threshold, a fraction of capacity:
 
 | Line | Fraction | What it means |
 | --- | --- | --- |
 | Reserve | `0.30` | Below it, a tanker has to be **booked** — a job with a lead time |
-| Empty | `0.10` | Below it, the set gives **no cover** — it cannot pick the load up |
 
-`EMPTY_FRACTION` is deliberately not zero. A gauge reading exactly zero is a sensor
-fault as often as it is an empty tank, and waiting for it would mean the alarm fires
-after the machine has already failed to start.
+**There were two until 2026-09-22.** An `Empty` line at `0.10` sat under the reserve
+line, with its own `CRITICAL`, its own `Tank empty` bucket and its own red on the tank
+bars. It is gone because the estate does not reach it: a set is refuelled off the
+reserve line and the tank never gets a third of the way down from there. It was
+modelling a state this fleet does not have, and an exhaustive bucket that can never be
+occupied is a tile reading `0` for the life of the product. A tank is fuelled or it is
+low, and low is a tanker booking.
 
-**The two lines are read three ways, and are written once.** They are the fleet's
-`EMPTY` and `REFUEL` buckets in the estate strip, they are the reserve line the refuel
-runway counts down to on the genset's own page, and they are the alarm in the alerts
-section. One pair of numbers, so a tank cannot be low on the strip and fine on its own
-page.
+**The line is read three ways, and is written once.** It is the fleet's `REFUEL`
+bucket in the estate strip, it is the reserve line the refuel runway counts down to on
+the genset's own page, and it is the alarm in the alerts section. One number, so a tank
+cannot be low on the strip and fine on its own page.
 
 **It is an alarm, not just a bucket.** Fuel level used to be the one
 threshold-crossing reading in the app that raised nothing: a set at 8% of capacity
 showed a green `Optimum` beside a dry tank, because the register map has no bit
 marked for the dashboard that watches the level and the app had never drawn the line
-itself. It draws it now. `Low fuel` is a `WARNING`, `Tank empty` is a `CRITICAL`,
-and both move the condition verdict.
+itself. It draws it now. `Low fuel` is a `WARNING`, and it moves the condition verdict.
 
-The `CRITICAL` is not the overreach it looks like next to the rule that a critical
-belongs only to a set which has actually stopped. That rule is about *register-map*
-criticals, every one of which is a protection that stops the engine — a running set
-carrying one is a contradiction. A dry tank stops nothing; it is a statement about
-cover, and a running set can perfectly well be about to run out.
+**The tank cannot raise a `CRITICAL` at all**, which is the right shape rather than a
+gap. Every critical in this app is a register-map protection that has stopped the
+engine — a running set carrying one is a contradiction. A low tank stops nothing: it is
+a statement about cover, and the fleet refuels well before cover is actually at risk.
+The `CRITICAL` here belonged to the `Tank empty` tier and went with it.
 
 **Like the leak, it must never become a register bit.** Its card prints `Tank level`
 where an alarm prints its register and bit, so a reader can still tell the panel
@@ -840,17 +840,17 @@ app the card states the level and stops.
 
 **The fleet buckets read a tank-blind verdict, and that is the one place they must.**
 `gensetStatus` asks `machineCondition` — the register map and the leak, and nothing
-about the tank — because it already tests the tank itself, in `EMPTY` and `REFUEL`.
-Asking the wide `gensetCondition` there would say the same fact twice: every `REFUEL`
-set would test true for `ALARM`, `ALARM` outranks `REFUEL`, and the two fuel buckets
-those tiles exist to show would both drain into the red one.
+about the tank — because it already tests the tank itself, in `REFUEL`. Asking the wide
+`gensetCondition` there would say the same fact twice: every `REFUEL` set would test
+true for `ALARM`, `ALARM` outranks `REFUEL`, and the fuel bucket those tiles exist to
+show would drain into the red one entirely.
 
-**The lines are fixed, and not editable.** The rule the app works to: a
-setpoint that lives in the panel is not editable from a screen that cannot issue the
-command. These two are the app's own, so they *could* be — but they are also what the
-[four buckets](#fleet-status) are defined as, and a per-genset reserve line would leave
-the strip's counts working to a different definition on every row. If they ever move,
-they move for the estate.
+**The line is fixed, and not editable.** The rule the app works to: a setpoint that
+lives in the panel is not editable from a screen that cannot issue the command. This
+one is the app's own, so it *could* be — but it is also what the
+[three buckets](#fleet-status) are defined as, and a per-genset reserve line would
+leave the strip's counts working to a different definition on every row. If it ever
+moves, it moves for the estate.
 
 → `src/modules/genset/types/fuelLevel.type.ts`
 
@@ -867,35 +867,38 @@ diesel that went missing, which is a different problem from diesel that was
 legitimately burned. An operator planning a day's callouts is asking across all
 three at once, and this is that question written down.
 
-**Worst wins, and the four are exhaustive.** Every genset is in exactly one bucket,
-so a set of counts adds up to the fleet. Overlapping buckets would give four true
+**Worst wins, and the three are exhaustive.** Every genset is in exactly one bucket,
+so a set of counts adds up to the fleet. Overlapping buckets would give three true
 numbers that sum to more than the estate, and an operator reading them as a workload
 would double-count the drive.
 
-The order is **cover first**:
+The order is **send an engineer before a tanker**:
 
 | | |
 | --- | --- |
-| `EMPTY` | a dry tank gives no cover at all — it cannot pick the load up |
-| `ALARM` | the machine has a fault, but it is a machine somebody can look at |
+| `ALARM` | the machine has a fault — the thing that can take it off cover today |
 | `REFUEL` | below the reserve line — a tanker to book, not to scramble |
 | `OK` | what is left |
+
+**There was a fourth, `EMPTY`, until 2026-09-22.** `Tank empty` led the list, because a
+dry tank gives no cover at all. It went with the fuel tier that defined it — see
+[Tank level](#tank-level) — and nothing is lost by it: a machine
+genuinely off cover is still counted, as an `ALARM`, by the fault that took it off.
 
 `ALARM` outranking `REFUEL` matters more than it looks: a set below reserve *and*
 carrying a shutdown alarm is not a refuel job, and filing it as one would send a
 tanker to a machine that needs an engineer.
 
 **Colour does not follow that ranking, and the departure is deliberate.** Hue says
-what kind of job it is and lightness says how urgent: violet is diesel — the colour
-every fuel figure in the app already carries — so the two fuel buckets share it and
-separate on lightness; red is the machine, the same token the alarm badges use;
-green is nothing to do. A bucket ranking is about which single file a set lands in;
-a colour is read as a category first.
+what kind of job it is: violet is diesel — the colour every fuel figure in the app
+already carries — so the fuel bucket takes it; red is the machine, the same token the
+alarm badges use; green is nothing to do. A bucket ranking is about which single file a
+set lands in; a colour is read as a category first.
 
-Service is counted **across** the four rather than as a fifth bucket, because it is
+Service is counted **across** the three rather than as a fourth bucket, because it is
 measured off a machine's own hour meter and its own interval — a set can be `OK`
 above and still be due. It is the one figure on the estate screen that a genset can
-be counted in twice, which is why it sits in its own card rather than beside the four.
+be counted in twice, which is why it sits in its own card rather than beside the three.
 
 → `src/modules/genset/data/fleetStatus.ts`
 
@@ -1012,12 +1015,12 @@ It existed because the two list screens answered the wrong question first: a net
 power team arriving in the morning is asking *is every site up*, *is the hybrid
 programme working*, and *where are they* — and a list makes them read twenty-five
 rows to find that out. It was those questions as three bands plus a directory:
-readiness (the [four buckets](#fleet-status) plus a service tile), energy (thirty
+readiness (the [three buckets](#fleet-status) plus a service tile), energy (thirty
 days of what carried the load), a map, and a row of region links.
 
 **The estate screen already answers all four**, which is what made the destination
 redundant rather than merely small. Its card strip is the same tallies over the rows
-they are counting: `Status` is the four buckets, the toolbar's grouping dropdown is
+they are counting: `Status` is the three buckets, the toolbar's grouping dropdown is
 the region directory, and the map is the one that has always sat beside the list. Two
 figures were genuinely only on the overview — **service due** and **solar share** —
 and they came down with it, into two cards on that strip. See
@@ -1025,7 +1028,7 @@ and they came down with it, into two cards on that strip. See
 
 One rule of the overview's is worth keeping wherever these figures live: **every
 number is a link into the screen that shows its working**, including the empty ones.
-Clicking `Tank empty 0` and landing on an empty list is a complete answer, where a
+Clicking `Low fuel 0` and landing on an empty list is a complete answer, where a
 dead tile makes the reader wonder whether it is broken.
 
 → `src/modules/site/data/estateSummary.ts`,
@@ -1101,7 +1104,7 @@ through it:
 
 ```
 /gensets?view=map&q=sabah&id=brf9540&panel=true
-/gensets?status=EMPTY&view=list
+/gensets?status=REFUEL&view=list
 /sites?view=split&program=jendela-swk
 ```
 
@@ -1114,7 +1117,7 @@ reads `Battery ▸ …`, the register's column is headed `Bank` — and on the r
 cost the column its left third.
 
 **The genset took half of that, and the split is the point.** Its register drops the
-prefix — the column is headed `Genset name`, the page `Gensets`, and thirty rows of
+prefix — the column is headed `Number plate`, the page `Gensets`, and thirty rows of
 `Genset | …` under it is the header read once per row — and all three of the
 register's renderings drop it together, because the table, the phone cards and the
 preview panel are one screen. Its **detail page keeps it**: a set, a bank, an array
@@ -1747,8 +1750,8 @@ behind it. What belongs here is the short list of lines the *app* owns, as again
 ones the controller does: the [fuel leakage alarm](#fuel-reconciliation)'s switch and
 threshold, tags, and notification routing. Everything else on this machine is bounded
 by the rule **a setpoint that lives in the panel is not editable from a screen that
-cannot issue the command.** The tank's reserve and empty lines are the app's own so they
-*could* be editable, but they are also what the [four buckets](#fleet-status) are
+cannot issue the command.** The tank's reserve line is the app's own so it
+*could* be editable, but it is also what the [three buckets](#fleet-status) are
 defined as, and a per-genset reserve line would leave those counts working to a
 different definition on every row. If they ever move, they move for the estate.
 
@@ -2301,7 +2304,7 @@ src/modules/genset/
 │   ├── alarmState.type.ts   acknowledged and cleared — two axes, not one status
 │   ├── service.type.ts      the two counters, and the document a service produced
 │   ├── fuelIntegrity.type.ts the two fuel instruments, and the leak arithmetic
-│   ├── fuelLevel.type.ts    the reserve and empty lines
+│   ├── fuelLevel.type.ts    the reserve line
 │   ├── series.type.ts       Sample, ReadingSeries — a reading over time
 │   ├── view.type.ts         the fleet register's URL state — views and filters
 │   ├── analysisView.type.ts the analysis section's URL state
@@ -2314,7 +2317,7 @@ src/modules/genset/
 │   ├── history.ts           the run log and the reading series, built backwards
 │   ├── alarms.ts            the standing/cleared store, and who touched what
 │   ├── services.ts          the service log; serviceSeed.ts is its givens
-│   ├── fleetStatus.ts       the four buckets, worst-wins and exhaustive
+│   ├── fleetStatus.ts       the three buckets, worst-wins and exhaustive
 │   ├── fleetSummary.ts      the register cards' tallies
 │   ├── fuelInstruments.ts   which sets carry what, and the leak alarm's defaults
 │   ├── fuelIntegrity.ts     the reconciliation, and the condition it can move

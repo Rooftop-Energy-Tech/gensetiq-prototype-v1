@@ -1,7 +1,7 @@
 import {lightToken} from '@/styles/colors';
 import {machineCondition} from './fuelIntegrity';
 import {gensetDetail} from './detail';
-import {EMPTY_FRACTION, RESERVE_FRACTION, fuelLevelKind} from '../types/fuelLevel.type';
+import {RESERVE_FRACTION, fuelLevelKind} from '../types/fuelLevel.type';
 import type {Genset} from '../types/genset.type';
 
 /**
@@ -22,18 +22,17 @@ import type {Genset} from '../types/genset.type';
  * a set below its reserve line raises a fuel-level alarm *and* lands in `REFUEL`.
  * That is handled once, in `gensetStatus` — see the note there.
  *
- * ## Worst wins, and these four are exhaustive
+ * ## Worst wins, and these three are exhaustive
  *
  * Every genset is in exactly one bucket, so a set of counts adds up to the fleet.
- * Overlapping buckets — a set appearing under both `EMPTY` and `ALARM` — would give
- * four true numbers that sum to more than the estate, and an operator reading them
+ * Overlapping buckets — a set appearing under both `ALARM` and `REFUEL` — would give
+ * three true numbers that sum to more than the estate, and an operator reading them
  * as a workload would double-count the drive.
  *
- * The order is **cover first**:
+ * The order is **send an engineer before a tanker**:
  *
- *  - `EMPTY` leads because a set with a dry tank gives no cover at all. It cannot
- *    pick up the load, and at a standby site that is the whole reason it is there.
- *  - `ALARM` next: the machine has a fault, but it is a machine somebody can look at.
+ *  - `ALARM` leads: the machine has a fault, and a fault is the thing that can take
+ *    the set off cover today.
  *  - `REFUEL` is a scheduling job — the tank is below its reserve line and a tanker
  *    has to be booked, not scrambled.
  *  - `OK` is what is left.
@@ -41,29 +40,41 @@ import type {Genset} from '../types/genset.type';
  * `ALARM` outranking `REFUEL` matters more than it looks: a set below reserve *and*
  * carrying a shutdown alarm is not a refuel job, and putting it in the refuel bucket
  * would send a tanker to a machine that needs an engineer.
+ *
+ * ## There was a fourth, `EMPTY`, until 2026-09-22
+ *
+ * `Tank empty` — a set under a tenth of capacity, filed ahead of `ALARM` because a dry
+ * tank gives no cover at all. It went with the fuel tier that defined it: this estate
+ * refuels off the reserve line and does not run a tank down that far, so the bucket
+ * was a tile that could only ever read `0`. A machine that is genuinely off cover is
+ * still counted — as an `ALARM`, by the fault that took it off — and a tank heading
+ * the wrong way is still `REFUEL`, which is the job somebody actually books.
+ * `fuelLevel.type` has the long version.
  */
-export const FLEET_STATUSES = ['EMPTY', 'ALARM', 'REFUEL', 'OK'] as const;
+export const FLEET_STATUSES = ['ALARM', 'REFUEL', 'OK'] as const;
 
 export type FleetStatus = (typeof FLEET_STATUSES)[number];
 
 /**
  * How a bucket is coloured, everywhere it appears.
  *
- * **Hue says what kind of job it is; lightness says how urgent.** Violet is diesel —
- * the colour this app already paints every fuel figure in, from the tank glyph to
- * the burn rate — so the two fuel buckets share it and separate on lightness. Red is
- * the machine: the same `severity-critical` the alarm badges carry, so a site drawn
- * red on the overview map is red in the sites list too. Green is nothing to do.
+ * **Hue says what kind of job it is.** Violet is diesel — the colour this app already
+ * paints every fuel figure in, from the tank glyph to the burn rate — so the fuel
+ * bucket carries it. Red is the machine: the same `severity-critical` the alarm badges
+ * carry, so a site drawn red on the overview map is red in the sites list too. Green
+ * is nothing to do.
  *
- * That means **colour does not follow the bucket ranking**, and the departure is
- * deliberate. `EMPTY` outranks `ALARM` for *bucketing* — a set that cannot start is
- * filed under the worse of the two — but a colour is read as a category before it is
- * read as a rank, and an operator glancing at the map is deciding what to send
- * rather than what to file first. A tanker and an engineer are different vans. The
- * ordering is carried by the tiles' left-to-right order instead, which is what an
- * ordering is actually legible as.
+ * Colour is read as a category before it is read as a rank, and an operator glancing
+ * at the map is deciding what to send rather than what to file first. A tanker and an
+ * engineer are different vans, so they are different hues; the ranking is carried by
+ * the tiles' left-to-right order instead, which is what an ordering is actually
+ * legible as.
+ *
+ * `'fuel'` — the darker violet — was the `EMPTY` tile's and went with it. The one fuel
+ * bucket left keeps `'fuel-low'`, which is the lighter of the pair, because there is
+ * no longer a worse fuel state for it to be read against.
  */
-export type StatusTone = 'critical' | 'fuel' | 'fuel-low' | 'ok';
+export type StatusTone = 'critical' | 'fuel-low' | 'ok';
 
 export const STATUS_META: Record<
   FleetStatus,
@@ -83,12 +94,6 @@ export const STATUS_META: Record<
     mapColor: string;
   }
 > = {
-  EMPTY: {
-    label: 'Tank empty',
-    detail: `Below ${Math.round(EMPTY_FRACTION * 100)}% — no cover until refuelled`,
-    tone: 'fuel',
-    mapColor: lightToken.fuel,
-  },
   ALARM: {
     label: 'Alarms raised',
     detail: 'Carrying a warning or a shutdown alarm',
@@ -117,13 +122,13 @@ export const STATUS_META: Record<
  * now counts the tank — a set below its reserve line carries a fuel-level alarm, so
  * a genset's own page can stop showing a green `Optimum` over a dry tank. Reading
  * that here would say the same fact twice: every `REFUEL` set would test true for
- * `ALARM`, `ALARM` outranks `REFUEL`, and the two fuel buckets these tiles exist to
- * show would both drain into the red one.
+ * `ALARM`, `ALARM` outranks `REFUEL`, and the fuel bucket these tiles exist to show
+ * would drain into the red one entirely.
  *
- * So the tank is tested where it belongs — in the two fuel lines below and above —
- * and the alarm line asks only about the *machine*: the register map's bits and the
- * leak reconciliation. The four buckets stay exhaustive and stay non-overlapping,
- * which is the property an operator reading them as a workload depends on.
+ * So the tank is tested where it belongs — in the fuel line below — and the alarm
+ * line asks only about the *machine*: the register map's bits and the leak
+ * reconciliation. The three buckets stay exhaustive and stay non-overlapping, which is
+ * the property an operator reading them as a workload depends on.
  *
  * A set with no detail entry has no alarms to judge and is not called faulty for
  * it; its tank is still checked, because fuel is a fact about the machine rather
@@ -131,7 +136,6 @@ export const STATUS_META: Record<
  */
 export const gensetStatus = (genset: Genset): FleetStatus => {
   const kind = fuelLevelKind(genset.fuelLitres, genset.fuelCapacityLitres);
-  if (kind === 'empty') return 'EMPTY';
 
   const judged = gensetDetail(genset.id) !== undefined;
   if (judged && machineCondition(genset.id) !== 'OPTIMUM') return 'ALARM';

@@ -73,7 +73,7 @@ export const GensetsToolbar = ({
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Genset name"
+          placeholder="Number plate"
           aria-label="Search gensets"
         />
       </InputGroup>

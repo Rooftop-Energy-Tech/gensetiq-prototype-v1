@@ -35,8 +35,11 @@ import type {FuelLevelKind} from '@/modules/genset/types/fuelLevel.type';
  * the overview buckets also call low.
  */
 
+// Two, since the `empty` tier went on 2026-09-22 — the estate refuels off the reserve
+// line and never reaches a third one. `bg-severity-critical` was that tier's and goes
+// with it, which leaves no red on this panel at all: a low tank is a booking, not a
+// callout.
 const BAR_TONE: Record<FuelLevelKind | 'ok', string> = {
-  empty: 'bg-severity-critical',
   low: 'bg-fuel',
   ok: 'bg-severity-ok',
 };
@@ -164,9 +167,10 @@ export const FleetTanks = () => {
                     the tanker. What state the tank is in is the bar's colour and is
                     not restated in words — the droplet and the `Tank empty` chip
                     that stood here until 2026-09-22 were saying a third time what
-                    the fill and the percentage had already said twice. The words
-                    survive where they are load-bearing: the fleet register filters
-                    by them, and the summary line above still counts them.
+                    the fill and the percentage had already said twice. The chip's
+                    whole tier is gone outright now; `Low fuel` survives where it is
+                    load-bearing, on the fleet register's filter and in the summary
+                    line above.
 
                     Named for a screen reader, which cannot see a colour. */}
                 <span className="hidden w-40 shrink-0 truncate text-xs text-tertiary sm:block">
