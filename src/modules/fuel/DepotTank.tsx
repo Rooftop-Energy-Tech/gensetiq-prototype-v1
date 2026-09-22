@@ -1,5 +1,5 @@
-import {TankGlyph} from '@/components/global/TankGlyph';
 import {amount} from '@/lib/format';
+import {DepotTankGlyph} from './DepotTankGlyph';
 import {depotCapacityLitres, depotSeries} from './data/depotTank';
 
 /**
@@ -13,9 +13,9 @@ import {depotCapacityLitres, depotSeries} from './data/depotTank';
  * has that no other does is **the depot**: the one tank whose level says how much
  * fuel left the yard, which is the whole basis of the reconciliation beside it.
  *
- * So the same glyph the genset pages use, at the same `2xl`, labelled for the yard.
- * One tank drawn the way the reader already knows how to read, instead of
- * thirty-eight restated from elsewhere.
+ * It gets its own mark rather than the genset glyph — see `DepotTankGlyph`. A yard's
+ * bulk tank is a horizontal vessel on saddles, and drawing it as a machine's upright
+ * belly tank made the page's one *place* look like a thirty-ninth machine.
  *
  * ## It has no reserve line, and should not
  *
@@ -35,8 +35,8 @@ export const DepotTank = () => {
       <h2 className="text-xs font-medium tracking-wide text-secondary uppercase">Depot</h2>
 
       <div className="flex items-start gap-4 py-1.5">
-        <div className="flex shrink-0 flex-col items-center gap-1.5">
-          <TankGlyph fraction={fraction} tone="teal" size="2xl" />
+        <div className="flex w-[200px] shrink-0 flex-col items-center gap-1.5">
+          <DepotTankGlyph fraction={fraction} className="w-full text-secondary" />
           <p className="text-sm font-semibold whitespace-pre text-primary">
             {`${amount(level, 'L')}  |  ${Math.round(fraction * 100)}%`}
           </p>
