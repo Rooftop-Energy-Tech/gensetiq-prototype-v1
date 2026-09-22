@@ -1,6 +1,5 @@
 import {useMemo} from 'react';
 import {Link} from '@tanstack/react-router';
-import {DropletIcon} from 'lucide-react';
 
 import {gensetById} from '@/modules/genset/data/deployment';
 import {GENSETS} from '@/modules/genset/data/fleet';
@@ -157,19 +156,21 @@ export const FleetTanks = () => {
                 </span>
                 <span className="w-10 shrink-0 text-right text-sm text-secondary tabular-nums">
                   {percent}%
+                  {row.kind !== undefined && (
+                    <span className="sr-only"> — {FUEL_LEVEL_LABEL[row.kind]}</span>
+                  )}
                 </span>
+                {/* Last, and the only column that is not a number: where to send
+                    the tanker. What state the tank is in is the bar's colour and is
+                    not restated in words — the droplet and the `Tank empty` chip
+                    that stood here until 2026-09-22 were saying a third time what
+                    the fill and the percentage had already said twice. The words
+                    survive where they are load-bearing: the fleet register filters
+                    by them, and the summary line above still counts them.
+
+                    Named for a screen reader, which cannot see a colour. */}
                 <span className="hidden w-40 shrink-0 truncate text-xs text-tertiary sm:block">
                   {row.place}
-                </span>
-                <span className="w-20 shrink-0 text-right text-xs">
-                  {row.kind === undefined ? (
-                    <span className="text-tertiary">—</span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-secondary">
-                      <DropletIcon className="size-3 text-fuel" aria-hidden="true" />
-                      {FUEL_LEVEL_LABEL[row.kind]}
-                    </span>
-                  )}
                 </span>
               </Link>
             </li>
