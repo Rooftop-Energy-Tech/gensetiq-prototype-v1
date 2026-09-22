@@ -125,10 +125,12 @@ export const Column = ({title, children}: {title: string; children: ReactNode}) 
  * disappear — a stopped set's burn rate is what it *was* metering, and its runway is
  * runtime it would get rather than a countdown of wall-clock.
  *
- * **The glyph stays**, at `lg`. The rows are the numbers; the tank is the one thing
+ * **The glyph stays**, at `2xl`. The rows are the numbers; the tank is the one thing
  * on this band a reader takes in without reading, and a column of aligned figures is
- * exactly what it is good against. It was `xl` while this card had a band's width to
- * fill; sharing that band in equal thirds, 72 x 96 crowded its own figures.
+ * exactly what it is good against. It has been `lg`, then `xl`, then `lg` again as
+ * the card changed shape around it; `2xl` is for the card it is in now, which
+ * stretches to the height of the output card beside it and left a 46px tank sitting
+ * in the corner of a tall box.
  */
 export const FuelColumn = ({
   genset,
@@ -158,6 +160,7 @@ export const FuelColumn = ({
           <TankGlyph
             fraction={fuelFraction(genset.fuelLitres, detail.fuel.maxLitres)}
             tone="fuel"
+            size="2xl"
           />
           <p className="text-sm font-semibold whitespace-pre text-primary">
             {fuelHeadline(genset.fuelLitres, detail.fuel.maxLitres)}

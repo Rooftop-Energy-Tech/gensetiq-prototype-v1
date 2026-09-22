@@ -40,7 +40,7 @@ const TONES = {
 } as const;
 
 /**
- * Three sizes, and the same argument `TickGauge` makes for having a fixed few.
+ * Four sizes, and the same argument `TickGauge` makes for having a fixed few.
  *
  * `lg` is the design's: 46 × 60 with eight bars, the tank beside a genset's fuel
  * figures. `sm` was the battery module tile's and now has no caller — it is kept
@@ -59,6 +59,16 @@ const TONES = {
  * with a stray half-pixel gap at one end.
  */
 const SIZES = {
+  // `2xl` is the fuel card once the band became three cards of equal height: the
+  // card stretches to the tallest of the three, and a 46px tank in a card that deep
+  // sat in its own corner. 98 × 128 holds `lg`'s proportions to within a percent
+  // (0.766 against 0.767), so it is still the same object drawn larger, and the bar
+  // column still divides: 128 − 16 = 112, which is 8 × 14.
+  '2xl': {
+    segments: 8,
+    box: 'h-32 w-[98px] rounded-xl px-3 py-2',
+    bar: 'h-3.5 rounded-[7px]',
+  },
   // `xl` is the genset page's fuel column, where the tank is the one mark a reader
   // takes in without reading and the three figures beside it are what they read
   // second. 72 × 96 keeps `lg`'s proportions almost exactly (46/60 against 72/96,
