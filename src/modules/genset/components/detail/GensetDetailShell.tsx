@@ -11,6 +11,8 @@ import {fuelLevel, relativeTime, stampDate} from '@/lib/format';
 import {activePosting} from '@/modules/deployment/data/store';
 import {gensetName} from '../../types/genset.type';
 import {gensetDetail} from '../../data/detail';
+import {ALERT_SEVERITIES} from '../../types/alert.type';
+import type {AlertSeverity} from '../../types/alert.type';
 import {RunStateSummary} from './RunStateSummary';
 import type {Genset} from '../../types/genset.type';
 
@@ -75,6 +77,18 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
   // For the load beside the title. `undefined` is possible in principle — a genset
   // with no detail row — and reads as a machine with no load rather than as zero.
   const detail = gensetDetail(genset.id);
+  // The worst alarm standing on this machine, for the run pill. Read off the detail
+  // row rather than `standingAlarms` because this shell wraps all eight tabs and has
+  // no handling state of its own; the difference is an alarm a reader has already
+  // acknowledged, which still describes the machine.
+  const worstAlert = detail?.alerts.reduce<AlertSeverity | undefined>(
+    (worst, alert) =>
+      worst === undefined ||
+      ALERT_SEVERITIES.indexOf(alert.severity) < ALERT_SEVERITIES.indexOf(worst)
+        ? alert.severity
+        : worst,
+    undefined,
+  );
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -129,7 +143,11 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
           <h1 className="min-w-0 truncate text-base font-medium text-primary">
             {gensetName(genset)}
           </h1>
-          <RunStateSummary runState={genset.runState} loadKw={detail?.loadKw ?? null} />
+          <RunStateSummary
+            runState={genset.runState}
+            loadKw={detail?.loadKw ?? null}
+            severity={worstAlert}
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">

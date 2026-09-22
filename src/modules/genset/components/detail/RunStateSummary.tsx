@@ -3,6 +3,7 @@ import type {LucideIcon} from 'lucide-react';
 
 import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
+import type {AlertSeverity} from '../../types/alert.type';
 import type {RunState} from '../../types/genset.type';
 
 /**
@@ -17,10 +18,37 @@ import type {RunState} from '../../types/genset.type';
  * glyph when that argument was written and is 16px now; the argument is about the
  * company it keeps, not the size.
  */
-const HERO: Record<RunState, {icon: LucideIcon; className: string}> = {
-  RUNNING: {icon: PlayIcon, className: 'text-teal'},
-  IDLE: {icon: PauseIcon, className: 'text-status-idle'},
-  OFFLINE: {icon: PowerOffIcon, className: 'text-status-offline'},
+const HERO: Record<RunState, LucideIcon> = {
+  RUNNING: PlayIcon,
+  IDLE: PauseIcon,
+  OFFLINE: PowerOffIcon,
+};
+
+/**
+ * The pill's colour: **is it turning, and is anything wrong with it.**
+ *
+ * A turning set takes the colour of its worst standing alarm — red for a critical,
+ * amber for a warning, green for nothing — so the one chip beside the plate answers
+ * both halves of "how is this machine" at a glance, and matches the marks and bars
+ * on the cards below, which are coloured off the same alarms.
+ *
+ * A stopped set is grey whatever it is carrying, and that is the deliberate part. On
+ * a machine that is not running, an alarm is history rather than a condition: a
+ * coolant shutdown that already stopped the engine is not a fire to run at, and
+ * painting a parked set red would put it alongside a turning one that is about to
+ * fail. What it is carrying is still one click away on the Alarms tab, and the chip
+ * counts sit in the strip directly below this.
+ *
+ * Tinted rather than filled — `/10` behind `/25` edge, with the hue as ink. The
+ * filled treatment in `SEVERITY_META` is for the alarm pill's own cell, where the
+ * count is the subject; here the subject is two words of text that have to stay
+ * readable at title size.
+ */
+const TONE: Record<string, string> = {
+  CRITICAL: 'border-severity-critical/25 bg-severity-critical/10 text-severity-critical',
+  WARNING: 'border-severity-warning/25 bg-severity-warning/10 text-severity-warning',
+  OK: 'border-severity-ok/25 bg-severity-ok/10 text-severity-ok',
+  STOPPED: 'border-default bg-inset text-secondary',
 };
 
 const LABEL: Record<RunState, string> = {
@@ -50,24 +78,39 @@ const LABEL: Record<RunState, string> = {
 export const RunStateSummary = ({
   runState,
   loadKw,
+  severity,
 }: {
   runState: RunState;
   loadKw: number | null;
+  /** The worst alarm standing on this machine, if any. Ignored when it is stopped. */
+  severity?: AlertSeverity;
 }) => {
-  const {icon: Icon, className} = HERO[runState];
+  const Icon = HERO[runState];
+  const running = runState === 'RUNNING';
+  const tone = !running
+    ? TONE.STOPPED
+    : severity === 'CRITICAL' || severity === 'WARNING'
+      ? TONE[severity]
+      : TONE.OK;
 
   return (
-    <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
-      <Icon className={cn('size-4', className)} aria-hidden="true" />
-      <span className="text-base font-medium text-primary">{LABEL[runState]}</span>
+    <span
+      className={cn(
+        'inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-base font-medium whitespace-nowrap',
+        tone,
+      )}
+    >
+      <Icon className="size-4" aria-hidden="true" />
+      {LABEL[runState]}
       {loadKw !== null && (
         <>
-          <span className="text-tertiary" aria-hidden="true">
+          {/* The separator and the load take the pill's own ink at reduced weight,
+              rather than the page's greys: a secondary grey inside a tinted chip
+              reads as a different element sitting in it. */}
+          <span aria-hidden="true" className="opacity-40">
             ·
           </span>
-          <span className="text-base font-medium text-secondary tabular-nums">
-            {amount(loadKw, 'kW')}
-          </span>
+          <span className="tabular-nums opacity-80">{amount(loadKw, 'kW')}</span>
         </>
       )}
     </span>
