@@ -65,7 +65,7 @@ export const StandbyPanel = ({
   const battery = readings['battery-voltage'];
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 rounded-md border border-default bg-element px-4 py-4 md:max-w-[360px] md:flex-1">
+    <div className="flex min-w-0 flex-col gap-4 rounded-md border border-default bg-element px-4 py-4">
       <div className="flex items-start gap-3">
         <span
           className={cn(

@@ -345,7 +345,11 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           vanish with the engine; the tank does not, and a band whose first element
           changed with the run state would give a reader two pages to learn. It is
           the same argument that put the tank first among the cards before them. */}
-      <div className="flex flex-wrap items-stretch gap-4">
+      {/* Three columns, whatever fills them. A flex row with `flex-1` children
+          divides the band between however many cards are present, so a stopped set
+          -- which draws two -- stretched the tank to half the page. A grid keeps the
+          tank a third wide whether the two generator cards are beside it or not. */}
+      <div className="grid items-stretch gap-4 md:grid-cols-3">
         <FuelColumn genset={genset} detail={detail} running={running} />
 
         {/* The marks in a card of their own, titled like the tank beside them. They
