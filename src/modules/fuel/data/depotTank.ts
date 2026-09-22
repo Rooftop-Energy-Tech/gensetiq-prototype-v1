@@ -237,6 +237,14 @@ export const depotSeries = (depotId: string): ReadonlyArray<DepotSample> => {
 export type DepotReconciliation = {
   /** Litres that left the bulk tank — the sum of its falls. */
   outLitres: number;
+  /**
+   * Litres the supplier put in — the sum of its rises.
+   *
+   * The other half of what a level sensor can see, and the half the reconciliation
+   * deliberately ignores: a delivery into the yard is not fuel going out, and
+   * netting the two would let a 50,000 L top-up cancel a week of issues.
+   */
+  receivedLitres: number;
   /** Litres that arrived in machine tanks — the sum of their rises. */
   deliveredLitres: number;
   /** `out − delivered`. Positive means fuel left the yard and did not arrive. */
@@ -288,11 +296,13 @@ export const reconcile = (
   const windowTo = Math.min(to, samples.at(-1)?.t ?? to);
 
   let outLitres = 0;
+  let receivedLitres = 0;
   for (let index = 1; index < samples.length; index += 1) {
     const previous = samples[index - 1];
     const current = samples[index];
     if (current.t <= windowFrom || current.t > windowTo) continue;
     if (current.litres < previous.litres) outLitres += previous.litres - current.litres;
+    if (current.litres > previous.litres) receivedLitres += current.litres - previous.litres;
   }
 
   let deliveredLitres = 0;
@@ -309,6 +319,7 @@ export const reconcile = (
 
   return {
     outLitres: Math.round(outLitres),
+    receivedLitres: Math.round(receivedLitres),
     deliveredLitres: Math.round(deliveredLitres),
     varianceLitres: Math.round(variance),
     variancePercent: outLitres > 0 ? (variance / outLitres) * 100 : null,

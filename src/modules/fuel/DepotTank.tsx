@@ -1,6 +1,6 @@
 import {amount} from '@/lib/format';
 import {DepotTankGlyph} from './DepotTankGlyph';
-import {depotCapacityLitres, depotFleet, depotSeries} from './data/depotTank';
+import {depotCapacityLitres, depotFleet, depotSeries, reconcile} from './data/depotTank';
 import type {Depot} from './data/depotTank';
 
 /**
@@ -29,6 +29,10 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
   const series = depotSeries(depot.id);
   const capacity = depotCapacityLitres(depot.id);
   const served = depotFleet(depot.id).length;
+  // Thirty days back from now, which is the window the tile states. `useMemo` is not
+  // worth it: `reconcile` walks a 60-day hourly series once per card and the page
+  // draws four.
+  const movement = reconcile(depot.id, Date.now() - 30 * 24 * 3_600_000, Date.now());
   const level = series.at(-1)?.litres ?? 0;
   const fraction = capacity > 0 ? level / capacity : 0;
 
@@ -56,18 +60,36 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
               {amount(capacity, 'L')}
             </dd>
           </div>
-          {/* How many machines draw from here. The variance beside it is a figure
-              about this catchment and not the estate, and a reader comparing two
-              yards needs to know one serves seventeen sets and another five. */}
+          {/* The two movements a level sensor can see, over the last 30 days.
+              Issued is every fall, received is every rise, and they are kept apart
+              rather than netted: a 50,000 L delivery into the yard would otherwise
+              cancel a week of tankers going out and the tile would read as a quiet
+              month. Thirty days until the period control lands — long enough that
+              every yard has taken at least one delivery in it. */}
+          <div className="flex items-baseline justify-between gap-4 py-1.5">
+            <dt className="shrink-0 text-sm font-medium text-secondary">Issued, 30 days</dt>
+            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+              {amount(movement.outLitres, 'L')}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4 py-1.5">
+            <dt className="shrink-0 text-sm font-medium text-secondary">Received, 30 days</dt>
+            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+              {movement.receivedLitres === 0 ? (
+                <span className="text-tertiary">No delivery</span>
+              ) : (
+                amount(movement.receivedLitres, 'L')
+              )}
+            </dd>
+          </div>
+          {/* Kept because the two figures above are a catchment's, not the
+              estate's: a yard serving twenty-one sets issues four times what one
+              serving five does, and neither is remarkable. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
             <dt className="shrink-0 text-sm font-medium text-secondary">Machines served</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
               {served}
             </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">Instrument</dt>
-            <dd className="text-right text-sm font-semibold text-primary">Level sensor only</dd>
           </div>
         </dl>
       </div>
