@@ -21,12 +21,11 @@ import {countBySeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {ControlPad} from './ControlPad';
+import {GeneratorColumns} from './GeneratorColumns';
 import {CurrentRunCard} from './CurrentRunCard';
 import {FuelPanel} from './FuelPanel';
-import {PhaseBars} from './PhaseBars';
 import {RunStateSummary} from './RunStateSummary';
 import {StandbyPanel} from './StandbyPanel';
-import {TickGauge} from './TickGauge';
 
 /**
  * The genset's home page, in the bands the design stacks — the same bands, in the
@@ -207,19 +206,22 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
         }}
       />
 
-      {/* Band 2 — the live dials, and the controls that act on the circuit
-          they read.
+      {/* Band 2 — what the set is doing, and the controls that act on it.
 
-          The pad is on the **right** now, which is the frame's arrangement and the
-          reverse of what this band used to do. The readings are what the band is
-          about and they are what a reader scans; the pad is a thing you reach for
-          having decided something, and a control column between the page's edge and
-          its own subject was making the dials start a third of the way in.
+          Two columns since 2026-09-22, where five dials and two bar charts stood
+          before — see `GeneratorColumns` for why a needle was the wrong instrument
+          for frequency and active power.
+
+          The pad is on the **right**, which is the frame's arrangement. The readings
+          are what the band is about and they are what a reader scans; the pad is a
+          thing you reach for having decided something, and a control column between
+          the page's edge and its own subject was making the readings start a third
+          of the way in.
 
           `md:ml-auto` rather than `justify-between`: the pad has to stay pinned to
-          the right when the dials wrap short, and it has to fall *under* them at
+          the right when the columns are narrow, and it has to fall *under* them at
           phone width rather than beside them — four tap targets squeezed next to a
-          gauge row is the one thing in this band that must not happen. */}
+          column of figures is the one thing in this band that must not happen. */}
       <div className="flex flex-wrap items-start gap-6 py-4 md:gap-12">
         {running ? (
           // `md:flex-1` so the readings take the slack and the pad stays beside
@@ -227,19 +229,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           // wraps underneath the phase bars at anything narrower than the design's
           // 1,530px band. Letting the gauge row wrap inside its own column is the
           // right way to lose width — a second row of dials still reads.
-          <div className="flex min-w-0 flex-col gap-6 md:flex-1">
-            <div className="flex flex-wrap items-start gap-8">
-              {detail.gauges.map((gauge) => (
-                <TickGauge key={gauge.key} reading={gauge} />
-              ))}
-            </div>
-
-            <div className="flex flex-wrap items-start gap-y-6 md:gap-x-18">
-              {detail.phases.map((group) => (
-                <PhaseBars key={group.label} group={group} />
-              ))}
-            </div>
-          </div>
+          <GeneratorColumns gensetId={genset.id} detail={detail} now={now} />
         ) : (
           <StandbyPanel genset={genset} readings={detail.readings} now={now} />
         )}
