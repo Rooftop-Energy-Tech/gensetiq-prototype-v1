@@ -19,6 +19,8 @@ import {countBySeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {ControlPad} from './ControlPad';
+import {PhaseBars} from './PhaseBars';
+import {TickGauge} from './TickGauge';
 import {FuelColumn, GeneratorColumns} from './GeneratorColumns';
 import {CurrentRunCard} from './CurrentRunCard';
 import {StandbyPanel} from './StandbyPanel';
@@ -62,10 +64,10 @@ import {StandbyPanel} from './StandbyPanel';
  * wanted back. Everything it showed is still owned by a screen of its own: runs
  * on `Runs`, services on `Service`, and deliveries on the tank chart.
  *
- * Band 2 loses its dials when the engine stops, and `StandbyPanel` takes their
- * place beside the pad. It is not a placeholder: the readings that survive a
- * shutdown are the pre-start ones, and they are what the pad's question — start
- * it? — actually turns on.
+ * The dials band is dropped entirely when the engine stops, and `StandbyPanel`
+ * takes the two generator cards' place beside the tank. It is not a placeholder:
+ * the readings that survive a shutdown are the pre-start ones, and they are what
+ * the pad's question — start it? — actually turns on.
  *
  * ## At phone width
  *
@@ -198,22 +200,39 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
         }}
       />
 
-      {/* Band 2 — what the set is doing, and the controls that act on it.
+      {/* Band 2 — the dials, and the two bar charts under them.
 
-          Two columns since 2026-09-22, where five dials and two bar charts stood
-          before — see `GeneratorColumns` for why a needle was the wrong instrument
-          for frequency and active power.
+          Back on 2026-09-22 after a week as label/value rows. The argument for
+          taking them out still holds for *some* of them — a governor holds 50.0 Hz
+          and a needle says nothing a figure does not — but it was applied to the
+          whole row, and it should not have been. Oil pressure falling through a run
+          and coolant climbing towards its shutdown are movements, and a movement is
+          what a dial is for. The cards below keep every figure regardless, so
+          nothing here is the only place a reading lives.
 
-          The pad is on the **right**, which is the frame's arrangement. The readings
-          are what the band is about and they are what a reader scans; the pad is a
-          thing you reach for having decided something, and a control column between
-          the page's edge and its own subject was making the readings start a third
-          of the way in.
+          Absent when the engine is stopped: `detail.gauges` and `detail.phases` are
+          empty then, and a row of needles pinned at zero says less than one line of
+          text saying the engine is off — which is what `StandbyPanel` below is. */}
+      {running && (
+        <>
+          <div className="flex flex-col gap-6 py-4">
+            <div className="flex flex-wrap items-start gap-8">
+              {detail.gauges.map((gauge) => (
+                <TickGauge key={gauge.key} reading={gauge} />
+              ))}
+            </div>
 
-          `md:ml-auto` rather than `justify-between`: the pad has to stay pinned to
-          the right when the columns are narrow, and it has to fall *under* them at
-          phone width rather than beside them — four tap targets squeezed next to a
-          column of figures is the one thing in this band that must not happen. */}
+            <div className="flex flex-wrap items-start gap-y-6 md:gap-x-18">
+              {detail.phases.map((group) => (
+                <PhaseBars key={group.label} group={group} />
+              ))}
+            </div>
+          </div>
+
+          <hr className="border-subtle" />
+        </>
+      )}
+
       {/* `items-stretch` so the three cards share a bottom edge — see `Column`.
           The gap tightens to `gap-4` now the groups carry their own borders: at
           `md:gap-12` three bordered cards read as three separate bands rather
