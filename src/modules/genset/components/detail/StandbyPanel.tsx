@@ -1,6 +1,6 @@
 import {PauseIcon, PowerOffIcon} from 'lucide-react';
 
-import {amount, fuelHeadline, relativeTime} from '@/lib/format';
+import {amount, relativeTime, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {Genset} from '../../types/genset.type';
 import type {Reading} from '../../types/telemetry.type';
@@ -23,18 +23,20 @@ const Figure = ({label, value, stale}: {label: string; value: string; stale: boo
 /**
  * What band 2 shows when the engine is not turning.
  *
- * ## Two figures, and only two
+ * ## One figure, and only one
  *
  * The band has no live readings to draw, and the temptation is to backfill it
  * with every quantity that survives a shutdown — coolant, oil, engine hours, the
  * lot. That builds a second dashboard out of the absence of the first one.
  *
- * The panel carries **the tank and the starter battery** instead, because those
- * are the two things that decide whether the machine will actually crank when the
- * pad beside it is pressed. Fuel is deliberately repeated from the strip at the
- * top of the page: up there it is one of three summary figures, here it is half
- * of a start check, and a reader looking at a stopped set should not have to
- * scroll back up to find out whether starting it is possible.
+ * The panel carries **the starter battery**, because a flat bank is what stops a
+ * machine cranking when the pad beside it is pressed.
+ *
+ * It carried the tank as well until 2026-09-22 — Afifah's call — on the argument
+ * that fuel and battery together are the start check. They are, but the tank now
+ * has a card of its own two inches to the left with the same figure at the head of
+ * it, and repeating it here made the panel look like a summary of a page it sits
+ * inside rather than the one thing that page cannot otherwise say.
  *
  * Everything else a stopped controller reports is still on the page — the
  * analysis tab plots it and the Alarms tab lists it under its tag. This band is not the
@@ -84,20 +86,18 @@ export const StandbyPanel = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-6 border-t border-subtle pt-3">
-        <Figure
-          label="Fuel level"
-          value={fuelHeadline(genset.fuelLitres, genset.fuelCapacityLitres)}
-          stale={offline}
-        />
-        {battery !== undefined && (
+      {battery !== undefined && (
+        <div className="border-t border-subtle pt-3">
+          {/* The label carries when the figure was taken, because on a stopped set
+              it is the one thing the number cannot say for itself: 14.9 V reads the
+              same whether it was measured a minute ago or a fortnight. */}
           <Figure
-            label={battery.label}
+            label={`${battery.label} (${stampDate(genset.lastUpdated)})`}
             value={amount(battery.value, battery.unit, battery.precision)}
             stale={offline}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

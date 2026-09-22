@@ -352,6 +352,11 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             stood bare on the band until 2026-09-22, which made it read as one carded
             thing next to a loose group of tiles; the heading also gives seven marks
             a name, which they had none of. */}
+        {/* Both cards are running-only from 2026-09-22 — Afifah's call. A stopped
+            set was drawing a Conditions card holding two hour counters and an Output
+            card holding one sentence, which is two card frames to say almost
+            nothing. The panel below says it in one. */}
+        {running && (
         <Column title="Generator conditions">
           <div className="flex flex-wrap items-start gap-x-8 gap-y-6 pt-1">
             {detail.gauges.map((gauge) => (
@@ -403,6 +408,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             />
           </div>
         </Column>
+        )}
 
         {/* The third card: what is coming out, with the bars that carry a whole
             question each at the bottom of it.
@@ -412,8 +418,8 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             phase current are two sets of three asked whether they agree with one
             another, which is a comparison rather than a scan. A comparison reads
             fine at the foot of a card; five readings buried under six bars do not. */}
+        {running && (
         <Column title="Generator output">
-          {running ? (
             <div className="flex flex-col gap-6 pt-1">
               <OutputBars
                 lines={[
@@ -434,36 +440,16 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
                 <PhaseBars key={group.label} group={group} severities={severityByReading} />
               ))}
             </div>
-          ) : (
-            // A stopped alternator is delivering nothing, and five bars at zero
-            // would say that five times over.
-            <p className="pt-1 text-sm text-secondary">Nothing on load — the engine is stopped.</p>
-          )}
         </Column>
+        )}
 
+        {/* In the two cards' place rather than a rule below them. A stopped set's
+            band is the tank and this: what is in it, and whether the bank will turn
+            it over. */}
+        {!running && <StandbyPanel genset={genset} readings={detail.readings} now={now} />}
       </div>
 
       <hr className="border-subtle" />
-
-      {/* The pre-start readings, and only when the engine is stopped. The generator
-          output card stood here until 2026-09-22 and every figure on it is now a bar
-          or a mark in the band above — line voltage and phase current in their
-          groups, power factor, frequency, load, active power and energy produced in
-          `OutputBars`. A card restating five bars a rule apart is a second place for
-          the same numbers to disagree.
-
-          `StandbyPanel` is not a placeholder for it: the readings that survive a
-          shutdown are the pre-start ones, and they are what the pad's question —
-          start it? — actually turns on. */}
-      {!running && (
-        <>
-          <div className="flex flex-wrap items-stretch gap-4">
-            <StandbyPanel genset={genset} readings={detail.readings} now={now} />
-          </div>
-
-          <hr className="border-subtle" />
-        </>
-      )}
 
       {/* Band 4 — what the machine is, in the `DetailBand` all four detail pages
           share, and last of the bands that describe it rather than report on it.
