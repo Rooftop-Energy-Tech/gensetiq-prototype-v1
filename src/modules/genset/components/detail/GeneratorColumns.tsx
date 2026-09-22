@@ -35,10 +35,24 @@ import type {Reading} from '../../types/telemetry.type';
  * hours turned, not on kWh sold.
  */
 
+/**
+ * One reading: its name, and its figure.
+ *
+ * **Typed exactly as `MetricStrip`'s columns are**, which is the strip at the top of
+ * this page carrying Fuel level, Fuel remaining, Service and Alarm. Label
+ * `text-sm font-medium text-secondary`, figure `font-semibold text-primary`.
+ *
+ * The colour token was always shared; the weight was not, and at 60% opacity a
+ * regular label beside a medium one reads as a lighter grey rather than as the same
+ * grey set differently. Two kinds of label on one page is one kind too many, and the
+ * strip is the one that was there first.
+ */
 const Row = ({label, children}: {label: string; children: ReactNode}) => (
   <div className="flex items-baseline justify-between gap-4 py-1.5">
-    <dt className="shrink-0 text-sm text-secondary">{label}</dt>
-    <dd className="min-w-0 truncate text-right text-sm text-primary tabular-nums">{children}</dd>
+    <dt className="shrink-0 text-sm font-medium text-secondary">{label}</dt>
+    <dd className="min-w-0 truncate text-right text-sm font-semibold text-primary tabular-nums">
+      {children}
+    </dd>
   </div>
 );
 
