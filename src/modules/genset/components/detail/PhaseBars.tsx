@@ -1,4 +1,6 @@
 import {amount} from '@/lib/format';
+import type {AlertSeverity} from '../../types/alert.type';
+import {barFill} from './barTone';
 import type {PhaseGroup} from '../../types/telemetry.type';
 
 /**
@@ -30,7 +32,14 @@ import type {PhaseGroup} from '../../types/telemetry.type';
  * of equally solid text made the figure compete with the `V` beside it; the figure
  * is the reading and the other two say what it is.
  */
-export const PhaseBars = ({group}: {group: PhaseGroup}) => (
+export const PhaseBars = ({
+  group,
+  severities,
+}: {
+  group: PhaseGroup;
+  /** Worst alarm per reading key, for colouring a phase that is out on its own. */
+  severities?: ReadonlyMap<string, AlertSeverity>;
+}) => (
   <div className="flex min-w-0 flex-col gap-2">
     <p className="text-sm font-medium text-primary">{group.label}</p>
 
@@ -48,7 +57,10 @@ export const PhaseBars = ({group}: {group: PhaseGroup}) => (
               aria-valuemax={group.scale}
               aria-label={`${group.label} ${channel.label}`}
             >
-              <div className="h-full rounded-sm bg-teal" style={{width: `${fraction * 100}%`}} />
+              <div
+                className={`h-full rounded-sm ${barFill(severities?.get(channel.key))}`}
+                style={{width: `${fraction * 100}%`}}
+              />
             </div>
 
             <div className="flex w-[64px] items-center gap-1 whitespace-nowrap">

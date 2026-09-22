@@ -1,4 +1,6 @@
 import {amount} from '@/lib/format';
+import type {AlertSeverity} from '../../types/alert.type';
+import {barFill} from './barTone';
 
 /**
  * Power factor, frequency, load and active power as bars, under the phase groups.
@@ -33,6 +35,8 @@ export type OutputLine = {
   max: number;
   /** Decimal places, where the figure needs them. */
   precision?: number;
+  /** The worst alarm standing against the reading this line draws, if any. */
+  severity?: AlertSeverity;
 };
 
 export const OutputBars = ({lines}: {lines: ReadonlyArray<OutputLine>}) => (
@@ -54,7 +58,10 @@ export const OutputBars = ({lines}: {lines: ReadonlyArray<OutputLine>}) => (
               aria-valuemax={line.max}
               aria-label={line.label}
             >
-              <div className="h-full rounded-sm bg-teal" style={{width: `${fraction * 100}%`}} />
+              <div
+                className={`h-full rounded-sm ${barFill(line.severity)}`}
+                style={{width: `${fraction * 100}%`}}
+              />
             </div>
 
             <div className="flex w-[64px] items-center gap-1 whitespace-nowrap">

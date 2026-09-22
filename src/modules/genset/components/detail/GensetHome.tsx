@@ -374,12 +374,12 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             <div className="flex flex-col gap-6 pt-1">
               <OutputBars
                 lines={[
-                  {label: 'PF', value: detail.readings['power-factor']?.value ?? 0, unit: '', min: 0, max: 1, precision: 2},
+                  {label: 'PF', value: detail.readings['power-factor']?.value ?? 0, unit: '', min: 0, max: 1, precision: 2, severity: severityByReading.get('power-factor')},
                   // 45–55 rather than 0–55: a 0-based bar sits at 91% for every
                   // healthy set and moves a pixel on the 2 Hz droop it exists to show.
-                  {label: 'Freq', value: detail.readings['frequency']?.value ?? 0, unit: 'Hz', min: 45, max: 55, precision: 1},
-                  {label: 'Load', value: loadPercent, unit: '%', min: 0, max: 100},
-                  {label: 'Power', value: detail.loadKw ?? 0, unit: 'kW', min: 0, max: Math.round(detail.ratedKw)},
+                  {label: 'Freq', value: detail.readings['frequency']?.value ?? 0, unit: 'Hz', min: 45, max: 55, precision: 1, severity: severityByReading.get('frequency')},
+                  {label: 'Load', value: loadPercent, unit: '%', min: 0, max: 100, severity: severityByReading.get('active-power')},
+                  {label: 'Power', value: detail.loadKw ?? 0, unit: 'kW', min: 0, max: Math.round(detail.ratedKw), severity: severityByReading.get('active-power')},
                   // Energy has no nameplate to sit against, so its ceiling is what
                   // this run *could* have made: the machine's rating over the hours
                   // it has turned. The bar then reads as the run's load factor.
@@ -388,7 +388,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
               />
 
               {detail.phases.map((group) => (
-                <PhaseBars key={group.label} group={group} />
+                <PhaseBars key={group.label} group={group} severities={severityByReading} />
               ))}
             </div>
           ) : (
