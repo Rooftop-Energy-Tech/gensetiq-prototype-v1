@@ -10,6 +10,7 @@ import type {Genset} from '../../types/genset.type';
 import type {RunRange} from '../../types/runsView.type';
 import {clearedRunsRange, runTotals, runsOverlapping, runsRange} from '../../types/runsView.type';
 import type {RunWindow, RunsSearch} from '../../types/runsView.type';
+import type {GensetRun} from '../../types/run.type';
 import {DeploymentPicker} from './DeploymentPicker';
 import {PostingContext} from './PostingContext';
 import {RunsPanel} from './RunsPanel';
@@ -47,6 +48,28 @@ export const GensetRuns = ({
   const posting = postings.find((candidate) => candidate.deployment.id === search.dep);
   // Where the machine is now, for the unscoped summary — the deployments tab's third
   // tile. `undefined` in the workshop, which the block words as `In depot`.
+  /**
+   * The posting a run belongs to, matched on **overlap** rather than on the start
+   * instant.
+   *
+   * A run that begins before its job's window and finishes inside it is that job's
+   * run: `AFB 1502` cranked at 13:11 on 1 September and `DEP-0053` opened at 14:00,
+   * and matching on the start alone filed nearly four hours of work under no job at
+   * all. The lorry arriving and the engine starting are not the same minute, and the
+   * record should not pretend they are.
+   */
+  const postingFor = (run: GensetRun) => {
+    const from = new Date(run.startedAt).getTime();
+    const to = run.endedAt === null ? now : new Date(run.endedAt).getTime();
+
+    return postings.find((candidate) => {
+      const openedAt = new Date(candidate.deployment.startsAt).getTime();
+      const end = postingEnd(candidate);
+      const closedAt = end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
+      return from <= closedAt && to >= openedAt;
+    });
+  };
+
   const standingAt = postings.find(
     (candidate) => postingEnd(candidate) === null,
   )?.deployment.locationLabel;
@@ -98,18 +121,13 @@ export const GensetRuns = ({
       heldCount={all.length}
       showAsset={false}
       energyNote={undefined}
-      // Which job each run fell inside. Resolved here rather than stored on the run:
-      // a run knows when the engine turned, and the posting that held the machine at
-      // that moment is a lookup over this genset's own postings.
-      referenceFor={(run) => {
-        const at = new Date(run.startedAt).getTime();
-        return postings.find((candidate) => {
-          const from = new Date(candidate.deployment.startsAt).getTime();
-          const end = postingEnd(candidate);
-          const to = end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
-          return at >= from && at <= to;
-        })?.deployment.reference;
-      }}
+      referenceFor={(run) => postingFor(run)?.deployment.reference}
+      // **A genset turned on anywhere but the yard is a deployment.** So a run with
+      // a posting names that posting's yard, and a run with none was turning at
+      // home — a test or a service run, nobody's hire. Saying `Express Mission
+      // yard` rather than leaving it blank is what makes the em dash in the
+      // Deployment column a statement instead of a gap.
+      locationFor={(run) => postingFor(run)?.deployment.locationLabel ?? 'Express Mission yard'}
       postingContext={
         <PostingContext
           posting={posting}

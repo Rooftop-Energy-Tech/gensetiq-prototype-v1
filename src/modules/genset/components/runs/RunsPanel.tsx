@@ -52,6 +52,7 @@ export const RunsPanel = ({
   deploymentPicker,
   postingContext,
   referenceFor,
+  locationFor,
   onWindowChange,
   onCustomChange,
   onExport,
@@ -89,6 +90,16 @@ export const RunsPanel = ({
    * closes over its own postings, and the site's passes nothing.
    */
   referenceFor?: (run: GensetRun) => string | undefined;
+  /**
+   * Where the machine was standing when this run turned — the job's yard, or the
+   * operator's own depot for a run that belongs to no job.
+   *
+   * The pair says the rule out loud: **a genset turned on anywhere but the yard is
+   * a deployment.** A row with a reference names the yard it was posted to; a row
+   * without one was turning at home, which is a test or a service run and nobody's
+   * hire.
+   */
+  locationFor?: (run: GensetRun) => string;
   onWindowChange: (window: RunWindow) => void;
   onCustomChange: (from: string, to: string) => void;
   onExport: () => void;
@@ -207,6 +218,7 @@ export const RunsPanel = ({
                     four on average across this estate. That repetition is the fact,
                     not a rendering fault: they were the same job. */}
                 <Th>Deployment</Th>
+                {locationFor !== undefined && <Th>Location</Th>}
                 <Th>Started</Th>
                 <Th>Ended</Th>
                 {showAsset && <Th>Set</Th>}
@@ -241,6 +253,12 @@ export const RunsPanel = ({
                   <td className="px-3 py-2.5 font-medium whitespace-nowrap text-primary">
                     {referenceFor?.(run) ?? <span className="text-tertiary">—</span>}
                   </td>
+
+                  {locationFor !== undefined && (
+                    <td className="max-w-[220px] truncate px-3 py-2.5 text-secondary">
+                      {locationFor(run)}
+                    </td>
+                  )}
 
                   <td className="px-3 py-2.5">
                     {/* The stamp is the link, not the row. A run's natural
