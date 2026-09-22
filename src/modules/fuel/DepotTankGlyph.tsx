@@ -21,7 +21,10 @@ import {useId} from 'react';
  * ## Construction
  *
  * Line art in `currentColor` at a single stroke weight, so it sits beside the Lucide
- * marks elsewhere without looking like a pasted-in asset. The fill is a plain rect
+ * marks elsewhere without looking like a pasted-in asset. The caller passes the ink:
+ * `text-secondary` — 60% of near-black, a dark grey — rather than `primary`, which
+ * at this stroke weight and this size draws as flat black and turns a tank into a
+ * cartoon. The fill is a plain rect
  * clipped to the vessel's own outline — the liquid is flat and the curve at each end
  * cuts it, which is what a horizontal cylinder actually does and the reason its
  * middle holds far more per centimetre than its ends.
