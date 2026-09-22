@@ -113,7 +113,7 @@ import {StandbyPanel} from './StandbyPanel';
 const READING_ICON: Record<string, LucideIcon | ComponentType<SVGProps<SVGSVGElement>>> = {
   'oil-pressure': OilCanIcon,
   'coolant-temp': ThermometerIcon,
-  'charge-alt-voltage': BatteryChargingIcon,
+  'battery-voltage': BatteryChargingIcon,
   'active-power': PlugZapIcon,
   frequency: ActivityIcon,
 };

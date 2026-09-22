@@ -180,7 +180,7 @@ const READING_SPECS: Array<ReadingSpec> = [
   // Electrical starting.
   {
     key: 'battery-voltage',
-    label: 'Starter battery voltage',
+    label: 'Battery voltage',
     unit: 'V',
     precision: 1,
     base: 29.4,
@@ -1457,20 +1457,26 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
           // up on scale without spending ticks on ambient.
           gauge('coolant-temp', 40, 120),
           // The fifth, and the one that is not about this run. A flat bank is the
-          // commonest reason a standby set fails its *next* start, and the only
-          // window in which the charging circuit can be proved is while the engine
-          // is turning — which makes it precisely a running-set reading, and the
-          // one alarm on the home page's list (`AL Battery Charger`, < 26 V) with
-          // no instrument behind it.
+          // commonest reason a standby set fails its *next* start, and it carries
+          // the one alarm on the home page's list (`AL Battery Charger`, < 26 V)
+          // with no instrument behind it.
+          //
+          // **Battery voltage, not charge alternator** — Afifah's call, 2026-09-22,
+          // and the two are near enough the same reading while the engine turns: a
+          // healthy alternator holds the bank at its own output, which is why both
+          // sit at 29.4 V in the catalogue. The difference is which one a reader
+          // asks for. Nobody walks up to a set wondering what the alternator is
+          // putting out; they ask whether the battery is charged, and the reference
+          // controller labels it that way too.
           //
           // **The scale follows the system.** 20–32 spans a 24 V bank from flat to
           // fully charged, putting the 26 V alarm six ticks below a healthy 29.4.
           // A 500 kVA set and under is 12 V, and drawing its 14.7 V against a 24 V
-          // face would peg the needle at a quarter scale and read as a dying bank.
-          // Halved ends keep the same resolution per tick on both.
+          // face would put the reading at a quarter scale and read as a dying bank.
+          // Halved ends keep the same resolution on both.
           smallSet
-            ? gauge('charge-alt-voltage', 10, 16)
-            : gauge('charge-alt-voltage', 20, 32),
+            ? gauge('battery-voltage', 10, 16)
+            : gauge('battery-voltage', 20, 32),
         ]
       : [],
     phases: running
