@@ -7,7 +7,6 @@ import {GENSETS} from '@/modules/genset/data/fleet';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 import {
   FUEL_LEVEL_LABEL,
-  RESERVE_FRACTION,
   fuelFraction,
   fuelLevelKind,
 } from '@/modules/genset/types/fuelLevel.type';
@@ -95,7 +94,7 @@ export const FleetTanks = () => {
       {/* Scrolls inside itself rather than growing the page: the order list below is
           the other half of this screen and must stay reachable without paging past
           thirty-eight tanks. */}
-      <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+      <ul className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
         {rows.map((row) => {
           const percent = Math.round(row.fraction * 100);
           const tone = BAR_TONE[row.kind ?? 'ok'];
@@ -105,28 +104,56 @@ export const FleetTanks = () => {
               <Link
                 to="/gensets/$gensetId"
                 params={{gensetId: row.id}}
-                className="flex items-center gap-3 rounded px-2 py-1.5 outline-none hover:bg-highlight focus-visible:ring-2 focus-visible:ring-outline"
+                className="flex items-center gap-3 rounded px-2 py-1 outline-none hover:bg-highlight focus-visible:ring-2 focus-visible:ring-outline"
               >
                 <span className="w-28 shrink-0 truncate text-sm text-primary">{row.name}</span>
 
-                {/* The bar is the comparison and the numbers are the booking. The
-                    reserve line is drawn on the bar itself rather than stated
-                    beside it — a threshold a reader has to hold in their head to
-                    use is a threshold that gets misread. */}
-                <span className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-highlight">
+                {/* The bar carries all three numbers, which is the point of drawing
+                    one: what is in the tank sits over the end of the fill, what the
+                    tank holds sits at the end of the track, and the half-tank line is
+                    drawn between them. A reader gets level, capacity and the
+                    threshold in one glance without matching a figure to a column.
+
+                    `pt-4` rather than a taller bar: the floating figure needs the
+                    room above the track, and the track itself stays 8px so thirty
+                    eight of these still fit a scroll pane. */}
+                <span className="relative min-w-0 flex-1 pt-4">
+                  {/* Pinned to the end of the coloured fill and centred on it, so it
+                      travels with the level. Clamped away from both ends — at 2% the
+                      label would hang off the left of the track and at 100% off the
+                      right, and a number half outside its own row reads as belonging
+                      to the one beside it. */}
                   <span
-                    className={`absolute inset-y-0 left-0 rounded-full ${tone}`}
-                    style={{width: `${Math.max(1, percent)}%`}}
-                  />
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-y-0 w-px bg-primary/30"
-                    style={{left: `${RESERVE_FRACTION * 100}%`}}
-                  />
+                    className="absolute top-0 -translate-x-1/2 text-xs whitespace-nowrap text-primary tabular-nums"
+                    style={{left: `${Math.min(92, Math.max(8, percent))}%`}}
+                  >
+                    {Math.round(row.litres).toLocaleString('en-MY')} L
+                  </span>
+
+                  <span className="relative block h-2 overflow-hidden rounded-full bg-highlight">
+                    <span
+                      className={`absolute inset-y-0 left-0 rounded-full ${tone}`}
+                      style={{width: `${Math.max(1, percent)}%`}}
+                    />
+                    {/* Half a tank. Not the 30% reserve line this drew until
+                        2026-09-22 — Afifah's call. Half is the figure an operations
+                        room actually plans a tanker round against: a set past it has
+                        used more than it has left, which is the moment to book rather
+                        than the moment to scramble. The reserve line has not gone
+                        anywhere — it is still what `fuelLevelKind` colours the fill
+                        by, so a bar past this mark is not yet a bar painted low. */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-0 w-px bg-primary/30"
+                      style={{left: '50%'}}
+                    />
+                  </span>
                 </span>
 
-                <span className="w-24 shrink-0 text-right text-sm text-primary tabular-nums">
-                  {Math.round(row.litres).toLocaleString('en-MY')} L
+                {/* The tank, not what is left in it. The level is on the bar now, and
+                    two litre figures a column apart were read as a pair to subtract. */}
+                <span className="w-24 shrink-0 text-right text-sm text-secondary tabular-nums">
+                  {Math.round(row.capacityLitres).toLocaleString('en-MY')} L
                 </span>
                 <span className="w-10 shrink-0 text-right text-sm text-secondary tabular-nums">
                   {percent}%
