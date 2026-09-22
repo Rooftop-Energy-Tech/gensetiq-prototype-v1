@@ -198,18 +198,26 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
         }}
       />
 
-      {/* Band 2 — the tank, and the controls.
+      {/* Band 2 — what the set is doing, and the controls that act on it.
 
-          What a reader acts on. The two cards of figures that stood here until
-          2026-09-22 are one band down now: a reader arrives asking what the machine
-          is doing, which the title's run state and the tank answer in a line each,
-          and only then asks for the figures behind it. The pad came up with the
-          swap — the page's one interactive thing should not sit below two cards of
-          readings.
+          Two columns since 2026-09-22, where five dials and two bar charts stood
+          before — see `GeneratorColumns` for why a needle was the wrong instrument
+          for frequency and active power.
 
-          `items-stretch` so the card and the pad share a bottom edge, `gap-4`
-          because the card carries its own border and the border is already doing
-          the separating. */}
+          The pad is on the **right**, which is the frame's arrangement. The readings
+          are what the band is about and they are what a reader scans; the pad is a
+          thing you reach for having decided something, and a control column between
+          the page's edge and its own subject was making the readings start a third
+          of the way in.
+
+          `md:ml-auto` rather than `justify-between`: the pad has to stay pinned to
+          the right when the columns are narrow, and it has to fall *under* them at
+          phone width rather than beside them — four tap targets squeezed next to a
+          column of figures is the one thing in this band that must not happen. */}
+      {/* `items-stretch` so the three cards share a bottom edge — see `Column`.
+          The gap tightens to `gap-4` now the groups carry their own borders: at
+          `md:gap-12` three bordered cards read as three separate bands rather
+          than one, and the border is already doing the separating. */}
       <div className="flex flex-wrap items-stretch gap-4 py-4">
         {/* Fuel first, and outside the branch on both counts.
 
@@ -225,47 +233,50 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             most useful fact: what is in it now is what the next outage gets. */}
         <FuelColumn genset={genset} detail={detail} running={running} />
 
-        {/* The run, between the tank and the controls. Three things a reader takes
-            in before any figure: how much is left, what this start has done, and
-            what they can do about it. The card carries its own border, so it sits
-            in the band beside the tank card rather than inside a wrapper. */}
-        <div className="flex min-w-0 flex-1 items-stretch md:min-w-[420px]">
-          <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
-        </div>
-
-        {/* The pad came up here on 2026-09-22 — Afifah's call. It is the page's one
-            interactive thing, and a reader who has come to *do* something should not
-            have to scroll past two cards of figures to reach it. */}
-        <div className="flex shrink-0 items-center">
-          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
-        </div>
+        {running ? (
+          // `md:flex-1` so the readings take the slack and the pad stays beside
+          // Three columns that share the band and wrap together — see
+          // `GeneratorColumns`. Each is `flex-1` with `min-w-0`, so a narrow window
+          // drops one under the others rather than truncating all three.
+          <GeneratorColumns genset={genset} detail={detail} now={now} />
+        ) : (
+          <StandbyPanel genset={genset} readings={detail.readings} now={now} />
+        )}
       </div>
 
       <hr className="border-subtle" />
 
-      {/* Band 3 — the figures behind the band above.
+      {/* Band 3 — the run, the day, and the tank.
 
-          Conditions and output, or the standby panel in their place when the engine
-          is stopped. The run card and the tank left this band on 2026-09-22 for the
-          one above, which is where a reader looks first; what is left here is what
-          they read second.
-
+          The run card carries two columns now — this run, and everything since
+          midnight — so the band reads at three horizons without gaining a third
+          card: what one start did, what the day's starts did together, and how
+          many more starts are left in the tank beside them.
           A column below `md` rather than a wrapping row. Wrapping is what the desktop
           band wants — two halves that break onto two lines when the window narrows —
           but on a phone both halves *can* squeeze into one line once they are allowed
           to shrink, and the result is two 170px columns with the labels truncated
           away. The two questions are separate; at this width they are separate rows. */}
-      <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch">
-        {/* The readings, under the run they belong to. They led the page until
-            2026-09-22 and sit here now: a reader arrives asking what the machine is
-            doing — which the title's run state, the tank and the run card answer
-            above — and only then asks for the figures behind it. */}
-        {running ? (
-          <GeneratorColumns genset={genset} detail={detail} now={now} />
-        ) : (
-          <StandbyPanel genset={genset} readings={detail.readings} now={now} />
-        )}
+      <div className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-stretch">
+        {/* The 560px floor is a desktop instruction — "keep the run beside the state
+            or wrap the whole band" — and on a 390px screen it is unsatisfiable, so
+            it would win over `flex-wrap` and push the page into a sideways scroll.
+            `min-w-0` replaces it below `md`: a flex item's automatic minimum is its
+            content's, so without it the run card's widest line — a timestamp that
+            must not wrap — becomes the floor for the whole band. */}
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
+          <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
+        </div>
 
+        {/* Where the fuel panel stood until 2026-09-22. The pad comes down from
+            band 2 to take it, which is the better home for it on two counts: the
+            readings band above is now three columns of figures and a control column
+            beside them made the page's only interactive thing compete with its
+            densest reading, and a reader reaching for START has usually just read
+            the run state a few pixels to the left of here. */}
+        <div className="flex min-w-0 flex-1 items-center p-3 md:min-w-[420px] md:justify-end">
+          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
+        </div>
       </div>
 
       <hr className="border-subtle" />
