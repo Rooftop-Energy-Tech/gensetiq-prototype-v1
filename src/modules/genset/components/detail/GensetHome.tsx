@@ -268,7 +268,13 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           },
           {
             label: 'Fuel remaining',
-            value: fuelRemainingHeadline(genset.fuelLitres, detail.fuel, running),
+            // An em dash on a stopped set, like the fuel card's burn rate and
+            // refuel date below it. `fuelRemainingHeadline` phrases a stopped
+            // machine as "9 hours of runtime" — runtime it would get if started,
+            // which is true and still reads in this strip as time it has left.
+            value: running
+              ? fuelRemainingHeadline(genset.fuelLitres, detail.fuel, running)
+              : '—',
           },
           {label: 'Service', value: serviceHeadline(service)},
         ]}
