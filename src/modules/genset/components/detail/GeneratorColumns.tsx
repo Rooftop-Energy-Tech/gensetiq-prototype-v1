@@ -1,34 +1,41 @@
 import type {ReactNode} from 'react';
 
-import {activePosting} from '@/modules/deployment/data/store';
+import {TankGlyph} from '@/components/global/TankGlyph';
+import {amount, fuelFraction, fuelHeadline, runtimeSpan, stampDate} from '@/lib/format';
 import {gensetTotalsIn} from '@/modules/deployment/data/seed';
+import {activePosting} from '@/modules/deployment/data/store';
 import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import type {GensetDetail} from '../../data/detail';
+import {instrumentsOf} from '../../data/fuelInstruments';
+import type {FuelIntegrityState} from '../../types/fuelIntegrity.type';
+import {fuelRunway} from '../../types/fuelLevel.type';
+import type {Genset} from '../../types/genset.type';
 import type {Reading} from '../../types/telemetry.type';
+import {LeakBadge} from './LeakBadge';
 
 /**
- * What the running set is doing, in the two questions a reader actually asks.
+ * What the set is doing, in the questions a reader actually arrives with.
  *
  * ## Why this replaced five dials and two bar charts
  *
  * The band was a gauge row — frequency, active power, oil pressure, coolant and the
  * charge alternator — with line voltage and phase current drawn as bars under it.
- * Dials earn their place where a reading *moves* and the movement is the diagnosis:
- * oil pressure falling through a run, coolant climbing towards its shutdown. They
- * earn nothing on **frequency**, which a governor holds at 50.0 Hz until something
- * is very wrong, or on **active power**, whose whole meaning is a number against a
- * nameplate rather than a needle position. Afifah's call, 2026-09-22: the meters go.
+ * A needle earns its place where a reading *moves* and the movement is the
+ * diagnosis: oil pressure falling through a run, coolant climbing towards its
+ * shutdown. It earns nothing on **frequency**, which a governor holds at 50.0 Hz
+ * until something is very wrong, or on **active power**, whose whole meaning is a
+ * number against a nameplate rather than a needle position. Afifah's call.
  *
- * ## The split, and why these two headings
+ * ## The split, and why these headings
  *
  * **Conditions** is the engine's own health — what a fitter looks at. **Output** is
  * what the alternator is delivering — what an operations room bills and plans on.
- * A reader arrives with one of those two questions and almost never both, so the
- * page answers each in its own column rather than interleaving them by instrument
- * type, which is how a gauge row orders things and is nobody's question.
+ * **Fuel** is how long either can continue. A reader arrives with one of the three
+ * and almost never all, so each gets a column rather than being interleaved by
+ * instrument type, which is how a gauge row orders things and is nobody's question.
  *
- * Running hours appear in Conditions rather than Output because they are wear: a
- * service falls due on hours turned, not on kWh sold.
+ * Running hours sit under Conditions because they are wear: a service falls due on
+ * hours turned, not on kWh sold.
  */
 
 const Row = ({label, children}: {label: string; children: ReactNode}) => (
@@ -41,7 +48,7 @@ const Row = ({label, children}: {label: string; children: ReactNode}) => (
 const Column = ({title, children}: {title: string; children: ReactNode}) => (
   <section className="flex min-w-0 flex-1 flex-col gap-1">
     <h3 className="text-xs font-medium tracking-wide text-tertiary uppercase">{title}</h3>
-    <dl className="flex flex-col divide-y divide-subtle">{children}</dl>
+    {children}
   </section>
 );
 
@@ -55,15 +62,15 @@ const value = (reading: Reading | undefined): string =>
       })}${reading.unit === '' ? '' : ` ${reading.unit}`}`;
 
 /** `195.4 h`, to a tenth — the resolution a service interval is quoted at. */
-const hours = (value_: number): string =>
-  `${value_.toLocaleString('en-MY', {minimumFractionDigits: 1, maximumFractionDigits: 1})} h`;
+const hours = (given: number): string =>
+  `${given.toLocaleString('en-MY', {minimumFractionDigits: 1, maximumFractionDigits: 1})} h`;
 
 export const GeneratorColumns = ({
-  gensetId,
+  genset,
   detail,
   now,
 }: {
-  gensetId: string;
+  genset: Genset;
   detail: GensetDetail;
   now: number;
 }) => {
@@ -74,12 +81,12 @@ export const GeneratorColumns = ({
   // an hours figure against a job that does not exist would be a number about
   // nothing. The totals are the same ones the deployment's own page reads, clipped
   // to the posting's window, so the two cannot disagree.
-  const posting = activePosting(gensetId, now);
+  const posting = activePosting(genset.id, now);
   const postingHours =
     posting === undefined
       ? undefined
       : gensetTotalsIn(
-          gensetId,
+          genset.id,
           new Date(posting.deployment.startsAt).getTime(),
           (() => {
             const end = postingEnd(posting);
@@ -99,44 +106,131 @@ export const GeneratorColumns = ({
     .filter((entry): entry is number => entry !== undefined);
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-8 md:flex-row md:gap-16">
+    <>
       <Column title="Generator conditions">
-        <Row label="Oil pressure">{value(read('oil-pressure'))}</Row>
-        <Row label="Coolant temperature">{value(read('coolant-temp'))}</Row>
-        <Row label="Running hours">{value(read('engine-hours'))}</Row>
-        {/* Named for the job rather than as "this deployment", so the row reads on
-            its own: a reader who has not scrolled to the posting card still knows
-            which window the hours belong to. */}
-        <Row label="Hours on current deployment">
-          {postingHours === undefined ? (
-            <span className="text-tertiary">Not deployed</span>
-          ) : (
-            hours(postingHours)
-          )}
-        </Row>
+        <dl className="flex flex-col divide-y divide-subtle">
+          <Row label="Oil pressure">{value(read('oil-pressure'))}</Row>
+          <Row label="Coolant temperature">{value(read('coolant-temp'))}</Row>
+          <Row label="Running hours">{value(read('engine-hours'))}</Row>
+          {/* Named for the job rather than as "this deployment", so the row reads on
+              its own: a reader who has not scrolled to the posting card still knows
+              which window the hours belong to. */}
+          <Row label="Hours on current deployment">
+            {postingHours === undefined ? (
+              <span className="text-tertiary">Not deployed</span>
+            ) : (
+              hours(postingHours)
+            )}
+          </Row>
+        </dl>
       </Column>
 
       <Column title="Generator output">
-        {/* Three phases on one row, separated rather than stacked: the reader's
-            question is whether they agree, and three figures side by side answer it
-            faster than three labelled rows. The label carries the phases' order. */}
-        <Row label="Line voltage L1-L2 / L2-L3 / L3-L1">
-          {lineVoltages.length === 0
-            ? '—'
-            : `${lineVoltages.map((entry) => Math.round(entry)).join(' / ')} V`}
-        </Row>
-        <Row label="Power factor">{value(read('power-factor'))}</Row>
-        <Row label="Load">{`${loadPercent}% of ${Math.round(detail.ratedKw).toLocaleString('en-MY')} kW`}</Row>
-        <Row label="Active power">{`${Math.round(loadKw).toLocaleString('en-MY')} kW`}</Row>
-        <Row label="Frequency">{value(read('frequency'))}</Row>
-        {/* This run's, not the day's and not the machine's life. The run card below
-            carries the same figure; it is here because a reader asking what the set
-            is producing is asking the output column, and sending them down the page
-            for the last of six answers is the band failing at its one job. */}
-        <Row label="Energy produced">
-          {`${Math.round(detail.run.energyProducedKwh).toLocaleString('en-MY')} kWh`}
-        </Row>
+        <dl className="flex flex-col divide-y divide-subtle">
+          {/* Three phases on one row, separated rather than stacked: the reader's
+              question is whether they agree, and three figures side by side answer
+              it faster than three labelled rows. The label carries their order. */}
+          <Row label="Line voltage L1-L2 / L2-L3 / L3-L1">
+            {lineVoltages.length === 0
+              ? '—'
+              : `${lineVoltages.map((entry) => Math.round(entry)).join(' / ')} V`}
+          </Row>
+          <Row label="Power factor">{value(read('power-factor'))}</Row>
+          <Row label="Load">
+            {`${loadPercent}% of ${Math.round(detail.ratedKw).toLocaleString('en-MY')} kW`}
+          </Row>
+          <Row label="Active power">{`${Math.round(loadKw).toLocaleString('en-MY')} kW`}</Row>
+          <Row label="Frequency">{value(read('frequency'))}</Row>
+          {/* This run's, not the day's and not the machine's life. The run card
+              below carries the same figure; it is here because a reader asking what
+              the set is producing is asking the output column, and sending them down
+              the page for the last of six answers is the band failing at its job. */}
+          <Row label="Energy produced">
+            {`${Math.round(detail.run.energyProducedKwh).toLocaleString('en-MY')} kWh`}
+          </Row>
+        </dl>
       </Column>
-    </div>
+    </>
+  );
+};
+
+/**
+ * The tank, beside the generator columns rather than a band below them.
+ *
+ * **Rendered whether or not the engine is turning, and that is the point.** The two
+ * columns beside it are about a machine in motion and have nothing to say about one
+ * standing still. A tank always has something to say, and on a standby estate it has
+ * the most to say precisely when the set is stopped: what is in it now is what the
+ * next outage gets. So the labels change with the run state and the figures do not
+ * disappear — a stopped set's burn rate is what it *was* metering, and its runway is
+ * runtime it would get rather than a countdown of wall-clock.
+ *
+ * **The glyph stays.** The rows are the numbers; the tank is the one thing on this
+ * band a reader takes in without reading, and a column of aligned figures is exactly
+ * what it is good against. It sits above the rows rather than beside them so the
+ * three columns keep one baseline.
+ */
+export const FuelColumn = ({
+  genset,
+  detail,
+  running,
+  integrity,
+}: {
+  genset: Genset;
+  detail: GensetDetail;
+  running: boolean;
+  integrity: FuelIntegrityState;
+}) => {
+  const metered = instrumentsOf(genset.id).flowMeter !== null;
+  const belowReserve = genset.fuelLitres <= detail.fuel.reserveFraction * detail.fuel.maxLitres;
+
+  return (
+    <Column title="Fuel">
+      <div className="flex items-center gap-3 py-1.5">
+        <TankGlyph fraction={fuelFraction(genset.fuelLitres, detail.fuel.maxLitres)} tone="fuel" />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="text-base font-medium whitespace-pre text-primary">
+            {fuelHeadline(genset.fuelLitres, detail.fuel.maxLitres)}
+          </p>
+          <p className="text-xs text-secondary">
+            {fuelRunway(genset.fuelLitres, detail.fuel, running)}
+          </p>
+        </div>
+      </div>
+
+      <dl className="flex flex-col divide-y divide-subtle">
+        <Row label="Max capacity">{amount(detail.fuel.maxLitres, 'L')}</Row>
+        {/* Metered or estimated, said out loud. Without a flow meter this figure is
+            computed from the electrical load — a good estimate, and not a
+            measurement — and the difference is the whole premise of the leak alarm.
+            Presenting the two identically would make the one screen that depends on
+            the distinction the one screen that hides it. */}
+        <Row
+          label={
+            running
+              ? metered
+                ? 'Metered rate'
+                : 'Estimated rate'
+              : metered
+                ? 'Metered, last run'
+                : 'Estimated, last run'
+          }
+        >
+          {amount(detail.fuel.litresPerHour, 'L/hr', 1)}
+        </Row>
+        <Row label={running ? 'Refuel by' : 'Runtime to reserve'}>
+          {running
+            ? stampDate(detail.fuel.refuelBy)
+            : belowReserve
+              ? 'none'
+              : runtimeSpan(detail.fuel.hoursToReserve)}
+        </Row>
+        {/* The verdict only. The arithmetic behind it is a nine-row derivation and
+            belongs beside the threshold that governs it. */}
+        <Row label="Leak check">
+          <LeakBadge gensetId={genset.id} state={integrity} />
+        </Row>
+      </dl>
+    </Column>
   );
 };

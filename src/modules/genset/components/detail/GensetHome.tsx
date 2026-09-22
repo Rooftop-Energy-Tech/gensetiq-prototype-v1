@@ -12,7 +12,6 @@ import {fuelRemainingHeadline} from '../../types/fuelLevel.type';
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount, fuelHeadline} from '@/lib/format';
-import {cn} from '@/lib/utils';
 import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
@@ -21,9 +20,8 @@ import {countBySeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {ControlPad} from './ControlPad';
-import {GeneratorColumns} from './GeneratorColumns';
+import {FuelColumn, GeneratorColumns} from './GeneratorColumns';
 import {CurrentRunCard} from './CurrentRunCard';
-import {FuelPanel} from './FuelPanel';
 import {RunStateSummary} from './RunStateSummary';
 import {StandbyPanel} from './StandbyPanel';
 
@@ -225,27 +223,18 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
       <div className="flex flex-wrap items-start gap-6 py-4 md:gap-12">
         {running ? (
           // `md:flex-1` so the readings take the slack and the pad stays beside
-          // them: without it this column sizes to five 153px gauges and the pad
-          // wraps underneath the phase bars at anything narrower than the design's
-          // 1,530px band. Letting the gauge row wrap inside its own column is the
-          // right way to lose width — a second row of dials still reads.
-          <GeneratorColumns gensetId={genset.id} detail={detail} now={now} />
+          // Three columns that share the band and wrap together — see
+          // `GeneratorColumns`. Each is `flex-1` with `min-w-0`, so a narrow window
+          // drops one under the others rather than truncating all three.
+          <GeneratorColumns genset={genset} detail={detail} now={now} />
         ) : (
           <StandbyPanel genset={genset} readings={detail.readings} now={now} />
         )}
 
-        {/* Hard right while the dials are up — that is the frame's arrangement, and
-            it is what keeps five gauges and a phase chart from starting a third of
-            the way into the band.
-
-            Not when they are down. `StandbyPanel` is a 360px card, and pinning the
-            pad opposite it on a 1,530px band strands the two at either end of an
-            empty rule with nothing between them. Unpinned, the pad follows the card
-            at the band's own gap and the pair reads as one thing: here is why there
-            is nothing to show, and here is what you can do about it. */}
-        <div className={cn(running && 'md:ml-auto')}>
-          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
-        </div>
+        {/* Outside the branch, deliberately. The two generator columns describe a
+            machine in motion and vanish with it; the tank does not, and a stopped
+            standby set is exactly when its level is the page's most useful fact. */}
+        <FuelColumn genset={genset} detail={detail} running={running} integrity={integrity} />
       </div>
 
       <hr className="border-subtle" />
@@ -273,12 +262,15 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
         </div>
 
-        <FuelPanel
-          genset={genset}
-          fuel={detail.fuel}
-          running={running}
-          integrity={integrity}
-        />
+        {/* Where the fuel panel stood until 2026-09-22. The pad comes down from
+            band 2 to take it, which is the better home for it on two counts: the
+            readings band above is now three columns of figures and a control column
+            beside them made the page's only interactive thing compete with its
+            densest reading, and a reader reaching for START has usually just read
+            the run state a few pixels to the left of here. */}
+        <div className="flex min-w-0 flex-1 items-center p-3 md:min-w-[420px] md:justify-end">
+          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
+        </div>
       </div>
 
       <hr className="border-subtle" />
