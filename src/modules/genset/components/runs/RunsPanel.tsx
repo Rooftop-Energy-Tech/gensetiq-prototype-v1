@@ -51,6 +51,7 @@ export const RunsPanel = ({
   energyNote,
   deploymentPicker,
   postingContext,
+  referenceFor,
   onWindowChange,
   onCustomChange,
   onExport,
@@ -81,6 +82,13 @@ export const RunsPanel = ({
    * the picker is one: a site's runs log has no posting to describe.
    */
   postingContext?: ReactNode;
+  /**
+   * The posting reference a run falls inside, e.g. `DEP-0046`. A function rather
+   * than a field on the row because the site's log draws runs from many machines
+   * and would have to resolve a posting per set; the genset's log passes one that
+   * closes over its own postings, and the site's passes nothing.
+   */
+  referenceFor?: (run: GensetRun) => string | undefined;
   onWindowChange: (window: RunWindow) => void;
   onCustomChange: (from: string, to: string) => void;
   onExport: () => void;
@@ -190,6 +198,15 @@ export const RunsPanel = ({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-subtle text-xs text-secondary">
+                {/* The job each run belongs to, leading the row. A run is a
+                    stretch of engine time and a posting is the work it was doing;
+                    naming the posting on the run is what lets a reader scan the log
+                    as deployments rather than as anonymous starts.
+
+                    Several runs share a reference where a posting holds several —
+                    four on average across this estate. That repetition is the fact,
+                    not a rendering fault: they were the same job. */}
+                <Th>Deployment</Th>
                 <Th>Started</Th>
                 <Th>Ended</Th>
                 {showAsset && <Th>Set</Th>}
@@ -221,6 +238,10 @@ export const RunsPanel = ({
                         : 'Began before this window — totalled in the period it started in.'
                   }
                 >
+                  <td className="px-3 py-2.5 font-medium whitespace-nowrap text-primary">
+                    {referenceFor?.(run) ?? <span className="text-tertiary">—</span>}
+                  </td>
+
                   <td className="px-3 py-2.5">
                     {/* The stamp is the link, not the row. A run's natural
                         follow-up question is "what did the readings do while it

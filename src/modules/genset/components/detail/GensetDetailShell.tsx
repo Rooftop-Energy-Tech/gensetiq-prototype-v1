@@ -1,5 +1,5 @@
 import {Outlet} from '@tanstack/react-router';
-import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, PlayIcon, SettingsIcon, WrenchIcon} from 'lucide-react';
+import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, SettingsIcon, TruckIcon, WrenchIcon} from 'lucide-react';
 
 import {
   DetailSidebar,
@@ -39,12 +39,12 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
     // `end` on the landing row alone: `/gensets/x` prefixes all six below it.
     {label: 'Genset', icon: BoomBoxIcon, to: '/gensets/$gensetId', params, end: true},
     {label: 'Analysis', icon: ChartLineIcon, to: '/gensets/$gensetId/analysis', params},
-    // Runs carries the postings too since 2026-09-22 — a posting's yard, window,
-    // lorry and tank readings sit above the runs it contains, and the separate
-    // `Deployments` tab that held them is gone. Two tabs asking about one machine's
-    // work, where the second's `On load` column was the first's `Time running` for
-    // one window, is the split that made them confusing.
-    {label: 'Runs', icon: PlayIcon, to: '/gensets/$gensetId/runs', params},
+    // `Deployments`, at `/runs`. The two tabs merged on 2026-09-22 and the survivor
+    // took the other's name: a reader thinks in jobs, and a run is what the engine
+    // did inside one. The URL keeps `/runs` because every link into it carries a
+    // range or a posting in its query string, and renaming the path would break
+    // those for the sake of a word nobody types.
+    {label: 'Deployments', icon: TruckIcon, to: '/gensets/$gensetId/runs', params},
     // After Runs, because a posting is the window the runs inside it are read over —
     // see `deployment.type.ts` on why both exist.
     {label: 'Service', icon: WrenchIcon, to: '/gensets/$gensetId/service', params},

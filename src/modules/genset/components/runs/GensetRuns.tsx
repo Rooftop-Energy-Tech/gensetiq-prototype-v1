@@ -98,6 +98,18 @@ export const GensetRuns = ({
       heldCount={all.length}
       showAsset={false}
       energyNote={undefined}
+      // Which job each run fell inside. Resolved here rather than stored on the run:
+      // a run knows when the engine turned, and the posting that held the machine at
+      // that moment is a lookup over this genset's own postings.
+      referenceFor={(run) => {
+        const at = new Date(run.startedAt).getTime();
+        return postings.find((candidate) => {
+          const from = new Date(candidate.deployment.startsAt).getTime();
+          const end = postingEnd(candidate);
+          const to = end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
+          return at >= from && at <= to;
+        })?.deployment.reference;
+      }}
       postingContext={
         <PostingContext
           posting={posting}
