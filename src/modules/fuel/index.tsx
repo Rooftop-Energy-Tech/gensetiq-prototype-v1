@@ -3,12 +3,13 @@ import {Link} from '@tanstack/react-router';
 import {DropletIcon, SearchXIcon} from 'lucide-react';
 
 import {stampAt} from '@/lib/format';
+import {cn} from '@/lib/utils';
 import {seededDeployments, seededMemberships} from '@/modules/deployment/data/seed';
 import {GENSETS} from '@/modules/genset/data/fleet';
 import {refuelsIn} from '@/modules/genset/data/history';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 import {DepotTank} from './DepotTank';
-import {DEPOTS} from './data/depotTank';
+import {DEPOTS, depotFleet} from './data/depotTank';
 import {PERIOD_LABEL, PeriodControl, inputDay, periodWindow} from './PeriodControl';
 import type {Period} from './PeriodControl';
 import {historyStart} from '@/modules/genset/data/history';
@@ -46,6 +47,16 @@ type DeliveryRow = {
   at: number;
   litres: number;
   place: string;
+  /**
+   * The yard this machine draws from, by id, and its name for the row.
+   *
+   * Carried on the delivery rather than looked up in the table, because the
+   * question it answers — *which depot issued this* — is the one the list is
+   * filtered by, and resolving it per render for hundreds of rows on every
+   * keystroke of the period control is work for nothing.
+   */
+  depotId: string;
+  depotName: string;
 };
 
 /** Where a machine was standing at an instant — the posting that held it then. */
@@ -71,12 +82,25 @@ const placeAt = (gensetId: string, at: number): string => {
 const buildDeliveries = (now: number): Array<DeliveryRow> => {
   const rows: Array<DeliveryRow> = [];
 
+  // Machine id to the yard that fuels it, built once rather than asked per row:
+  // `depotFleet` walks the whole estate, and there are four of them.
+  const depotOf = new Map<string, {id: string; name: string}>();
+  for (const depot of DEPOTS) {
+    for (const gensetId of depotFleet(depot.id)) {
+      depotOf.set(gensetId, {id: depot.id, name: depot.name});
+    }
+  }
+
   for (const genset of GENSETS) {
     // The whole record rather than a window: this list is short by nature — a fleet
     // takes a few deliveries a week — and a reader scanning it wants the last one
     // each machine had, not the last thirty days of them.
     for (const refuel of refuelsIn(genset.id, 0, now)) {
+      const depot = depotOf.get(genset.id);
+
       rows.push({
+        depotId: depot?.id ?? '',
+        depotName: depot?.name ?? 'Unassigned',
         id: `${genset.id}-${refuel.at}`,
         gensetId: genset.id,
         name: gensetLabel(genset),
@@ -95,13 +119,18 @@ export const FuelPage = () => {
   const [period, setPeriod] = useState<Period>('1m');
   const [customFrom, setCustomFrom] = useState(() => inputDay(now - 30 * 24 * 3_600_000));
   const [customTo, setCustomTo] = useState(() => inputDay(now));
+  // `undefined` is every yard. A filter that defaults to one depot would hide most
+  // of the estate behind a control a reader has not touched yet.
+  const [depotId, setDepotId] = useState<string | undefined>(undefined);
 
   const {from, to} = periodWindow(period, now, customFrom, customTo);
 
   // Every delivery the record holds, then cut to the window. Built once because the
   // full list is the expensive part and the filter is a comparison.
   const all = useMemo(() => buildDeliveries(now), [now]);
-  const deliveries = all.filter((row) => row.at >= from && row.at <= to);
+  const inWindow = all.filter((row) => row.at >= from && row.at <= to);
+  const deliveries =
+    depotId === undefined ? inWindow : inWindow.filter((row) => row.depotId === depotId);
 
   const litres = deliveries.reduce((sum, row) => sum + row.litres, 0);
 
@@ -144,8 +173,49 @@ export const FuelPage = () => {
       </div>
 
       <section className="flex min-h-0 flex-col gap-2">
-        <header className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-medium text-primary">Deliveries</h2>
+        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 className="text-sm font-medium text-primary">Deliveries</h2>
+
+            {/* Which yard's round this list is. The counts sit on the chips so a
+                reader picking one already knows what they will get, and an empty
+                yard is visible without selecting it. */}
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setDepotId(undefined)}
+                className={cn(
+                  'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-outline',
+                  depotId === undefined
+                    ? 'border-transparent bg-highlight text-primary'
+                    : 'border-subtle text-secondary hover:text-primary',
+                )}
+              >
+                {`All depots · ${inWindow.length}`}
+              </button>
+
+              {DEPOTS.map((depot) => {
+                const count = inWindow.filter((row) => row.depotId === depot.id).length;
+
+                return (
+                  <button
+                    key={depot.id}
+                    type="button"
+                    onClick={() => setDepotId(depot.id)}
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-outline',
+                      depotId === depot.id
+                        ? 'border-transparent bg-highlight text-primary'
+                        : 'border-subtle text-secondary hover:text-primary',
+                    )}
+                  >
+                    {`${depot.name} · ${count}`}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <p className="text-xs text-secondary">
             {deliveries.length.toLocaleString('en-MY')} in this period ·{' '}
             {litres.toLocaleString('en-MY')} L
@@ -175,6 +245,7 @@ export const FuelPage = () => {
               <thead className="bg-element">
                 <tr className="text-left text-xs text-secondary">
                   <th className="border-b border-subtle p-2 font-medium">Genset</th>
+                  <th className="border-b border-subtle p-2 font-medium">Depot</th>
                   <th className="border-b border-subtle p-2 font-medium">Delivered</th>
                   <th className="border-b border-subtle p-2 font-medium">Litres</th>
                   <th className="border-b border-subtle p-2 font-medium">Where</th>
@@ -191,6 +262,9 @@ export const FuelPage = () => {
                       >
                         {row.name}
                       </Link>
+                    </td>
+                    <td className="h-11 truncate border-b border-subtle p-2 text-secondary">
+                      {row.depotName}
                     </td>
                     <td className="h-11 truncate border-b border-subtle p-2 text-primary">
                       {stampAt(new Date(row.at).toISOString())}
