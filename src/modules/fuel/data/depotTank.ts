@@ -155,7 +155,27 @@ export const depotFleet = (depotId: string): ReadonlyArray<string> =>
     (genset) => genset.id,
   );
 
-export type DepotSample = {t: number; litres: number};
+export type DepotSample = {
+  t: number;
+  litres: number;
+  /**
+   * Litres of fleet deliveries this sample's fall accounts for.
+   *
+   * Carried on the sample rather than looked up again at reconciliation time, and
+   * that is the whole fix for a bug that survived four wrong diagnoses. The two
+   * sides were timestamped differently: a fall is recorded at its sample, a
+   * delivery at the minute it happened, and the two can land either side of a
+   * window edge. A single large delivery just before `now` — counted as delivered,
+   * its fall dated after the edge — put every window out by about 1,850 L in the
+   * one direction that is impossible, machines receiving fuel the yard never
+   * released.
+   *
+   * Attributing both to the same sample makes them consistent by construction, so
+   * what is left in the variance is only what the seed actually put there: the
+   * ullage and the one unexplained drop.
+   */
+  delivered: number;
+};
 
 /**
  * The depot's level, six-hourly, oldest first.
@@ -212,11 +232,15 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
     // whichever is larger and the other vanishes from the reconciliation.
     if (level - issued < capacity * REORDER_FRACTION) {
       level = capacity;
-      samples.push({t, litres: Math.round(level)});
+      samples.push({t, litres: Math.round(level), delivered: 0});
     }
 
     level -= issued;
-    samples.push({t: t + STEP / 2, litres: Math.round(level)});
+    samples.push({
+      t: t + STEP / 2,
+      litres: Math.round(level),
+      delivered: outByStep.get(step) ?? 0,
+    });
   }
 
   return samples;
@@ -297,22 +321,26 @@ export const reconcile = (
 
   let outLitres = 0;
   let receivedLitres = 0;
+  let deliveredLitres = 0;
+
   for (let index = 1; index < samples.length; index += 1) {
     const previous = samples[index - 1];
     const current = samples[index];
     if (current.t <= windowFrom || current.t > windowTo) continue;
+
     if (current.litres < previous.litres) outLitres += previous.litres - current.litres;
     if (current.litres > previous.litres) receivedLitres += current.litres - previous.litres;
+
+    // Both sides off the same sample — see `DepotSample.delivered`.
+    deliveredLitres += current.delivered;
   }
 
-  let deliveredLitres = 0;
+  // The count is still the fleet's own log, because a reader asking "how many
+  // deliveries" means tankers, not sensor readings, and several can share an hour.
   let deliveries = 0;
   for (const genset of GENSETS) {
     if (!served.has(genset.id)) continue;
-    for (const refuel of refuelsIn(genset.id, windowFrom, windowTo)) {
-      deliveredLitres += refuel.litres;
-      deliveries += 1;
-    }
+    deliveries += refuelsIn(genset.id, windowFrom, windowTo).length;
   }
 
   const variance = outLitres - deliveredLitres;

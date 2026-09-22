@@ -33,14 +33,24 @@ import type {Depot} from './data/depotTank';
  * of warning, so the glyph carries the level and the capacity and nothing about
  * urgency — the reconciliation beside it is where this page raises alarms.
  */
-export const DepotTank = ({depot}: {depot: Depot}) => {
+export const DepotTank = ({
+  depot,
+  from,
+  to,
+  periodLabel,
+}: {
+  depot: Depot;
+  from: number;
+  to: number;
+  /** `7 days`, for the row labels — the page's control decides it. */
+  periodLabel: string;
+}) => {
   const series = depotSeries(depot.id);
   const capacity = depotCapacityLitres(depot.id);
   const served = depotFleet(depot.id).length;
-  // Thirty days back from now, which is the window the tile states. `useMemo` is not
-  // worth it: `reconcile` walks a 60-day hourly series once per card and the page
-  // draws four.
-  const movement = reconcile(depot.id, Date.now() - 30 * 24 * 3_600_000, Date.now());
+  // The page's window. `useMemo` is not worth it: `reconcile` walks a 60-day hourly
+  // series once per card and the page draws four.
+  const movement = reconcile(depot.id, from, to);
   // 2% of what was issued, or 100 L, whichever is larger — and half that to warn.
   // A tanker meter and a tank float never agree exactly, so a threshold in percent
   // alone cries wolf on a quiet yard where 40 L of noise is 8%, and one in litres
@@ -102,13 +112,13 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
               month. Thirty days until the period control lands — long enough that
               every yard has taken at least one delivery in it. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">Issued, 30 days</dt>
+            <dt className="shrink-0 text-sm font-medium text-secondary">{`Issued, ${periodLabel}`}</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
               {amount(movement.outLitres, 'L')}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">Received, 30 days</dt>
+            <dt className="shrink-0 text-sm font-medium text-secondary">{`Received, ${periodLabel}`}</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
               {movement.receivedLitres === 0 ? (
                 <span className="text-tertiary">No delivery</span>

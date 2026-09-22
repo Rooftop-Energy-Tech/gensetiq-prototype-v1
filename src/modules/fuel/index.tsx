@@ -9,6 +9,9 @@ import {refuelsIn} from '@/modules/genset/data/history';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 import {DepotTank} from './DepotTank';
 import {DEPOTS} from './data/depotTank';
+import {PERIOD_LABEL, PeriodControl, inputDay, periodWindow} from './PeriodControl';
+import type {Period} from './PeriodControl';
+import {historyStart} from '@/modules/genset/data/history';
 
 /**
  * `/fuel` — diesel, in the two halves an operations room asks about.
@@ -89,18 +92,49 @@ const buildDeliveries = (now: number): Array<DeliveryRow> => {
 
 export const FuelPage = () => {
   const [now] = useState(() => Date.now());
-  const deliveries = useMemo(() => buildDeliveries(now), [now]);
+  const [period, setPeriod] = useState<Period>('1m');
+  const [customFrom, setCustomFrom] = useState(() => inputDay(now - 30 * 24 * 3_600_000));
+  const [customTo, setCustomTo] = useState(() => inputDay(now));
+
+  const {from, to} = periodWindow(period, now, customFrom, customTo);
+
+  // Every delivery the record holds, then cut to the window. Built once because the
+  // full list is the expensive part and the filter is a comparison.
+  const all = useMemo(() => buildDeliveries(now), [now]);
+  const deliveries = all.filter((row) => row.at >= from && row.at <= to);
 
   const litres = deliveries.reduce((sum, row) => sum + row.litres, 0);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pt-3 pb-4">
+      {/* Above everything, because the page is a reconciliation and two halves of
+          one measured over different periods do not reconcile. */}
+      <PeriodControl
+        period={period}
+        customFrom={customFrom}
+        customTo={customTo}
+        earliest={historyStart()}
+        now={now}
+        onPeriodChange={setPeriod}
+        onCustomChange={(nextFrom, nextTo) => {
+          setCustomFrom(nextFrom);
+          setCustomTo(nextTo);
+          setPeriod('custom');
+        }}
+      />
+
       {/* One card per yard. A grid rather than a row: four of these on a wide band
           would each be 320px and the tank inside would shrink to a smudge, and at
           phone width a row would scroll sideways. */}
       <div className="grid gap-4 md:grid-cols-2">
         {DEPOTS.map((depot) => (
-          <DepotTank key={depot.id} depot={depot} />
+          <DepotTank
+            key={depot.id}
+            depot={depot}
+            from={from}
+            to={to}
+            periodLabel={PERIOD_LABEL[period].toLowerCase()}
+          />
         ))}
       </div>
 
@@ -108,7 +142,7 @@ export const FuelPage = () => {
         <header className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-medium text-primary">Deliveries</h2>
           <p className="text-xs text-secondary">
-            {deliveries.length.toLocaleString('en-MY')} on record ·{' '}
+            {deliveries.length.toLocaleString('en-MY')} in this period ·{' '}
             {litres.toLocaleString('en-MY')} L
           </p>
         </header>
@@ -116,7 +150,7 @@ export const FuelPage = () => {
         {deliveries.length === 0 ? (
           <p className="flex items-center gap-2 rounded-md border border-subtle bg-element p-3 text-sm text-secondary">
             <SearchXIcon className="size-4 shrink-0" aria-hidden="true" />
-            No delivery on record.
+            No delivery in this period.
           </p>
         ) : (
           <div className="min-h-0 overflow-auto rounded-md border border-subtle">
