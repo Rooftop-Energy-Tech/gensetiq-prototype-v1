@@ -17,9 +17,22 @@ import type {PhaseGroup} from '../../types/telemetry.type';
  * into something alarming. Zero-based understates; centred overstates. For a
  * screen watched all day, understating is the safer error.
  */
+/**
+ * ## Sized for the card, 2026-09-22
+ *
+ * 8px bars and `text-sm` figures, up from 4px and `text-xs`. The group was drawn at
+ * 322px fixed when it sat loose on a full-width band; inside a card that is one
+ * third of that band, a 4px rule under 10px units read as a diagram of a chart
+ * rather than a chart. The fixed width goes with it — the card decides the width
+ * now, and a 322px floor inside a narrower card is what forces a sideways scroll.
+ *
+ * Units and phase labels drop to `text-secondary`. At the larger size three columns
+ * of equally solid text made the figure compete with the `V` beside it; the figure
+ * is the reading and the other two say what it is.
+ */
 export const PhaseBars = ({group}: {group: PhaseGroup}) => (
-  <div className="flex w-[322px] shrink-0 flex-col gap-2">
-    <p className="text-xs font-medium text-primary">{group.label}</p>
+  <div className="flex min-w-0 flex-col gap-2">
+    <p className="text-sm font-medium text-primary">{group.label}</p>
 
     <div className="flex flex-col gap-1">
       {group.channels.map((channel) => {
@@ -28,7 +41,7 @@ export const PhaseBars = ({group}: {group: PhaseGroup}) => (
         return (
           <div key={channel.key} className="flex items-center gap-5">
             <div
-              className="h-1 flex-1 overflow-hidden rounded-sm bg-tertiary"
+              className="h-2 flex-1 overflow-hidden rounded-sm bg-tertiary"
               role="meter"
               aria-valuenow={channel.value}
               aria-valuemin={0}
@@ -38,14 +51,14 @@ export const PhaseBars = ({group}: {group: PhaseGroup}) => (
               <div className="h-full rounded-sm bg-teal" style={{width: `${fraction * 100}%`}} />
             </div>
 
-            <div className="flex w-[50px] items-center gap-0.5 whitespace-nowrap">
-              <span className="text-xs font-semibold text-primary">
+            <div className="flex w-[64px] items-center gap-1 whitespace-nowrap">
+              <span className="text-sm font-semibold text-primary">
                 {amount(channel.value, '')}
               </span>
-              <span className="text-[10px] font-medium text-primary">{group.unit}</span>
+              <span className="text-xs font-medium text-secondary">{group.unit}</span>
             </div>
 
-            <span className="w-[50px] text-xs font-medium text-primary">{channel.label}</span>
+            <span className="w-[64px] text-sm font-medium text-secondary">{channel.label}</span>
           </div>
         );
       })}

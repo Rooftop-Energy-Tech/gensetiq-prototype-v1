@@ -37,7 +37,7 @@ export type OutputLine = {
 
 export const OutputBars = ({lines}: {lines: ReadonlyArray<OutputLine>}) => (
   <div className="flex min-w-0 flex-col gap-2">
-    <p className="text-xs font-medium text-primary">Output</p>
+    <p className="text-sm font-medium text-primary">Output</p>
 
     <div className="flex flex-col gap-1">
       {lines.map((line) => {
@@ -47,7 +47,7 @@ export const OutputBars = ({lines}: {lines: ReadonlyArray<OutputLine>}) => (
         return (
           <div key={line.label} className="flex items-center gap-5">
             <div
-              className="h-1 min-w-0 flex-1 overflow-hidden rounded-sm bg-tertiary"
+              className="h-2 min-w-0 flex-1 overflow-hidden rounded-sm bg-tertiary"
               role="meter"
               aria-valuenow={line.value}
               aria-valuemin={line.min}
@@ -57,14 +57,14 @@ export const OutputBars = ({lines}: {lines: ReadonlyArray<OutputLine>}) => (
               <div className="h-full rounded-sm bg-teal" style={{width: `${fraction * 100}%`}} />
             </div>
 
-            <div className="flex w-[50px] items-center gap-0.5 whitespace-nowrap">
-              <span className="text-xs font-semibold text-primary">
+            <div className="flex w-[64px] items-center gap-1 whitespace-nowrap">
+              <span className="text-sm font-semibold text-primary">
                 {amount(line.value, '', line.precision)}
               </span>
-              <span className="text-[10px] font-medium text-primary">{line.unit}</span>
+              <span className="text-xs font-medium text-secondary">{line.unit}</span>
             </div>
 
-            <span className="w-[50px] truncate text-xs font-medium text-primary">{line.label}</span>
+            <span className="w-[64px] truncate text-sm font-medium text-secondary">{line.label}</span>
           </div>
         );
       })}
