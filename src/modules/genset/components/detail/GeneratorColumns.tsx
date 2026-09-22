@@ -180,38 +180,51 @@ export const FuelColumn = ({
 
   return (
     <Column title="Fuel">
-      <div className="flex items-center gap-3 py-1.5">
-        <TankGlyph fraction={fuelFraction(genset.fuelLitres, detail.fuel.maxLitres)} tone="fuel" />
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="text-base font-medium whitespace-pre text-primary">
+      {/* Tank on the left, figures on its right — the arrangement the fuel panel
+          had before this became a column, and the reason for going back to it is
+          the glyph's size. Stacked, the tank had a column's width to fill and took
+          46px of it; beside its own figures it can take 72 × 96 and still leave the
+          three rows their labels. The two other columns are rows all the way down,
+          so this one reads as the odd column out — which it is: it is the only one
+          whose subject has a shape.
+
+          `items-start` rather than `items-center`: the tank's cap should line up
+          with the first row's baseline, not float against the middle of three. */}
+      <div className="flex items-start gap-4 py-1.5">
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
+          <TankGlyph
+            fraction={fuelFraction(genset.fuelLitres, detail.fuel.maxLitres)}
+            tone="fuel"
+            size="xl"
+          />
+          <p className="text-sm font-medium whitespace-pre text-primary">
             {fuelHeadline(genset.fuelLitres, detail.fuel.maxLitres)}
           </p>
           <p className="text-xs text-secondary">
             {fuelRunway(genset.fuelLitres, detail.fuel, running)}
           </p>
         </div>
-      </div>
 
-      <dl className="flex flex-col divide-y divide-subtle">
-        <Row label="Max capacity">{amount(detail.fuel.maxLitres, 'L')}</Row>
-        {/* ⚠️ The label no longer says whether the figure is metered or estimated.
-            It read `Metered rate` / `Estimated rate` until 2026-09-22 — Afifah's
-            call — and the distinction is real: without a flow meter this is computed
-            from the electrical load, which is a good estimate and not a measurement.
-            Where a machine has no meter the figure is inferred, and nothing on this
-            row says so any more. `instrumentsOf` still knows, so putting it back is
-            a word in this label or a suffix on the value. */}
-        <Row label={running ? 'Fuel burn rate' : 'Fuel burn rate, last run'}>
-          {amount(detail.fuel.litresPerHour, 'L/hr', 1)}
-        </Row>
-        <Row label={running ? 'Refuel by' : 'Runtime to reserve'}>
-          {running
-            ? stampDate(detail.fuel.refuelBy)
-            : belowReserve
-              ? 'none'
-              : runtimeSpan(detail.fuel.hoursToReserve)}
-        </Row>
-      </dl>
+        <dl className="flex min-w-0 flex-1 flex-col divide-y divide-subtle">
+          <Row label="Max capacity">{amount(detail.fuel.maxLitres, 'L')}</Row>
+          {/* ⚠️ The label no longer says whether the figure is metered or
+              estimated. It read `Metered rate` / `Estimated rate` until 2026-09-22
+              — Afifah's call — and the distinction is real: without a flow meter
+              this is computed from the electrical load, a good estimate and not a
+              measurement. `instrumentsOf` still knows which machines have one, so
+              restoring it is a word in this label or a suffix on the value. */}
+          <Row label={running ? 'Fuel burn rate' : 'Fuel burn rate, last run'}>
+            {amount(detail.fuel.litresPerHour, 'L/hr', 1)}
+          </Row>
+          <Row label={running ? 'Refuel by' : 'Runtime to reserve'}>
+            {running
+              ? stampDate(detail.fuel.refuelBy)
+              : belowReserve
+                ? 'none'
+                : runtimeSpan(detail.fuel.hoursToReserve)}
+          </Row>
+        </dl>
+      </div>
     </Column>
   );
 };

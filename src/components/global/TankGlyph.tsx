@@ -40,7 +40,7 @@ const TONES = {
 } as const;
 
 /**
- * Two sizes, and the same argument `TickGauge` makes for having exactly two.
+ * Three sizes, and the same argument `TickGauge` makes for having a fixed few.
  *
  * `lg` is the design's: 46 × 60 with eight bars, the tank beside a genset's fuel
  * figures. `sm` was the battery module tile's and now has no caller — it is kept
@@ -59,6 +59,17 @@ const TONES = {
  * with a stray half-pixel gap at one end.
  */
 const SIZES = {
+  // `xl` is the genset page's fuel column, where the tank is the one mark a reader
+  // takes in without reading and the three figures beside it are what they read
+  // second. 72 × 96 keeps `lg`'s proportions almost exactly (46/60 against 72/96,
+  // within a percent) so it is the same object drawn larger rather than a second
+  // shape, and it holds eight segments because the geometry works: 96 − 16 = 80,
+  // which is 8 × 10.
+  xl: {
+    segments: 8,
+    box: 'h-24 w-[72px] rounded-lg px-2 py-2',
+    bar: 'h-2.5 rounded-[5px]',
+  },
   lg: {
     segments: 8,
     box: 'h-15 w-[46px] rounded-md px-[5px] py-1.5',
