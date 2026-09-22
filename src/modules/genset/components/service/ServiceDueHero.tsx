@@ -102,8 +102,10 @@ const CounterDonut = ({counter, binding}: {counter: ServiceCounter; binding: boo
               // dial read as a bare arc floating in space: no way to see how much
               // of the interval is left, which is the whole question the dial
               // answers. `tertiary` is what the phase bars and the tank glyph use
-              // for the part that is not filled, so the three agree.
-              className="text-tertiary"
+              // for the part that is not filled, softened to 45% here:
+              // at full strength a 6px ring 94px across carries far more ink than
+              // a 2px bar, and the track competed with the arc measured against it.
+              className="text-tertiary/45"
             />
 
             <circle
