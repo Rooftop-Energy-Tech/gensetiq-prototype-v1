@@ -11,9 +11,7 @@ import {fuelRemainingHeadline} from '../../types/fuelLevel.type';
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount, fuelHeadline} from '@/lib/format';
-import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
-import {siteSeed} from '@/modules/site/data/siteSeed';
 import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {ALERT_SEVERITIES, countBySeverity} from '../../types/alert.type';
 import type {AlertSeverity} from '../../types/alert.type';
@@ -173,15 +171,11 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
         ).runtimeHours;
 
   /**
-   * The site this set stands at, for the strip's energy figure and the chart.
-   *
-   * `undefined` at the depot, and both fall away with it rather than printing
-   * zeroes: an undeployed set has made no diesel today because it is not wired to
-   * anything, and a chart of its output would be a flat line claiming a
-   * measurement. The role is read live so a site flipped on its settings tab moves
-   * the chart without a reload — the rule every page in this app follows.
+   * The yard's power role, for the strip. Read live so a site flipped on its
+   * settings tab moves the page without a reload — the rule every page here
+   * follows. The `siteSeed` beside it went with the fuel-consumption chart on
+   * 2026-09-22; nothing else on this page needed the yard itself.
    */
-  const seed = genset.siteId === null ? undefined : siteSeed(genset.siteId);
   const role = useSitePowerRole(genset.siteId ?? '');
 
   // Live, not from `detail` — a service logged in this session has to move the
@@ -463,41 +457,10 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
 
       <hr className="border-subtle" />
 
-      {/* Band 4 — how much this engine has run over time. `TrendPanel` held to the
-          one metric this page is about, exactly as the solar and battery pages hold
-          it to theirs, and handed **this genset alone** rather than the yard's set:
-          the site page's own band is where a reader compares two machines.
-
-          Hours rather than the kilowatts this drew before. A set's output is its
-          site's load reflected back — the curve is a rectangle whatever the day
-          did — where its hours are the number the estate is actually managed in,
-          and the number an abnormal week shows up in. See `gensetHoursIn`.
-
-          Absent at the depot. See the note on `seed` above — an undeployed set has
-          no site, and a chart of its runtime would be a flat line claiming a
-          measurement nobody took. */}
-      {seed !== undefined && (
-        <>
-          <TrendPanel
-            seed={seed}
-            gensetIds={[genset.id]}
-            metrics={['GENSET']}
-            now={now}
-            ariaLabel="Genset runtime"
-          />
-
-          {/* Inside the condition with the chart it closes. An undeployed set
-              draws no trend, and a rule left standing on its own would double the
-              one above it. */}
-          <hr className="border-subtle" />
-        </>
-      )}
-
-      {/* Band 5 — what the machine is, in the `DetailBand` all four detail pages
+      {/* Band 4 — what the machine is, in the `DetailBand` all four detail pages
           share, and last of the bands that describe it rather than report on it.
 
-          Under the chart rather than above it, which is the order all four detail
-          pages now keep: nothing in this band changes between one visit and the
+          Last, which is the order all four detail pages now keep: nothing in this band changes between one visit and the
           next, and it was sitting between the fuel panel and the runtime trend —
           two live bands a reader reads together — with a block of nameplates
           wedged in the middle.
