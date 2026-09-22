@@ -106,7 +106,12 @@ export const FuelPage = () => {
   const litres = deliveries.reduce((sum, row) => sum + row.litres, 0);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pt-3 pb-4">
+    // The page scrolls, not the table inside it. The shell is `h-screen
+    // overflow-hidden` so every page owns its own scrolling, and this one had given
+    // it to the delivery table: the depot cards stayed pinned while a reader dragged
+    // a scrollbar inside a box to read a list of hundreds. The tanks are worth
+    // scrolling past.
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-4">
       {/* Above everything, because the page is a reconciliation and two halves of
           one measured over different periods do not reconcile. */}
       <PeriodControl
@@ -153,9 +158,12 @@ export const FuelPage = () => {
             No delivery in this period.
           </p>
         ) : (
-          <div className="min-h-0 overflow-auto rounded-md border border-subtle">
+          // `overflow-x-auto` only. The table sets its own height and the page
+          // carries it; what it must still do is scroll sideways rather than push
+          // the whole page wide on a narrow window.
+          <div className="overflow-x-auto rounded-md border border-subtle">
             <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 bg-element">
+              <thead className="bg-element">
                 <tr className="text-left text-xs text-secondary">
                   <th className="border-b border-subtle p-2 font-medium">Genset</th>
                   <th className="border-b border-subtle p-2 font-medium">Delivered</th>
