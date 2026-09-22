@@ -99,13 +99,10 @@ export const DeploymentDetailPanel = ({
 
         <dl className="flex flex-col">
           <DetailRow label="Site">
-            <Link
-              to="/sites/$siteId"
-              params={{siteId: row.deployment.siteId}}
-              className="truncate rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-            >
-              {row.siteName}
-            </Link>
+            {/* Text, not a link. The yard had a page until 2026-09-22; naming it
+                is still worth doing — it is where the machines went — but a link
+                to a route that no longer exists is worse than no link. */}
+            <span className="truncate text-primary">{row.siteName}</span>
           </DetailRow>
           <DetailRow label={row.state === 'planned' ? 'Starts' : 'Out since'}>
             {stampDate(row.deployment.startsAt)}

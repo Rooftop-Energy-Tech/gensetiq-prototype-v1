@@ -1,14 +1,12 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, RadioTowerIcon, TruckIcon} from 'lucide-react';
+import {BoomBoxIcon, TruckIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {deploymentSearch} from '@/modules/deployment/types/view.type';
 import type {DeploymentSearch} from '@/modules/deployment/types/view.type';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 import type {GensetSearch} from '@/modules/genset/types/view.type';
-import {siteSearch} from '@/modules/site/types/view.type';
 
-import {DATASET} from '@/brands';
 import type {SiteSearch} from '@/modules/site/types/view.type';
 
 /**
@@ -45,7 +43,7 @@ import type {SiteSearch} from '@/modules/site/types/view.type';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/sites' | '/gensets' | '/deployments';
+  link: '/gensets' | '/deployments';
   /**
    * The screen's own view state, whole.
    *
@@ -75,19 +73,6 @@ const ITEMS: Array<MobileNavItem> = [
     link: '/deployments',
     search: deploymentSearch({view: 'list'}),
   },
-  // The estate, on the estates that have it — the bar follows the rail, and a
-  // mobile fleet offers neither. See `PlantKind`; the route still resolves either
-  // way, which is what makes withholding the door honest rather than lossy.
-  ...(DATASET.plant === 'stationary'
-    ? [
-        {
-          label: 'Sites',
-          icon: RadioTowerIcon,
-          link: '/sites',
-          search: siteSearch({view: 'list'}),
-        } satisfies MobileNavItem,
-      ]
-    : []),
 ];
 
 export const MobileNav = () => (

@@ -1,9 +1,8 @@
 import {Outlet} from '@tanstack/react-router';
 import {BellIcon, BoomBoxIcon, ClipboardListIcon, SettingsIcon, TruckIcon} from 'lucide-react';
 
-import {DetailSidebar, DetailSidebarBackLink} from '@/components/global/DetailSidebar';
+import {DetailSidebar} from '@/components/global/DetailSidebar';
 import type {DetailNavEntry} from '@/components/global/DetailSidebar';
-import {siteSeed} from '@/modules/site/data/siteSeed';
 import type {Deployment} from '../../types/deployment.type';
 import {DeploymentSwitcher} from './DeploymentSwitcher';
 
@@ -58,18 +57,12 @@ const navEntries = (deployment: Deployment): Array<DetailNavEntry> => {
 };
 
 export const DeploymentDetailShell = ({deployment}: {deployment: Deployment}) => {
-  const site = siteSeed(deployment.siteId);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <DetailSidebar
         ariaLabel="Deployment sections"
         header={<DeploymentSwitcher deployment={deployment} />}
-        backLink={
-          site === undefined ? undefined : (
-            <DetailSidebarBackLink siteId={site.id} name={site.name} />
-          )
-        }
         entries={navEntries(deployment)}
       />
 

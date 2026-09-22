@@ -5,8 +5,7 @@ import type {FormEvent} from 'react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {isSignedIn, signIn} from '@/modules/auth/session';
-import {DEFAULT_SITE_ID} from '@/modules/site/data/sites';
-import {siteSearch} from '@/modules/site/types/view.type';
+import {gensetSearch} from '@/modules/genset/types/view.type';
 
 import gensetiqWordmark from '@/assets/gensetiq-wordmark-light.svg';
 
@@ -35,9 +34,10 @@ const LoginPage = () => {
       void navigate({href: redirectTo});
       return;
     }
-    // Sites, not gensets. On a permanent estate the site is the asset a reader
-    // arrives asking about, and the rail is ordered the same way.
-    void navigate({to: '/sites', search: siteSearch({id: DEFAULT_SITE_ID})});
+    // The register. It was `/sites` until 2026-09-22, on the argument that a
+    // permanent estate's reader arrives asking about a yard — an argument that
+    // went when the site pages did. A machine is what this product is about.
+    void navigate({to: '/gensets', search: gensetSearch({})});
   };
 
   return (
@@ -134,7 +134,7 @@ export const Route = createFileRoute('/login')({
   beforeLoad: ({search}) => {
     if (!isSignedIn()) return;
     if (search.redirect !== undefined) throw redirect({href: search.redirect});
-    throw redirect({to: '/sites', search: siteSearch({id: DEFAULT_SITE_ID})});
+    throw redirect({to: '/gensets', search: gensetSearch({})});
   },
   component: LoginPage,
 });

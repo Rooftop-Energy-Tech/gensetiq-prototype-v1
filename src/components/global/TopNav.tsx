@@ -67,12 +67,13 @@ const useCrumbs = (): Array<Crumb> => {
       if (site === undefined) {
         if (parent !== undefined) trail.push({label: parent.label, to: parent.to});
       } else {
-        // The register first and the site under it, so walking up steps back along the
-        // trail actually taken rather than jumping to the top of it. The literal rather
-        // than `parent`, because the cabinet's static parent is already `Sites` and
-        // reusing it there would name the register twice.
-        trail.push({label: 'Sites', to: '/sites'});
-        trail.push({label: site.name, to: `/sites/${from}`});
+        // The yard names itself and goes nowhere. It had a crumb and a parent
+        // `Sites` crumb above it until the site pages were removed on 2026-09-22;
+        // what is left is the placename as a label, because a trail that names
+        // where a machine stands is still worth reading even with no door behind
+        // it, and a crumb that navigates nowhere is worse than one that does not
+        // pretend to.
+        trail.push({label: site.name});
       }
     }
 

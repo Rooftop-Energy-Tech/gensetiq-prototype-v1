@@ -3,13 +3,11 @@ import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, PlayIc
 
 import {
   DetailSidebar,
-  DetailSidebarBackLink,
   DetailSidebarLabel,
 } from '@/components/global/DetailSidebar';
 import type {DetailNavEntry} from '@/components/global/DetailSidebar';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {fuelLevel, relativeTime, stampDate} from '@/lib/format';
-import {siteSeed} from '@/modules/site/data/siteSeed';
 import {activePosting} from '@/modules/deployment/data/store';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
@@ -72,17 +70,11 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
   // The job this machine is standing on, if it is standing on one. A planned
   // commitment is not it: the machine has not gone anywhere yet.
   const posting = activePosting(genset.id, Date.now());
-  const site = genset.siteId === null ? undefined : siteSeed(genset.siteId);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <DetailSidebar
         ariaLabel="Genset sections"
-        backLink={
-          site === undefined ? undefined : (
-            <DetailSidebarBackLink siteId={site.id} name={site.name} />
-          )
-        }
         header={
           /* What the rows below are about. The info glyph carries the nameplate
              data the old header tooltip held — the fields that have no room in a

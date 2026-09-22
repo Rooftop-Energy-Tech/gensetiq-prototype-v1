@@ -1,6 +1,6 @@
 import {Link} from '@tanstack/react-router';
 import type {LinkProps} from '@tanstack/react-router';
-import {ChevronLeftIcon, ChevronRightIcon, RadioTowerIcon} from 'lucide-react';
+import {ChevronRightIcon} from 'lucide-react';
 import {useState} from 'react';
 import type {ComponentType, ReactNode} from 'react';
 
@@ -223,63 +223,6 @@ const DetailNavDisclosure = ({group}: {group: DetailNavGroup}) => {
   );
 };
 
-/**
- * The way back to the site a machine stands at: the row directly above a genset's,
- * a system's, a bank's or a cabinet's sections.
- *
- * ## Why it exists at all
- *
- * A reader arrives here from a site — `Asset ▸ Genset` or `Asset ▸ Solar` in the
- * site's own rail — and the rail then swaps out from under them for the machine's
- * sections. Without this, going one level back up means the breadcrumb or the
- * browser's Back button, and neither is a *place*: the row names the site, so it
- * says both where you came from and where you are standing.
- *
- * ## Why it is a row, and why it moved
- *
- * It was a bordered two-line card at the top of the rail — the site's name over its
- * placename, a border around it to say "different subject" — and that border is
- * exactly what went wrong. A bordered block at the top of a column is the shape of
- * a summary card everywhere else in this app, so readers read it as one: a panel
- * *stating* which site they were at rather than a control that goes there. The
- * gesture the rail exists to offer was the one thing on it nobody clicked.
- *
- * So it is drawn as what it is. A 32px row, the same height and the same padding as
- * the sections below it, sitting directly on top of them — because a row in a
- * navigation column is unambiguously a place you can go, and a thing that looks
- * like a nav item is clicked like one. The `ChevronLeft` is what keeps it from
- * reading as a *section* of the machine despite the shape: it points out of the
- * list, and no section row in this app carries one.
- *
- * The placename went with the card. Two lines is a card's shape, not a row's, and
- * the site's placename is on the site page a click away — the row's job is to be
- * recognisably a door, not to summarise what is behind it.
- *
- * The tower glyph is the sites rail's own. Using the icon that means "site"
- * everywhere else in the app is what says where this goes without a word of label.
- */
-export const DetailSidebarBackLink = ({siteId, name}: {siteId: string; name: string}) => (
-  <Link
-    to="/sites/$siteId"
-    params={{siteId}}
-    // The design's own measurements: the chevron sits at x=8, where a section
-    // row's *pill* starts rather than where its icon does, so the glyph that means
-    // "out of here" breaks the list's left margin by the width of one icon. Hence
-    // `pl-0` — the 8px is the rail's, not the row's. `pr-2` stays, so a long site
-    // name truncates against padding rather than against the border.
-    className={cn(rowClassName, 'h-8 pl-0 pr-2')}
-    // Never lit. `/sites/$siteId` is not a route this rail is ever rendered under,
-    // so the active styling could not fire anyway — but saying so here is what
-    // stops a future `activeOptions` default from making the way *out* look like
-    // the section you are standing in.
-    activeOptions={{exact: true}}
-  >
-    <ChevronLeftIcon className="size-4 shrink-0" aria-hidden="true" />
-    <RadioTowerIcon className="size-4 shrink-0" aria-hidden="true" />
-    <span className="min-w-0 flex-1 truncate text-left">{name}</span>
-    <span className="sr-only">Back to site</span>
-  </Link>
-);
 
 /**
  * The label above a nav list that names what the list is *about* — the genset's

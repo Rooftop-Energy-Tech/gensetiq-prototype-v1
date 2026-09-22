@@ -4,7 +4,6 @@ import {
   FileDownIcon,
   FuelIcon,
   LogOutIcon,
-  RadioTowerIcon,
   SettingsIcon,
   TruckIcon,
 } from 'lucide-react';
@@ -15,7 +14,7 @@ import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {sessionInitial, signOut, useSession} from '@/modules/auth/session';
 
-import {BRAND, DATASET} from '@/brands';
+import {BRAND} from '@/brands';
 
 /**
  * The rail, and the one place this white-label's estate changes the order.
@@ -79,12 +78,6 @@ const NAV_ITEMS: Array<NavItem> = [
   // anybody: an invoice is settled in a spreadsheet. Last of the fleet-wide four,
   // because it is where a reader goes once they know what they want.
   {label: 'Reporting', icon: FileDownIcon, link: '/reporting'},
-  // The estate counted in the card strip and listed under it. Last on the estates
-  // that have it at all, because even where plant stands still the machine is what
-  // this product is about.
-  ...(DATASET.plant === 'stationary'
-    ? [{label: 'Sites', icon: RadioTowerIcon, link: '/sites'} satisfies NavItem]
-    : []),
 ];
 
 export const Sidebar = () => {

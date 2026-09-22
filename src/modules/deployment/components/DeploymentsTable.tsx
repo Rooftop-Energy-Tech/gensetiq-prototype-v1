@@ -254,14 +254,9 @@ export const DeploymentsTable = ({
                   >
                     {row.deployment.reference}
                   </Link>
-                  <Link
-                    to="/sites/$siteId"
-                    params={{siteId: row.deployment.siteId}}
-                    onClick={(event) => event.stopPropagation()}
-                    className="block truncate rounded-sm text-xs text-tertiary underline-offset-4 outline-none hover:text-secondary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-                  >
-                    {row.siteName}
-                  </Link>
+                  {/* The yard, as a caption under the reference. Not a link since
+                      the site pages went — see `DeploymentDetailPanel`. */}
+                  <span className="block truncate text-xs text-tertiary">{row.siteName}</span>
                 </td>
 
                 <td className="h-13 border-b border-subtle p-2">

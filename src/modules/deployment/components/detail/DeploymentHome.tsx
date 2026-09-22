@@ -69,13 +69,8 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
 
           <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-secondary">
             <MapPinIcon className="size-3.5 shrink-0" aria-hidden="true" />
-            <Link
-              to="/sites/$siteId"
-              params={{siteId: row.deployment.siteId}}
-              className="rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
-            >
-              {row.siteName}
-            </Link>
+            {/* Named, not linked — the site pages went on 2026-09-22. */}
+            <span className="text-primary">{row.siteName}</span>
             <span className="text-tertiary">·</span>
             <span className="truncate">{row.locationLabel}</span>
           </p>
