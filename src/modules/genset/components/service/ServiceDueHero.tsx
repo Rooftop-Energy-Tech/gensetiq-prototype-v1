@@ -97,7 +97,13 @@ const CounterDonut = ({counter, binding}: {counter: ServiceCounter; binding: boo
               fill="none"
               strokeWidth={STROKE}
               stroke="currentColor"
-              className="text-element"
+              // The ring a reader measures the fill against. It was `text-element`
+              // — the card's own surface — so on a card it was invisible and the
+              // dial read as a bare arc floating in space: no way to see how much
+              // of the interval is left, which is the whole question the dial
+              // answers. `tertiary` is what the phase bars and the tank glyph use
+              // for the part that is not filled, so the three agree.
+              className="text-tertiary"
             />
 
             <circle
