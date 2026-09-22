@@ -385,7 +385,6 @@ const fuelLadder = (gensetId: string): Array<number> => {
   if (detail === undefined || genset === undefined) return [];
 
   const capacity = detail.fuel.maxLitres;
-  const reserve = detail.fuel.reserveFraction * capacity;
   const runs = gensetRuns(gensetId);
   const steps = Math.ceil((LOG_DAYS * DAY) / LADDER_STEP) + 1;
 
@@ -399,6 +398,11 @@ const fuelLadder = (gensetId: string): Array<number> => {
   // every leaking unit would be critical and the warning state unreachable.
   const lossFrom = CLOCK - lossStartedHoursAgo(gensetId) * HOUR;
 
+  // How many deliveries this walk has passed, for the two draws below. Counted
+  // rather than derived from the index so each delivery gets its own pair whatever
+  // the step size is.
+  let delivery = 0;
+
   for (let index = steps - 2; index >= 0; index -= 1) {
     const t = ladderStart() + index * LADDER_STEP;
     const run = runAt(runs, t);
@@ -410,7 +414,33 @@ const fuelLadder = (gensetId: string): Array<number> => {
     // Backwards, so the tank *was* higher by everything that has since left it —
     // the fuel the engine burned and the fuel that simply went.
     const candidate = levels[index + 1] + burn + (t >= lossFrom ? loss : 0);
-    levels[index] = candidate > capacity ? reserve : candidate;
+
+    // ## Deliveries are irregular, because real ones are
+    //
+    // This read `candidate > capacity ? reserve : candidate` until 2026-09-22, and
+    // that one line is why every tank chart in the app drew a perfect sawtooth: a
+    // fill always began at a brimming tank and always ended at the reserve line, so
+    // every delivery on a machine was exactly 0.7 × capacity and they arrived at a
+    // fixed spacing. Six on one machine over a month, all 1,705 L ± 1%.
+    //
+    // `BRF 9540`'s real log is the opposite shape. Five deliveries in four months of
+    // 1,971, 1,158, 205, 770 and 1,057 L — a top-up among fills — reaching between
+    // 82% and 100% of the tank, from levels between 3% and 73% of it. A tanker
+    // arrives when a round brings it, not when a gauge hits a line.
+    //
+    // So both ends of a delivery are drawn per event, and the draw is `spread` on
+    // the machine and the delivery number, which keeps a reload dealing the same
+    // history. The low end reaches 62% rather than stopping at the reserve line,
+    // which is what lets a small top-up appear among the fills — BRF 9540's 205 L
+    // against its own 1,971 L, and the reason its deliveries vary by 90% where a
+    // narrower draw gets to about 40%.
+    const ceiling = spreadBetween(gensetId, `fill-top-${delivery}`, 0.82, 1) * capacity;
+    if (candidate > ceiling) {
+      levels[index] = spreadBetween(gensetId, `fill-low-${delivery}`, 0.05, 0.62) * capacity;
+      delivery += 1;
+    } else {
+      levels[index] = candidate;
+    }
   }
 
   FUEL_LADDERS.set(gensetId, levels);
