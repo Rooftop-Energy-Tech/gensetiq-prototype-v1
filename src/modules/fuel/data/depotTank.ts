@@ -44,43 +44,20 @@ const HOUR = 3_600_000;
 const STEP = HOUR;
 
 /**
- * The heaviest month the fleet has drawn, plus half again — Afifah's rule.
+ * 200,000 L — Afifah's figure, 2026-09-22.
  *
- * Sized from the record rather than picked, because a depot that cannot cover a busy
- * month is a depot that runs dry, and a dry tank is where this model went wrong
- * twice: the level hit the floor mid-fall, `Math.max(0, …)` swallowed the rest of
- * the drop, and the page reported machines receiving fuel the yard never released.
- * Half again over the worst month is the headroom that makes that impossible.
+ * Stated rather than derived. It was computed from the record for a while, at half
+ * again the heaviest 30-day draw, which landed on 350,000; a round number a reader
+ * can hold is worth more here than one that follows the seed, and 200,000 is about
+ * four fifths of this fleet's busiest month — a yard that takes a delivery every few
+ * weeks rather than one that could sit out a quarter.
  *
- * Computed on first use rather than written down, so it follows the fleet: add ten
- * machines and the yard gets the tank it would actually need.
+ * What it must not be is small enough to run dry. The walk refills *before* the hour
+ * it is about to serve for that reason: a tank that reaches the floor mid-fall loses
+ * the rest of the drop, and the page then reports machines receiving fuel the yard
+ * never released.
  */
-let capacity: number | undefined;
-
-export const depotCapacityLitres = (): number => {
-  if (capacity !== undefined) return capacity;
-
-  const to = Date.now();
-  const from = historyStart();
-  const MONTH = 30 * 24 * HOUR;
-
-  // Every 30-day window the record holds, stepped a day at a time, and the fullest
-  // of them. A single fixed month would miss a busy fortnight that straddles two.
-  let heaviest = 0;
-  for (let start = from; start + MONTH <= to; start += 24 * HOUR) {
-    let month = 0;
-    for (const genset of GENSETS) {
-      for (const refuel of refuelsIn(genset.id, start, start + MONTH)) month += refuel.litres;
-    }
-    heaviest = Math.max(heaviest, month);
-  }
-
-  // Rounded up to the nearest 10,000 L: a bulk tank comes in whole sizes, and a
-  // capacity reading `344,347 L` would look computed, which it is, in the one place
-  // a reader expects a nameplate.
-  capacity = Math.max(10_000, Math.ceil((heaviest * 1.5) / 10_000) * 10_000);
-  return capacity;
-};
+export const depotCapacityLitres = (): number => 200_000;
 
 /** Below this the supplier is called, and the tank steps back up. */
 const REORDER_FRACTION = 0.18;
