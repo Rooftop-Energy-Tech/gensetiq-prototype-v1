@@ -244,9 +244,15 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           Absent when the engine is stopped: `detail.gauges` and `detail.phases` are
           empty then, and a row of needles pinned at zero says less than one line of
           text saying the engine is off — which is what `StandbyPanel` below is. */}
-      {running && (
-        <>
-          <div className="flex flex-col gap-6 py-4">
+      {/* The tank rides beside the live readings rather than leading the cards
+          below. Both halves answer "what is it doing right now" — the marks say how
+          the engine is running, the tank says how long it can keep it up — and a
+          reader takes the pair in together. It also gives the band a right-hand
+          anchor: five tiles and two bar groups alone left the band's right half
+          empty at desktop width. */}
+      <div className="flex flex-wrap items-stretch gap-4 py-4">
+        {running && (
+          <div className="flex min-w-0 flex-1 flex-col gap-6 md:min-w-[520px]">
             <div className="flex flex-wrap items-start gap-8">
               {detail.gauges.map((gauge) => (
                 <ReadingTile
@@ -269,30 +275,17 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
               ))}
             </div>
           </div>
+        )}
 
-          <hr className="border-subtle" />
-        </>
-      )}
-
-      {/* `items-stretch` so the three cards share a bottom edge — see `Column`.
-          The gap tightens to `gap-4` now the groups carry their own borders: at
-          `md:gap-12` three bordered cards read as three separate bands rather
-          than one, and the border is already doing the separating. */}
-      <div className="flex flex-wrap items-stretch gap-4 py-4">
-        {/* Fuel first, and outside the branch on both counts.
-
-            **Leftmost** because it is the column that is always there. The two
-            beside it describe a machine in motion and are replaced by the standby
-            panel when it stops; a band whose first column changes identity with the
-            run state gives a reader a different page to learn twice. Reading order
-            also happens to be decision order here — how much is left, then how hard
-            it is working, then what it is putting out.
-
-            **Outside the branch** because the tank does not vanish with the engine.
-            On a standby estate a stopped set is exactly when its level is the page's
-            most useful fact: what is in it now is what the next outage gets. */}
         <FuelColumn genset={genset} detail={detail} running={running} />
+      </div>
 
+      <hr className="border-subtle" />
+
+      {/* `items-stretch` so the two cards share a bottom edge — see `Column`.
+          `gap-4` because the groups carry their own borders and the border is
+          already doing the separating. */}
+      <div className="flex flex-wrap items-stretch gap-4 py-4">
         {running ? (
           // `md:flex-1` so the readings take the slack and the pad stays beside
           // Three columns that share the band and wrap together — see
