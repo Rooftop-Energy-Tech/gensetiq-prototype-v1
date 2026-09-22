@@ -96,7 +96,7 @@ export const RunStateSummary = ({
   return (
     <span
       className={cn(
-        'inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-base font-medium whitespace-nowrap',
+        'inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-base font-semibold whitespace-nowrap',
         tone,
       )}
     >
@@ -110,7 +110,7 @@ export const RunStateSummary = ({
           <span aria-hidden="true" className="opacity-40">
             ·
           </span>
-          <span className="tabular-nums opacity-80">{amount(loadKw, 'kW')}</span>
+          <span className="tabular-nums opacity-90">{amount(loadKw, 'kW')}</span>
         </>
       )}
     </span>

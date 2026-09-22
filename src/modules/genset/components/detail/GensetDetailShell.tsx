@@ -140,7 +140,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
             the page, so it belongs on all eight tabs rather than on the one; a
             reader on Runs or Alarms could not see it at all before. */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-4 pb-2">
-          <h1 className="min-w-0 truncate text-base font-medium text-primary">
+          <h1 className="min-w-0 truncate text-base font-semibold text-primary">
             {gensetName(genset)}
           </h1>
           <RunStateSummary
