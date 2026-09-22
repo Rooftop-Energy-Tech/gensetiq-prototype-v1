@@ -31,10 +31,10 @@ export type GensetFilters = {
 /**
  * Free-text filter behind the toolbar's search box.
  *
- * The placeholder says "Genset name", but matching only the tag would make the
+ * The placeholder says "Number plate", but matching only the plate would make the
  * box feel broken the first time someone types "Ipoh" or "Cummins" — both are
- * on screen in the row they're looking at. So it matches tag, model and place,
- * which is what the visible columns actually contain.
+ * on screen in the row they're looking at. So it matches plate, serial, model and
+ * place, which is what the visible columns actually contain.
  */
 export const searchGensets = (gensets: Array<Genset>, query: string): Array<Genset> => {
   const needle = query.trim().toLowerCase();

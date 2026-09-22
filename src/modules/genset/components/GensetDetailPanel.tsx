@@ -46,7 +46,7 @@ export const GensetDetailPanel = ({
               on the map or the selection is useless. */}
           <div className="flex items-center justify-between gap-2">
             {/* Bare: this panel is the register's own preview, opened from a row that
-                is already under a `Genset name` column. See `gensetLabel`. */}
+                is already under a `Number plate` column. See `gensetLabel`. */}
             <h2 className="truncate font-medium text-primary">{gensetLabel(genset)}</h2>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -65,7 +65,7 @@ export const GensetDetailPanel = ({
           </div>
 
           <dl className="flex flex-col">
-            <DetailRow label="Run state">
+            <DetailRow label="Status">
               <RunStateBadge runState={genset.runState} />
             </DetailRow>
             <DetailRow label="Fuel level">

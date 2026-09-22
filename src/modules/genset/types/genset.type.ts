@@ -146,6 +146,11 @@ export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(ge
 /**
  * What a machine is called — **its road plate**, `WVA 5385`.
  *
+ * The register's column header says so too, since 2026-09-22: it read `Genset name`
+ * for the day the cells under it already held plates, and a header naming a field
+ * its column does not carry is the one difference a reader cannot see for
+ * themselves. It now reads `Number plate`, and the search box's placeholder with it.
+ *
  * ## It was the serial until 2026-09-21
  *
  * `genset.tag`, `CUM-739893`. Unique and durable, but nobody in the yard says it:

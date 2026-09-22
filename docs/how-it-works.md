@@ -1114,7 +1114,7 @@ reads `Battery ▸ …`, the register's column is headed `Bank` — and on the r
 cost the column its left third.
 
 **The genset took half of that, and the split is the point.** Its register drops the
-prefix — the column is headed `Genset name`, the page `Gensets`, and thirty rows of
+prefix — the column is headed `Number plate`, the page `Gensets`, and thirty rows of
 `Genset | …` under it is the header read once per row — and all three of the
 register's renderings drop it together, because the table, the phone cards and the
 preview panel are one screen. Its **detail page keeps it**: a set, a bank, an array
