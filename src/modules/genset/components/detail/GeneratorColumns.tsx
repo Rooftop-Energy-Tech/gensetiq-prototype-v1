@@ -56,9 +56,16 @@ const Row = ({label, children}: {label: string; children: ReactNode}) => (
  * `self-stretch` on the section so the three cards match heights across the band
  * whatever each holds — a four-row card and a six-row card with different bottoms
  * read as two unfinished things rather than two groups.
+ *
+ * **The surface is `MetricStrip`'s, down to the padding.** That strip is what draws
+ * `Fuel level` and `Fuel remaining` at the top of this page, and a card lower down
+ * the same page in a different shade would read as a different *kind* of thing
+ * rather than the same kind further on. `bg-element` over the page's `bg-canvas` is
+ * the app's one rule for a raised surface; `px-5 py-4` is the strip's own, matched
+ * here so the two do not drift by a pixel either.
  */
 const Column = ({title, children}: {title: string; children: ReactNode}) => (
-  <section className="flex min-w-0 flex-1 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element p-4">
+  <section className="flex min-w-0 flex-1 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
     <h3 className="text-xs font-medium tracking-wide text-tertiary uppercase">{title}</h3>
     {children}
   </section>
