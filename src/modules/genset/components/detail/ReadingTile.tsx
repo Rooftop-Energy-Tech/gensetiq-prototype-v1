@@ -1,4 +1,6 @@
 import type {LucideIcon} from 'lucide-react';
+
+import {cn} from '@/lib/utils';
 import type {ComponentType, SVGProps} from 'react';
 
 
@@ -36,12 +38,30 @@ import type {ComponentType, SVGProps} from 'react';
  * rather than as a number in itself. It is stated as a note under the figure where
  * the reading has one, rather than dropped silently.
  */
+/**
+ * How a mark is coloured: by the worst alarm standing against its own reading.
+ *
+ * Green for nothing standing, amber for a warning, red for a critical. The same
+ * three tokens the alarm chips use, so a reader who sees a red oil mark and a red
+ * chip in the band below is looking at one fault stated twice rather than two.
+ *
+ * `NEUTRAL` is an alert severity but not a colour here: an informational bit
+ * standing against a reading is not a reason to stop calling that reading healthy.
+ * It falls through to the green.
+ */
+const TONE: Record<string, {icon: string; chip: string}> = {
+  CRITICAL: {icon: 'text-severity-critical', chip: 'bg-severity-critical/10'},
+  WARNING: {icon: 'text-severity-warning', chip: 'bg-severity-warning/10'},
+  OK: {icon: 'text-severity-ok', chip: 'bg-severity-ok/10'},
+};
+
 export const ReadingTile = ({
   label,
   value,
   unit,
   icon: Icon,
   note,
+  severity,
 }: {
   label: string;
   /** Pre-formatted: the caller knows its own precision, and `Not deployed` is a
@@ -51,14 +71,23 @@ export const ReadingTile = ({
   icon: LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
   /** The band this figure is healthy in, e.g. `2–8 bar`. */
   note?: string;
-}) => (
+  /**
+   * The worst alarm standing against this reading, if any. `undefined` on a tile
+   * whose figure no rule watches — a counter, say — which reads as healthy rather
+   * than as unknown, because there is nothing about it that could be unhealthy.
+   */
+  severity?: 'CRITICAL' | 'WARNING' | 'NEUTRAL';
+}) => {
+  const tone = TONE[severity === 'CRITICAL' || severity === 'WARNING' ? severity : 'OK'];
+
+  return (
   <div className="flex w-[132px] shrink-0 flex-col items-center gap-2 text-center">
     {/* 48px, and the tinted square is the reference's. Its saturated violet is not:
         five of those in a row would be the loudest thing on a page whose subject is
         the figures under them. `bg-highlight` carries the same chip shape at the
         weight the rest of this app uses for a raised inner surface. */}
-    <span className="flex size-12 items-center justify-center rounded-xl bg-highlight">
-      <Icon className="size-6 text-secondary" aria-hidden="true" />
+    <span className={cn('flex size-12 items-center justify-center rounded-xl', tone.chip)}>
+      <Icon className={cn('size-6', tone.icon)} aria-hidden="true" />
     </span>
 
     <div className="flex flex-col items-center gap-0.5">
@@ -72,4 +101,5 @@ export const ReadingTile = ({
       {note !== undefined && <p className="text-xs text-tertiary">{note}</p>}
     </div>
   </div>
-);
+  );
+};

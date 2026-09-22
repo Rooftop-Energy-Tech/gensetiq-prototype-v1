@@ -15,7 +15,8 @@ import {TrendPanel} from '@/modules/site/components/TrendPanel';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import {keepFrom} from '@/modules/site/types/fromSearch.type';
-import {countBySeverity} from '../../types/alert.type';
+import {ALERT_SEVERITIES, countBySeverity} from '../../types/alert.type';
+import type {AlertSeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {
@@ -201,6 +202,21 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
   /** The controller's own bits, still standing — not `detail.alerts`. */
   const alerts = standingAlarms(genset.id, handling);
 
+  // The worst alarm standing against each reading, so a mark can be coloured by its
+  // own subject rather than by the machine's overall state. `standingAlarms` is
+  // already the handled-aware list the alarm chips below are counted from, so a red
+  // oil mark and a red chip are one fault stated twice rather than two.
+  const severityByReading = new Map<string, AlertSeverity>();
+  for (const alert of alerts) {
+    if (alert.readingKey === null) continue;
+    const held = severityByReading.get(alert.readingKey);
+    // Worst wins: `ALERT_SEVERITIES` is ordered worst-first, so a lower index is
+    // graver and a warning can never overwrite a critical.
+    if (held === undefined || ALERT_SEVERITIES.indexOf(alert.severity) < ALERT_SEVERITIES.indexOf(held)) {
+      severityByReading.set(alert.readingKey, alert.severity);
+    }
+  }
+
   /**
    * And the site monitoring unit's rows filed against this set — the nine
    * per-phase AC registers, where the yard has a unit and no utility incomer.
@@ -317,6 +333,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
                 // at nominal whenever they are well, and a band under them would
                 // be four lines of type saying "still fine".
                 note={gauge.key === 'oil-pressure' ? `${gauge.min}–${gauge.max} bar` : undefined}
+                severity={severityByReading.get(gauge.key)}
               />
             ))}
 
