@@ -244,13 +244,18 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           Absent when the engine is stopped: `detail.gauges` and `detail.phases` are
           empty then, and a row of needles pinned at zero says less than one line of
           text saying the engine is off — which is what `StandbyPanel` below is. */}
-      {/* The tank rides beside the live readings rather than leading the cards
-          below. Both halves answer "what is it doing right now" — the marks say how
-          the engine is running, the tank says how long it can keep it up — and a
-          reader takes the pair in together. It also gives the band a right-hand
-          anchor: five tiles and two bar groups alone left the band's right half
-          empty at desktop width. */}
+      {/* The tank leads the band, with the live readings to its right. Both halves
+          answer "what is it doing right now" — the tank says how long it can keep
+          going, the marks say how it is going — and a reader takes the pair in
+          together rather than across a rule.
+
+          **Leftmost because it is the half that is always there.** The readings
+          vanish with the engine; the tank does not, and a band whose first element
+          changed with the run state would give a reader two pages to learn. It is
+          the same argument that put the tank first among the cards before them. */}
       <div className="flex flex-wrap items-stretch gap-4 py-4">
+        <FuelColumn genset={genset} detail={detail} running={running} />
+
         {running && (
           <div className="flex min-w-0 flex-1 flex-col gap-6 md:min-w-[520px]">
             <div className="flex flex-wrap items-start gap-8">
@@ -277,7 +282,6 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           </div>
         )}
 
-        <FuelColumn genset={genset} detail={detail} running={running} />
       </div>
 
       <hr className="border-subtle" />
