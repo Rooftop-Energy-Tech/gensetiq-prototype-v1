@@ -10,6 +10,8 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {fuelLevel, relativeTime, stampDate} from '@/lib/format';
 import {activePosting} from '@/modules/deployment/data/store';
 import {gensetName} from '../../types/genset.type';
+import {gensetDetail} from '../../data/detail';
+import {RunStateSummary} from './RunStateSummary';
 import type {Genset} from '../../types/genset.type';
 
 /**
@@ -70,6 +72,9 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
   // The job this machine is standing on, if it is standing on one. A planned
   // commitment is not it: the machine has not gone anywhere yet.
   const posting = activePosting(genset.id, Date.now());
+  // For the load beside the title. `undefined` is possible in principle — a genset
+  // with no detail row — and reads as a machine with no load rather than as zero.
+  const detail = gensetDetail(genset.id);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -112,13 +117,20 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
       />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {/* The machine's tag, over the page. It is in the rail as well, and the
-            design draws both — the rail's copy is a caption on eight rows, and
-            this one titles what you are actually reading. Without it every one of
-            the eight pages would open on a figure with nothing naming it. */}
-        <h1 className="shrink-0 truncate px-4 pt-4 pb-2 text-base font-medium text-primary">
-          {gensetName(genset)}
-        </h1>
+        {/* The machine's plate, over the page, with what it is doing beside it. It
+            is in the rail as well, and the design draws both — the rail's copy is a
+            caption on eight rows, and this one titles what you are actually reading.
+
+            The run state moved up here from the home page's run band on 2026-09-22.
+            Whether the engine is turning is a fact about the machine and not about
+            the page, so it belongs on all eight tabs rather than on the one; a
+            reader on Runs or Alarms could not see it at all before. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-4 pb-2">
+          <h1 className="min-w-0 truncate text-base font-medium text-primary">
+            {gensetName(genset)}
+          </h1>
+          <RunStateSummary runState={genset.runState} loadKw={detail?.loadKw ?? null} />
+        </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           <Outlet />

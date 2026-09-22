@@ -21,7 +21,6 @@ import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {ControlPad} from './ControlPad';
 import {FuelColumn, GeneratorColumns} from './GeneratorColumns';
 import {CurrentRunCard} from './CurrentRunCard';
-import {RunStateSummary} from './RunStateSummary';
 import {StandbyPanel} from './StandbyPanel';
 
 /**
@@ -266,7 +265,6 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             content's, so without it the run card's widest line — a timestamp that
             must not wrap — becomes the floor for the whole band. */}
         <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
-          <RunStateSummary runState={genset.runState} loadKw={detail.loadKw} />
           <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
         </div>
 
