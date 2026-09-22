@@ -212,30 +212,59 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
 
   const samples: Array<DepotSample> = [];
   let level = capacity;
+  // The round: when the last load came, what the yard has issued since, and how
+  // many have been taken — the last of those only to salt the jitter.
+  let lastDelivery = 0;
+  let issuedSinceDelivery = 0;
+  let deliveries = 0;
 
   for (let step = 0; from + step * STEP <= to; step += 1) {
     const t = from + step * STEP;
 
     const issued = (outByStep.get(step) ?? 0) + ullagePerStep + (step === mysteryStep ? mysteryLitres : 0);
 
-    // ## The supplier comes *before* the hour that would empty the tank
+    // ## The supplier comes on a round, not when the tank nearly empties
     //
-    // Ordering matters more than it looks. Filling after the outflow let the level
-    // reach the floor mid-fall — this fleet can draw 34,000 L in a day against a
-    // tank of 60,000 — and `Math.max(0, …)` then swallowed whatever was left of
-    // that drop. One such hour cost 1,113 L of the week's outflow, and the page
-    // reported machines receiving fuel the yard never released.
+    // This filled to the brim only once the level fell past 18% of capacity, which
+    // on Klang's 210,000 L is one delivery every six weeks — so a reader narrowing
+    // to a week saw `Received: no delivery` at a yard issuing 37,000 L in it. No
+    // depot runs that way: there is a standing order, the tanker comes round, and
+    // the tank sits in a band rather than sawtoothing between empty and full.
     //
-    // Refilling first means the tank is never short of the hour it is about to
-    // serve, so every litre issued is a fall the sensor can see. The rise gets a
-    // sample of its own, because a sample carrying both a fill and a draw nets to
-    // whichever is larger and the other vanishes from the reconciliation.
+    // So a delivery is due roughly weekly, jittered per yard so four cards do not
+    // all take one on the same morning, and it is sized to what the yard has
+    // actually issued since the last one. Capped at the ullage the tank has left,
+    // because a depot does not overflow.
+    const sinceLast = step - lastDelivery;
+    const dueEvery = spreadBetween(depotId, `round-${deliveries}`, 5.5, 8.5) * 24;
+
+    if (lastDelivery >= 0 && sinceLast >= dueEvery && level < capacity * 0.97) {
+      const load = Math.min(capacity - level, issuedSinceDelivery * spreadBetween(depotId, `load-${deliveries}`, 0.95, 1.2));
+      if (load > 0) {
+        level += load;
+        // A rise gets a sample of its own: one carrying both a fill and a draw nets
+        // to whichever is larger and the other vanishes from the reconciliation.
+        samples.push({t, litres: Math.round(level), delivered: 0});
+        lastDelivery = step;
+        issuedSinceDelivery = 0;
+        deliveries += 1;
+      }
+    }
+
+    // The floor still holds. If a round is late and the hour would take the tank
+    // past its reserve, the supplier is called out: a tank that reaches the floor
+    // mid-fall loses the rest of the drop, and the page then reports fuel arriving
+    // at machines the yard never released.
     if (level - issued < capacity * REORDER_FRACTION) {
       level = capacity;
       samples.push({t, litres: Math.round(level), delivered: 0});
+      lastDelivery = step;
+      issuedSinceDelivery = 0;
+      deliveries += 1;
     }
 
     level -= issued;
+    issuedSinceDelivery += issued;
     samples.push({
       t: t + STEP / 2,
       litres: Math.round(level),
