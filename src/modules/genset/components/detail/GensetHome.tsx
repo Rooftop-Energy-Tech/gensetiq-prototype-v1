@@ -215,7 +215,11 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           the right when the columns are narrow, and it has to fall *under* them at
           phone width rather than beside them — four tap targets squeezed next to a
           column of figures is the one thing in this band that must not happen. */}
-      <div className="flex flex-wrap items-start gap-6 py-4 md:gap-12">
+      {/* `items-stretch` so the three cards share a bottom edge — see `Column`.
+          The gap tightens to `gap-4` now the groups carry their own borders: at
+          `md:gap-12` three bordered cards read as three separate bands rather
+          than one, and the border is already doing the separating. */}
+      <div className="flex flex-wrap items-stretch gap-4 py-4">
         {/* Fuel first, and outside the branch on both counts.
 
             **Leftmost** because it is the column that is always there. The two

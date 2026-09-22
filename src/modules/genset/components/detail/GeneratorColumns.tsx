@@ -42,8 +42,23 @@ const Row = ({label, children}: {label: string; children: ReactNode}) => (
   </div>
 );
 
+
+/**
+ * One group of readings, as a tile.
+ *
+ * The whole list inside one card rather than a card per reading — Afifah's call,
+ * 2026-09-22, and the right one. A tile per figure turns six readings into six
+ * bordered boxes and spends the border on separating things nobody needs separated:
+ * the reader's unit is the *group*, and what they want is to find Output and then
+ * scan down it. A card around the group draws exactly that boundary and leaves the
+ * rows inside it to a hairline, which is all the separation a label-value pair needs.
+ *
+ * `self-stretch` on the section so the three cards match heights across the band
+ * whatever each holds — a four-row card and a six-row card with different bottoms
+ * read as two unfinished things rather than two groups.
+ */
 const Column = ({title, children}: {title: string; children: ReactNode}) => (
-  <section className="flex min-w-0 flex-1 flex-col gap-1">
+  <section className="flex min-w-0 flex-1 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element p-4">
     <h3 className="text-xs font-medium tracking-wide text-tertiary uppercase">{title}</h3>
     {children}
   </section>
