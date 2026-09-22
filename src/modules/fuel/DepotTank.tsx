@@ -45,7 +45,7 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
   // A tanker meter and a tank float never agree exactly, so a threshold in percent
   // alone cries wolf on a quiet yard where 40 L of noise is 8%, and one in litres
   // alone stays silent through a busy month where 90 L is lost in the rounding.
-  const severity = varianceSeverity(movement.outLitres, movement.varianceLitres);
+  const verdict = varianceSeverity(movement.outLitres, movement.varianceLitres);
   const level = series.at(-1)?.litres ?? 0;
   const fraction = capacity > 0 ? level / capacity : 0;
 
@@ -60,19 +60,22 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
             Absent when the two sides agree, rather than a green `Reconciled` chip:
             four cards each declaring success is four things to read past to find
             the one that did not. */}
-        {severity === undefined ? (
+        {verdict === undefined ? (
           <p className="text-xs text-tertiary">{depot.locationLabel}</p>
         ) : (
           <span
             className={cn(
               'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
-              severity === 'CRITICAL'
+              verdict.severity === 'CRITICAL'
                 ? 'border-severity-critical/25 bg-severity-critical/10 text-severity-critical'
                 : 'border-severity-warning/25 bg-severity-warning/10 text-severity-warning',
             )}
           >
             <TriangleAlertIcon className="size-3" aria-hidden="true" />
-            {severity === 'CRITICAL' ? 'Unaccounted fuel' : 'Check reconciliation'}
+            {/* Named for what actually happened. A shortfall is fuel that left and
+                did not arrive; a surplus is machines reporting more than the yard
+                released, which is instruments disagreeing rather than a loss. */}
+            {verdict.kind === 'shortfall' ? 'Fuel did not arrive' : 'Readings disagree'}
           </span>
         )}
       </header>
@@ -136,9 +139,9 @@ export const DepotTank = ({depot}: {depot: Depot}) => {
             <dd
               className={cn(
                 'text-right text-sm font-semibold tabular-nums',
-                severity === 'CRITICAL'
+                verdict?.severity === 'CRITICAL'
                   ? 'text-severity-critical'
-                  : severity === 'WARNING'
+                  : verdict?.severity === 'WARNING'
                     ? 'text-severity-warning'
                     : 'text-primary',
               )}

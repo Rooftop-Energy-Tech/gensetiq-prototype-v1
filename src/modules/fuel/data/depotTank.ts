@@ -329,20 +329,48 @@ export const reconcile = (
 };
 
 /**
- * How loudly to say it.
+ * How loudly to say it, and **the two directions are not the same problem**.
  *
- * **2% or 100 L, whichever is larger**, and half that for the warning. A tanker
- * meter and a tank float never agree exactly, so a threshold in percent alone cries
- * wolf on a quiet week where 40 L of noise is 8% of a small total, and one in litres
- * alone stays silent through a busy month where 90 L is lost in the rounding.
+ * A **shortfall** — the depot issued more than the machines received — is fuel that
+ * left the yard and did not arrive. That is the case this page exists for, and it
+ * gets the critical.
+ *
+ * A **surplus** is machines recording more than the depot released, which cannot be
+ * fuel appearing from nowhere: it is an instrument disagreeing. A float reading
+ * long, a drum tipped in that never went through the yard, a delivery logged to the
+ * wrong machine. Worth knowing and worth chasing, but it is a data fault rather than
+ * a loss, so it warns and says so in different words.
+ *
+ * Treating them alike is what this returned until 2026-09-22 — `Math.abs` and one
+ * label — so a yard whose sensors disagreed by 3% would have been reported as having
+ * lost fuel it never lost.
+ *
+ * **2% of what was issued, or 100 L, whichever is larger**, and half that for the
+ * lesser grade. A tanker meter and a tank float never agree exactly, so a threshold
+ * in percent alone cries wolf on a quiet week where 40 L of noise is 8% of a small
+ * total, and one in litres alone stays silent through a busy month where 90 L is
+ * lost in the rounding.
  */
+export type VarianceVerdict = {
+  severity: 'CRITICAL' | 'WARNING';
+  /** `shortfall` — fuel did not arrive. `surplus` — the instruments disagree. */
+  kind: 'shortfall' | 'surplus';
+};
+
 export const varianceSeverity = (
   outLitres: number,
   varianceLitres: number,
-): 'CRITICAL' | 'WARNING' | undefined => {
+): VarianceVerdict | undefined => {
   const gap = Math.abs(varianceLitres);
-  const alarmAt = Math.max(100, outLitres * 0.02);
-  if (gap >= alarmAt) return 'CRITICAL';
-  if (gap >= alarmAt / 2) return 'WARNING';
+  const threshold = Math.max(100, outLitres * 0.02);
+
+  // A surplus is held to the same size but never rises above a warning: it is not
+  // a loss, whatever its magnitude.
+  if (varianceLitres < 0) {
+    return gap >= threshold / 2 ? {severity: 'WARNING', kind: 'surplus'} : undefined;
+  }
+
+  if (gap >= threshold) return {severity: 'CRITICAL', kind: 'shortfall'};
+  if (gap >= threshold / 2) return {severity: 'WARNING', kind: 'shortfall'};
   return undefined;
 };
