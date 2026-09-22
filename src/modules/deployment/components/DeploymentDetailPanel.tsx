@@ -163,7 +163,7 @@ export const DeploymentDetailPanel = ({
             </h3>
 
             <dl className="flex flex-col">
-              <DetailRow label="On load">{amount(row.totals.runtimeHours, 'h')}</DetailRow>
+              <DetailRow label="On load">{amount(row.totals.runtimeHours, 'hrs')}</DetailRow>
               <DetailRow label="Energy">{amount(row.totals.energyKwh, 'kWh')}</DetailRow>
               <DetailRow label="Fuel burned">{amount(row.totals.fuelBurnedLitres, 'L')}</DetailRow>
               <DetailRow label="Fuel delivered">{amount(row.fuelDeliveredLitres, 'L')}</DetailRow>

@@ -80,7 +80,7 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
         <p className="max-w-2xl text-sm text-secondary">
           Every run the machines on {row.deployment.reference} started inside its window.
           {' '}
-          {amount(row.totals.runtimeHours, 'h')} on load ·{' '}
+          {amount(row.totals.runtimeHours, 'hrs')} on load ·{' '}
           {amount(row.totals.energyKwh, 'kWh')} produced ·{' '}
           {amount(row.totals.fuelBurnedLitres, 'L')} burned. Energy is what the sets
           produced rather than what the site drew: only one set is on the bus at a time.

@@ -170,7 +170,9 @@ const READING_SPECS: Array<ReadingSpec> = [
   {
     key: 'engine-hours',
     label: 'Engine hours',
-    unit: 'h',
+    // `hrs`, not `h`. The estate's own paperwork writes it that way and the page
+    // reads it a dozen times; one letter is not a unit anybody says out loud.
+    unit: 'hrs',
     base: 5_400,
     vary: 3_600,
     kind: 'cumulative',
@@ -301,7 +303,7 @@ const READING_SPECS: Array<ReadingSpec> = [
   {
     key: 'hours-since-service',
     label: 'Hours since service',
-    unit: 'h',
+    unit: 'hrs',
     base: 140,
     vary: 90,
     kind: 'cumulative',

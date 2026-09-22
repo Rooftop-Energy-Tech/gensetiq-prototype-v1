@@ -311,7 +311,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             <ReadingTile
               label="Running hours"
               value={engineHours === undefined ? '—' : engineHours.toLocaleString('en-MY')}
-              unit="h"
+              unit="hrs"
               icon={ClockIcon}
             />
             <ReadingTile
@@ -324,20 +324,26 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
                       maximumFractionDigits: 1,
                     })
               }
-              unit={postingHours === undefined ? undefined : 'h'}
+              unit={postingHours === undefined ? undefined : 'hrs'}
               icon={TruckIcon}
               note={posting?.deployment.reference}
             />
           </div>
 
-          {running && (
-            <div className="flex flex-wrap items-start gap-y-6 md:gap-x-18">
-              {detail.phases.map((group) => (
-                <PhaseBars key={group.label} group={group} />
-              ))}
-            </div>
-          )}
         </div>
+
+        {/* The two bar groups as their own column on the band, rather than a second
+            row under the marks. They answer a different question from the marks —
+            the marks are five unrelated readings, these are three phases each asked
+            *do you agree with each other* — and a column keeps that question whole
+            instead of laying it across the width of the page. */}
+        {running && (
+          <div className="flex shrink-0 flex-col gap-6">
+            {detail.phases.map((group) => (
+              <PhaseBars key={group.label} group={group} />
+            ))}
+          </div>
+        )}
 
       </div>
 

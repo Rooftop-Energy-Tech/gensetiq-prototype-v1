@@ -136,7 +136,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
           metrics={[
             {
               label: 'On load',
-              value: `${amount(row.totals.runtimeHours, 'h')}`,
+              value: `${amount(row.totals.runtimeHours, 'hrs')}`,
             },
             {label: 'Energy', value: amount(row.totals.energyKwh, 'kWh')},
             {label: 'Fuel burned', value: amount(row.totals.fuelBurnedLitres, 'L')},

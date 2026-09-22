@@ -324,7 +324,7 @@ export const serviceNotice = (
 };
 
 /**
- * "Due in 63 h", "Overdue by 41 h", "Not recorded" — service, in a strip tile.
+ * "Due in 63 hrs", "Overdue by 41 hrs", "Not recorded" — service, in a strip tile.
  *
  * The strip carries one figure per column and service has two counters, so this
  * reports the **binding** one: the counter that set the severity is the counter
@@ -344,7 +344,7 @@ export const serviceHeadline = (status: ServiceStatus): string => {
 
   if (status.binding === 'hours') {
     const hours = Math.round(Math.abs(overshoot)).toLocaleString('en-MY');
-    return overshoot >= 0 ? `Overdue by ${hours} h` : `Due in ${hours} h`;
+    return overshoot >= 0 ? `Overdue by ${hours} hrs` : `Due in ${hours} hrs`;
   }
 
   return overshoot >= 0

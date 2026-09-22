@@ -329,7 +329,7 @@ export const DeploymentsTable = ({
                         className="block truncate"
                         title={`${row.totals.starts} start${row.totals.starts === 1 ? '' : 's'} inside this deployment`}
                       >
-                        {amount(row.totals.runtimeHours, 'h')}
+                        {amount(row.totals.runtimeHours, 'hrs')}
                       </span>
                       <span className="block truncate text-xs text-tertiary">
                         {row.totals.starts} start{row.totals.starts === 1 ? '' : 's'}

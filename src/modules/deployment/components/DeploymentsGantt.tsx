@@ -302,7 +302,7 @@ export const DeploymentsGantt = ({rows, selectedId, onSelect, now}: DeploymentsG
                   }`,
                   row.state === 'planned'
                     ? 'Planned · nothing has moved yet'
-                    : `${duration(row.elapsedMs)} · ${amount(row.totals.runtimeHours, 'h')} on load · ${amount(row.totals.fuelBurnedLitres, 'L')}`,
+                    : `${duration(row.elapsedMs)} · ${amount(row.totals.runtimeHours, 'hrs')} on load · ${amount(row.totals.fuelBurnedLitres, 'L')}`,
                   member.collected ? 'Collected early' : undefined,
                 ]
                   .filter((line) => line !== undefined)
