@@ -118,7 +118,7 @@ const Row = ({
  * here so the two do not drift by a pixel either.
  */
 const Column = ({title, children}: {title: string; children: ReactNode}) => (
-  <section className="flex min-w-0 flex-1 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
+  <section className="flex min-w-0 flex-1 basis-0 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
     <h3 className="text-xs font-medium tracking-wide text-secondary uppercase">{title}</h3>
     {children}
   </section>
@@ -186,10 +186,10 @@ export const GeneratorColumns = ({detail}: {detail: GensetDetail}) => {
  * disappear — a stopped set's burn rate is what it *was* metering, and its runway is
  * runtime it would get rather than a countdown of wall-clock.
  *
- * **The glyph stays.** The rows are the numbers; the tank is the one thing on this
- * band a reader takes in without reading, and a column of aligned figures is exactly
- * what it is good against. It sits above the rows rather than beside them so the
- * three columns keep one baseline.
+ * **The glyph stays**, at `lg`. The rows are the numbers; the tank is the one thing
+ * on this band a reader takes in without reading, and a column of aligned figures is
+ * exactly what it is good against. It was `xl` while this card had a band's width to
+ * fill; sharing that band in equal thirds, 72 x 96 crowded its own figures.
  */
 export const FuelColumn = ({
   genset,
@@ -219,7 +219,6 @@ export const FuelColumn = ({
           <TankGlyph
             fraction={fuelFraction(genset.fuelLitres, detail.fuel.maxLitres)}
             tone="fuel"
-            size="xl"
           />
           <p className="text-sm font-semibold whitespace-pre text-primary">
             {fuelHeadline(genset.fuelLitres, detail.fuel.maxLitres)}

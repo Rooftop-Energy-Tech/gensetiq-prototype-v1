@@ -280,7 +280,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
       <div className="flex flex-wrap items-stretch gap-4 py-4">
         <FuelColumn genset={genset} detail={detail} running={running} />
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6 md:min-w-[520px]">
+        <div className="flex min-w-0 flex-1 basis-0 flex-col gap-6">
           <div className="flex flex-wrap items-start gap-8">
             {detail.gauges.map((gauge) => (
               <ReadingTile
@@ -332,13 +332,17 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
 
         </div>
 
-        {/* The two bar groups as their own column on the band, rather than a second
-            row under the marks. They answer a different question from the marks —
+        {/* The two bar groups as their own column on the band, an equal third of it
+            like the tank and the marks either side — `flex-1 basis-0` on all three,
+            so none of them sizes to its content and the band splits evenly whatever
+            each holds.
+
+            Rather than a second row under the marks. They answer a different question from the marks —
             the marks are five unrelated readings, these are three phases each asked
             *do you agree with each other* — and a column keeps that question whole
             instead of laying it across the width of the page. */}
         {running && (
-          <div className="flex shrink-0 flex-col gap-6">
+          <div className="flex min-w-0 flex-1 basis-0 flex-col gap-6">
             {detail.phases.map((group) => (
               <PhaseBars key={group.label} group={group} />
             ))}
