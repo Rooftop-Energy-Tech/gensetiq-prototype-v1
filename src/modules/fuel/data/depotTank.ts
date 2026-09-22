@@ -386,32 +386,28 @@ export const reconcile = (
 };
 
 /**
- * How loudly to say it, and **the two directions are not the same problem**.
+ * How loudly to say it. Three grades, and the middle one is about instruments.
  *
- * A **shortfall** — the depot issued more than the machines received — is fuel that
- * left the yard and did not arrive. That is the case this page exists for, and it
- * gets the critical.
+ * **Under 100 L: quiet.** A bulk-tank float and thirty-eight machine floats will
+ * never agree exactly, and a page that flagged 40 L would be flagging its own
+ * resolution.
  *
- * A **surplus** is machines recording more than the depot released, which cannot be
- * fuel appearing from nowhere: it is an instrument disagreeing. A float reading
- * long, a drum tipped in that never went through the yard, a delivery logged to the
- * wrong machine. Worth knowing and worth chasing, but it is a data fault rather than
- * a loss, so it warns and says so in different words.
+ * **Past 100 L either way: check calibration** — Afifah's rule, 2026-09-22. At that
+ * size the gap is no longer noise, and the first thing to doubt is the instruments
+ * rather than the fuel: a float reading long, a sensor drifting since its last
+ * calibration, a tank whose strapping table is wrong. It applies to a surplus at any
+ * size, because machines recording more than the yard released cannot be a loss and
+ * can only be a measurement.
  *
- * Treating them alike is what this returned until 2026-09-22 — `Math.abs` and one
- * label — so a yard whose sensors disagreed by 3% would have been reported as having
- * lost fuel it never lost.
- *
- * **2% of what was issued, or 100 L, whichever is larger**, and half that for the
- * lesser grade. A tanker meter and a tank float never agree exactly, so a threshold
- * in percent alone cries wolf on a quiet week where 40 L of noise is 8% of a small
- * total, and one in litres alone stays silent through a busy month where 90 L is
- * lost in the rounding.
+ * **A shortfall past 2% of what was issued: fuel did not arrive.** Fuel left the
+ * yard and reached no machine, which is the case this page exists for. Percent
+ * rather than litres at this grade because 600 L missing from a small yard's month
+ * is a different event from 600 L missing from Klang's.
  */
 export type VarianceVerdict = {
   severity: 'CRITICAL' | 'WARNING';
-  /** `shortfall` — fuel did not arrive. `surplus` — the instruments disagree. */
-  kind: 'shortfall' | 'surplus';
+  /** `shortfall` — fuel did not arrive. `calibration` — the instruments disagree. */
+  kind: 'shortfall' | 'calibration';
 };
 
 export const varianceSeverity = (
@@ -419,15 +415,12 @@ export const varianceSeverity = (
   varianceLitres: number,
 ): VarianceVerdict | undefined => {
   const gap = Math.abs(varianceLitres);
-  const threshold = Math.max(100, outLitres * 0.02);
+  if (gap < 100) return undefined;
 
-  // A surplus is held to the same size but never rises above a warning: it is not
-  // a loss, whatever its magnitude.
-  if (varianceLitres < 0) {
-    return gap >= threshold / 2 ? {severity: 'WARNING', kind: 'surplus'} : undefined;
+  // A shortfall large enough to be about fuel rather than measurement.
+  if (varianceLitres > 0 && gap >= Math.max(100, outLitres * 0.02)) {
+    return {severity: 'CRITICAL', kind: 'shortfall'};
   }
 
-  if (gap >= threshold) return {severity: 'CRITICAL', kind: 'shortfall'};
-  if (gap >= threshold / 2) return {severity: 'WARNING', kind: 'shortfall'};
-  return undefined;
+  return {severity: 'WARNING', kind: 'calibration'};
 };

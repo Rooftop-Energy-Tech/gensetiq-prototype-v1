@@ -51,10 +51,8 @@ export const DepotTank = ({
   // The page's window. `useMemo` is not worth it: `reconcile` walks a 60-day hourly
   // series once per card and the page draws four.
   const movement = reconcile(depot.id, from, to);
-  // 2% of what was issued, or 100 L, whichever is larger — and half that to warn.
-  // A tanker meter and a tank float never agree exactly, so a threshold in percent
-  // alone cries wolf on a quiet yard where 40 L of noise is 8%, and one in litres
-  // alone stays silent through a busy month where 90 L is lost in the rounding.
+  // Quiet under 100 L, `Check calibration` past it, `Fuel did not arrive` for a
+  // shortfall past 2% of what was issued. See `varianceSeverity`.
   const verdict = varianceSeverity(movement.outLitres, movement.varianceLitres);
   const level = series.at(-1)?.litres ?? 0;
   const fraction = capacity > 0 ? level / capacity : 0;
@@ -82,10 +80,11 @@ export const DepotTank = ({
             )}
           >
             <TriangleAlertIcon className="size-3" aria-hidden="true" />
-            {/* Named for what actually happened. A shortfall is fuel that left and
-                did not arrive; a surplus is machines reporting more than the yard
-                released, which is instruments disagreeing rather than a loss. */}
-            {verdict.kind === 'shortfall' ? 'Fuel did not arrive' : 'Readings disagree'}
+            {/* Named for what to do about it. A shortfall past 2% is fuel that
+                left and did not arrive; anything else past 100 L is a gap too big
+                to be noise and too small — or the wrong sign — to be a loss, and
+                the instruments are the first thing to doubt. */}
+            {verdict.kind === 'shortfall' ? 'Fuel did not arrive' : 'Check calibration'}
           </span>
         )}
       </header>
