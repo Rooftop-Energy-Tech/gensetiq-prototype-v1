@@ -89,18 +89,24 @@ export const DepotTank = ({
         )}
       </header>
 
-      <div className="flex items-start gap-4 py-1.5">
-        <div className="flex w-[200px] shrink-0 flex-col items-center gap-1.5">
+      {/* ## Stacked on a phone, side by side from `sm`
+          The tank is a fixed 200px and the figures took what was left, which on a
+          390px screen is about ninety — narrower than `Fuel Out − Fuel Arrived`
+          itself, so every label broke over four lines and every value orphaned its
+          `L` onto a second. Below `sm` the tank sits on top and the list runs the
+          full width of the card. */}
+      <div className="flex flex-col items-center gap-3 py-1.5 sm:flex-row sm:items-start sm:gap-4">
+        <div className="flex w-full max-w-[200px] shrink-0 flex-col items-center gap-1.5">
           <DepotTankGlyph fraction={fraction} className="w-full" />
           <p className="text-sm font-semibold whitespace-pre text-primary">
             {`${amount(level, 'L')}  |  ${Math.round(fraction * 100)}%`}
           </p>
         </div>
 
-        <dl className="flex min-w-0 flex-1 flex-col divide-y divide-subtle">
+        <dl className="flex w-full min-w-0 flex-1 flex-col divide-y divide-subtle">
           <div className="flex items-baseline justify-between gap-4 py-1.5">
             <dt className="shrink-0 text-sm font-medium text-secondary">Max capacity</dt>
-            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+            <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
               {amount(capacity, 'L')}
             </dd>
           </div>
@@ -112,13 +118,13 @@ export const DepotTank = ({
               every yard has taken at least one delivery in it. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
             <dt className="shrink-0 text-sm font-medium text-secondary">{`Fuel Out, ${periodLabel}`}</dt>
-            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+            <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
               {amount(movement.outLitres, 'L')}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-4 py-1.5">
             <dt className="shrink-0 text-sm font-medium text-secondary">{`Fuel In, ${periodLabel}`}</dt>
-            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+            <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
               {movement.receivedLitres === 0 ? (
                 <span className="text-tertiary">No delivery</span>
               ) : (
@@ -133,7 +139,7 @@ export const DepotTank = ({
               problem. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
             <dt className="shrink-0 text-sm font-medium text-secondary">Arrived at sites</dt>
-            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+            <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
               {amount(movement.deliveredLitres, 'L')}
             </dd>
           </div>
@@ -175,7 +181,7 @@ export const DepotTank = ({
               does, and neither is remarkable. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
             <dt className="shrink-0 text-sm font-medium text-secondary">Gensets served</dt>
-            <dd className="text-right text-sm font-semibold text-primary tabular-nums">
+            <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
               {served}
             </dd>
           </div>

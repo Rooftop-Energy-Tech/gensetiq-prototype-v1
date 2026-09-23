@@ -140,7 +140,9 @@ export const FuelPage = () => {
     // it to the delivery table: the depot cards stayed pinned while a reader dragged
     // a scrollbar inside a box to read a list of hundreds. The tanks are worth
     // scrolling past.
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-4">
+    // `pb-24` below `md`: `MobileNav` is a floating pill rather than a docked bar,
+    // so nothing reserves space for it and the last card's final rows sat under it.
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-24 md:pb-4">
       {/* Above everything, because the page is a reconciliation and two halves of
           one measured over different periods do not reconcile. */}
       <PeriodControl
@@ -240,15 +242,21 @@ export const FuelPage = () => {
           // Four columns of short cells do not need sideways scrolling; if they ever
           // do, the page's own `overflow-y-auto` gives it for the same reason, one
           // level up, where it scrolls the page instead of trapping the table.
+          //
+          // On a phone five columns cannot fit in 390px either way, and with no
+          // overflow anywhere it was the *page* that scrolled sideways. So two of
+          // them drop below `sm` rather than being scrolled to: `Depot`, which the
+          // chips above already filter by, and `Where`, which is the yard the
+          // genset on that row is posted to and reachable by tapping it.
           <div className="rounded-md border border-subtle">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-element">
                 <tr className="text-left text-xs text-secondary">
                   <th className="border-b border-subtle p-2 font-medium">Genset</th>
-                  <th className="border-b border-subtle p-2 font-medium">Depot</th>
+                  <th className="hidden border-b border-subtle p-2 font-medium sm:table-cell">Depot</th>
                   <th className="border-b border-subtle p-2 font-medium">Delivered</th>
                   <th className="border-b border-subtle p-2 font-medium">Litres</th>
-                  <th className="border-b border-subtle p-2 font-medium">Where</th>
+                  <th className="hidden border-b border-subtle p-2 font-medium sm:table-cell">Where</th>
                 </tr>
               </thead>
               <tbody>
@@ -263,7 +271,7 @@ export const FuelPage = () => {
                         {row.name}
                       </Link>
                     </td>
-                    <td className="h-11 truncate border-b border-subtle p-2 text-secondary">
+                    <td className="hidden h-11 truncate border-b border-subtle p-2 text-secondary sm:table-cell">
                       {row.depotName}
                     </td>
                     <td className="h-11 truncate border-b border-subtle p-2 text-primary">
@@ -275,7 +283,7 @@ export const FuelPage = () => {
                         {row.litres.toLocaleString('en-MY')} L
                       </span>
                     </td>
-                    <td className="h-11 truncate border-b border-subtle p-2 text-secondary">
+                    <td className="hidden h-11 truncate border-b border-subtle p-2 text-secondary sm:table-cell">
                       {row.place}
                     </td>
                   </tr>
