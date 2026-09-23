@@ -148,7 +148,7 @@ export const DepotTank = ({
                 the card asked the reader to take on trust. The two operands are the
                 rows immediately above it, so the label doubles as the working. */}
             <dt className="text-sm font-medium text-secondary">
-              Fuel issued − fuel delivered at sites
+              Fuel issued − Fuel delivered at sites
             </dt>
             <dd
               className={cn(
