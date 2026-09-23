@@ -1,13 +1,11 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, TruckIcon} from 'lucide-react';
+import {BoomBoxIcon, FuelIcon, TruckIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {deploymentSearch} from '@/modules/deployment/types/view.type';
 import type {DeploymentSearch} from '@/modules/deployment/types/view.type';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 import type {GensetSearch} from '@/modules/genset/types/view.type';
-
-import type {SiteSearch} from '@/modules/site/types/view.type';
 
 /**
  * The phone-width nav: a floating pill at the bottom of the screen.
@@ -28,7 +26,17 @@ import type {SiteSearch} from '@/modules/site/types/view.type';
  *
  * ## Why the three are the three
  *
- * Each is a **register** — a list, which is the one shape that reads at 390px.
+ * Two are **registers** — a list, which is the one shape that reads at 390px. The
+ * third is Fuel, which is not a list but stacks: four depot cards in one column and
+ * a delivery table that sheds two columns below `sm`. It is on the bar because it
+ * was the one screen a reader could reach only by typing its URL, and because the
+ * question it answers — did the fuel that left the yard arrive — is asked standing
+ * in the yard rather than at a desk.
+ *
+ * `Reporting` is not here, and not because of its width: it has no scroll container
+ * of its own, so under the shell's `overflow-hidden` anything below the fold is
+ * unreachable at any size. It goes on the bar when that is fixed.
+ *
  * Everything below a register is a detail page with a 240px rail beside it, and
  * the rail has no phone form at all (see `DetailSidebar`): a phone sent to
  * `/gensets/brf9540` gets the page but not its six sections. That is acceptable for
@@ -43,7 +51,7 @@ import type {SiteSearch} from '@/modules/site/types/view.type';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/gensets' | '/deployments';
+  link: '/gensets' | '/deployments' | '/fuel';
   /**
    * The screen's own view state, whole.
    *
@@ -56,7 +64,7 @@ type MobileNavItem = {
    * No longer optional: the dispatch feed used to be one table with a search box and
    * carried no view state to name. It is a register now — see `DeploymentPage`.
    */
-  search: GensetSearch | SiteSearch | DeploymentSearch;
+  search?: GensetSearch | DeploymentSearch;
 };
 
 const ITEMS: Array<MobileNavItem> = [
@@ -73,6 +81,10 @@ const ITEMS: Array<MobileNavItem> = [
     link: '/deployments',
     search: deploymentSearch({view: 'list'}),
   },
+  // The depot reconciliation. No `search`: its period and depot filter are
+  // component state rather than URL state, so the route takes no params and the
+  // bar has nothing to name.
+  {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
 ];
 
 export const MobileNav = () => (
