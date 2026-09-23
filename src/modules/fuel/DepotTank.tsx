@@ -105,19 +105,19 @@ export const DepotTank = ({
             </dd>
           </div>
           {/* The two movements a level sensor can see, over the last 30 days.
-              Out is every fall, in is every rise, and they are kept apart
+              Fuel Out is every fall, Fuel In is every rise, and they are kept apart
               rather than netted: a 50,000 L delivery into the yard would otherwise
               cancel a week of tankers going out and the tile would read as a quiet
               month. Thirty days until the period control lands — long enough that
               every yard has taken at least one delivery in it. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">{`Out, ${periodLabel}`}</dt>
+            <dt className="shrink-0 text-sm font-medium text-secondary">{`Fuel Out, ${periodLabel}`}</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
               {amount(movement.outLitres, 'L')}
             </dd>
           </div>
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">{`In, ${periodLabel}`}</dt>
+            <dt className="shrink-0 text-sm font-medium text-secondary">{`Fuel In, ${periodLabel}`}</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
               {movement.receivedLitres === 0 ? (
                 <span className="text-tertiary">No delivery</span>
@@ -127,12 +127,12 @@ export const DepotTank = ({
             </dd>
           </div>
           {/* The other side of the reconciliation: what the machines' own tanks
-              recorded arriving, summed across this yard's catchment. Out is a
+              recorded arriving, summed across this yard's catchment. Fuel Out is a
               depot instrument, this is thirty-eight separate ones, and the gap
               between them is the only thing on this page that is anybody's
               problem. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">Delivered at sites</dt>
+            <dt className="shrink-0 text-sm font-medium text-secondary">Arrived at sites</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
               {amount(movement.deliveredLitres, 'L')}
             </dd>
@@ -148,7 +148,7 @@ export const DepotTank = ({
                 the card asked the reader to take on trust. The two operands are the
                 rows immediately above it, so the label doubles as the working. */}
             <dt className="text-sm font-medium text-secondary">
-              Fuel out − Fuel delivered
+              Fuel Out − Fuel Arrived
             </dt>
             <dd
               className={cn(
