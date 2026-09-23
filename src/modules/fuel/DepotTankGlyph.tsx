@@ -7,9 +7,22 @@ import {useId} from 'react';
  *
  * `TankGlyph` draws a machine's belly tank — an upright box of eight segments, which
  * is what a skid-mounted set carries and what a reader has learned to read on every
- * genset page. A depot is not that object. It is a horizontal pressure vessel on
- * legs with a ladder up the middle, and drawing it as a tall box makes the page's
- * one *place* look like a thirty-ninth machine.
+ * genset page. A depot is not that object. It is a horizontal vessel on saddles, and
+ * drawing it as a tall box makes the page's one *place* look like a thirty-ninth
+ * machine.
+ *
+ * ## Silhouette, not line art
+ *
+ * This was first drawn as an outline — a 4px round-capped stroke, a full capsule
+ * radius, a rung ladder up the middle and two filler hooks on the crown — and every
+ * one of those is a cartooning device on its own. Together they made the yard's tank
+ * the most illustrated object in the app.
+ *
+ * So there is no stroke here at all: the vessel is a solid mass in the page's grey
+ * and the diesel is a solid mass inside it, which is how the filled Lucide marks
+ * elsewhere are built. Stroke weight is what makes line art look drawn, and a
+ * silhouette has none to get wrong. The saddles are drawn *before* the shell so the
+ * shell's own shape cuts their tops off, rather than being fitted to its curve.
  *
  * ## Continuous, not segmented
  *
@@ -18,16 +31,9 @@ import {useId} from 'react';
  * continuously: at 200,000 L a segment would be 25,000 L, and rounding the yard's
  * stock to the nearest quarter of a tanker is not a rounding anybody wants.
  *
- * ## Construction
- *
- * Line art in `currentColor` at a single stroke weight, so it sits beside the Lucide
- * marks elsewhere without looking like a pasted-in asset. The caller passes the ink:
- * `text-secondary` — 60% of near-black, a dark grey — rather than `primary`, which
- * at this stroke weight and this size draws as flat black and turns a tank into a
- * cartoon. The fill is a plain rect
- * clipped to the vessel's own outline — the liquid is flat and the curve at each end
- * cuts it, which is what a horizontal cylinder actually does and the reason its
- * middle holds far more per centimetre than its ends.
+ * The liquid is a plain rect clipped to the vessel's own outline, so the curve at
+ * each end cuts it — which is what a horizontal cylinder actually does, and the
+ * reason its middle holds far more per centimetre than its ends.
  */
 export const DepotTankGlyph = ({
   fraction,
@@ -43,74 +49,37 @@ export const DepotTankGlyph = ({
   const filled = Math.min(1, Math.max(0, fraction));
 
   // The vessel's own box, inside the viewBox. The fill is measured against these.
-  const top = 26;
+  const top = 28;
   const bottom = 104;
-  const height = bottom - top;
-  const surface = bottom - height * filled;
+  const surface = bottom - (bottom - top) * filled;
 
   return (
     <svg
       viewBox="0 0 200 132"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={4}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      fill="currentColor"
       className={className}
       role="img"
       aria-label={`Depot tank ${Math.round(filled * 100)}% full`}
     >
       <defs>
         <clipPath id={clipId}>
-          <rect x={14} y={top} width={172} height={height} rx={34} />
+          <rect x={12} y={top} width={176} height={bottom - top} rx={20} />
         </clipPath>
       </defs>
 
-      {/* ## Two solid tones, as `TankGlyph` has
-          The genset tank fills its segments in teal and leaves the rest in
-          `tertiary` — a solid colour either way, so the reader sees a boundary
-          between two materials rather than a shape with some paint in it. This drew
-          its empty half as bare card, which read as an outline drawing that happened
-          to have liquid in the bottom. */}
-      <rect
-        x={14}
-        y={top}
-        width={172}
-        height={height}
-        clipPath={`url(#${clipId})`}
-        fill="currentColor"
-        stroke="none"
-        className="text-tertiary/45"
-      />
+      {/* Saddles and the base, under the shell so it overlaps them. */}
+      <g className="text-tertiary/55">
+        <rect x={40} y={96} width={9} height={20} rx={2} />
+        <rect x={151} y={96} width={9} height={20} rx={2} />
+        <rect x={26} y={114} width={148} height={4} rx={2} />
+      </g>
 
-      {/* The diesel over it. Both are drawn before every line of the vessel, so the
-          outline and the seams sit on top of whichever tone they cross. */}
-      <rect
-        x={14}
-        y={surface}
-        width={172}
-        height={bottom - surface}
-        clipPath={`url(#${clipId})`}
-        fill="currentColor"
-        stroke="none"
-        className="text-teal"
-      />
-
-      {/* Saddles and the base the vessel stands on. */}
-      <path d="M40 104v14M60 104v14M140 104v14M160 104v14" />
-      <path d="M24 118h152" />
-
-      {/* The vessel, and the two seams that divide its ends from its barrel. */}
-      <rect x={14} y={top} width={172} height={height} rx={34} />
-      <path d="M72 26v78M128 26v78" />
-
-      {/* The ladder up the middle, which is what makes it read as a yard tank
-          rather than a capsule. */}
-      <path d="M86 26v78M114 26v78" />
-      <path d="M86 45h28M86 62h28M86 79h28M86 96h28" />
-
-      {/* The two fill points on the crown. */}
-      <path d="M44 26v-8a6 6 0 0 1 12 0v8M148 26v-8a6 6 0 0 1 12 0v8" />
+      {/* Two solid tones, as `TankGlyph` has: the reader sees a boundary between two
+          materials rather than a shape with some paint in it. */}
+      <g clipPath={`url(#${clipId})`}>
+        <rect x={12} y={top} width={176} height={bottom - top} className="text-tertiary/35" />
+        <rect x={12} y={surface} width={176} height={bottom - surface} className="text-teal" />
+      </g>
     </svg>
   );
 };
