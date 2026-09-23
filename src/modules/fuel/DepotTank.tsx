@@ -144,10 +144,15 @@ export const DepotTank = ({
               but an instrument disagreeing: a float reading long, or a top-up from
               a drum nobody put through the yard. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">Variance</dt>
+            {/* Named as the subtraction rather than as `Variance`, which was a term
+                the card asked the reader to take on trust. The two operands are the
+                rows immediately above it, so the label doubles as the working. */}
+            <dt className="text-sm font-medium text-secondary">
+              Fuel issued − fuel delivered at sites
+            </dt>
             <dd
               className={cn(
-                'text-right text-sm font-semibold tabular-nums',
+                'shrink-0 text-right text-sm font-semibold whitespace-nowrap tabular-nums',
                 verdict?.severity === 'CRITICAL'
                   ? 'text-severity-critical'
                   : verdict?.severity === 'WARNING'
