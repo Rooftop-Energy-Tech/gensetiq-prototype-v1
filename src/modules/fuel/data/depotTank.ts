@@ -115,12 +115,26 @@ export type Depot = {
    * Absent, the capacity is derived — see `depotCapacityLitres`.
    */
   capacityLitres?: number;
+  /**
+   * This yard's level sensor under-reads its falls, as a fraction.
+   *
+   * A float out of calibration does not lose fuel; it mis-measures the fuel that
+   * moves. So the tank really gives up the litres the fleet took, and the
+   * instrument writes down slightly fewer — which is why the variance comes out
+   * **negative**: the gensets can prove more arrived than the depot can prove it
+   * released. That is the one shape of gap that is never a loss, and it is what
+   * `Check calibration` exists to say.
+   *
+   * Set on exactly one yard. Without it every depot reconciled to within a few
+   * litres, and the middle grade of the alarm had no way to be seen.
+   */
+  sensorDriftFraction?: number;
 };
 
 export const DEPOTS: ReadonlyArray<Depot> = [
   {id: 'klang', name: 'Klang', locationLabel: 'Klang, Selangor', latitude: 3.0449, longitude: 101.4455},
   {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', latitude: 4.5975, longitude: 101.0901},
-  {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', latitude: 5.3991, longitude: 100.3639},
+  {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', latitude: 5.3991, longitude: 100.3639, sensorDriftFraction: 0.025},
   {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914},
 ];
 
@@ -194,6 +208,7 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
   // fuel that left this tank at that moment.
   const served = new Set(depotFleet(depotId));
   const capacity = depotCapacityLitres(depotId);
+  const drift = DEPOTS.find((depot) => depot.id === depotId)?.sensorDriftFraction ?? 0;
 
   const outByStep = new Map<number, number>();
   for (const genset of GENSETS) {
@@ -208,7 +223,11 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
   // a hose, a meter reading long — and one larger drop that nobody wrote down.
   const ullagePerStep = spreadBetween(depotId, 'ullage', 0.07, 0.19);
   const mysteryStep = Math.floor(spread(depotId, 'mystery-when') * ((to - from) / STEP));
-  const mysteryLitres = spreadBetween(depotId, 'mystery-litres', 700, 1_400);
+  // The drifting yard takes no mystery drop. Its story is an instrument, and a
+  // four-figure loss landing inside the window would swamp the drift and flip the
+  // variance positive — the card would then cry theft at the one depot where
+  // nothing is missing.
+  const mysteryLitres = drift > 0 ? 0 : spreadBetween(depotId, 'mystery-litres', 700, 1_400);
 
   const samples: Array<DepotSample> = [];
   let level = capacity;
@@ -222,6 +241,10 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
     const t = from + step * STEP;
 
     const issued = (outByStep.get(step) ?? 0) + ullagePerStep + (step === mysteryStep ? mysteryLitres : 0);
+    // What the sensor writes down. Every figure below is the instrument's, because
+    // the instrument is all this page has — the level, the reorder, and the size of
+    // the next load a yard orders against what it believes it has issued.
+    const sensed = issued * (1 - drift);
 
     // ## The supplier comes on a round, not when the tank nearly empties
     //
@@ -255,7 +278,7 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
     // past its reserve, the supplier is called out: a tank that reaches the floor
     // mid-fall loses the rest of the drop, and the page then reports fuel arriving
     // at machines the yard never released.
-    if (level - issued < capacity * REORDER_FRACTION) {
+    if (level - sensed < capacity * REORDER_FRACTION) {
       level = capacity;
       samples.push({t, litres: Math.round(level), delivered: 0});
       lastDelivery = step;
@@ -263,8 +286,8 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
       deliveries += 1;
     }
 
-    level -= issued;
-    issuedSinceDelivery += issued;
+    level -= sensed;
+    issuedSinceDelivery += sensed;
     samples.push({
       t: t + STEP / 2,
       litres: Math.round(level),
