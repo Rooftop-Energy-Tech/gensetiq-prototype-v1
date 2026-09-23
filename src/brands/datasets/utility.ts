@@ -180,7 +180,7 @@ const GENSETS = [
   {tag: 'CUM-801936', model: 'Cummins 500 kVa',      runState: 'RUNNING', siteId: 'pe-004', locationLabel: 'Sentul, Kuala Lumpur',         latitude: 3.1830, longitude: 101.6900, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8,  plateNumber: 'WHB 9411'},
   {tag: 'CAT-736523', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9260, longitude: 101.6958, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1,  plateNumber: 'WLA 9480'},
   {tag: 'DNY-201708', model: 'Denyo 250 kVa',        runState: 'OFFLINE', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9268, longitude: 101.6970, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'WKC 3190'},
-  {tag: 'FGW-181837', model: 'FG Wilson 650 kVa',    runState: 'RUNNING', siteId: 'pe-006', locationLabel: 'Kepong, Kuala Lumpur',         latitude: 3.2100, longitude: 101.6300, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST', plateNumber: 'WGP 7087'},
+  {tag: 'FGW-181837', model: 'FG Wilson 650 kVa',    runState: 'RUNNING', siteId: 'pe-006', locationLabel: 'Kepong, Kuala Lumpur',         latitude: 3.2100, longitude: 101.6300, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST', plateNumber: 'H 4141'},
 
   // — Selangor (8).
   {tag: 'CUM-930666', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-007', locationLabel: 'Shah Alam, Selangor',          latitude: 3.0726, longitude: 101.5174, fuelLitres: 2004, fuelCapacityLitres: 2450, staleMinutes: 2,  plateNumber: 'BQH 7644'},
