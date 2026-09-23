@@ -126,7 +126,7 @@ export const DepotTank = ({
               )}
             </dd>
           </div>
-          {/* The other side of the reconciliation: what the machines' own tanks
+          {/* The other side of the reconciliation: what the gensets' own tanks
               recorded arriving, summed across this yard's catchment. Fuel Out is a
               depot instrument, this is thirty-eight separate ones, and the gap
               between them is the only thing on this page that is anybody's
@@ -139,7 +139,7 @@ export const DepotTank = ({
           </div>
 
           {/* Signed, and the sign is the story. **Positive means fuel left the yard
-              and never arrived** — the case worth chasing. Negative means machines
+              and never arrived** — the case worth chasing. Negative means gensets
               recorded more than the depot released, which is not theft in reverse
               but an instrument disagreeing: a float reading long, or a top-up from
               a drum nobody put through the yard. */}
@@ -174,7 +174,7 @@ export const DepotTank = ({
               yard serving twenty-one sets issues four times what one serving five
               does, and neither is remarkable. */}
           <div className="flex items-baseline justify-between gap-4 py-1.5">
-            <dt className="shrink-0 text-sm font-medium text-secondary">Machines served</dt>
+            <dt className="shrink-0 text-sm font-medium text-secondary">Gensets served</dt>
             <dd className="text-right text-sm font-semibold text-primary tabular-nums">
               {served}
             </dd>
