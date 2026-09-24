@@ -2,7 +2,7 @@
   "name": "telcoiq-frontend",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "vite dev --port 3400",
     "dev:unbranded": "VITE_BRAND=gensetiq vite dev --port 3402",
