@@ -1,6 +1,6 @@
 [submodule ".claude"]
 	path = .claude
-	url = git@github.com:Rooftop-Energy-Tech/rooftop-claude-config.git
+	url = git@github.com:Rooftop-Energy-Tech/.claude.git
 [submodule ".agents"]
 	path = .agents
-	url = git@github.com:Rooftop-Energy-Tech/rooftop-agents-config.git
+	url = git@github.com:Rooftop-Energy-Tech/.agents.git
