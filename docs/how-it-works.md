@@ -1174,6 +1174,14 @@ closed a click is a dead end that reads as a broken control. The toggle therefor
 means "hide the preview until I next ask for one", and it never sits between the
 row-click and the preview it is supposed to produce.
 
+**The summary is four cards again**, in the shape of the telcoIQ Sites strip: `Gensets`
+(the total, `Showing N` when filtered, and how many states), `Status` (the three
+buckets as toggles), `Due for service` (a toggle for `?service=due`, with how many
+states those sets are in) and `Fuel on hand` (fleet diesel as a share of tank
+capacity, litres under it — where the estate has `Solar share`). It was one line
+from 2026-09-21 to save height above the register; it went back to cards on
+2026-09-28 on request. All four count the whole fleet.
+
 **The cards above the table are counts that double as filters.** Showing a number an
 operator cannot act on is half a control, so each count is a toggle: click `Low
 fuel` and the list and the map both narrow. The counts themselves do not move when

@@ -270,6 +270,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
 
       <GensetsSummaryCards
         summary={summary}
+        fleet={all}
         showing={gensets.length}
         search={search}
         onSearchChange={onSearchChange}

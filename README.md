@@ -1143,7 +1143,8 @@ fleet was hit.
 **The dropdowns' counts follow the other filters.** Pick Johor and `Status`, `Alarm`
 and `Fuel level` count only Johor's sets; each dropdown counts over what the other
 filters leave, so an option's number is what picking it shows. Zeros stay, greyed.
-The summary strip still counts the whole fleet.
+The summary cards above the table (`Gensets`, `Status`, `Due for service`, `Fuel on
+hand`) still count the whole fleet; `Status` and `Due for service` are filters.
 
 **A `Filtered by:` row appears under the toolbar while any filter is on** — one chip
 per filter (search, State, Status, Alarm, Fuel level, the summary chip, Service due),
