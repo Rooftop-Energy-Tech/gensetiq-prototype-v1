@@ -1055,6 +1055,84 @@ act: click the name, or the `→` in the panel header. Over the map the panel's 
 is the only way in, because a pin has nowhere to put a link and clicking one has to
 leave you on the map or the selection is useless.
 
+**The map draws state borders** at every zoom — neutral, never the brand colour, and
+weighted to stay findable at both ends: a hairline over empty sea, heavier with a pale
+casing under it once the basemap fills up with roads and buildings. They are drawn
+from the app's own shapes — the same ones the hover washes in — and the basemap's own
+state boundary is switched off, for reasons given further down. They are furniture —
+the same job the basemap's own coastline does — and they are there so the hover and
+the click below have something to aim at.
+
+**Hovering a state isolates it.** Put the cursor anywhere inside one and that state
+washes in under the fleet, its name and count are drawn **once**, at the centre of all
+the land that state is made of, and every pin and cluster bubble standing anywhere
+else fades back. The label is pinned to that point: zoom into a corner of Sarawak and
+it is off-screen, because it belongs to a place rather than to the viewport.
+
+**The wash fits the border exactly, because they are the same shapes.** The border
+itself does not change under the cursor — it is furniture, drawn at one weight
+whatever is hovered, and the wash is what says which state you are asking about.
+
+It answers the question the pins make you count for: *how much of this is in Sarawak*.
+The registers already narrow by customer, duty and status; geography was the one axis
+you could see and not ask about. This is not a filter — the dimmed fleet stays
+visible, because the question is how one state compares with the rest and hiding the
+rest would answer a different one.
+
+**Clicking a state frames it.** The hover says how much is here; the click says show
+me. Click the basemap anywhere inside a state and the map fits the whole of that state
+into view — islands included, centred, with the same padding the fleet is framed with.
+Nothing else changes: the fleet outside it is still drawn, the list beside the map
+holds its place, and nothing is selected. A click on a pin or a bubble is still a click
+on a pin or a bubble; the state only answers when nothing on the fleet was hit. The
+frame is measured on the fine copy of the shapes rather than the coarse one — the
+coarse copy has shed Terengganu's islands, and a frame that left Redang off the edge
+of the screen would be a frame of the wrong shape.
+
+**The count follows the toolbar.** Hovering Sarawak with the list filtered to
+`Offline` says how many *offline* sets are in Sarawak, not how many sets. The count
+is of what is drawn, which is what the rest of the screen means by a number. It is
+the one place this parts company with the summary cards above the table, which hold
+still on purpose — those are a picture of the whole fleet, and this is a reading of
+the map you are looking at.
+
+**A state with nothing in it still answers.** Hovering Perlis highlights Perlis and
+says `0 gensets`. An area that went inert would make the reader test whether the
+control was working; `0` is a fact about the estate and one worth being able to find.
+
+A cluster bubble is judged by what is inside it rather than by where it sits: it stays
+lit if *any* of the sets it swallowed stand in the hovered state. At the zoom the map
+opens at, the Klang Valley is one bubble over four states — judging it by its own
+position would be cheaper and wrong every time.
+
+**The borders and the wash are one set of shapes, and the basemap's own are switched
+off.** That is the opposite of the obvious answer and worth saying why.
+
+Drawing the basemap's boundary layer is *exact* — it is the geometry the reader can
+see. What it cannot do is have anything drawn inside it: those tiles carry only
+`admin_level` and `maritime`, with no per-state identity, so a single state cannot be
+selected out of them. The wash therefore has to come from our polygons, and our
+polygons disagree with the basemap's boundary by 130 m on average and 850 m at worst
+— two OpenStreetMap snapshots cut at different times, which no amount of detail
+closes. The shading spilled across the line.
+
+So one set of shapes does both, and the basemap's pink dashed hairline — which starts
+at zoom 9 and sits underneath water anyway — is hidden. What ours still has to line up
+against is the coastline the basemap draws, since a state's outline follows the coast
+for most of its length.
+
+Those shapes come from geoBoundaries' OSM extract, in the repo rather than fetched,
+for the reason the basemap is CARTO's: this thing has to come up on a fresh clone with
+nothing configured. Two copies — a 22 m one served out of `public/` for the borders and
+the wash, and a 440 m one in the bundle for the arithmetic — because simplification
+shows when you draw a shape and does not when you only ask which side of it something
+is on.
+
+One site still needs slack: a coastline is a generalisation, and a tower on reclaimed
+land can fall the wrong side of it, so a site within about five kilometres of a coast
+counts as standing in the state it is obviously standing in. Under Natural Earth
+fifteen sites needed that; under OSM it is one. See `src/lib/geo/malaysiaStates.ts`.
+
 **Selecting opens the panel**, whatever the toolbar's toggle was set to. Selection
 has no other visible effect — it tints a row, it recolours a pin — so with the panel
 closed a click is a dead end that reads as a broken control. The toggle therefore

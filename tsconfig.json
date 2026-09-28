@@ -17,6 +17,9 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    // The Malaysian state boundaries are shipped as data rather than as a
+    // generated module — see `src/lib/geo/malaysiaStates.ts`.
+    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,

@@ -1073,6 +1073,122 @@ Five departures, in order of how much they matter.
    exported for the same reason the gauges are: Figma ships four variants of it, and
    a bitmap per state per genset count is not a component.
 
+### Hovering a state is not in the design
+
+The Figma draws the map as pins over a basemap and nothing else. Every register can
+already be narrowed by customer, duty, programme and status — geography is the one
+axis a reader can *see* and had no way to ask about, and counting pins by eye across
+two landmasses is not asking.
+
+So the map carries state borders at every zoom — neutral, and weighted so they hold
+their own over empty sea and over Voyager at its busiest alike — and answers on
+hover: the cursor inside a state washes that state in, draws its name and count once
+at the centre of all that state's land, and fades every pin and cluster bubble
+standing elsewhere.
+
+**The label is one point, not one per landmass.** A symbol layer over the polygons
+names each *part* — Sabah is eight pieces, so it wrote itself across eight islands —
+so the labels come from a source of sixteen points instead, one per state, at the
+area-weighted centre of every part. Penang is the case that shows what that means: 71%
+mainland, 29% island, and its label sits between them rather than deep in Seberang
+Perai. All sixteen fall on land, which `src/lib/geo/malaysiaStates.ts` says is
+checked rather than assumed.
+
+The borders were hidden until hovered at first, on the argument that a map of the
+country already has a country on it. True, and beside the point: it left the reader
+nothing to aim at, and a border that only appears once you have found it is not an
+affordance. So the borders are furniture, doing the job the basemap's coastline does,
+and the wash, the label and the dimmed fleet are the hover.
+
+Four choices worth stating, because each had a cheaper wrong version:
+
+- **It dims rather than filters.** The question is how one state compares with the
+  rest, so the rest stays visible at 18%. Hiding it would answer a different question,
+  and the toolbar already answers that one.
+- **The wash and the border are one set of shapes.** The tint stops exactly at the
+  line because they are the same geometry. Drawing the border from the basemap's own
+  tiles instead is exact — it is what the reader can see — but those tiles carry no
+  per-state identity, so nothing can be shaded *inside* one, and a wash from our
+  polygons inside a border from theirs spilled across it. See below.
+- **The hover adds no second line.** The border does not thicken or change colour
+  under the cursor; the wash marks the state instead. One border, always the same
+  weight, is one less thing moving.
+- **The count follows the toolbar**, so `Offline` + Sarawak reads "offline sets in
+  Sarawak". It is a count of what is drawn. This is the one figure on the screen that
+  parts company with the summary cards above the table, which hold still on purpose.
+- **A cluster is judged by its members, not its position.** It stays lit if any of
+  what it swallowed is in the hovered state. The map opens at a zoom where the Klang
+  Valley is one bubble over four states.
+
+**Clicking a state frames it.** The hover says how much is here; the click says show
+me. A click on the basemap inside a state fits the viewport to the whole of that state
+— islands included, centred, with the same padding the fleet is framed with — and
+changes nothing else: the fleet outside it is still drawn, the list beside the map is
+untouched, and it is not a selection. A click on a pin or a bubble still does what it
+did; the state only answers when nothing on the fleet was hit.
+
+The box it fits to is measured on the drawn copy of the shapes, not the coarse one the
+click is resolved against. The coarse copy drops islands under ~6 km², which would put
+Terengganu's frame 22 km short of Redang and the Perhentians and Labuan's 7 km short
+of its own east coast. The build script measures the box once on the fine copy and
+carries it on both as each feature's `bbox`.
+
+**The borders are drawn from our own shapes, and the basemap's are switched off.**
+This took several goes and the reasoning is worth keeping, because the obvious answer
+is the wrong one.
+
+Drawing the basemap's own boundary layer is *exact* — it is the geometry the reader
+can see, so it cannot be a pixel out. What it cannot do is have anything drawn inside
+it. Voyager's boundary tiles carry only `admin_level` and `maritime`; there is no
+per-state identity in them, so "Sarawak" cannot be selected out of that geometry. The
+wash therefore has to come from our polygons — and our polygons disagree with the
+basemap's boundary by **130 m on average and 850 m at worst**, measured by sampling
+its tiles against this dataset *unsimplified*. Two OSM snapshots cut at different
+times; no amount of detail closes it. The shading spilled across the line.
+
+So both come from one set of shapes. Voyager's `boundary_state` — a pale pink dashed
+hairline that starts at zoom 9 and sits *underneath* water and landuse, which is why
+it reads as absent — is hidden, and ours is drawn above the basemap's fill and below
+the fleet. One border, a wash that fits it, and nothing for either to disagree with.
+
+`findBasemapStateBoundary` locates the basemap's layer structurally — a line layer
+over a vector source whose filter names `admin_level` and `4` — rather than trusting
+the id, since a basemap is versioned by somebody else. It exists only to turn that
+layer off.
+
+What ours still has to line up against is the **coastline**, since a state's outline
+follows the coast for most of its length and the basemap draws that. It is what sets
+the 22 m tolerance on the drawn copy.
+
+**Two copies, for two jobs.** They are geoBoundaries `gbOpen` ADM1 for MYS — OSM
+under ODbL 1.0, attributed on the MapLibre source, which is the second row of a credit
+the basemap already carries.
+
+| file | detail | used for |
+| --- | --- | --- |
+| `public/malaysia-states.geo.json` | ~22 m, 810 kB | the borders and the hover wash |
+| `src/lib/geo/malaysiaStates.geo.json` | ~440 m, 94 kB | point-in-polygon, and the label anchors |
+
+The fine one is **served, not bundled** — it would otherwise be the largest thing in
+the JavaScript, MapLibre fetches a source by URL happily, and nothing needs it before
+the map has painted. It is still a file in this repo, so a fresh clone with no network
+still has its borders. The coarse one is bundled because what it answers is
+synchronous — which state is this genset in, which state is the cursor in — and 440 m
+cannot change either answer.
+
+Still committed rather than fetched from a service, for the reason the basemap is
+CARTO's: nothing here should be able to be down on the morning of a demo. A coastline
+is a generalisation either way, so a site within ~5 km of a coast counts as standing
+in the state it plainly stands in — fifteen sites needed that under Natural Earth, one
+does under OSM, which is as good a measure of the two datasets as any.
+`src/lib/geo/malaysiaStates.ts` holds the lookup and the reasoning;
+`buildMalaysiaStates.mjs` beside it is the whole derivation.
+
+All four maps carry it — gensets, sites, deployments and `PlantMap` — through one
+shared `attachStateHover`, for the reason the three cluster bubbles are one
+`clusterDonut`: four copies of this is the drift the map components already work to
+avoid.
+
 ### The power role is not in the design
 
 The Figma draws a site as gensets, isolators, a bus and a load — and **no mains

@@ -60,6 +60,18 @@ const segmentsKey = (segments: Array<DonutSegment>): string =>
   segments.map((segment) => `${segment.color}:${segment.count}`).join('|');
 
 /**
+ * Opacity is applied on every sync rather than being folded into `segmentsKey`.
+ *
+ * Setting a style property that is already at that value costs nothing, and keying
+ * on it would make a hover — which changes opacity and nothing else — rebuild every
+ * ring's SVG on the frame it lands.
+ */
+const applyOpacity = (element: HTMLElement, opacity: number): void => {
+  const next = opacity >= 1 ? '' : String(opacity);
+  if (element.style.opacity !== next) element.style.opacity = next;
+};
+
+/**
  * The ring itself.
  *
  * Each segment is a full circle with a dash pattern that reveals only its own arc,
@@ -114,6 +126,16 @@ type AttachOptions = {
   clusterLayerId: string;
   /** The mix under one bubble, read from its accumulated `clusterProperties`. */
   segmentsFor: (properties: Record<string, unknown>) => Array<DonutSegment>;
+  /**
+   * How strongly to draw one bubble's ring, 0–1. Defaults to fully drawn.
+   *
+   * The state hover uses it: a bubble holding nothing in the hovered state fades
+   * with the canvas circles underneath it. The ring is DOM rather than canvas, so
+   * MapLibre's paint properties can't reach it and it would otherwise stay bright
+   * over a bubble that had gone quiet — the one part of the map the dimming
+   * couldn't touch.
+   */
+  opacityFor?: (properties: Record<string, unknown>) => number;
 };
 
 /**
@@ -126,7 +148,7 @@ type AttachOptions = {
  */
 export const attachClusterDonuts = (
   map: maplibregl.Map,
-  {sourceId, clusterLayerId, segmentsFor}: AttachOptions,
+  {sourceId, clusterLayerId, segmentsFor, opacityFor}: AttachOptions,
 ): (() => void) => {
   const donuts = new Map<number, {marker: maplibregl.Marker; key: string}>();
 
@@ -145,7 +167,9 @@ export const attachClusterDonuts = (
       seen.add(clusterId);
 
       const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
-      const segments = segmentsFor(feature.properties ?? {});
+      const properties = feature.properties ?? {};
+      const segments = segmentsFor(properties);
+      const opacity = opacityFor?.(properties) ?? 1;
       const key = segmentsKey(segments);
       const existing = donuts.get(clusterId);
 
@@ -156,7 +180,9 @@ export const attachClusterDonuts = (
         // would make bubbles stop expanding on click.
         element.style.pointerEvents = 'none';
         element.style.lineHeight = '0';
+        element.style.transition = 'opacity 120ms ease-out';
         element.append(createDonut(segments));
+        applyOpacity(element, opacity);
 
         const marker = new maplibregl.Marker({element}).setLngLat(coordinates).addTo(map);
         donuts.set(clusterId, {marker, key});
@@ -164,6 +190,7 @@ export const attachClusterDonuts = (
       }
 
       existing.marker.setLngLat(coordinates);
+      applyOpacity(existing.marker.getElement(), opacity);
       if (existing.key !== key) {
         existing.marker.getElement().replaceChildren(createDonut(segments));
         existing.key = key;

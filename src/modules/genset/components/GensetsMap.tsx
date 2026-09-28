@@ -3,6 +3,9 @@ import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
+import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {attachStateHover} from '@/lib/geo/stateHover';
+import type {StateHoverHandle} from '@/lib/geo/stateHover';
 import {lightToken} from '@/styles/colors';
 import {RUN_STATE_META} from './runStateMeta';
 import {RUN_STATES} from '../types/genset.type';
@@ -88,6 +91,11 @@ const toFeatureCollection = (
       id: genset.id,
       runState: genset.runState,
       selected: genset.id === selectedId,
+      // Which state this set stands in, so the hover can tell its own pins from
+      // everyone else's — and so the cluster sums below have something to count.
+      // Filed here rather than on the `Genset` itself because it is a fact about a
+      // coordinate, not about a machine: move the set and it follows.
+      stateId: malaysiaStateAt(genset.longitude, genset.latitude) ?? '',
     },
   })),
 });
@@ -132,6 +140,18 @@ export const GensetsMap = ({
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
 
+  // The rows currently drawn, read from inside the state hover's count. A ref for
+  // the same reason as the handlers above — and because the count has to follow the
+  // toolbar: hovering Sarawak with the list filtered to Offline answers "how many
+  // offline sets are in Sarawak", which is the question the screen is already asking.
+  const gensetsRef = useRef(gensets);
+  gensetsRef.current = gensets;
+
+  // Read by the state click's fit, which runs after the same click may have closed
+  // the panel — so a ref the fit reads late, not a width captured at attach.
+  const panelInsetRef = useRef(panelInset);
+  panelInsetRef.current = panelInset;
+
   // Which selection we last flew to. Without this the map re-centres on every
   // unrelated render, yanking the viewport away from wherever the user panned.
   //
@@ -169,6 +189,11 @@ export const GensetsMap = ({
     // are never added — the map comes up as an empty basemap and stays that way
     // until the tab is focused. `style.load` fires as soon as the style is
     // parsed, which is all that adding sources and layers actually requires.
+    // Assigned at the end of `style.load`, once there are fleet layers for it to
+    // dim. The donut rings below close over it and are attached first, so they read
+    // it lazily rather than being handed it.
+    let stateHover: StateHoverHandle | undefined;
+
     map.on('style.load', () => {
       map.addSource(SOURCE, {
         type: 'geojson',
@@ -182,12 +207,17 @@ export const GensetsMap = ({
         // the mix of what it swallowed and not just how much. This is what the
         // donut ring is drawn from — the alternative, `getClusterLeaves` per
         // bubble, is async and would leave the rings a frame behind the map.
-        clusterProperties: Object.fromEntries(
-          RUN_STATES.map((state) => [
-            state,
-            ['+', ['case', ['==', ['get', 'runState'], state], 1, 0]],
-          ]),
-        ) as Record<string, maplibregl.ExpressionSpecification>,
+        clusterProperties: {
+          ...(Object.fromEntries(
+            RUN_STATES.map((state) => [
+              state,
+              ['+', ['case', ['==', ['get', 'runState'], state], 1, 0]],
+            ]),
+          ) as Record<string, maplibregl.ExpressionSpecification>),
+          // And the same again per Malaysian state, so a bubble knows whether any
+          // of what it swallowed stands in the one under the cursor.
+          ...MALAYSIA_STATE_CLUSTER_PROPERTIES,
+        },
       });
 
       // The cluster bubble is three stacked circles — two translucent haloes and
@@ -265,6 +295,26 @@ export const GensetsMap = ({
             lightToken.primary,
           ],
         },
+      });
+
+      // Attached here rather than beside the donuts, because it reads the fleet
+      // layers' own paint to know what to dim them *from* — which means they have to
+      // exist first.
+      stateHover = attachStateHover(map, {
+        pointLayerId: LAYER.point,
+        clusterCircleLayerIds: [LAYER.clusterHalo, LAYER.clusterRing, LAYER.clusterCore],
+        clusterCountLayerId: LAYER.clusterCount,
+        // Under the bubbles and the pins: the wash is context for the fleet, not a
+        // thing to read over it.
+        beforeLayerId: LAYER.clusterHalo,
+        countIn: (stateId) =>
+          gensetsRef.current.filter(
+            (genset) => malaysiaStateAt(genset.longitude, genset.latitude) === stateId,
+          ).length,
+        countLabel: (count) => `${count} ${count === 1 ? 'genset' : 'gensets'}`,
+        // The same frame the fleet gets, so a clicked state sits where a fitted fleet
+        // would — clear of the panel, if the panel is still there.
+        fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
       });
 
       loadedRef.current = true;
@@ -349,6 +399,7 @@ export const GensetsMap = ({
           color: RUN_STATE_META[state].mapColor,
           count: clusterCount(properties, state),
         })),
+      opacityFor: (properties) => stateHover?.clusterOpacity(properties) ?? 1,
     });
 
     map.on('error', (event) => {
@@ -360,6 +411,7 @@ export const GensetsMap = ({
     return () => {
       loadedRef.current = false;
       detachDonuts();
+      stateHover?.();
       map.remove();
       mapRef.current = null;
     };

@@ -3,6 +3,9 @@ import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount, refreshClusterDonuts} from '@/lib/clusterDonut';
+import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {attachStateHover} from '@/lib/geo/stateHover';
+import type {StateHoverHandle} from '@/lib/geo/stateHover';
 import {lightToken} from '@/styles/colors';
 
 /**
@@ -124,7 +127,17 @@ type PlantMapProps = {
   focusIds?: Array<string>;
   /** The map's accessible name — `Solar system locations map`. */
   label: string;
+  /**
+   * What one of these pins is called, for the count drawn inside a hovered state.
+   *
+   * This component is deliberately domain-free — it draws points and tones, and the
+   * caller supplies the vocabulary, the same way it supplies `label`. Defaults to
+   * the neutral word rather than guessing at solar or battery.
+   */
+  countNoun?: {one: string; many: string};
 };
+
+const DEFAULT_COUNT_NOUN = {one: 'unit', many: 'units'};
 
 const toFeatureCollection = (
   points: Array<PlantPoint>,
@@ -138,6 +151,11 @@ const toFeatureCollection = (
     properties: {
       id: point.id,
       tone: point.tone,
+      // Which state this pin stands in, so the hover can tell its own from everyone
+      // else's — and so the per-state cluster sums have something to count. Filed on
+      // the feature rather than on the record, because it is a fact about a
+      // coordinate: move the thing and it follows.
+      stateId: malaysiaStateAt(point.longitude, point.latitude) ?? '',
       selected: point.id === selectedId,
     },
   })),
@@ -171,6 +189,7 @@ export const PlantMap = ({
   panelInset = 0,
   focusIds,
   label,
+  countNoun = DEFAULT_COUNT_NOUN,
 }: PlantMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -186,6 +205,19 @@ export const PlantMap = ({
   onSelectRef.current = onSelect;
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
+
+  // The plant currently drawn, and what to call it, read from inside the state
+  // hover's count. Refs for the same reason as the handlers above: the hover is
+  // registered once and has to keep seeing the current render's answer.
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
+  const countNounRef = useRef(countNoun);
+  countNounRef.current = countNoun;
+
+  // Read by the state click's fit, which runs after the same click may have closed
+  // the panel — so a ref the fit reads late, not a width captured at attach.
+  const panelInsetRef = useRef(panelInset);
+  panelInsetRef.current = panelInset;
 
   // Which selection we last flew to. Without this the map re-centres on every
   // unrelated render, yanking the viewport away from wherever the user panned.
@@ -221,6 +253,11 @@ export const PlantMap = ({
     // *and* the map has painted a frame. A hidden or backgrounded tab gets no
     // animation frames, so `load` never fires there and the layers are never added —
     // the map comes up as a bare basemap and stays that way until the tab is focused.
+    // Assigned at the end of `style.load`, once there are fleet layers for it to
+    // dim. The donut rings close over it and are attached first, so they read it
+    // lazily rather than being handed it.
+    let stateHover: StateHoverHandle | undefined;
+
     map.on('style.load', () => {
       map.addSource(SOURCE, {
         type: 'geojson',
@@ -235,12 +272,17 @@ export const PlantMap = ({
         // what it swallowed and not just how much. This is what the donut ring is
         // drawn from — the alternative, `getClusterLeaves` per bubble, is async and
         // would leave the rings a frame behind the map.
-        clusterProperties: Object.fromEntries(
-          tonesRef.current.map((tone) => [
-            toneKey(tone.key),
-            ['+', ['case', ['==', ['get', 'tone'], tone.key], 1, 0]],
-          ]),
-        ) as Record<string, maplibregl.ExpressionSpecification>,
+        clusterProperties: {
+          ...(Object.fromEntries(
+            tonesRef.current.map((tone) => [
+              toneKey(tone.key),
+              ['+', ['case', ['==', ['get', 'tone'], tone.key], 1, 0]],
+            ]),
+          ) as Record<string, maplibregl.ExpressionSpecification>),
+          // And the same again per Malaysian state, so a bubble knows whether any of
+          // what it swallowed stands in the one under the cursor.
+          ...MALAYSIA_STATE_CLUSTER_PROPERTIES,
+        },
       });
 
       // The cluster bubble is three stacked circles — two translucent haloes and an
@@ -319,6 +361,26 @@ export const PlantMap = ({
         },
       });
 
+      // Attached here rather than beside the donuts, because it reads the fleet
+      // layers' own paint to know what to dim them *from* — which means they have to
+      // exist first.
+      stateHover = attachStateHover(map, {
+        pointLayerId: LAYER.point,
+        clusterCircleLayerIds: [LAYER.clusterHalo, LAYER.clusterRing, LAYER.clusterCore],
+        clusterCountLayerId: LAYER.clusterCount,
+        // Under the bubbles and the pins: the wash is context for the fleet, not a
+        // thing to read over it.
+        beforeLayerId: LAYER.clusterHalo,
+        countIn: (stateId) =>
+          pointsRef.current.filter(
+            (point) => malaysiaStateAt(point.longitude, point.latitude) === stateId,
+          ).length,
+        countLabel: (count) => `${count} ${count === 1 ? countNounRef.current.one : countNounRef.current.many}`,
+        // The same frame the fleet gets, so a clicked state sits where a fitted fleet
+        // would — clear of the panel, if the panel is still there.
+        fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
+      });
+
       loadedRef.current = true;
       // The effects below may have run before this fired; push whatever they last
       // wanted now that the source exists.
@@ -395,6 +457,7 @@ export const PlantMap = ({
           color: tone.color,
           count: clusterCount(properties, toneKey(tone.key)),
         })),
+      opacityFor: (properties) => stateHover?.clusterOpacity(properties) ?? 1,
     });
 
     map.on('error', (event) => {
@@ -406,6 +469,7 @@ export const PlantMap = ({
     return () => {
       loadedRef.current = false;
       detachDonuts();
+      stateHover?.();
       map.remove();
       mapRef.current = null;
     };

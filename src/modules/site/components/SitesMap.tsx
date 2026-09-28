@@ -3,6 +3,9 @@ import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
+import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {attachStateHover} from '@/lib/geo/stateHover';
+import type {StateHoverHandle} from '@/lib/geo/stateHover';
 import {lightToken} from '@/styles/colors';
 import {FLEET_STATUSES, STATUS_META} from '@/modules/genset/data/fleetStatus';
 import {siteStatus} from '../data/estateSummary';
@@ -93,6 +96,11 @@ const toFeatureCollection = (
     properties: {
       id: summary.site.id,
       status: siteStatus(summary),
+      // Which state this pin stands in, so the hover can tell its own from everyone
+      // else's — and so the per-state cluster sums have something to count. Filed on
+      // the feature rather than on the record, because it is a fact about a
+      // coordinate: move the thing and it follows.
+      stateId: malaysiaStateAt(summary.site.longitude, summary.site.latitude) ?? '',
       // The yard's own count, so pin size says how much plant is standing here.
       // A site with no sets attached is a real state — see `siteSeed.ts` — and it
       // draws at the floor radius rather than vanishing.
@@ -201,6 +209,16 @@ export const SitesMap = ({
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
 
+  // The yards currently drawn, read from inside the state hover's count — so the
+  // count follows the toolbar rather than reporting the whole estate.
+  const summariesRef = useRef(summaries);
+  summariesRef.current = summaries;
+
+  // Read by the state click's fit, which runs after the same click may have closed
+  // the panel — so a ref the fit reads late, not a width captured at attach.
+  const panelInsetRef = useRef(panelInset);
+  panelInsetRef.current = panelInset;
+
   // Which selection we last flew to, seeded with whatever was selected on the
   // first render — so arriving with a site already chosen lands on the estate with
   // its panel open rather than zoomed into one yard.
@@ -230,6 +248,11 @@ export const SitesMap = ({
     // `style.load`, not `load`: MapLibre defers `load` until the map has painted a
     // frame, which a hidden or backgrounded tab never does — so the layers would
     // never be added and the map would come up as a bare basemap until focused.
+    // Assigned at the end of `style.load`, once there are fleet layers for it to
+    // dim. The donut rings close over it and are attached first, so they read it
+    // lazily rather than being handed it.
+    let stateHover: StateHoverHandle | undefined;
+
     map.on('style.load', () => {
       map.addSource(SOURCE, {
         type: 'geojson',
@@ -245,7 +268,7 @@ export const SitesMap = ({
         // mix of what it swallowed and not just how much — which is what its donut
         // ring is drawn from. The alternative, `getClusterLeaves` per bubble, is
         // async and would leave the rings a frame behind the map.
-        clusterProperties: CLUSTER_PROPERTIES,
+        clusterProperties: {...CLUSTER_PROPERTIES, ...MALAYSIA_STATE_CLUSTER_PROPERTIES},
       });
 
       // Three stacked circles — two translucent haloes and an opaque core — which
@@ -320,6 +343,27 @@ export const SitesMap = ({
         },
       });
 
+      // Attached here rather than beside the donuts, because it reads the fleet
+      // layers' own paint to know what to dim them *from* — which means they have to
+      // exist first.
+      stateHover = attachStateHover(map, {
+        pointLayerId: LAYER.point,
+        clusterCircleLayerIds: [LAYER.clusterHalo, LAYER.clusterRing, LAYER.clusterCore],
+        clusterCountLayerId: LAYER.clusterCount,
+        // Under the bubbles and the pins: the wash is context for the fleet, not a
+        // thing to read over it.
+        beforeLayerId: LAYER.clusterHalo,
+        countIn: (stateId) =>
+          summariesRef.current.filter(
+            (summary) =>
+              malaysiaStateAt(summary.site.longitude, summary.site.latitude) === stateId,
+          ).length,
+        countLabel: (count) => `${count} ${count === 1 ? 'site' : 'sites'}`,
+        // The same frame the fleet gets, so a clicked state sits where a fitted fleet
+        // would — clear of the panel, if the panel is still there.
+        fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
+      });
+
       loadedRef.current = true;
       // The data effect below may have run before this fired; push whatever it
       // last wanted now that the source exists.
@@ -388,6 +432,7 @@ export const SitesMap = ({
           color: STATUS_META[status].mapColor,
           count: clusterCount(properties, statusKey(status)),
         })),
+      opacityFor: (properties) => stateHover?.clusterOpacity(properties) ?? 1,
     });
 
     map.on('error', (event) => {
@@ -399,6 +444,7 @@ export const SitesMap = ({
     return () => {
       loadedRef.current = false;
       detachDonuts();
+      stateHover?.();
       map.remove();
       mapRef.current = null;
     };

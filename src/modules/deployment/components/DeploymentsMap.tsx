@@ -3,6 +3,9 @@ import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
+import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {attachStateHover} from '@/lib/geo/stateHover';
+import type {StateHoverHandle} from '@/lib/geo/stateHover';
 import {lightToken} from '@/styles/colors';
 import type {DeploymentRow} from '../data/feed';
 
@@ -104,6 +107,11 @@ const toFeatureCollection = (
     properties: {
       id: row.deployment.id,
       state: row.state,
+      // Which state this pin stands in, so the hover can tell its own from everyone
+      // else's — and so the per-state cluster sums have something to count. Filed on
+      // the feature rather than on the record, because it is a fact about a
+      // coordinate: move the thing and it follows.
+      stateId: malaysiaStateAt(row.longitude as number, row.latitude as number) ?? '',
       // The pin's size says how much plant is standing there, which is the sites
       // map's channel and the same question here: one set for a fortnight and three
       // for a fortnight are not the same job.
@@ -188,6 +196,16 @@ export const DeploymentsMap = ({
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
 
+  // The postings currently drawn, read from inside the state hover's count — so the
+  // count follows the register's filters rather than reporting every job ever made.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+
+  // Read by the state click's fit, which runs after the same click may have closed
+  // the panel — so a ref the fit reads late, not a width captured at attach.
+  const panelInsetRef = useRef(panelInset);
+  panelInsetRef.current = panelInset;
+
   const flownToRef = useRef<string | undefined>(selectedId);
 
   // — Create the map once.
@@ -211,6 +229,11 @@ export const DeploymentsMap = ({
 
     // `style.load`, not `load` — see `SitesMap`: MapLibre defers `load` until the map
     // has painted a frame, which a backgrounded tab never does.
+    // Assigned at the end of `style.load`, once there are fleet layers for it to
+    // dim. The donut rings close over it and are attached first, so they read it
+    // lazily rather than being handed it.
+    let stateHover: StateHoverHandle | undefined;
+
     map.on('style.load', () => {
       map.addSource(SOURCE, {
         type: 'geojson',
@@ -221,7 +244,7 @@ export const DeploymentsMap = ({
         // to stay bubbled until the reader is well inside one town.
         clusterMaxZoom: 12,
         clusterRadius: 55,
-        clusterProperties: CLUSTER_PROPERTIES,
+        clusterProperties: {...CLUSTER_PROPERTIES, ...MALAYSIA_STATE_CLUSTER_PROPERTIES},
       });
 
       map.addLayer({
@@ -302,6 +325,27 @@ export const DeploymentsMap = ({
         },
       });
 
+      // Attached here rather than beside the donuts, because it reads the fleet
+      // layers' own paint to know what to dim them *from* — which means they have to
+      // exist first.
+      stateHover = attachStateHover(map, {
+        pointLayerId: LAYER.point,
+        clusterCircleLayerIds: [LAYER.clusterHalo, LAYER.clusterRing, LAYER.clusterCore],
+        clusterCountLayerId: LAYER.clusterCount,
+        // Under the bubbles and the pins: the wash is context for the fleet, not a
+        // thing to read over it.
+        beforeLayerId: LAYER.clusterHalo,
+        countIn: (stateId) =>
+          placed(rowsRef.current).filter(
+            (row) =>
+              malaysiaStateAt(row.longitude as number, row.latitude as number) === stateId,
+          ).length,
+        countLabel: (count) => `${count} ${count === 1 ? 'posting' : 'postings'}`,
+        // The same frame the fleet gets, so a clicked state sits where a fitted fleet
+        // would — clear of the panel, if the panel is still there.
+        fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
+      });
+
       loadedRef.current = true;
       map.fire('gensetiq.ready');
     });
@@ -363,6 +407,7 @@ export const DeploymentsMap = ({
           color: STATE_COLOR[state],
           count: clusterCount(properties, stateKey(state)),
         })),
+      opacityFor: (properties) => stateHover?.clusterOpacity(properties) ?? 1,
     });
 
     map.on('error', (event) => {
@@ -372,6 +417,7 @@ export const DeploymentsMap = ({
     return () => {
       loadedRef.current = false;
       detachDonuts();
+      stateHover?.();
       map.remove();
       mapRef.current = null;
     };
