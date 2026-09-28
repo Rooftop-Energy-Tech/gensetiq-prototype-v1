@@ -1,4 +1,4 @@
-import type maplibregl from 'maplibre-gl';
+import maplibregl from 'maplibre-gl';
 import type {ExpressionSpecification} from 'maplibre-gl';
 
 import {lightToken} from '@/styles/colors';
@@ -94,26 +94,79 @@ const BOUNDARY_ATTRIBUTION =
   '<a href="https://www.geoboundaries.org/" target="_blank" rel="noreferrer">geoBoundaries</a> (OpenStreetMap, ODbL)';
 
 /**
- * One point per state, for the label. Separate from the polygons because a symbol
- * layer over a MultiPolygon draws a label per *part* — eight of them on Sabah, one
- * per island — and the states are meant to be named once each.
+ * One point per state, for the label. Separate from the polygons because anything
+ * anchored to a MultiPolygon lands once per *part* — eight times on Sabah, one per
+ * island — and the states are meant to be named once each.
  */
-const LABEL_SOURCE = 'malaysia-state-labels';
+const LABEL_POINT = new Map(
+  MALAYSIA_STATE_LABEL_POINTS.features.map((feature) => [
+    feature.properties.id,
+    feature.geometry.coordinates as [number, number],
+  ]),
+);
+
 const LAYER = {
   /** A pale band under every border, so the line reads over a busy basemap. */
   borderCasing: 'malaysia-states-border-casing',
   /** Every border, all the time. Not part of the hover. */
   border: 'malaysia-states-border',
   fill: 'malaysia-states-fill',
-  label: 'malaysia-states-label',
 } as const;
 
 /**
- * What the hover switches on and off. The borders are not in it: they are map
- * furniture, and a border that appeared and vanished with the cursor would be the
- * thing the reader was chasing rather than the thing they were reading.
+ * What the hover switches on and off, of the canvas layers. The borders are not in
+ * it: they are map furniture, and a border that appeared and vanished with the
+ * cursor would be the thing the reader was chasing rather than the thing they were
+ * reading. The label is the hover's too, but it is a DOM card rather than a layer —
+ * see `buildLabelCard`.
  */
-const HOVER_LAYERS = [LAYER.fill, LAYER.label] as const;
+const HOVER_LAYERS = [LAYER.fill] as const;
+
+/**
+ * The hovered state's name and count, as a card filled with the brand colour.
+ *
+ * It was a symbol layer — two lines of 14px text in `text-primary` with a thin pale
+ * halo — and it lost to the map under it: over Voyager's roads and place names the
+ * answer to the gesture read as one more label among hundreds. A solid plate is the
+ * one thing on the map nothing else looks like.
+ *
+ * **The fill is the brand and the text is `brand-text`**, the pairing the login
+ * button already makes. Brand-coloured *text* on a light plate was the other way to
+ * carry the brand, and it fails on the product's own teal: `#21B0B0` on
+ * `bg-element` is about 2.5:1, which would make the name fainter than the black it
+ * replaced. The fill clears that on every brand, because `brandForeground` is chosen
+ * per brand to stay legible on it.
+ *
+ * **Name over count, at two sizes.** The state is the title and the count is its
+ * figure; at one size the two lines read as a sentence broken in the middle.
+ *
+ * **DOM, not a symbol layer**, because a symbol layer cannot draw a plate without a
+ * stretchable sprite, cannot take the app's own font (CARTO's glyph set has no
+ * Geist), and cannot cast a shadow. A marker can do all three off the same tokens
+ * as the rest of the app. It ignores the pointer, so the cursor passing over the
+ * card is still over the state and the hover does not flicker.
+ *
+ * It stays pinned to the state's centre, as the layer was: zoom into a corner of
+ * Sarawak and the card is off-screen, because it belongs to a place rather than to
+ * the viewport. And it sits above the donut rings, which are DOM too and would
+ * otherwise paint over it in whatever order they were last rebuilt.
+ */
+const buildLabelCard = (): {element: HTMLDivElement; name: HTMLSpanElement; count: HTMLSpanElement} => {
+  const element = document.createElement('div');
+  element.className =
+    'pointer-events-none flex flex-col items-start gap-0.5 rounded-lg bg-brand px-3 py-2 text-brand-text shadow-lg';
+  element.style.zIndex = '10';
+  element.setAttribute('aria-hidden', 'true');
+
+  const name = document.createElement('span');
+  name.className = 'text-lg leading-tight font-semibold whitespace-nowrap';
+
+  const count = document.createElement('span');
+  count.className = 'text-[15px] leading-tight whitespace-nowrap opacity-80';
+
+  element.append(name, count);
+  return {element, name, count};
+};
 
 /**
  * A filter no feature can satisfy — how "nothing hovered" is expressed. Every
@@ -267,12 +320,6 @@ export const attachStateHover = (
       attribution: BOUNDARY_ATTRIBUTION,
     });
   }
-  if (map.getSource(LABEL_SOURCE) === undefined) {
-    map.addSource(LABEL_SOURCE, {
-      type: 'geojson',
-      data: MALAYSIA_STATE_LABEL_POINTS as GeoJSON.FeatureCollection,
-    });
-  }
 
   // — The hovered state, washed in.
   //
@@ -408,36 +455,16 @@ export const attachStateHover = (
 
   // The label goes on top of the fleet rather than under it: it is the answer to the
   // gesture, and a pin sitting on the word "Sarawak" would make it unreadable at
-  // exactly the moment somebody is reading it.
+  // exactly the moment somebody is reading it. Being DOM puts it over the canvas by
+  // construction; see `buildLabelCard` for the rest.
   //
   // It is pinned to the state's centre and stays there. Zoom into a corner of Sarawak
   // and the label is off-screen, which is the honest reading of a label that belongs
   // to a place: one that slid around to stay visible would be a floating readout
   // wearing a map label's clothes, and it would move while the thing it names did not.
-  map.addLayer({
-    id: LAYER.label,
-    type: 'symbol',
-    source: LABEL_SOURCE,
-    filter: MATCHES_NOTHING,
-    layout: {
-      'text-field': '',
-      // Geist isn't in CARTO's glyph set; Open Sans is the closest it serves — the
-      // same substitution the cluster counts make.
-      'text-font': ['Open Sans Bold', 'Open Sans Regular'],
-      'text-size': 14,
-      'text-line-height': 1.3,
-      'text-allow-overlap': true,
-      'text-ignore-placement': true,
-    },
-    paint: {
-      'text-color': lightToken.primary,
-      // The basemap under a label is whatever it happens to be — coastline, a road,
-      // another state's fill. The halo is what makes the text legible over all of
-      // them without a plate behind it.
-      'text-halo-color': lightToken.canvas,
-      'text-halo-width': 1.6,
-    },
-  });
+  const card = buildLabelCard();
+  const cardMarker = new maplibregl.Marker({element: card.element, anchor: 'center'});
+  let cardShown = false;
 
   // — Capture what the fleet layers were painted with, so the hover can be undone
   //   exactly rather than by re-stating constants this file would then own.
@@ -491,6 +518,10 @@ export const attachStateHover = (
       for (const layerId of HOVER_LAYERS) {
         map.setFilter(layerId, MATCHES_NOTHING);
       }
+      if (cardShown) {
+        cardMarker.remove();
+        cardShown = false;
+      }
       onHoverChange?.(undefined);
       // Let the donut rings pick up the cleared state on the next frame.
       map.triggerRepaint();
@@ -506,12 +537,17 @@ export const attachStateHover = (
       map.setFilter(layerId, matches);
     }
 
-    const name = malaysiaStateName(stateId) ?? stateId;
-    map.setLayoutProperty(
-      LAYER.label,
-      'text-field',
-      `${name}\n${countLabel(countIn(stateId))}`,
-    );
+    card.name.textContent = malaysiaStateName(stateId) ?? stateId;
+    card.count.textContent = countLabel(countIn(stateId));
+    const point = LABEL_POINT.get(stateId);
+    if (point === undefined) {
+      if (cardShown) cardMarker.remove();
+      cardShown = false;
+    } else {
+      cardMarker.setLngLat(point);
+      if (!cardShown) cardMarker.addTo(map);
+      cardShown = true;
+    }
 
     onHoverChange?.(stateId);
     map.triggerRepaint();
@@ -589,7 +625,6 @@ export const attachStateHover = (
       if (map.getLayer(layerId) !== undefined) map.removeLayer(layerId);
     }
     if (map.getSource(SOURCE) !== undefined) map.removeSource(SOURCE);
-    if (map.getSource(LABEL_SOURCE) !== undefined) map.removeSource(LABEL_SOURCE);
   };
 
   return Object.assign(detach, {clusterOpacity});

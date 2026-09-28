@@ -1086,10 +1086,19 @@ hover: the cursor inside a state washes that state in, draws its name and count 
 at the centre of all that state's land, and fades every pin and cluster bubble
 standing elsewhere.
 
-**The label is one point, not one per landmass.** A symbol layer over the polygons
-names each *part* — Sabah is eight pieces, so it wrote itself across eight islands —
-so the labels come from a source of sixteen points instead, one per state, at the
-area-weighted centre of every part. Penang is the case that shows what that means: 71%
+**The label is a card in the brand colour** — the state's name large, its count
+smaller under it, on a solid plate filled with `brand` and lettered in `brand-text`.
+It was two lines of dark text with a halo, and over Voyager's roads and place names
+the answer to the gesture read as one more map label. Brand-coloured *text* on a
+light plate was the other option and fails on the product's own teal, which is about
+2.5:1 on `bg-element`; the fill clears it on every brand. It is a DOM marker rather
+than a symbol layer, so it takes the app's font and a shadow, and it ignores the
+pointer so the hover underneath it does not flicker.
+
+**The label is one point, not one per landmass.** Anything anchored to the polygons
+lands once per *part* — Sabah is eight pieces, so a symbol layer wrote its name across
+eight islands — so the label is placed from sixteen points instead, one per state, at
+the area-weighted centre of every part. Penang is the case that shows what that means: 71%
 mainland, 29% island, and its label sits between them rather than deep in Seberang
 Perai. All sixteen fall on land, which `src/lib/geo/malaysiaStates.ts` says is
 checked rather than assumed.

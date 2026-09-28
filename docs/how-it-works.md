@@ -1066,8 +1066,11 @@ the click below have something to aim at.
 **Hovering a state isolates it.** Put the cursor anywhere inside one and that state
 washes in under the fleet, its name and count are drawn **once**, at the centre of all
 the land that state is made of, and every pin and cluster bubble standing anywhere
-else fades back. The label is pinned to that point: zoom into a corner of Sarawak and
-it is off-screen, because it belongs to a place rather than to the viewport.
+else fades back. The label is a card filled with the brand colour — the name large, the
+count smaller under it — because it is the answer to the gesture and has to outrank
+every road and place name the basemap draws. It is pinned to that point: zoom into a
+corner of Sarawak and it is off-screen, because it belongs to a place rather than to
+the viewport.
 
 **The wash fits the border exactly, because they are the same shapes.** The border
 itself does not change under the cursor — it is furniture, drawn at one weight
