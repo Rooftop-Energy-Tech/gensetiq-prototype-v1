@@ -1,11 +1,12 @@
 import {Link} from '@tanstack/react-router';
-import {BoomBoxIcon, FuelIcon, TruckIcon} from 'lucide-react';
+import {BoomBoxIcon, FuelIcon, TruckIcon, WrenchIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {deploymentSearch} from '@/modules/deployment/types/view.type';
 import type {DeploymentSearch} from '@/modules/deployment/types/view.type';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 import type {GensetSearch} from '@/modules/genset/types/view.type';
+import type {ServiceSearch} from '@/modules/service/types/view.type';
 
 /**
  * The phone-width nav: a floating pill at the bottom of the screen.
@@ -17,7 +18,7 @@ import type {GensetSearch} from '@/modules/genset/types/view.type';
  * `FilesBulkActionBar`): the page scrolls underneath it and the bar reads as a
  * control over the content instead of a piece of the frame.
  *
- * ## Three destinations, not six
+ * ## Four destinations, not seven
  *
  * Only the screens that have a mobile layout are here. `Settings` is desktop-only in
  * this prototype, and a nav item that lands on a screen laid out for 1,280px would be
@@ -51,7 +52,7 @@ import type {GensetSearch} from '@/modules/genset/types/view.type';
 type MobileNavItem = {
   label: string;
   icon: LucideIcon;
-  link: '/gensets' | '/deployments' | '/fuel';
+  link: '/gensets' | '/deployments' | '/fuel' | '/service';
   /**
    * The screen's own view state, whole.
    *
@@ -64,7 +65,7 @@ type MobileNavItem = {
    * No longer optional: the dispatch feed used to be one table with a search box and
    * carried no view state to name. It is a register now — see `DeploymentPage`.
    */
-  search?: GensetSearch | DeploymentSearch;
+  search?: GensetSearch | DeploymentSearch | ServiceSearch;
 };
 
 const ITEMS: Array<MobileNavItem> = [
@@ -85,6 +86,12 @@ const ITEMS: Array<MobileNavItem> = [
   // component state rather than URL state, so the route takes no params and the
   // bar has nothing to name.
   {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
+  // The fleet's service standing — which set is due, and Log service on its row. On
+  // the bar because a service is logged standing beside the machine. Its table is
+  // wider than a phone and scrolls sideways inside its own container: the cards and
+  // the first three columns fit, and status, next due and Log service are a swipe
+  // right. It wants a card layout at this width, as the gensets register has.
+  {label: 'Service', icon: WrenchIcon, link: '/service', search: {tab: 'due'}},
 ];
 
 export const MobileNav = () => (
@@ -110,12 +117,13 @@ export const MobileNav = () => (
           className="group flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-secondary transition-colors data-[status=active]:bg-highlight data-[status=active]:text-primary"
         >
           <Icon className="size-4 shrink-0" aria-hidden="true" />
-          {/* Four destinations with four labels overflow a 375px screen, and the
-              fourth was clipped by the bezel. Below 400px only the item you are
-              standing on is named: the other three are a glyph each, which is
-              enough to aim at and is what a phone tab bar does anyway. The name
-              is still in the accessible label at every width. */}
-          <span className="hidden group-data-[status=active]:inline min-[400px]:inline">
+          {/* Four labels need about 430px, so below 480px only the item you are
+              standing on is named: the others are a glyph each, which is enough
+              to aim at and is what a phone tab bar does anyway. The line was 400px
+              with three items; `Service` made it four and the bar ran off both
+              edges of a 414px phone. The name is in the accessible label at every
+              width. */}
+          <span className="hidden group-data-[status=active]:inline min-[480px]:inline">
             {item.label}
           </span>
           <span className="sr-only">{item.label}</span>
