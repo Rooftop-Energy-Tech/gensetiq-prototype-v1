@@ -1,4 +1,4 @@
-import {useNavigate} from '@tanstack/react-router';
+import {Link, useNavigate} from '@tanstack/react-router';
 import {
   BoomBoxIcon,
   FileDownIcon,
@@ -108,14 +108,25 @@ export const Sidebar = () => {
 
             Both dimensions are set so the flex row cannot stretch it, and
             `object-contain` so a `markSize` that rounds off the artwork's own ratio
-            letterboxes by half a pixel rather than squashing it. */}
-        <img
-          src={BRAND.mark}
-          alt={BRAND.name}
-          width={BRAND.markSize.width}
-          height={BRAND.markSize.height}
-          className="shrink-0 object-contain"
-        />
+            letterboxes by half a pixel rather than squashing it.
+
+            The mark is the way home, as a logo is on any site: it links to `/`
+            rather than naming `/gensets`, so it lands wherever the front page does
+            and follows it if that ever moves — `routes/index.tsx` is the one place
+            that decides. */}
+        <Link
+          to="/"
+          aria-label={`${BRAND.name} — home`}
+          className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          <img
+            src={BRAND.mark}
+            alt=""
+            width={BRAND.markSize.width}
+            height={BRAND.markSize.height}
+            className="block shrink-0 object-contain"
+          />
+        </Link>
       </div>
 
       {/* `min-h-0` and its own scroll. Without them the item list simply grows past the
