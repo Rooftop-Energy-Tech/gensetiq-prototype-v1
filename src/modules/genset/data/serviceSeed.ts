@@ -79,6 +79,11 @@ const PINNED: Record<string, ServiceProfile> = {
     notes: 'Refill diesel 600litre & pm genset',
   },
 
+  // Overdue on hours — the fleet service page's example of the state. In both
+  // estates (WXQ 4562 on Express Mission, SA 4562 D on the carrier's), because the
+  // pins above and below name units from an earlier fleet that neither carries.
+  'cum-303952': {elapsedHours: 268, elapsedMonths: 3.1, technicianName: 'Hafiz Rahman'},
+
   // Overdue on hours; calendar barely started. Worked hard since a recent visit.
   kln3355: {elapsedHours: 291, elapsedMonths: 2.1, technicianName: 'Hafiz Rahman'},
 

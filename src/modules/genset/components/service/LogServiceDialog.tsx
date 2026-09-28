@@ -73,9 +73,15 @@ const Field = ({
 export const LogServiceDialog = ({
   genset,
   currentEngineHours,
+  compact = false,
 }: {
   genset: Genset;
   currentEngineHours: number;
+  /**
+   * A small outline trigger for a table row — the fleet service page's — rather
+   * than the Service tab's primary button. The dialog behind it is the same.
+   */
+  compact?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -133,10 +139,17 @@ export const LogServiceDialog = ({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm">
-          <PlusIcon aria-hidden="true" />
-          Log a service
-        </Button>
+        {compact ? (
+          <Button size="xs" variant="outline" aria-label={`Log a service for ${gensetName(genset)}`}>
+            <PlusIcon aria-hidden="true" />
+            Log service
+          </Button>
+        ) : (
+          <Button size="sm">
+            <PlusIcon aria-hidden="true" />
+            Log a service
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent aria-describedby={undefined}>

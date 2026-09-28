@@ -468,6 +468,7 @@ behind the code is worse than no bench, because a reader trusts it.
 | Deployment runs | `/deployments/<id>/runs` | The runs of its machines inside the window. No range picker: the window is the job. |
 | Deployment alarms | `/deployments/<id>/alarms` | The site's own queue, filtered to this job's machines and window. |
 | Deployment settings | `/deployments/<id>/settings` | The reference, the yard, the dates, close, and delete (a booking only). |
+| Service — fleet | `/service` | Every genset's service standing in one list, worst first: status, next due, run hours and months against the interval, last service with its report, and **Log service** on each row (the genset Service tab's own dialog). Cards for Overdue / Due soon / In service filter it (a never-serviced set still lists, with its own status); `WXQ 4562` / `SA 4562 D` is seeded overdue so the state has an example; search and `State` narrow it. A **History** tab lists every logged service, newest first. Not in the phone nav. Not a Figma frame. |
 | `/deployment` | → `/deployments` | The singular path redirects, so links in decks and docs keep working. |
 | Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
 | Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |

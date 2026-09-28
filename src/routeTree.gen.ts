@@ -18,6 +18,7 @@ import { Route as AuthenticatedDeploymentsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedFuelRouteImport } from './routes/_authenticated/fuel'
 import { Route as AuthenticatedGensetsRouteImport } from './routes/_authenticated/gensets'
 import { Route as AuthenticatedReportingRouteImport } from './routes/_authenticated/reporting'
+import { Route as AuthenticatedServiceRouteImport } from './routes/_authenticated/service'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedDeploymentsDeploymentIdRouteImport } from './routes/_authenticated/deployments_.$deploymentId'
 import { Route as AuthenticatedGensetsGensetIdRouteImport } from './routes/_authenticated/gensets_.$gensetId'
@@ -77,6 +78,11 @@ const AuthenticatedGensetsRoute = AuthenticatedGensetsRouteImport.update({
 const AuthenticatedReportingRoute = AuthenticatedReportingRouteImport.update({
   id: '/reporting',
   path: '/reporting',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedServiceRoute = AuthenticatedServiceRouteImport.update({
+  id: '/service',
+  path: '/service',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/fuel': typeof AuthenticatedFuelRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/reporting': typeof AuthenticatedReportingRoute
+  '/service': typeof AuthenticatedServiceRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/deployments/$deploymentId': typeof AuthenticatedDeploymentsDeploymentIdRouteWithChildren
   '/gensets/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/fuel': typeof AuthenticatedFuelRoute
   '/gensets': typeof AuthenticatedGensetsRoute
   '/reporting': typeof AuthenticatedReportingRoute
+  '/service': typeof AuthenticatedServiceRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/deployments/$deploymentId/alarms': typeof AuthenticatedDeploymentsDeploymentIdAlarmsRoute
   '/deployments/$deploymentId/gensets': typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/_authenticated/fuel': typeof AuthenticatedFuelRoute
   '/_authenticated/gensets': typeof AuthenticatedGensetsRoute
   '/_authenticated/reporting': typeof AuthenticatedReportingRoute
+  '/_authenticated/service': typeof AuthenticatedServiceRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/deployments_/$deploymentId': typeof AuthenticatedDeploymentsDeploymentIdRouteWithChildren
   '/_authenticated/gensets_/$gensetId': typeof AuthenticatedGensetsGensetIdRouteWithChildren
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/gensets'
     | '/reporting'
+    | '/service'
     | '/settings'
     | '/deployments/$deploymentId'
     | '/gensets/$gensetId'
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/gensets'
     | '/reporting'
+    | '/service'
     | '/settings'
     | '/deployments/$deploymentId/alarms'
     | '/deployments/$deploymentId/gensets'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/_authenticated/fuel'
     | '/_authenticated/gensets'
     | '/_authenticated/reporting'
+    | '/_authenticated/service'
     | '/_authenticated/settings'
     | '/_authenticated/deployments_/$deploymentId'
     | '/_authenticated/gensets_/$gensetId'
@@ -391,6 +403,13 @@ declare module '@tanstack/react-router' {
       path: '/reporting'
       fullPath: '/reporting'
       preLoaderRoute: typeof AuthenticatedReportingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/service': {
+      id: '/_authenticated/service'
+      path: '/service'
+      fullPath: '/service'
+      preLoaderRoute: typeof AuthenticatedServiceRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/settings': {
@@ -567,6 +586,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedFuelRoute: typeof AuthenticatedFuelRoute
   AuthenticatedGensetsRoute: typeof AuthenticatedGensetsRoute
   AuthenticatedReportingRoute: typeof AuthenticatedReportingRoute
+  AuthenticatedServiceRoute: typeof AuthenticatedServiceRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedDeploymentsDeploymentIdRoute: typeof AuthenticatedDeploymentsDeploymentIdRouteWithChildren
   AuthenticatedGensetsGensetIdRoute: typeof AuthenticatedGensetsGensetIdRouteWithChildren
@@ -578,6 +598,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedFuelRoute: AuthenticatedFuelRoute,
   AuthenticatedGensetsRoute: AuthenticatedGensetsRoute,
   AuthenticatedReportingRoute: AuthenticatedReportingRoute,
+  AuthenticatedServiceRoute: AuthenticatedServiceRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedDeploymentsDeploymentIdRoute:
     AuthenticatedDeploymentsDeploymentIdRouteWithChildren,

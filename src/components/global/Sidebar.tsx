@@ -6,6 +6,7 @@ import {
   LogOutIcon,
   SettingsIcon,
   TruckIcon,
+  WrenchIcon,
 } from 'lucide-react';
 
 import {NavButton} from '@/components/global/NavButton';
@@ -73,6 +74,9 @@ const NAV_ITEMS: Array<NavItem> = [
   // is dispatch too — the tanker rather than the lorry — and because who needs fuel
   // is a question you ask about machines you already know are out.
   {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
+  // Which machines are due for a visit, and every visit on record — the genset's own
+  // Service tab, fleet-wide, so a workshop can plan a week without opening each set.
+  {label: 'Service', icon: WrenchIcon, link: '/service'},
   // The way out of the app. Not a fourth set of charts — every figure it exports is
   // already drawn on a screen above it — but the files those screens cannot hand
   // anybody: an invoice is settled in a spreadsheet. Last of the fleet-wide four,
