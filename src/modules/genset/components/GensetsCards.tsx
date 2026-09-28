@@ -4,6 +4,7 @@ import {ChevronRightIcon, DropletIcon, MapPinIcon} from 'lucide-react';
 import {Badge} from '@/components/ui/badge';
 import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
+import {fuelLevelTextClass} from './fuelLevelTone';
 import {CONDITION_META} from './detail/severityMeta';
 import {gensetDetail} from '../data/detail';
 import {gensetCondition} from '../data/fuelIntegrity';
@@ -54,7 +55,9 @@ const GensetCard = ({genset}: {genset: Genset}) => {
         )}
         <Badge variant="secondary">
           <DropletIcon className="text-fuel" aria-hidden="true" />
-          {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
+          <span className={fuelLevelTextClass(genset.fuelLitres, genset.fuelCapacityLitres)}>
+            {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
+          </span>
         </Badge>
       </div>
 

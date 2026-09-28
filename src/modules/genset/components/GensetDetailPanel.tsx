@@ -8,6 +8,7 @@ import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
 import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
+import {fuelLevelTextClass} from './fuelLevelTone';
 import {SEVERITY_META} from './detail/severityMeta';
 import {useGensetStandingAlarms} from '../data/alarmViews';
 import {countBySeverity} from '../types/alert.type';
@@ -143,7 +144,9 @@ export const GensetDetailPanel = ({
                 `Status`: what the machine is doing, then what stands against it. */}
             <AlarmRows genset={genset} standing={standing} />
             <DetailRow label="Fuel level">
-              {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
+              <span className={fuelLevelTextClass(genset.fuelLitres, genset.fuelCapacityLitres)}>
+                {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
+              </span>
             </DetailRow>
             <DetailRow label="Location">{genset.locationLabel}</DetailRow>
             <DetailRow label="Last updated">{relativeTime(genset.lastUpdated)}</DetailRow>

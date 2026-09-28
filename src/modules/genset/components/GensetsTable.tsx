@@ -7,6 +7,7 @@ import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {cn} from '@/lib/utils';
 import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
+import {fuelLevelTextClass} from './fuelLevelTone';
 import {useFleetAlarmCounts} from '../data/alarmViews';
 import {gensetStateName} from '../data/gensetState';
 import type {AlertSeverity} from '../types/alert.type';
@@ -311,7 +312,13 @@ export const GensetsTable = ({
                   </span>
                 </td>
                 <Gap />
-                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
+                <td
+                  className={cn(
+                    CELL,
+                    'h-13 border-b border-subtle py-2',
+                    fuelLevelTextClass(genset.fuelLitres, genset.fuelCapacityLitres),
+                  )}
+                >
                   {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
                 </td>
                 {wide && <Gap />}
