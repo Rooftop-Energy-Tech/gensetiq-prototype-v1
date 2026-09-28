@@ -78,7 +78,7 @@ export const GensetAlarms = ({genset}: {genset: Genset}) => {
   const role = useSitePowerRole(siteId);
 
   // The controller's bits, the monitoring unit's rows and the app's low-tank row —
-  // one definition of a set's queue. See `gensetAlarmRows`.
+  // the definition the register's preview panel reads too. See `gensetAlarmRows`.
   const rows: Array<AlarmView> = gensetAlarmRows(genset, role, handling);
 
   const standing = standingGensetAlarms(rows);

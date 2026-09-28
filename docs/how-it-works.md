@@ -1067,6 +1067,14 @@ act: click the name, or the `→` in the panel header. Over the map the panel's 
 is the only way in, because a pin has nowhere to put a link and clicking one has to
 leave you on the map or the selection is useless.
 
+**The fleet's preview panel carries the machine's alarms.** Under `Status`, as the
+register's `Alarm` column sits beside its `Status`: the same pill, linking to the set's
+Alarms tab, and under it each standing alarm by name with its source line, in the tab's
+own order — unclaimed first, then worst. It names four and counts the rest into a link,
+so a machine with nine monitoring-unit rows does not turn a preview into the tab it is
+previewing. The panel, the column and the tab all read `gensetAlarmRows`, the one
+definition of a set's queue, so none of them can name an alarm the others do not have.
+
 **The map draws state borders** at every zoom — neutral, never the brand colour, and
 weighted to stay findable at both ends: a hairline over empty sea, heavier with a pale
 casing under it once the basemap fills up with roads and buildings. They are drawn

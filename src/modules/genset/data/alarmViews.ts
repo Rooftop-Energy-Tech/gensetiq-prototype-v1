@@ -1,6 +1,6 @@
 import {useMemo} from 'react';
 
-import {FALLBACK_POWER_ROLE, useSitePowerRoles} from '@/modules/site/data/siteConfig';
+import {FALLBACK_POWER_ROLE, useSitePowerRole, useSitePowerRoles} from '@/modules/site/data/siteConfig';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import {ALERT_SEVERITIES, countBySeverity} from '../types/alert.type';
 import {byUrgency, isStanding} from '../types/alarmState.type';
@@ -108,9 +108,9 @@ export const useFleetAlarmCounts = (
  * controller's bits, the site monitoring unit's rows filed against it, and the app's
  * own low-tank row.
  *
- * **The one definition of a set's queue.** The Alarms tab lists it by calling this,
- * rather than assembling the three sources in the component, so anything else that
- * needs a set's queue reads the same rows. A set with no site passes `''`, which
+ * **The one definition of a set's queue.** The Alarms tab lists it and the register's
+ * preview panel summarises it, and both call this, so the panel cannot name an alarm
+ * the tab does not have or miss one it does. A set with no site passes `''`, which
  * has no monitoring unit and so no AC rows — the same answer every unwatched yard
  * gets.
  */
@@ -127,3 +127,18 @@ export const gensetAlarmRows = (
 /** What is standing on one set, in the tab's own order: unclaimed first, then worst. */
 export const standingGensetAlarms = (rows: Array<AlarmView>): Array<AlarmView> =>
   rows.filter(isStanding).sort(byUrgency((alarm) => ALERT_SEVERITIES.indexOf(alarm.severity)));
+
+/**
+ * `gensetAlarmRows`, live, for a component that may not have a set yet — the preview
+ * panel renders before anything is selected, and a hook cannot be called
+ * conditionally. `undefined` in, empty out.
+ */
+export const useGensetStandingAlarms = (genset: Genset | undefined): Array<AlarmView> => {
+  const handling = useAlarmHandling();
+  const role = useSitePowerRole(genset?.siteId ?? '');
+
+  return useMemo(
+    () => (genset === undefined ? [] : standingGensetAlarms(gensetAlarmRows(genset, role, handling))),
+    [genset, role, handling],
+  );
+};
