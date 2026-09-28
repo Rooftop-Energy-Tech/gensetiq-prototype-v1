@@ -830,13 +830,25 @@ engine — a running set carrying one is a contradiction. A low tank stops nothi
 a statement about cover, and the fleet refuels well before cover is actually at risk.
 The `CRITICAL` here belonged to the `Tank empty` tier and went with it.
 
-**Like the leak, it must never become a register bit.** Its card prints `Tank level`
-where an alarm prints its register and bit, so a reader can still tell the panel
-talking from the app talking. It carries the `fuel-level` reading inside the card,
-because "Low fuel" is an adjective until the litres are in the box with it. It used to
-carry a link to the refuel log, on the reasoning that unlike a coolant alarm there is
-something to *do* about this one and it is a booking; with no booking anywhere in the
-app the card states the level and stops.
+**Like the leak, it must never become a register bit.** Its row prints `Tank level`
+where a controller row prints its register and bit, so a reader can still tell the
+panel talking from the app talking — `588L (24%) · < 30% of 2,450 L · Tank level`. The
+litres are on the row because "Low fuel" is an adjective until the level is in the box
+with it.
+
+**It is a standing row, counted like any other.** Until 2026-09-28 it reached only the
+condition verdict: the Alarm column, a set's own Alarms tab and its home-page counts are
+all counted off the standing queue, and the queue held the controller's bits and the
+monitoring unit's rows and nothing the app raised itself — so a set at 7% read `– – –`
+in the register and "Nothing standing" on its own tab. It is in that queue now, and so
+in every count read off it, including a job's Alarms tab. Its raised time is the last
+moment the tank chart's level crossed the line.
+
+**It ends when the tank is refilled, and nobody can clear it.** It stands exactly while
+the level is under the line, so a Clear would be a person declaring a tank fine while
+it is not; the row says `Clears when refuelled` where the button would be. It can be
+**acknowledged** — "seen, a tanker is booked" is the useful statement — through the same
+handling store as every other row.
 
 **The fleet buckets read a tank-blind verdict, and that is the one place they must.**
 `gensetStatus` asks `machineCondition` — the register map and the leak, and nothing

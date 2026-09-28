@@ -87,4 +87,11 @@ export type AlarmView = {
    * same reason on a row read outside the site's pooled queue.
    */
   part?: CabinetPart;
+  /**
+   * `false` for a row that ends by itself and cannot be cleared by a person — the
+   * low-tank row, which stands exactly while the level is under the reserve line.
+   * Its standing row offers Acknowledge and no Clear. Absent means clearable, which
+   * is every row a device raises.
+   */
+  clearable?: false;
 };

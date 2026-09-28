@@ -1,14 +1,17 @@
 import {useMemo} from 'react';
 
 import {FALLBACK_POWER_ROLE, useSitePowerRoles} from '@/modules/site/data/siteConfig';
-import {countBySeverity} from '../types/alert.type';
+import type {SitePowerRole} from '@/modules/site/types/site.type';
+import {ALERT_SEVERITIES, countBySeverity} from '../types/alert.type';
+import {byUrgency, isStanding} from '../types/alarmState.type';
 import type {AlertSeverity} from '../types/alert.type';
 import type {Genset} from '../types/genset.type';
 import type {AlarmHandling} from '../types/alarmState.type';
 import type {TrackedAlarm} from '../types/alarmState.type';
 import type {AlarmView} from '../types/alarmView.type';
 import {standingAlarms, trackedAlarms, useAlarmHandling} from './alarms';
-import {plantAlarmQueue} from './assertedAlarms';
+import {assertedPlantAlarms, plantAlarmQueue} from './assertedAlarms';
+import {lowFuelAlarms} from './lowFuelAlarm';
 
 /**
  * A controller bit as a table row.
@@ -60,7 +63,8 @@ export const controllerAlarms = (
  *
  * **What it counts is what the set's own Alarms tab lists**, which is the whole
  * point of it existing: the controller's own bits *plus* the site monitoring unit's
- * rows filed against this set. `GensetHome` records what counting one of them
+ * rows filed against this set, *plus* the app's own low-tank row (`lowFuelAlarm`).
+ * `GensetHome` records what counting one of them
  * alone did — a strip reading `2` beside a tab listing `4` — and a register column
  * is the same promise made thirty times over.
  *
@@ -89,9 +93,37 @@ export const useFleetAlarmCounts = (
                   handling,
                 ).standing;
 
-          return [genset.id, countBySeverity([...controller, ...plant])];
+          return [
+            genset.id,
+            countBySeverity([...controller, ...plant, ...lowFuelAlarms(genset, handling)]),
+          ];
         }),
       ),
     [gensets, handling, roles],
   );
 };
+
+/**
+ * Every row one set carries — standing or cleared — from all three sources: its
+ * controller's bits, the site monitoring unit's rows filed against it, and the app's
+ * own low-tank row.
+ *
+ * **The one definition of a set's queue.** The Alarms tab lists it by calling this,
+ * rather than assembling the three sources in the component, so anything else that
+ * needs a set's queue reads the same rows. A set with no site passes `''`, which
+ * has no monitoring unit and so no AC rows — the same answer every unwatched yard
+ * gets.
+ */
+export const gensetAlarmRows = (
+  genset: Genset,
+  role: SitePowerRole,
+  handling: Record<string, AlarmHandling>,
+): Array<AlarmView> => [
+  ...controllerAlarms(genset.id, handling),
+  ...assertedPlantAlarms(genset.siteId ?? '', role, 'GENSET', handling),
+  ...lowFuelAlarms(genset, handling),
+];
+
+/** What is standing on one set, in the tab's own order: unclaimed first, then worst. */
+export const standingGensetAlarms = (rows: Array<AlarmView>): Array<AlarmView> =>
+  rows.filter(isStanding).sort(byUrgency((alarm) => ALERT_SEVERITIES.indexOf(alarm.severity)));

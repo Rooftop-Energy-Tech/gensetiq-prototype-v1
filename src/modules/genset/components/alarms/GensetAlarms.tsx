@@ -1,10 +1,9 @@
 import {useSession} from '@/modules/auth/session';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
-import {ALERT_SEVERITIES} from '../../types/alert.type';
-import {byUrgency, isStanding} from '../../types/alarmState.type';
+import {isStanding} from '../../types/alarmState.type';
 import type {AlarmView} from '../../types/alarmView.type';
-import {assertedPlantAlarms, plantAlarmsWatched} from '../../data/assertedAlarms';
-import {controllerAlarms} from '../../data/alarmViews';
+import {plantAlarmsWatched} from '../../data/assertedAlarms';
+import {gensetAlarmRows, standingGensetAlarms} from '../../data/alarmViews';
 import {useAlarmHandling} from '../../data/alarms';
 import type {Genset} from '../../types/genset.type';
 import {AlarmLists} from './AlarmLists';
@@ -78,14 +77,11 @@ export const GensetAlarms = ({genset}: {genset: Genset}) => {
   const siteId = genset.siteId ?? '';
   const role = useSitePowerRole(siteId);
 
-  const rows: Array<AlarmView> = [
-    ...controllerAlarms(genset.id, handling),
-    ...assertedPlantAlarms(siteId, role, 'GENSET', handling),
-  ];
+  // The controller's bits, the monitoring unit's rows and the app's low-tank row —
+  // one definition of a set's queue. See `gensetAlarmRows`.
+  const rows: Array<AlarmView> = gensetAlarmRows(genset, role, handling);
 
-  const standing = rows
-    .filter(isStanding)
-    .sort(byUrgency((alarm) => ALERT_SEVERITIES.indexOf(alarm.severity)));
+  const standing = standingGensetAlarms(rows);
 
   const cleared = rows
     .filter((alarm) => !isStanding(alarm))

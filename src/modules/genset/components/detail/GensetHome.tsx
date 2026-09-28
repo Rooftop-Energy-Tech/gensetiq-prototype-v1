@@ -16,6 +16,7 @@ import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {ALERT_SEVERITIES, countBySeverity} from '../../types/alert.type';
 import type {AlertSeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
+import {lowFuelAlarms} from '../../data/lowFuelAlarm';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {
   ActivityIcon,
@@ -278,7 +279,8 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           },
           {label: 'Service', value: serviceHeadline(service)},
         ]}
-        counts={countBySeverity([...alerts, ...plantStanding])}
+        // The app's low-tank row too, as the Alarms tab lists it — see `lowFuelAlarm`.
+        counts={countBySeverity([...alerts, ...plantStanding, ...lowFuelAlarms(genset, handling)])}
         /* The pill opens this asset's own Alarms tab — the tab the count is read
            from, so the figure and the queue behind it cannot be two lists.
            `keepFrom` carries `from` across, which is what keeps a set

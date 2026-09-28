@@ -208,6 +208,10 @@ const ClassBadge = ({alarm}: {alarm: AlarmView}) => (
  * `Unacknowledge` is the quiet `ghost`, the same weight `Reopen` gets in the
  * cleared table: both are corrections rather than steps forward, and neither
  * should compete with `Clear` for the eye.
+ *
+ * **A row that ends by itself has no `Clear`** (`clearable: false`) — the low tank,
+ * which goes when it is refilled. Clearing it would be a person declaring a tank
+ * fine while it is not, so the button's place says what will end it instead.
  */
 const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
   const standing = standingOf(alarm.handling);
@@ -261,14 +265,20 @@ const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
               Unacknowledge
             </Button>
           )}
-          <Button
-            type="button"
-            size="xs"
-            variant="secondary"
-            onClick={() => clearAlarm(alarm.id, by)}
-          >
-            Clear
-          </Button>
+          {alarm.clearable === false ? (
+            <span className="self-center text-xs whitespace-nowrap text-tertiary">
+              Clears when refuelled
+            </span>
+          ) : (
+            <Button
+              type="button"
+              size="xs"
+              variant="secondary"
+              onClick={() => clearAlarm(alarm.id, by)}
+            >
+              Clear
+            </Button>
+          )}
         </div>
       </td>
     </tr>

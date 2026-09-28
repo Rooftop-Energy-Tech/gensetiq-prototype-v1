@@ -3,6 +3,7 @@ import {useMemo} from 'react';
 import {fleet, useFleet} from '@/modules/genset/data/deployment';
 import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
 import {controllerAlarms} from '@/modules/genset/data/alarmViews';
+import {lowFuelAlarms} from '@/modules/genset/data/lowFuelAlarm';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
 import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
@@ -108,7 +109,10 @@ const rowsFor = (
   // membership was a field on the machine.
   for (const genset of fleet().filter((machine) => machine.siteId === siteId)) {
     rows.push(
-      ...controllerAlarms(genset.id, handling).map((row) => ({
+      // The set's own queue as its Alarms tab has it: the controller's bits and the
+      // app's low-tank row, so a job's Alarms tab — which reads this queue — cannot
+      // miss a tank its machine's own page is flagging.
+      ...[...controllerAlarms(genset.id, handling), ...lowFuelAlarms(genset, handling)].map((row) => ({
         ...row,
         asset: 'GENSET' as const,
         provenance: `${genset.tag} · ${row.provenance}`,
