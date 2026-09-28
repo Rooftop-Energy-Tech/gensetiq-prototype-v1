@@ -324,7 +324,12 @@ export const GensetsTable = ({
                 {wide && <Gap />}
                 {wide && (
                   <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
-                    {genset.locationLabel}
+                    {/* The full street address, on one line. Capped so one long
+                        address cannot take the spare width from every other column;
+                        the rest is in the tooltip. */}
+                    <span className="block max-w-[26rem] truncate" title={genset.address}>
+                      {genset.address}
+                    </span>
                   </td>
                 )}
                 {wide && <Gap />}

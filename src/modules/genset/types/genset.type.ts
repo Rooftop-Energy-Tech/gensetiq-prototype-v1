@@ -114,6 +114,11 @@ export type Genset = {
    * report the same one, and `sites.ts` reads it back off them.
    */
   locationLabel: string;
+  /**
+   * The full street address of where the set stands — its site's, or the workshop's.
+   * Shown under `locationLabel`, which stays the short answer.
+   */
+  address: string;
   latitude: number;
   longitude: number;
   /** ISO 8601 — when telemetry last arrived from this unit. */

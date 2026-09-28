@@ -221,6 +221,12 @@ export type BrandSiteSeed = {
   kind: SiteKindId;
   /** The yard's placename. Gensets deployed here take it as their own. */
   locationLabel: string;
+  /**
+   * The yard's street address, in full — `Lot 31, Jalan Kuala Kangsar, 30010 Ipoh,
+   * Perak`. Mock: real towns and postcodes, invented lot numbers. Gensets standing
+   * here show it under `locationLabel`.
+   */
+  address: string;
   latitude: number;
   longitude: number;
   /** What the injection point carries. A fact about the network, not the plant. */
@@ -263,6 +269,11 @@ export type BrandFleetSeed = {
   /** Must match a `BrandSiteSeed.id` in the same dataset, or `undefined` for the workshop. */
   siteId: string | undefined;
   locationLabel: string;
+  /**
+   * The street address, for a row at no site only — the workshop's. A row at a site
+   * takes its site's `address`, so two sets at one yard cannot disagree about it.
+   */
+  address?: string;
   latitude: number;
   longitude: number;
   fuelLitres: number;

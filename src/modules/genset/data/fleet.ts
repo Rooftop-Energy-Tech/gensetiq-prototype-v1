@@ -73,6 +73,8 @@ type FleetSeed = {
    */
   siteId: string;
   locationLabel: string;
+  /** Only on a row at no site — the workshop's. See `BrandFleetSeed.address`. */
+  address?: string;
   latitude: number;
   longitude: number;
   fuelLitres: number;
@@ -104,6 +106,9 @@ const FLEET_SEED: Array<FleetSeed> = DATASET.gensets.map((seed) => ({
   // the dataset shape allows the workshop case and this column is not optional.
   siteId: seed.siteId ?? '',
 }));
+
+/** Each site's address, for the rows standing at it. */
+const SITE_ADDRESS = new Map(DATASET.sites.map((site) => [site.id, site.address]));
 
 const MINUTE = 60_000;
 
@@ -189,6 +194,8 @@ const buildFleet = (): Array<Genset> => {
     fuelCapacityLitres: seed.fuelCapacityLitres,
     siteId: seed.siteId,
     locationLabel: seed.locationLabel,
+    // The site's, so sets sharing a yard share it; the seed's own only at no site.
+    address: SITE_ADDRESS.get(seed.siteId) ?? seed.address ?? seed.locationLabel,
     latitude: seed.latitude,
     longitude: seed.longitude,
     lastUpdated: minutesBefore(now, seed.staleMinutes),

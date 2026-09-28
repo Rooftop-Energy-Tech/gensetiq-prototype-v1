@@ -65,6 +65,8 @@ export type SiteSeed = {
   kind: SiteKind;
   /** The yard's placename. Gensets deployed here take it as their own. */
   locationLabel: string;
+  /** The yard's full street address — see `BrandSiteSeed.address`. */
+  address: string;
   latitude: number;
   longitude: number;
   /**

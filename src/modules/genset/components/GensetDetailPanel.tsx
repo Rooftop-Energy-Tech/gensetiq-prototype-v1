@@ -148,7 +148,15 @@ export const GensetDetailPanel = ({
                 {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
               </span>
             </DetailRow>
-            <DetailRow label="Location">{genset.locationLabel}</DetailRow>
+            {/* The town, then the street address under it — the short answer
+                first, the one a driver needs second. */}
+            <div className="flex gap-px">
+              <dt className="flex h-8 w-[122px] shrink-0 items-center font-medium text-secondary">Location</dt>
+              <dd className="flex min-w-0 flex-1 flex-col py-1.5">
+                <span className="truncate text-primary">{genset.locationLabel}</span>
+                <span className="text-xs text-secondary">{genset.address}</span>
+              </dd>
+            </div>
             <DetailRow label="Last updated">{relativeTime(genset.lastUpdated)}</DetailRow>
           </dl>
         </>

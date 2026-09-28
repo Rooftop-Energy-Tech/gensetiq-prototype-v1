@@ -146,6 +146,7 @@ const applyPlacement = (now: number): Array<Genset> => {
       ...genset,
       siteId,
       locationLabel: seed.locationLabel,
+      address: seed.address,
       latitude: seed.latitude + offset.lat,
       longitude: seed.longitude + offset.lon,
     };

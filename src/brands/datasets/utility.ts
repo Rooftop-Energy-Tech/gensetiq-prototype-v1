@@ -104,41 +104,41 @@ const SITE_KIND_LABELS = {
 
 const SITES = [
   // — Wilayah Persekutuan (6) — the cluster in the map view.
-  {id: 'pe-001', name: 'PE-001', kind: 'PE', locationLabel: 'Bangsar, Kuala Lumpur',          latitude: 3.1290, longitude: 101.6700, loadKw: 412, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
-  {id: 'pe-002', name: 'PE-002', kind: 'PE', locationLabel: 'Setapak, Kuala Lumpur',          latitude: 3.1980, longitude: 101.7200, loadKw: 288, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
-  {id: 'pe-003', name: 'PE-003', kind: 'PE', locationLabel: 'Cheras, Kuala Lumpur',           latitude: 3.1000, longitude: 101.7400, loadKw: 355, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
-  {id: 'pe-004', name: 'PE-004', kind: 'PE', locationLabel: 'Sentul, Kuala Lumpur',           latitude: 3.1830, longitude: 101.6900, loadKw: 196, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
-  {id: 'pe-005', name: 'PE-005', kind: 'PE', locationLabel: 'Putrajaya',                      latitude: 2.9264, longitude: 101.6964, loadKw: 534, customer: 'wilayah',         powerRole: 'GRID_BACKUP', program: 'demand-growth'},
-  {id: 'pe-006', name: 'PE-006', kind: 'PE', locationLabel: 'Kepong, Kuala Lumpur',           latitude: 3.2100, longitude: 101.6300, loadKw: 243, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-001', name: 'PE-001', kind: 'PE', locationLabel: 'Bangsar, Kuala Lumpur', address: 'Lot 14, Jalan Maarof, Bangsar, 59000 Kuala Lumpur',          latitude: 3.1290, longitude: 101.6700, loadKw: 412, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-002', name: 'PE-002', kind: 'PE', locationLabel: 'Setapak, Kuala Lumpur', address: 'Lot 3, Jalan Genting Kelang, Setapak, 53300 Kuala Lumpur',          latitude: 3.1980, longitude: 101.7200, loadKw: 288, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-003', name: 'PE-003', kind: 'PE', locationLabel: 'Cheras, Kuala Lumpur', address: 'Lot 27, Jalan Cheras, Taman Connaught, 56000 Kuala Lumpur',           latitude: 3.1000, longitude: 101.7400, loadKw: 355, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-004', name: 'PE-004', kind: 'PE', locationLabel: 'Sentul, Kuala Lumpur', address: 'Lot 9, Jalan Sentul, 51000 Kuala Lumpur',           latitude: 3.1830, longitude: 101.6900, loadKw: 196, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
+  {id: 'pe-005', name: 'PE-005', kind: 'PE', locationLabel: 'Putrajaya', address: 'Lot 2, Persiaran Perdana, Presint 2, 62100 Putrajaya',                      latitude: 2.9264, longitude: 101.6964, loadKw: 534, customer: 'wilayah',         powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-006', name: 'PE-006', kind: 'PE', locationLabel: 'Kepong, Kuala Lumpur', address: 'Lot 41, Jalan Kepong, Kepong Baru, 52100 Kuala Lumpur',           latitude: 3.2100, longitude: 101.6300, loadKw: 243, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
 
   // — Selangor (5) — the Klang corridor, and Rawang on temporary supply.
-  {id: 'pe-007', name: 'PE-007', kind: 'PE', locationLabel: 'Shah Alam, Selangor',            latitude: 3.0730, longitude: 101.5180, loadKw: 618, customer: 'selangor',        powerRole: 'GRID_BACKUP', program: 'demand-growth'},
-  {id: 'pe-008', name: 'PE-008', kind: 'PE', locationLabel: 'Klang, Selangor',                latitude: 3.0440, longitude: 101.4450, loadKw: 471, customer: 'selangor',        powerRole: 'GRID_BACKUP', program: 'demand-growth'},
-  {id: 'pe-009', name: 'PE-009', kind: 'PE', locationLabel: 'Petaling Jaya, Selangor',        latitude: 3.1070, longitude: 101.6060, loadKw: 327, customer: 'selangor',        powerRole: 'GRID_BACKUP'},
-  {id: 'pe-010', name: 'PE-010', kind: 'PE', locationLabel: 'Rawang, Selangor',               latitude: 3.3210, longitude: 101.5770, loadKw: 164, customer: 'selangor',        powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
-  {id: 'pe-011', name: 'PE-011', kind: 'PE', locationLabel: 'Banting, Selangor',              latitude: 2.8160, longitude: 101.5000, loadKw: 118, customer: 'selangor',        powerRole: 'GRID_BACKUP'},
+  {id: 'pe-007', name: 'PE-007', kind: 'PE', locationLabel: 'Shah Alam, Selangor', address: 'Lot 18, Persiaran Kayangan, Seksyen 9, 40100 Shah Alam, Selangor',            latitude: 3.0730, longitude: 101.5180, loadKw: 618, customer: 'selangor',        powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-008', name: 'PE-008', kind: 'PE', locationLabel: 'Klang, Selangor', address: 'Lot 56, Jalan Meru, 41050 Klang, Selangor',                latitude: 3.0440, longitude: 101.4450, loadKw: 471, customer: 'selangor',        powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-009', name: 'PE-009', kind: 'PE', locationLabel: 'Petaling Jaya, Selangor', address: 'Lot 7, Jalan Universiti, Seksyen 12, 46200 Petaling Jaya, Selangor',        latitude: 3.1070, longitude: 101.6060, loadKw: 327, customer: 'selangor',        powerRole: 'GRID_BACKUP'},
+  {id: 'pe-010', name: 'PE-010', kind: 'PE', locationLabel: 'Rawang, Selangor', address: 'Lot 112, Jalan Rawang, Bandar Baru Rawang, 48000 Rawang, Selangor',               latitude: 3.3210, longitude: 101.5770, loadKw: 164, customer: 'selangor',        powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-011', name: 'PE-011', kind: 'PE', locationLabel: 'Banting, Selangor', address: 'Lot 23, Jalan Sultan Alam Shah, 42700 Banting, Selangor',              latitude: 2.8160, longitude: 101.5000, loadKw: 118, customer: 'selangor',        powerRole: 'GRID_BACKUP'},
 
   // — Perak (4) — Ipoh, and the coast road down to Sitiawan.
-  {id: 'pe-012', name: 'PE-012', kind: 'PE', locationLabel: 'Ipoh, Perak',                    latitude: 4.5975, longitude: 101.0901, loadKw: 302, customer: 'perak',           powerRole: 'GRID_BACKUP'},
-  {id: 'pe-013', name: 'PE-013', kind: 'PE', locationLabel: 'Taiping, Perak',                 latitude: 4.8500, longitude: 100.7400, loadKw: 147, customer: 'perak',           powerRole: 'GRID_BACKUP'},
-  {id: 'pe-014', name: 'PE-014', kind: 'PE', locationLabel: 'Teluk Intan, Perak',             latitude: 4.0230, longitude: 101.0210, loadKw: 96,  customer: 'perak',           powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
-  {id: 'pe-015', name: 'PE-015', kind: 'PE', locationLabel: 'Sitiawan, Perak',                latitude: 4.2160, longitude: 100.6960, loadKw: 205, customer: 'perak',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-012', name: 'PE-012', kind: 'PE', locationLabel: 'Ipoh, Perak', address: 'Lot 31, Jalan Kuala Kangsar, 30010 Ipoh, Perak',                    latitude: 4.5975, longitude: 101.0901, loadKw: 302, customer: 'perak',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-013', name: 'PE-013', kind: 'PE', locationLabel: 'Taiping, Perak', address: 'Lot 6, Jalan Kota, 34000 Taiping, Perak',                 latitude: 4.8500, longitude: 100.7400, loadKw: 147, customer: 'perak',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-014', name: 'PE-014', kind: 'PE', locationLabel: 'Teluk Intan, Perak', address: 'Lot 88, Jalan Changkat Jong, 36000 Teluk Intan, Perak',             latitude: 4.0230, longitude: 101.0210, loadKw: 96,  customer: 'perak',           powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-015', name: 'PE-015', kind: 'PE', locationLabel: 'Sitiawan, Perak', address: 'Lot 15, Jalan Lumut, 32000 Sitiawan, Perak',                latitude: 4.2160, longitude: 100.6960, loadKw: 205, customer: 'perak',           powerRole: 'GRID_BACKUP'},
 
   // — Pulau Pinang (3) — the island, and the mainland crossing.
-  {id: 'pe-016', name: 'PE-016', kind: 'PE', locationLabel: 'George Town, Pulau Pinang',      latitude: 5.4141, longitude: 100.3288, loadKw: 389, customer: 'pulau-pinang',    powerRole: 'GRID_BACKUP'},
-  {id: 'pe-017', name: 'PE-017', kind: 'PE', locationLabel: 'Bayan Lepas, Pulau Pinang',      latitude: 5.2940, longitude: 100.2770, loadKw: 742, customer: 'pulau-pinang',    powerRole: 'GRID_BACKUP', program: 'demand-growth'},
-  {id: 'pe-018', name: 'PE-018', kind: 'PE', locationLabel: 'Butterworth, Pulau Pinang',      latitude: 5.3990, longitude: 100.3630, loadKw: 133, customer: 'pulau-pinang',    powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-016', name: 'PE-016', kind: 'PE', locationLabel: 'George Town, Pulau Pinang', address: 'Lot 4, Jalan Anson, 10400 George Town, Pulau Pinang',      latitude: 5.4141, longitude: 100.3288, loadKw: 389, customer: 'pulau-pinang',    powerRole: 'GRID_BACKUP'},
+  {id: 'pe-017', name: 'PE-017', kind: 'PE', locationLabel: 'Bayan Lepas, Pulau Pinang', address: 'Lot 62, Jalan Sultan Azlan Shah, 11900 Bayan Lepas, Pulau Pinang',      latitude: 5.2940, longitude: 100.2770, loadKw: 742, customer: 'pulau-pinang',    powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-018', name: 'PE-018', kind: 'PE', locationLabel: 'Butterworth, Pulau Pinang', address: 'Lot 19, Jalan Bagan Luar, 12000 Butterworth, Pulau Pinang',      latitude: 5.3990, longitude: 100.3630, loadKw: 133, customer: 'pulau-pinang',    powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
 
   // — Johor (4) — Johor Bahru, the port, and up the trunk road.
-  {id: 'pe-019', name: 'PE-019', kind: 'PE', locationLabel: 'Johor Bahru, Johor',             latitude: 1.4927, longitude: 103.7414, loadKw: 448, customer: 'johor',           powerRole: 'GRID_BACKUP'},
-  {id: 'pe-020', name: 'PE-020', kind: 'PE', locationLabel: 'Pasir Gudang, Johor',            latitude: 1.4720, longitude: 103.8920, loadKw: 695, customer: 'johor',           powerRole: 'GRID_BACKUP', program: 'demand-growth'},
-  {id: 'pe-021', name: 'PE-021', kind: 'PE', locationLabel: 'Kulai, Johor',                   latitude: 1.6580, longitude: 103.6030, loadKw: 171, customer: 'johor',           powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
-  {id: 'pe-022', name: 'PE-022', kind: 'PE', locationLabel: 'Batu Pahat, Johor',              latitude: 1.8548, longitude: 102.9325, loadKw: 224, customer: 'johor',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-019', name: 'PE-019', kind: 'PE', locationLabel: 'Johor Bahru, Johor', address: 'Lot 45, Jalan Tebrau, 80250 Johor Bahru, Johor',             latitude: 1.4927, longitude: 103.7414, loadKw: 448, customer: 'johor',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-020', name: 'PE-020', kind: 'PE', locationLabel: 'Pasir Gudang, Johor', address: 'Lot 130, Jalan Pekeliling, 81700 Pasir Gudang, Johor',            latitude: 1.4720, longitude: 103.8920, loadKw: 695, customer: 'johor',           powerRole: 'GRID_BACKUP', program: 'demand-growth'},
+  {id: 'pe-021', name: 'PE-021', kind: 'PE', locationLabel: 'Kulai, Johor', address: 'Lot 8, Jalan Kulai–Kota Tinggi, 81000 Kulai, Johor',                   latitude: 1.6580, longitude: 103.6030, loadKw: 171, customer: 'johor',           powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-022', name: 'PE-022', kind: 'PE', locationLabel: 'Batu Pahat, Johor', address: 'Lot 37, Jalan Kluang, 83000 Batu Pahat, Johor',              latitude: 1.8548, longitude: 102.9325, loadKw: 224, customer: 'johor',           powerRole: 'GRID_BACKUP'},
 
   // — Negeri Sembilan (2) and Pahang (1) — the south coast, and the road across.
-  {id: 'pe-023', name: 'PE-023', kind: 'PE', locationLabel: 'Seremban, Negeri Sembilan',      latitude: 2.7297, longitude: 101.9381, loadKw: 266, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-024', name: 'PE-024', kind: 'PE', locationLabel: 'Port Dickson, Negeri Sembilan',  latitude: 2.5228, longitude: 101.7960, loadKw: 109, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-025', name: 'PE-025', kind: 'PE', locationLabel: 'Kuantan, Pahang',                latitude: 3.8077, longitude: 103.3260, loadKw: 187, customer: 'pahang',          powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-023', name: 'PE-023', kind: 'PE', locationLabel: 'Seremban, Negeri Sembilan', address: 'Lot 21, Jalan Rasah, 70300 Seremban, Negeri Sembilan',      latitude: 2.7297, longitude: 101.9381, loadKw: 266, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-024', name: 'PE-024', kind: 'PE', locationLabel: 'Port Dickson, Negeri Sembilan', address: 'Lot 11, Jalan Pantai, 71000 Port Dickson, Negeri Sembilan',  latitude: 2.5228, longitude: 101.7960, loadKw: 109, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-025', name: 'PE-025', kind: 'PE', locationLabel: 'Kuantan, Pahang', address: 'Lot 74, Jalan Gambang, 25150 Kuantan, Pahang',                latitude: 3.8077, longitude: 103.3260, loadKw: 187, customer: 'pahang',          powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
 
   // — The six yards `BRF 9540` actually stood at, May–September 2026. Named as the
   //   job sheet names them rather than `PE-0nn`: these came off Express Mission's
@@ -146,12 +146,12 @@ const SITES = [
   //   says out loud. Their `loadKw` is the mean load the set carried there, read off
   //   the controller — not a surveyed substation rating like the twenty-five above.
   //   ⚠️ Coordinates are the placename's, not a survey.
-  {id: 'pe-026', name: 'PE Kapar L. Ind Park', kind: 'PE', locationLabel: 'Kapar, Selangor', latitude: 3.1167, longitude: 101.3833, loadKw: 44, customer: 'selangor', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-027', name: 'PE Sek Men Vokasional Sg. Buloh', kind: 'PE', locationLabel: 'Sungai Buloh, Selangor', latitude: 3.2064, longitude: 101.5806, loadKw: 180, customer: 'selangor', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-028', name: 'PE Taman Pantai Makmur 2', kind: 'PE', locationLabel: 'Pantai Makmur, Selangor', latitude: 3.1550, longitude: 101.3250, loadKw: 104, customer: 'selangor', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-029', name: 'PE Tmn Sementa Jaya', kind: 'PE', locationLabel: 'Sementa, Selangor', latitude: 3.0900, longitude: 101.3600, loadKw: 347, customer: 'selangor', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-030', name: 'PE Pusat Ternakan Itik', kind: 'PE', locationLabel: 'Jeram, Selangor', latitude: 3.2167, longitude: 101.3167, loadKw: 22, customer: 'selangor', powerRole: 'GRID_BACKUP'},
-  {id: 'pe-031', name: 'PE Alam Perdana No 3', kind: 'PE', locationLabel: 'Bandar Puncak Alam, Selangor', latitude: 3.2300, longitude: 101.4200, loadKw: 172, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-026', name: 'PE Kapar L. Ind Park', kind: 'PE', locationLabel: 'Kapar, Selangor', address: 'Lot 5, Jalan Kapar, Kawasan Perindustrian Kapar, 42200 Kapar, Selangor', latitude: 3.1167, longitude: 101.3833, loadKw: 44, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-027', name: 'PE Sek Men Vokasional Sg. Buloh', kind: 'PE', locationLabel: 'Sungai Buloh, Selangor', address: 'Lot 16, Jalan Sungai Buloh, 47000 Sungai Buloh, Selangor', latitude: 3.2064, longitude: 101.5806, loadKw: 180, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-028', name: 'PE Taman Pantai Makmur 2', kind: 'PE', locationLabel: 'Pantai Makmur, Selangor', address: 'Lot 29, Jalan Pantai Makmur 2, 42200 Kapar, Selangor', latitude: 3.1550, longitude: 101.3250, loadKw: 104, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-029', name: 'PE Tmn Sementa Jaya', kind: 'PE', locationLabel: 'Sementa, Selangor', address: 'Lot 10, Jalan Sementa Jaya, Taman Sementa, 42100 Klang, Selangor', latitude: 3.0900, longitude: 101.3600, loadKw: 347, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-030', name: 'PE Pusat Ternakan Itik', kind: 'PE', locationLabel: 'Jeram, Selangor', address: 'Lot 3, Jalan Jeram, 45800 Jeram, Selangor', latitude: 3.2167, longitude: 101.3167, loadKw: 22, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-031', name: 'PE Alam Perdana No 3', kind: 'PE', locationLabel: 'Bandar Puncak Alam, Selangor', address: 'Lot 52, Jalan Alam Perdana 3, 42300 Bandar Puncak Alam, Selangor', latitude: 3.2300, longitude: 101.4200, loadKw: 172, customer: 'selangor', powerRole: 'GRID_BACKUP'},
 ] as const;
 
 /**
@@ -242,7 +242,7 @@ const GENSETS = [
   // `RIQFL001 | Fuel Level (derived) [L]`: 917 mm on 12 September, against a
   // calibration that holds across the whole export at about `2.683 L/mm − 106 L`.
   // A tank read at its own high-water mark — Afifah's call, 2026-09-21.
-  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', latitude: 3.1167, longitude: 101.3833, fuelLitres: 2136, fuelCapacityLitres: 2354, staleMinutes: 7_400, plateNumber: 'BRF 9540'},
+  {tag: 'BRF9540', model: 'Cummins 1000 kVa', runState: 'IDLE', siteId: undefined, locationLabel: 'Workshop, Kapar', address: 'Lot 5, Jalan Kapar Perdana, Kawasan Perindustrian Kapar, 42200 Kapar, Selangor', latitude: 3.1167, longitude: 101.3833, fuelLitres: 2136, fuelCapacityLitres: 2354, staleMinutes: 7_400, plateNumber: 'BRF 9540'},
 ] as const;
 
 export const UTILITY_DATASET: BrandDataset = {

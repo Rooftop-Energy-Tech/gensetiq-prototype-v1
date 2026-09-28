@@ -1,5 +1,5 @@
 import {Outlet} from '@tanstack/react-router';
-import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, SettingsIcon, TruckIcon, WrenchIcon} from 'lucide-react';
+import {BellIcon, BoomBoxIcon, ChartLineIcon, CircuitBoardIcon, InfoIcon, MapPinIcon, SettingsIcon, TruckIcon, WrenchIcon} from 'lucide-react';
 
 import {
   DetailSidebar,
@@ -113,6 +113,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                   <span>Asset tag · {genset.tag}</span>
                   <span>Model · {genset.model}</span>
                   <span>Location · {genset.locationLabel}</span>
+                  <span>Address · {genset.address}</span>
                   <span>
                     Tank · {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
                   </span>
@@ -152,6 +153,15 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
             loadKw={detail?.loadKw ?? null}
             severity={worstAlert}
           />
+          {/* Where it stands, on every tab: the town, then the street address. On
+              its own line so a long address wraps instead of crowding the title. */}
+          <p className="flex w-full min-w-0 items-start gap-1.5 text-sm">
+            <MapPinIcon className="mt-0.5 size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+            <span className="flex min-w-0 flex-col">
+              <span className="text-primary">{genset.locationLabel}</span>
+              <span className="text-xs text-secondary">{genset.address}</span>
+            </span>
+          </p>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
