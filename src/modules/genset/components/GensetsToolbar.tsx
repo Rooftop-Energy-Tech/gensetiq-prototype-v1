@@ -1,4 +1,4 @@
-import {ColumnsIcon, GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon} from 'lucide-react';
+import {ColumnsIcon, GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon, XIcon} from 'lucide-react';
 
 import {FilterSelect} from '@/components/global/FilterSelect';
 import type {FilterOption} from '@/components/global/FilterSelect';
@@ -32,8 +32,13 @@ type GensetsToolbarProps = {
    * are also the only filtering that width has once the strip is folded.
    */
   showViewControls: boolean;
-  /** Counted over the whole fleet, so a dropdown's counts do not move as you filter. */
+  /** The whole fleet — which states exist, and the summary strip's buckets. */
   summary: FleetSummary;
+  /**
+   * The dropdowns' counts, each over the sets the *other* filters leave — see
+   * `facets` in the page. Johor picked, and `Status` counts Johor's sets.
+   */
+  facets: Pick<FleetSummary, 'byState' | 'byRunState' | 'byAlarm' | 'byFuel'>;
   search: GensetSearch;
   onSearchChange: (next: Partial<GensetSearch>) => void;
 };
@@ -87,13 +92,19 @@ const FUEL_OPTION: Record<GensetFuelFilter, Omit<FilterOption<GensetFuelFilter>,
  * otherwise the list is empty while the control still reads `State`, a filter on with
  * nothing showing it. The extra option stands at zero and goes when the filter does.
  */
-const stateOptions = (summary: FleetSummary, picked: string | undefined): Array<FilterOption<string>> => {
-  if (picked === undefined || summary.byState.some((option) => option.key === picked)) return summary.byState;
+const stateOptions = (
+  summary: FleetSummary,
+  facet: FleetSummary['byState'],
+  picked: string | undefined,
+): Array<FilterOption<string>> => {
+  // The fleet's states, so the list holds still; counts from the facet, so they
+  // follow the other filters — a state with no running set reads 0 under `Running`.
+  const counts = new Map(facet.map((option) => [option.key, option.count]));
+  const options = summary.byState.map((option) => ({...option, count: counts.get(option.key) ?? 0}));
+  if (picked === undefined || options.some((option) => option.key === picked)) return options;
   const label = stateNameFromSlug(picked);
-  if (label === undefined) return summary.byState;
-  return [...summary.byState, {key: picked, label, count: 0}].sort((left, right) =>
-    left.label.localeCompare(right.label),
-  );
+  if (label === undefined) return options;
+  return [...options, {key: picked, label, count: 0}].sort((left, right) => left.label.localeCompare(right.label));
 };
 
 export const GensetsToolbar = ({
@@ -105,6 +116,7 @@ export const GensetsToolbar = ({
   onPanelOpenChange,
   showViewControls,
   summary,
+  facets,
   search,
   onSearchChange,
 }: GensetsToolbarProps) => {
@@ -114,9 +126,10 @@ export const GensetsToolbar = ({
     // switcher, and below `lg` with the preview panel open the row would otherwise
     // push the switcher off the edge.
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      {/* 373px is the design's width. It shrinks on narrow viewports rather than
-          pushing the view switcher off the right edge. */}
-      <InputGroup className="w-full max-w-[373px] min-w-[200px] flex-1">
+      {/* Half the design's 373px: a plate is eight characters, and the width is
+          better spent on the filters beside it. It shrinks on narrow viewports
+          rather than pushing the view switcher off the right edge. */}
+      <InputGroup className="w-full max-w-[187px] min-w-[140px] flex-1">
         <InputGroupAddon>
           <SearchIcon aria-hidden="true" />
         </InputGroupAddon>
@@ -132,35 +145,36 @@ export const GensetsToolbar = ({
       {/* Between the search and the view switcher, in the order the sentence runs:
           where the set is, then the three columns it can be narrowed by, in the
           order the columns stand — `Status`, `Alarm`, `Fuel level`. Each option's
-          count is over the whole fleet, like the chips below, so the list holds
-          still while the table answers the narrower question. They combine with
-          each other, with the chips and with the search. */}
+          count is over the sets the other filters leave (`facets`), so with Johor
+          picked the other three count Johor's sets. The options themselves stay
+          put, zeros included. They combine with each other, with the chips and with
+          the search. */}
       <div className="flex flex-wrap items-center gap-2">
         <FilterSelect
           label="State"
           allLabel="All states"
-          options={stateOptions(summary, search.location)}
+          options={stateOptions(summary, facets.byState, search.location)}
           value={search.location}
           onChange={(next) => onSearchChange({location: next})}
         />
         <FilterSelect<RunState>
           label="Status"
           allLabel="All statuses"
-          options={RUN_STATES.map((key) => ({key, label: RUN_STATE_META[key].label, count: summary.byRunState[key]}))}
+          options={RUN_STATES.map((key) => ({key, label: RUN_STATE_META[key].label, count: facets.byRunState[key]}))}
           value={search.run}
           onChange={(next) => onSearchChange({run: next})}
         />
         <FilterSelect<GensetAlarmFilter>
           label="Alarm"
           allLabel="All alarms"
-          options={GENSET_ALARM_FILTERS.map((key) => ({key, ...ALARM_OPTION[key], count: summary.byAlarm[key]}))}
+          options={GENSET_ALARM_FILTERS.map((key) => ({key, ...ALARM_OPTION[key], count: facets.byAlarm[key]}))}
           value={search.alarm}
           onChange={(next) => onSearchChange({alarm: next})}
         />
         <FilterSelect<GensetFuelFilter>
           label="Fuel level"
           allLabel="All fuel levels"
-          options={GENSET_FUEL_FILTERS.map((key) => ({key, ...FUEL_OPTION[key], count: summary.byFuel[key]}))}
+          options={GENSET_FUEL_FILTERS.map((key) => ({key, ...FUEL_OPTION[key], count: facets.byFuel[key]}))}
           value={search.fuel}
           onChange={(next) => onSearchChange({fuel: next})}
         />
@@ -223,6 +237,78 @@ export const GensetsToolbar = ({
         </Tooltip>
       </div>
       )}
+    </div>
+  );
+};
+
+/**
+ * What is narrowing the list, one removable chip per filter, with `Clear all` after
+ * them — drawn under the toolbar, and only while something is on.
+ *
+ * Every way the list can be narrowed is here, not only the four dropdowns: the
+ * readiness chip in the strip, a `Service due` link from elsewhere, and the search
+ * box. A row that named three of five filters would leave a reader wondering why the
+ * list is still short, and `Clear all` would clear some of it. Each chip's words are
+ * the control's own — the dropdown's option label, the strip's bucket name — so a
+ * chip and the control that set it say the same thing.
+ */
+export const GensetsActiveFilters = ({
+  summary,
+  search,
+  onSearchChange,
+}: {
+  summary: FleetSummary;
+  search: GensetSearch;
+  onSearchChange: (next: Partial<GensetSearch>) => void;
+}) => {
+  const chips: Array<{key: string; label: string; clear: Partial<GensetSearch>}> = [];
+  if (search.q) chips.push({key: 'q', label: `“${search.q}”`, clear: {q: undefined}});
+  if (search.location !== undefined) {
+    chips.push({key: 'location', label: stateNameFromSlug(search.location) ?? search.location, clear: {location: undefined}});
+  }
+  if (search.run !== undefined) chips.push({key: 'run', label: RUN_STATE_META[search.run].label, clear: {run: undefined}});
+  if (search.alarm !== undefined) {
+    // `Critical` alone does not say which dimension it is; `No alarms` already does.
+    const label = search.alarm === 'NONE' ? ALARM_OPTION.NONE.label : `${ALARM_OPTION[search.alarm].label} alarm`;
+    chips.push({key: 'alarm', label, clear: {alarm: undefined}});
+  }
+  if (search.fuel !== undefined) chips.push({key: 'fuel', label: `Fuel ${FUEL_OPTION[search.fuel].label.toLowerCase()}`, clear: {fuel: undefined}});
+  if (search.status !== undefined) {
+    const label = summary.byStatus.find((tally) => tally.key === search.status)?.label ?? search.status;
+    chips.push({key: 'status', label, clear: {status: undefined}});
+  }
+  if (search.service !== undefined) chips.push({key: 'service', label: 'Service due', clear: {service: undefined}});
+
+  if (chips.length === 0) return null;
+
+  const clearAll = Object.assign({}, ...chips.map((chip) => chip.clear)) as Partial<GensetSearch>;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm" aria-label="Active filters" role="group">
+      <span className="text-secondary">Filtered by:</span>
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          onClick={() => onSearchChange(chip.clear)}
+          aria-label={`Remove filter ${chip.label}`}
+          className={cn(
+            'flex h-7 cursor-pointer items-center gap-1 rounded-full border border-subtle bg-highlight pr-1.5 pl-2.5',
+            'font-medium whitespace-nowrap text-primary transition-colors outline-none',
+            'hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline',
+          )}
+        >
+          {chip.label}
+          <XIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onSearchChange(clearAll)}
+        className="cursor-pointer px-1 font-medium text-secondary underline-offset-4 outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+      >
+        Clear all
+      </button>
     </div>
   );
 };

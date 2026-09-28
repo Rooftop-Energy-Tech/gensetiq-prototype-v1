@@ -8,7 +8,7 @@ import {attachStateHover} from '@/lib/geo/stateHover';
 import type {StateHoverHandle} from '@/lib/geo/stateHover';
 import {lightToken} from '@/styles/colors';
 import {RUN_STATE_META} from './runStateMeta';
-import {RUN_STATES} from '../types/genset.type';
+import {RUN_STATES, gensetLabel} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
 /**
@@ -81,6 +81,38 @@ type GensetsMapProps = {
    * register filters its list to that state; the map frames it either way.
    */
   onStateSelect?: (stateId: string) => void;
+  /**
+   * Keep the current frame rather than fitting to the fleet — set by the register
+   * after a state click, which frames the state itself. Without it the filter the
+   * click sets would re-fit the map to the state's pins a moment later and undo it.
+   */
+  holdFrame?: boolean;
+};
+
+/**
+ * The card a hovered pin shows: the plate, and the street address under it.
+ *
+ * DOM, like the state hover's card and in its colours, so the two read as one family
+ * — the state card says what the region holds, this one what the pin is and where.
+ * It sits just above the pin and over the state card, and never takes the pointer,
+ * so it cannot steal the click that selects the set.
+ */
+const buildPinCard = (): {element: HTMLDivElement; plate: HTMLSpanElement; address: HTMLSpanElement} => {
+  const element = document.createElement('div');
+  element.className =
+    'pointer-events-none flex max-w-[260px] flex-col items-start gap-0.5 rounded-lg bg-brand px-3 py-2 text-brand-text shadow-lg';
+  element.style.zIndex = '20';
+  element.setAttribute('aria-hidden', 'true');
+  element.dataset.pinCard = '';
+
+  const plate = document.createElement('span');
+  plate.className = 'text-sm leading-tight font-semibold whitespace-nowrap';
+
+  const address = document.createElement('span');
+  address.className = 'text-xs leading-snug opacity-80';
+
+  element.append(plate, address);
+  return {element, plate, address};
 };
 
 const toFeatureCollection = (
@@ -133,6 +165,7 @@ export const GensetsMap = ({
   panelInset,
   focusIds,
   onStateSelect,
+  holdFrame,
 }: GensetsMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -147,6 +180,11 @@ export const GensetsMap = ({
   onDeselectRef.current = onDeselect;
   const onStateSelectRef = useRef(onStateSelect);
   onStateSelectRef.current = onStateSelect;
+
+  // Read by the fleet fit below, which stands down while it is set. A ref so the
+  // effect sees this render's value without re-running on it.
+  const holdFrameRef = useRef(holdFrame);
+  holdFrameRef.current = holdFrame;
 
   // The rows currently drawn, read from inside the state hover's count. A ref for
   // the same reason as the handlers above — and because the count has to follow the
@@ -381,6 +419,33 @@ export const GensetsMap = ({
       onDeselectRef.current?.();
     };
 
+    // The pin hover card. Placed at the pin's own coordinates rather than the
+    // cursor's, so it stays put while the cursor moves across the dot.
+    const pinCard = buildPinCard();
+    const pinMarker = new maplibregl.Marker({element: pinCard.element, anchor: 'bottom', offset: [0, -14]});
+    let pinShown: string | undefined;
+    const handlePinMove = (event: MapMouseEvent) => {
+      const [feature] = map.queryRenderedFeatures(event.point, {layers: [LAYER.point]});
+      const id = feature?.properties?.id as string | undefined;
+      const genset = id === undefined ? undefined : gensetsRef.current.find((candidate) => candidate.id === id);
+      if (genset === undefined) {
+        handlePinLeave();
+        return;
+      }
+      if (pinShown === genset.id) return;
+      pinCard.plate.textContent = gensetLabel(genset);
+      pinCard.address.textContent = genset.address;
+      pinMarker.setLngLat([genset.longitude, genset.latitude]).addTo(map);
+      pinShown = genset.id;
+    };
+    const handlePinLeave = () => {
+      if (pinShown === undefined) return;
+      pinMarker.remove();
+      pinShown = undefined;
+    };
+    map.on('mousemove', LAYER.point, handlePinMove);
+    map.on('mouseleave', LAYER.point, handlePinLeave);
+
     const setPointer = () => {
       map.getCanvas().style.cursor = 'pointer';
     };
@@ -455,6 +520,7 @@ export const GensetsMap = ({
   useEffect(() => {
     const map = mapRef.current;
     if (map === null || gensets.length === 0) return;
+    if (holdFrameRef.current === true) return;
 
     const framed =
       focusKey === '' ? gensets : gensets.filter((genset) => focusKey.split(',').includes(genset.id));

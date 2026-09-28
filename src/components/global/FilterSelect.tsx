@@ -138,7 +138,11 @@ export const FilterSelect = <K extends string>({
                   aria-hidden="true"
                 />
               )}
-              <span className="truncate text-primary">{option.label}</span>
+              {/* A zero is kept, so the menu holds its shape, but greyed: under the
+                  other filters it is an option that would empty the list. */}
+              <span className={cn('truncate', option.count === 0 ? 'text-tertiary' : 'text-primary')}>
+                {option.label}
+              </span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
               <span className="text-secondary tabular-nums">{option.count}</span>

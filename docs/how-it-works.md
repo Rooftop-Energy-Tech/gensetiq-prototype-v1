@@ -1108,7 +1108,9 @@ into view — islands included, centred, with the same padding the fleet is fram
 On the gensets register the click also sets the toolbar's `State` filter to that
 state, so the list and the map narrow to the sets standing there; `All states` in the
 dropdown, or Back, undoes it. A state with no set in it filters too, to an empty
-list, and the dropdown lists it at 0 for as long as it is picked. The sites and deployments maps frame and do nothing
+list, and the dropdown lists it at 0 for as long as it is picked. The map then holds
+the state's frame rather than re-fitting to the state's pins, until the list is scrolled
+or another filter changes. The sites and deployments maps frame and do nothing
 else. A click on a pin or a bubble is still a click
 on a pin or a bubble; the state only answers when nothing on the fleet was hit. The
 frame is measured on the fine copy of the shapes rather than the coarse one — the
@@ -1209,11 +1211,16 @@ what needs doing to it, and whether it is due for service — the last being whe
 estate strip's `Due for service` card lands. Its toolbar adds one dropdown per column a reader
 scans for trouble — **Status** (`?run=`, the run state), **Alarm** (`?alarm=`, the set's
 worst standing severity or `No alarms`) and **Fuel level** (`?fuel=`, below the reserve
-line or not). Each files a set in exactly one option, so an option's count is rows the
-filter will show and the counts add up to the fleet; the alarm filter reads the same
-pass the `Alarm` column draws, and the fuel filter the line the red figure and the
-`Low fuel` alarm use. They combine with each other, with the chips and with search. The estate's: whose site, which programme, how it
-is fed.
+line or not). Each files a set in exactly one option. **A dropdown's counts follow the
+other filters**: each counts over the sets that every *other* filter leaves, so with
+Johor picked `Status`, `Alarm` and `Fuel level` count Johor's sets, and with `Running`
+picked `State` counts the running sets per state. A dropdown leaves itself out of its
+own count, so its options still show what switching to each would give; an option's
+count is exactly the rows picking it will show. Options never drop out — a zero stays,
+greyed. The summary strip does not follow them (see above). The alarm filter reads the
+same pass the `Alarm` column draws, and the fuel filter the line the red figure and the
+`Low fuel` alarm use. They combine with each other, with the chips and with search. The
+estate's: whose site, which programme, how it is fed.
 
 **The fleet's first filter is the Malaysian state, by position** (`?location=selangor`)
 — the State column's answer, listing only the states a set stands in. It was the
@@ -1279,12 +1286,27 @@ answer it, because half of them name a town (`Sepanggar, Kota Kinabalu`). The he
 sorts A to Z as `sort=location` — `sort=state` was already the run state's key — and a
 set in no state goes to the foot in both directions.
 
-⚠️ **The column and the Express Mission toolbar's `State` dropdown can disagree**, and
-on one row they do. The dropdown is the dataset's seeded roster, where `Wilayah
-Persekutuan` covers Kuala Lumpur and Putrajaya; the column is geography. `H 4141` is
-filed under Wilayah and labelled `Kepong, Kuala Lumpur`, and its seeded coordinates
-fall just over the line in Selangor. The seed contradicts itself; which half is right
-is a data question, not a rendering one.
+**The column and the toolbar's `State` dropdown agree**, since the dropdown was rebuilt
+off the same geography (it used to be the dataset's seeded roster). ⚠️ One row still
+contradicts itself: `H 4141` is labelled `Kepong, Kuala Lumpur` and addressed `52100
+Kuala Lumpur`, but its seeded coordinates fall just over the line in Selangor, so the
+column says Selangor. Which half is right is a data question, not a rendering one.
+
+**What is filtering the list is spelled out under the toolbar**, and only while
+something is: `Filtered by:`, a removable chip per filter, then `Clear all`. It names
+every narrowing — the search text, the four dropdowns, the summary strip's chip and a
+`Service due` link — because a row that named some of them would leave a short list
+unexplained, and `Clear all` would clear only part of it. The chips use each control's
+own words, so a chip and the control that set it read the same.
+
+**Every set has a street address**, mock but plausible: a real town and postcode, an
+invented lot number (`Lot 31, Jalan Kuala Kangsar, 30010 Ipoh, Perak`). It belongs to
+the **site** — `address` on each site seed — so sets at one yard share it, and a set put
+on a job elsewhere takes the new yard's. The workshop row carries its own. The town
+(`locationLabel`) stays the short answer and the address sits under it: the `Location`
+column shows the full address on one line (capped, the rest in a tooltip), the preview
+panel and the genset page's header show town then address, and hovering a pin on the map
+shows a card with the plate and the address.
 
 **The estate list is worst standing alarm first, then by name.** Its second column is
 the **alarm pill** — `Critical · Warning · Neutral`, the same three figures every metric

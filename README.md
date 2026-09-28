@@ -1134,9 +1134,26 @@ me. A click on the basemap inside a state fits the viewport to the whole of that
 — islands included, centred, with the same padding the fleet is framed with. On the
 gensets register it also sets the `State` filter to that state, so the list narrows to
 the sets standing there (`All states`, or Back, undoes it). A state with no set in it
-filters to an empty list, and the dropdown lists it at 0 while it is picked. The sites and deployments maps only
-frame. A click on a pin or a bubble still does what it did; the state only answers
-when nothing on the fleet was hit.
+filters to an empty list, and the dropdown lists it at 0 while it is picked. The map
+then keeps the state's frame instead of re-fitting to its pins, until you scroll the
+list or change another filter. The sites and deployments maps only frame. A click on a
+pin or a bubble still does what it did; the state only answers when nothing on the
+fleet was hit.
+
+**The dropdowns' counts follow the other filters.** Pick Johor and `Status`, `Alarm`
+and `Fuel level` count only Johor's sets; each dropdown counts over what the other
+filters leave, so an option's number is what picking it shows. Zeros stay, greyed.
+The summary strip still counts the whole fleet.
+
+**A `Filtered by:` row appears under the toolbar while any filter is on** — one chip
+per filter (search, State, Status, Alarm, Fuel level, the summary chip, Service due),
+each with an ✕ to remove it, and `Clear all` to reset them together. It is gone when
+nothing is filtering.
+
+**Hovering a pin shows its plate and street address.** Every site seed carries a mock
+`address` (real town and postcode, invented lot number), and a genset takes its site's.
+The `Location` column, the preview panel and the genset page's header show it under the
+town.
 
 The box it fits to is measured on the drawn copy of the shapes, not the coarse one the
 click is resolved against. The coarse copy drops islands under ~6 km², which would put

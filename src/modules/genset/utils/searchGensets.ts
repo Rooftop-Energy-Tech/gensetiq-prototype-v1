@@ -41,13 +41,21 @@ export type GensetFilters = {
  * on screen in the row they're looking at. So it matches plate, serial, model and
  * place, which is what the visible columns actually contain.
  */
+/**
+ * Lower-cased with every space taken out, on both sides of the match, so a plate
+ * finds itself however it is typed: `AFB1502`, `afb 1502` and `AFB 1502` are one
+ * plate, as are `SAB3969B` and `SAB 3969 B`. It applies to every field, which costs
+ * nothing — nobody's search for `Kuala Lumpur` is hurt by `kualalumpur` also working.
+ */
+const compact = (text: string): string => text.toLowerCase().replace(/\s+/g, '');
+
 export const searchGensets = (gensets: Array<Genset>, query: string): Array<Genset> => {
-  const needle = query.trim().toLowerCase();
+  const needle = compact(query);
   if (!needle) return gensets;
 
   return gensets.filter((genset) =>
     [gensetLabel(genset), genset.tag, genset.model, genset.locationLabel].some((field) =>
-      field.toLowerCase().includes(needle),
+      compact(field).includes(needle),
     ),
   );
 };

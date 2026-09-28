@@ -1,4 +1,4 @@
-import {Suspense, lazy, useMemo, useRef} from 'react';
+import {Suspense, lazy, useEffect, useMemo, useRef, useState} from 'react';
 import {SearchXIcon} from 'lucide-react';
 
 import {useIsCompact} from '@/lib/useIsCompact';
@@ -12,7 +12,7 @@ import {GensetDetailPanel} from './components/GensetDetailPanel';
 import {GensetsCards} from './components/GensetsCards';
 import {GensetsSummaryCards} from './components/GensetsSummaryCards';
 import {GensetsTable} from './components/GensetsTable';
-import {GensetsToolbar} from './components/GensetsToolbar';
+import {GensetsActiveFilters, GensetsToolbar} from './components/GensetsToolbar';
 import {useFleetAlarmCounts} from './data/alarmViews';
 import {filterGensets, searchGensets, sortGensets} from './utils/searchGensets';
 import {GENSET_SORT_DEFAULT_DIRECTION} from './types/view.type';
@@ -113,6 +113,27 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
     onSearchChange({sort: next, dir: undefined});
   };
 
+  /**
+   * The dropdowns' counts, each over the gensets every *other* filter leaves.
+   *
+   * Pick Johor and `Status`, `Alarm` and `Fuel level` count Johor's sets; pick
+   * `Running` and `State` counts the running ones in each state. A dropdown leaves
+   * itself out, or picking one option would zero every other option in the same
+   * menu and the reader could not see what switching to it would give.
+   */
+  const facets = useMemo(() => {
+    const searched = searchGensets(all, q);
+    const filters = {location, status, service, run, alarm, fuel};
+    const without = (dimension: keyof typeof filters) =>
+      fleetSummary(filterGensets(searched, {...filters, [dimension]: undefined}, alarmCounts), roles, alarmCounts);
+    return {
+      byState: without('location').byState,
+      byRunState: without('run').byRunState,
+      byAlarm: without('alarm').byAlarm,
+      byFuel: without('fuel').byFuel,
+    };
+  }, [all, q, location, status, service, run, alarm, fuel, alarmCounts, roles]);
+
   const gensets = useMemo(
     () =>
       sortGensets(
@@ -193,11 +214,39 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * A state with no set in it filters too, to an empty list: the click asked what is
    * there, and "nothing" is an answer. The dropdown names it for as long as it is
    * picked — see `GensetsToolbar`.
+   *
+   * The map's frame is then held. The filter changes the list, and the list would
+   * otherwise re-fit the map to the state's pins — zoomed past the state onto a
+   * corner of it. `framedBy` is the filters the click left behind, and the hold lasts
+   * while they are what the screen shows and nobody has scrolled the list: change
+   * any filter, or scroll, and the map follows the list again.
    */
+  const filterKey = JSON.stringify([q, location, status, service, run, alarm, fuel]);
+  const [framedBy, setFramedBy] = useState<string | undefined>(undefined);
   const selectState = (stateId: string) => {
     const name = malaysiaStateName(stateId);
-    if (name !== undefined) onSearchChange({location: stateSlug(name)});
+    if (name === undefined) return;
+    const slug = stateSlug(name);
+    setFramedBy(JSON.stringify([q, slug, status, service, run, alarm, fuel]));
+    onSearchChange({location: slug});
   };
+  const holdFrame = framedBy !== undefined && framedBy === filterKey;
+
+  // A scroll somebody performed hands the map back to the list. Wheel, touch and
+  // keys rather than `scroll`, which the list's own scroll-to-selection fires too.
+  useEffect(() => {
+    const list = listRef.current;
+    if (list === null || !holdFrame) return;
+    const release = () => setFramedBy(undefined);
+    list.addEventListener('wheel', release, {passive: true});
+    list.addEventListener('touchmove', release, {passive: true});
+    list.addEventListener('keydown', release);
+    return () => {
+      list.removeEventListener('wheel', release);
+      list.removeEventListener('touchmove', release);
+      list.removeEventListener('keydown', release);
+    };
+  }, [holdFrame]);
 
   const empty = gensets.length === 0;
 
@@ -212,9 +261,12 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         onPanelOpenChange={(next) => onSearchChange({panel: next})}
         showViewControls={!compact}
         summary={summary}
+        facets={facets}
         search={search}
         onSearchChange={onSearchChange}
       />
+
+      <GensetsActiveFilters summary={summary} search={search} onSearchChange={onSearchChange} />
 
       <GensetsSummaryCards
         summary={summary}
@@ -284,6 +336,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
                 panelInset={mapPanelInset}
                 focusIds={split ? visibleIds : undefined}
                 onStateSelect={selectState}
+                holdFrame={holdFrame}
               />
             </Suspense>
           </div>
