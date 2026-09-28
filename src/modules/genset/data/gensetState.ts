@@ -29,3 +29,19 @@ export const gensetStateName = (genset: Genset): string | undefined => {
   const id = stateIdAt(genset.longitude, genset.latitude);
   return id === undefined ? undefined : malaysiaStateName(id);
 };
+
+/**
+ * The state as it stands in a URL — `pulau-pinang`, `kuala-lumpur` — for the
+ * register's State filter.
+ *
+ * A slug of the display name rather than the ISO code (`MY-07`), so a filtered link
+ * reads as what it filters by. The name is the map's and never changes, so neither
+ * does the slug.
+ */
+export const stateSlug = (name: string): string => name.toLowerCase().replace(/\s+/g, '-');
+
+/** A genset's state, as `stateSlug` writes it, or `undefined` offshore. */
+export const gensetStateSlug = (genset: Genset): string | undefined => {
+  const name = gensetStateName(genset);
+  return name === undefined ? undefined : stateSlug(name);
+};

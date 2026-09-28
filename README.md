@@ -1076,9 +1076,9 @@ Five departures, in order of how much they matter.
 ### Hovering a state is not in the design
 
 The Figma draws the map as pins over a basemap and nothing else. Every register can
-already be narrowed by customer, programme and status — geography is the one
-axis a reader can *see* and had no way to ask about, and counting pins by eye across
-two landmasses is not asking.
+be narrowed by status, and the fleet register by state as well — but a filter answers
+*show me only Sarawak*, and the map is where a reader asks how Sarawak compares with
+the rest. Counting pins by eye across two landmasses is not asking.
 
 So the map carries state borders at every zoom — neutral, and weighted so they hold
 their own over empty sea and over Voyager at its busiest alike — and answers on

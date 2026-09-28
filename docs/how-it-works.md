@@ -1097,8 +1097,8 @@ itself does not change under the cursor — it is furniture, drawn at one weight
 whatever is hovered, and the wash is what says which state you are asking about.
 
 It answers the question the pins make you count for: *how much of this is in Sarawak*.
-The registers already narrow by customer and status; geography was the one axis
-you could see and not ask about. This is not a filter — the dimmed fleet stays
+The fleet register's State dropdown narrows the list to one state; the hover asks the
+other half of the question, how that state compares with the rest. This is not a filter — the dimmed fleet stays
 visible, because the question is how one state compares with the rest and hiding the
 rest would answer a different one.
 
@@ -1201,11 +1201,25 @@ narrow by attribute, choose the shape — where two of the three used to be a ca
 apart. The fleet register keeps all four of its groupings as cards; it has no
 `Status`-shaped exception to make and no figures to carry.
 
-The filters are the questions each register gets asked. The fleet's: whose set, what
-needs doing to it, and whether it is due for service — the last being where the estate
-strip's `Due for service` card lands. The estate's: whose site, which programme, how it
-is fed. `Workshop` is one of the fleet's customer options, because a set fitted nowhere
-is a real answer rather than a missing value.
+The filters are the questions each register gets asked. The fleet's: where the set is,
+what needs doing to it, and whether it is due for service — the last being where the
+estate strip's `Due for service` card lands. Its toolbar adds one dropdown per column a reader
+scans for trouble — **Status** (`?run=`, the run state), **Alarm** (`?alarm=`, the set's
+worst standing severity or `No alarms`) and **Fuel level** (`?fuel=`, below the reserve
+line or not). Each files a set in exactly one option, so an option's count is rows the
+filter will show and the counts add up to the fleet; the alarm filter reads the same
+pass the `Alarm` column draws, and the fuel filter the line the red figure and the
+`Low fuel` alarm use. They combine with each other, with the chips and with search. The estate's: whose site, which programme, how it
+is fed.
+
+**The fleet's first filter is the Malaysian state, by position** (`?location=selangor`)
+— the State column's answer, listing only the states a set stands in. It was the
+dataset's own filing list until 2026-09-28: `Wilayah Persekutuan` for Kuala Lumpur and
+Putrajaya together on one estate, network regions on the other, and a `Workshop`
+option for sets filed nowhere. A set in the workshop is still standing in a state, so
+it is counted there, and the filter can no longer disagree with the column beside it.
+The deployments register keeps the dataset's list; its rows are jobs, and a job is
+filed by the customer that booked it.
 
 **The fleet had a `Duty` filter — what it feeds — and it was taken out on 2026-09-28.**
 Duty is the yard's power role, read off whichever site a set is standing on this week,

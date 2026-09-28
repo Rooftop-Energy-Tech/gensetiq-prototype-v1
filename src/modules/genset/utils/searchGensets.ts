@@ -1,19 +1,21 @@
-import {gensetCustomer} from '../data/fleetSummary';
+import {gensetAlarmFilter, gensetFuelFilter} from '../data/fleetSummary';
 import {gensetStatus} from '../data/fleetStatus';
-import {gensetStateName} from '../data/gensetState';
+import {gensetStateName, gensetStateSlug} from '../data/gensetState';
 import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
 import {gensetLabel, RUN_STATES} from '../types/genset.type';
 import type {AlertSeverity} from '../types/alert.type';
 import {alarmRank, alarmRankCount} from '@/modules/site/data/siteAlarmQueue';
 import {GENSET_SORT_DEFAULT_DIRECTION} from '../types/view.type';
+import type {GensetAlarmFilter, GensetFuelFilter} from '../types/view.type';
+import type {RunState} from '../types/genset.type';
 import type {GensetSort, GensetSortDirection} from '../types/view.type';
 import type {Genset} from '../types/genset.type';
 
 /** What the chips above the list narrow by. Every field is optional and ANDs. */
 export type GensetFilters = {
-  /** A `CustomerId`, or `WORKSHOP` for sets standing at no site. */
-  customer?: string;
+  /** A state, as `stateSlug` writes it — see `location` in `view.type.ts`. */
+  location?: string;
   status?: FleetStatus;
   /**
    * Sets inside their service window.
@@ -25,6 +27,10 @@ export type GensetFilters = {
    * what they'd expect.
    */
   service?: 'due';
+  /** The toolbar's three — see `GENSET_ALARM_FILTERS` and `GENSET_FUEL_FILTERS`. */
+  run?: RunState;
+  alarm?: GensetAlarmFilter;
+  fuel?: GensetFuelFilter;
 };
 
 /**
@@ -142,19 +148,25 @@ export const sortGensets = (
  *
  * Kept beside the free-text search rather than folded into it because the two are
  * different acts: the box is somebody typing a guess, the chips are somebody
- * choosing a known bucket. They compose — a query *and* a customer *and* a status —
+ * choosing a known bucket. They compose — a query *and* a state *and* a status —
  * and each is independently clearable, which is what a single combined filter
  * string would take away.
  */
 export const filterGensets = (
   gensets: Array<Genset>,
   filters: GensetFilters,
+  /**
+   * Every set's standing counts, for the alarm filter — the same pass the Alarm
+   * column draws, so the filter and the pill cannot file a set differently.
+   */
+  counts: Record<string, Record<AlertSeverity, number>> = {},
 ): Array<Genset> =>
   gensets.filter((genset) => {
-    if (filters.customer !== undefined) {
-      if ((gensetCustomer(genset) ?? 'WORKSHOP') !== filters.customer) return false;
-    }
+    if (filters.location !== undefined && gensetStateSlug(genset) !== filters.location) return false;
     if (filters.status !== undefined && gensetStatus(genset) !== filters.status) return false;
     if (filters.service === 'due' && !isDueForService(genset.id)) return false;
+    if (filters.run !== undefined && genset.runState !== filters.run) return false;
+    if (filters.alarm !== undefined && gensetAlarmFilter(counts[genset.id]) !== filters.alarm) return false;
+    if (filters.fuel !== undefined && gensetFuelFilter(genset) !== filters.fuel) return false;
     return true;
   });

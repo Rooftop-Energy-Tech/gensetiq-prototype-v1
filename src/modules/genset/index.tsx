@@ -42,7 +42,7 @@ type GensetsPageProps = {
 };
 
 export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
-  const {view, q = '', id, panel, customer, status, service, sort, dir} = search;
+  const {view, q = '', id, panel, location, status, service, run, alarm, fuel, sort, dir} = search;
 
   // The key's own natural direction until a reader flips it — see
   // `GENSET_SORT_DEFAULT_DIRECTION`, and `changeSort` below for what a click means.
@@ -75,16 +75,16 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   // summary still needs it to count the sets standing at no site — the workshop.
   const roles = useSitePowerRoles();
 
-  // Counted over the whole fleet, deliberately — see `fleetSummary`. The cards are a
-  // picture of the estate that holds still while the list below answers a narrower
-  // question.
-  const summary = useMemo(() => fleetSummary(all, roles), [all, roles]);
-
   // Over the **whole** fleet rather than the filtered list, so a set's rank is a
   // fact about the set and not about what else is on screen — and so the table
-  // below, the map's pins and this ordering all read one pass. See
+  // below, the map's pins, this ordering and the alarm filter all read one pass. See
   // `useFleetAlarmCounts`.
   const alarmCounts = useFleetAlarmCounts(all);
+
+  // Counted over the whole fleet, deliberately — see `fleetSummary`. The cards and
+  // the toolbar's option counts are a picture of the estate that holds still while
+  // the list below answers a narrower question.
+  const summary = useMemo(() => fleetSummary(all, roles, alarmCounts), [all, roles, alarmCounts]);
 
   /**
    * A column header was clicked.
@@ -114,12 +114,12 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   const gensets = useMemo(
     () =>
       sortGensets(
-        filterGensets(searchGensets(all, q), {customer, status, service}),
+        filterGensets(searchGensets(all, q), {location, status, service, run, alarm, fuel}, alarmCounts),
         sort,
         direction,
         alarmCounts,
       ),
-    [all, q, customer, status, service, sort, direction, alarmCounts],
+    [all, q, location, status, service, run, alarm, fuel, sort, direction, alarmCounts],
   );
 
   // Resolved against the *filtered* list, not the whole fleet: if a search hides

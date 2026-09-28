@@ -1,6 +1,7 @@
 import {z} from 'zod';
 
 import {FLEET_STATUSES} from '../data/fleetStatus';
+import {RUN_STATES} from './genset.type';
 
 /**
  * `split` is the default, and it is what the other two are exceptions to.
@@ -59,6 +60,26 @@ export const GENSET_SORT_DEFAULT_DIRECTION: Record<GensetSort, GensetSortDirecti
 export type GensetView = (typeof GENSET_VIEWS)[number];
 
 /**
+ * The toolbar's alarm filter: a set's **worst** standing alarm, or none.
+ *
+ * Worst rather than "has one at this severity", so every set is in exactly one option
+ * and the counts beside them add up to the fleet — a set with a critical and two
+ * warnings is a `CRITICAL` set, the way the readiness buckets file a set once.
+ */
+export const GENSET_ALARM_FILTERS = ['CRITICAL', 'WARNING', 'NEUTRAL', 'NONE'] as const;
+
+export type GensetAlarmFilter = (typeof GENSET_ALARM_FILTERS)[number];
+
+/**
+ * The toolbar's fuel filter: below the reserve line or not. One line, the one the
+ * `Low fuel` alarm and the red figure use — a band with no meaning anywhere else in
+ * the app would be a third threshold for a reader to learn.
+ */
+export const GENSET_FUEL_FILTERS = ['low', 'ok'] as const;
+
+export type GensetFuelFilter = (typeof GENSET_FUEL_FILTERS)[number];
+
+/**
  * The /gensets URL carries the whole view state — which view, what's typed in
  * search, which unit is selected, whether the detail panel is open.
  *
@@ -77,12 +98,27 @@ export const gensetSearchSchema = z.object({
    *
    * In the URL with everything else on this screen, so a filtered fleet is a link
    * somebody can send — which is most of the reason the chips are worth having over
-   * a plain readout. `customer` is a bare string rather than the `CustomerId` union
-   * so that a roster change cannot invalidate a shared link into a route error; an
-   * id nobody recognises simply matches nothing.
+   * a plain readout.
+   *
+   * `location` is the Malaysian state a set stands in, as `stateSlug` writes it
+   * (`?location=pulau-pinang`) — read off the set's position, so it is the State
+   * column's answer and the map's. It replaced `customer`, the dataset's own filing
+   * list, on 2026-09-28: that list lumped Kuala Lumpur and Putrajaya into `Wilayah
+   * Persekutuan`, called a network region a state on the carrier estate, and had a
+   * `Workshop` option for sets filed nowhere, when a set in the workshop is still
+   * standing in a state. A bare string, so a slug nobody recognises matches nothing
+   * rather than failing the route. Same key as the `location` sort.
    */
-  customer: z.string().optional().catch(undefined),
+  location: z.string().optional().catch(undefined),
   status: z.enum(FLEET_STATUSES).optional().catch(undefined),
+  /**
+   * The toolbar's three. `run` rather than `state` because `sort=state` already means
+   * the run state and `?state=` beside it would read as the Malaysian one; `status`
+   * is the readiness chips'.
+   */
+  run: z.enum(RUN_STATES).optional().catch(undefined),
+  alarm: z.enum(GENSET_ALARM_FILTERS).optional().catch(undefined),
+  fuel: z.enum(GENSET_FUEL_FILTERS).optional().catch(undefined),
   /** Ordering. Defaulted — see the sites schema's note on why it is not optional. */
   sort: z.enum(GENSET_SORTS).default('state').catch('state'),
   /**

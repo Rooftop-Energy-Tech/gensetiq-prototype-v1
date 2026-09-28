@@ -1,14 +1,19 @@
 import {ColumnsIcon, GlobeIcon, MenuIcon, PanelRightIcon, SearchIcon} from 'lucide-react';
 
 import {FilterSelect} from '@/components/global/FilterSelect';
+import type {FilterOption} from '@/components/global/FilterSelect';
 import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
-import {CUSTOMER_TERM} from '@/modules/site/data/customers';
 import type {FleetSummary} from '../data/fleetSummary';
-import type {GensetSearch, GensetView} from '../types/view.type';
+import type {GensetAlarmFilter, GensetFuelFilter, GensetSearch, GensetView} from '../types/view.type';
+import {GENSET_ALARM_FILTERS, GENSET_FUEL_FILTERS} from '../types/view.type';
+import {RUN_STATES} from '../types/genset.type';
+import type {RunState} from '../types/genset.type';
+import {RESERVE_FRACTION} from '../types/fuelLevel.type';
+import {RUN_STATE_META} from './runStateMeta';
 
 type GensetsToolbarProps = {
   query: string;
@@ -33,7 +38,7 @@ type GensetsToolbarProps = {
 };
 
 /**
- * Search, the fleet's attribute filter, and how the fleet is shown.
+ * Search, the fleet's filters, and how the fleet is shown.
  *
  * The filter sits here rather than in the card strip for the reason `FilterSelect`
  * sets out: search, filter and view are one sentence — *which gensets, and shown
@@ -53,6 +58,27 @@ type GensetsToolbarProps = {
  * copied rather than generalised — see the note there for why two files beat one
  * component taking a placeholder and three labels.
  */
+const RESERVE = `${Math.round(RESERVE_FRACTION * 100)}%`;
+
+/**
+ * The words and dots the three column filters draw with.
+ *
+ * Status reads the run-state badge's own labels, so the option and the badge in the
+ * column say the same word. Alarm takes the pill's three severity colours and the
+ * all-clear green; fuel's low option takes the red the figure turns below the line.
+ */
+const ALARM_OPTION: Record<GensetAlarmFilter, Omit<FilterOption<GensetAlarmFilter>, 'key' | 'count'>> = {
+  CRITICAL: {label: 'Critical', tone: 'critical'},
+  WARNING: {label: 'Warning', tone: 'warning'},
+  NEUTRAL: {label: 'Neutral', tone: 'neutral'},
+  NONE: {label: 'No alarms', tone: 'ok'},
+};
+
+const FUEL_OPTION: Record<GensetFuelFilter, Omit<FilterOption<GensetFuelFilter>, 'key' | 'count'>> = {
+  low: {label: `Below ${RESERVE}`, tone: 'critical'},
+  ok: {label: `${RESERVE} and up`},
+};
+
 export const GensetsToolbar = ({
   query,
   onQueryChange,
@@ -86,14 +112,40 @@ export const GensetsToolbar = ({
         />
       </InputGroup>
 
-      {/* Between the search and the view switcher, in the order the sentence runs. */}
+      {/* Between the search and the view switcher, in the order the sentence runs:
+          where the set is, then the three columns it can be narrowed by, in the
+          order the columns stand — `Status`, `Alarm`, `Fuel level`. Each option's
+          count is over the whole fleet, like the chips below, so the list holds
+          still while the table answers the narrower question. They combine with
+          each other, with the chips and with the search. */}
       <div className="flex flex-wrap items-center gap-2">
         <FilterSelect
-          label={CUSTOMER_TERM}
-          allLabel={`All ${CUSTOMER_TERM.toLowerCase()}s`}
-          options={summary.byCustomer}
-          value={search.customer}
-          onChange={(next) => onSearchChange({customer: next})}
+          label="State"
+          allLabel="All states"
+          options={summary.byState}
+          value={search.location}
+          onChange={(next) => onSearchChange({location: next})}
+        />
+        <FilterSelect<RunState>
+          label="Status"
+          allLabel="All statuses"
+          options={RUN_STATES.map((key) => ({key, label: RUN_STATE_META[key].label, count: summary.byRunState[key]}))}
+          value={search.run}
+          onChange={(next) => onSearchChange({run: next})}
+        />
+        <FilterSelect<GensetAlarmFilter>
+          label="Alarm"
+          allLabel="All alarms"
+          options={GENSET_ALARM_FILTERS.map((key) => ({key, ...ALARM_OPTION[key], count: summary.byAlarm[key]}))}
+          value={search.alarm}
+          onChange={(next) => onSearchChange({alarm: next})}
+        />
+        <FilterSelect<GensetFuelFilter>
+          label="Fuel level"
+          allLabel="All fuel levels"
+          options={GENSET_FUEL_FILTERS.map((key) => ({key, ...FUEL_OPTION[key], count: summary.byFuel[key]}))}
+          value={search.fuel}
+          onChange={(next) => onSearchChange({fuel: next})}
         />
       </div>
 
