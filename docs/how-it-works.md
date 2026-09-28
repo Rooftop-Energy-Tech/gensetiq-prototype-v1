@@ -1097,7 +1097,7 @@ itself does not change under the cursor — it is furniture, drawn at one weight
 whatever is hovered, and the wash is what says which state you are asking about.
 
 It answers the question the pins make you count for: *how much of this is in Sarawak*.
-The registers already narrow by customer, duty and status; geography was the one axis
+The registers already narrow by customer and status; geography was the one axis
 you could see and not ask about. This is not a filter — the dimmed fleet stays
 visible, because the question is how one state compares with the rest and hiding the
 rest would answer a different one.
@@ -1201,11 +1201,17 @@ narrow by attribute, choose the shape — where two of the three used to be a ca
 apart. The fleet register keeps all four of its groupings as cards; it has no
 `Status`-shaped exception to make and no figures to carry.
 
-The filters are the questions each register gets asked. The fleet's: whose set,
-what it feeds, what needs doing to it, and whether it is due for service — the last
-being where the estate strip's `Due for service` card lands. The estate's: whose site,
-which programme, how it is fed. `Workshop` is one of the fleet's role filters, because a
-set fitted nowhere is a real answer rather than a missing value.
+The filters are the questions each register gets asked. The fleet's: whose set, what
+needs doing to it, and whether it is due for service — the last being where the estate
+strip's `Due for service` card lands. The estate's: whose site, which programme, how it
+is fed. `Workshop` is one of the fleet's customer options, because a set fitted nowhere
+is a real answer rather than a missing value.
+
+**The fleet had a `Duty` filter — what it feeds — and it was taken out on 2026-09-28.**
+Duty is the yard's power role, read off whichever site a set is standing on this week,
+so on a fleet whose plant moves it describes the posting rather than the machine: the
+same set changes duty every time a lorry moves it. How a yard is fed is a question
+about the site, and the estate register is where it is asked.
 
 The whole view state lives in the URL, so any state is linkable and Back steps
 through it:

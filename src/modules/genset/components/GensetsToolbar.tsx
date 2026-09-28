@@ -33,13 +33,21 @@ type GensetsToolbarProps = {
 };
 
 /**
- * Search, the fleet's two attribute filters, and how the fleet is shown.
+ * Search, the fleet's attribute filter, and how the fleet is shown.
  *
- * The filters sit here rather than in the card strip for the reason `FilterSelect`
- * sets out: search, filters and view are one sentence — *which gensets, and shown
- * how* — and they belong on one line in that order. Duty and the region grouping are
- * attributes a reader either wants or does not, so they cost a button each instead of
- * a card each, and the strip above keeps its width for the readiness buckets.
+ * The filter sits here rather than in the card strip for the reason `FilterSelect`
+ * sets out: search, filter and view are one sentence — *which gensets, and shown
+ * how* — and they belong on one line in that order. The region grouping is an
+ * attribute a reader either wants or does not, so it costs a button instead of a
+ * card, and the strip above keeps its width for the readiness buckets.
+ *
+ * **There was a `Duty` filter beside it until 2026-09-28** — grid backup, diesel
+ * prime, workshop — and it came out because on this fleet it does not describe the
+ * machine. Duty is the *yard's* power role, read off whichever site a set happens to
+ * be standing on this week; on a mobile fleet that is a fact about the posting, and
+ * the same set changes duty every time a lorry moves it. A filter whose answer for a
+ * machine is "wherever it is right now" is a filter on the sites, asked from the
+ * wrong register.
  *
  * The estate screen did this first; `SitesToolbar` is the same shape over the yards,
  * copied rather than generalised — see the note there for why two files beat one
@@ -58,8 +66,8 @@ export const GensetsToolbar = ({
   onSearchChange,
 }: GensetsToolbarProps) => {
   return (
-    // `flex-wrap` and a shrinkable search box, as on the estate toolbar: two
-    // dropdowns plus the view controls need more room than a search box and a
+    // `flex-wrap` and a shrinkable search box, as on the estate toolbar: a
+    // dropdown plus the view controls need more room than a search box and a
     // switcher, and below `lg` with the preview panel open the row would otherwise
     // push the switcher off the edge.
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -78,17 +86,8 @@ export const GensetsToolbar = ({
         />
       </InputGroup>
 
-      {/* Between the search and the view switcher, in the order the sentence runs.
-          `Duty` first because it is the coarser cut — what the machine is *for* — and
-          then where it stands. The same two, in the same order, the cards had. */}
+      {/* Between the search and the view switcher, in the order the sentence runs. */}
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect
-          label="Duty"
-          allLabel="All duties"
-          options={summary.byRole}
-          value={search.role}
-          onChange={(next) => onSearchChange({role: next})}
-        />
         <FilterSelect
           label={CUSTOMER_TERM}
           allLabel={`All ${CUSTOMER_TERM.toLowerCase()}s`}

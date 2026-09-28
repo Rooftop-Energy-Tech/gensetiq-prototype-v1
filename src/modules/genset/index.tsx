@@ -42,7 +42,7 @@ type GensetsPageProps = {
 };
 
 export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
-  const {view, q = '', id, panel, customer, role, status, service, sort, dir} = search;
+  const {view, q = '', id, panel, customer, status, service, sort, dir} = search;
 
   // The key's own natural direction until a reader flips it — see
   // `GENSET_SORT_DEFAULT_DIRECTION`, and `changeSort` below for what a click means.
@@ -58,8 +58,8 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * that the app offers no control it cannot honour.
    *
    * The summary cards *are* kept, because they have a phone form: they stack two-up
-   * and each readiness bucket is still a filter at this width. Duty and region are
-   * in the toolbar, which every width gets.
+   * and each readiness bucket is still a filter at this width. Region is in the
+   * toolbar, which every width gets.
    *
    * `view` in the URL is left exactly as it is. A phone reading a link to
    * `?view=split` shows the list and, followed on a desktop, that same link still
@@ -71,9 +71,8 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   // placename in the Location column and its pin in the new spot on the map.
   const all = useFleet();
 
-  // Duty is a property of the *site* a set stands at, and a reader can flip a site's
-  // role at any moment — so the roles are read live here and passed down, which also
-  // keeps the summary and the filter judging every set against one moment.
+  // A site's power role, read live because a reader can flip one at any moment. The
+  // summary still needs it to count the sets standing at no site — the workshop.
   const roles = useSitePowerRoles();
 
   // Counted over the whole fleet, deliberately — see `fleetSummary`. The cards are a
@@ -115,12 +114,12 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
   const gensets = useMemo(
     () =>
       sortGensets(
-        filterGensets(searchGensets(all, q), {customer, role, status, service}, roles),
+        filterGensets(searchGensets(all, q), {customer, status, service}),
         sort,
         direction,
         alarmCounts,
       ),
-    [all, q, customer, role, status, service, roles, sort, direction, alarmCounts],
+    [all, q, customer, status, service, sort, direction, alarmCounts],
   );
 
   // Resolved against the *filtered* list, not the whole fleet: if a search hides

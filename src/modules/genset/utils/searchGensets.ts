@@ -1,5 +1,4 @@
-import type {SitePowerRole} from '@/modules/site/types/site.type';
-import {gensetCustomer, gensetPowerRole} from '../data/fleetSummary';
+import {gensetCustomer} from '../data/fleetSummary';
 import {gensetStatus} from '../data/fleetStatus';
 import {gensetStateName} from '../data/gensetState';
 import {isDueForService} from '../data/services';
@@ -15,7 +14,6 @@ import type {Genset} from '../types/genset.type';
 export type GensetFilters = {
   /** A `CustomerId`, or `WORKSHOP` for sets standing at no site. */
   customer?: string;
-  role?: SitePowerRole | 'WORKSHOP';
   status?: FleetStatus;
   /**
    * Sets inside their service window.
@@ -144,21 +142,17 @@ export const sortGensets = (
  *
  * Kept beside the free-text search rather than folded into it because the two are
  * different acts: the box is somebody typing a guess, the chips are somebody
- * choosing a known bucket. They compose — a query *and* a customer *and* a duty —
+ * choosing a known bucket. They compose — a query *and* a customer *and* a status —
  * and each is independently clearable, which is what a single combined filter
  * string would take away.
  */
 export const filterGensets = (
   gensets: Array<Genset>,
   filters: GensetFilters,
-  roles: Record<string, SitePowerRole>,
 ): Array<Genset> =>
   gensets.filter((genset) => {
     if (filters.customer !== undefined) {
       if ((gensetCustomer(genset) ?? 'WORKSHOP') !== filters.customer) return false;
-    }
-    if (filters.role !== undefined) {
-      if ((gensetPowerRole(genset, roles) ?? 'WORKSHOP') !== filters.role) return false;
     }
     if (filters.status !== undefined && gensetStatus(genset) !== filters.status) return false;
     if (filters.service === 'due' && !isDueForService(genset.id)) return false;

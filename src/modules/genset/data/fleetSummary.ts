@@ -1,4 +1,3 @@
-import {SITE_POWER_ROLE_LABEL, SITE_POWER_ROLES} from '@/modules/site/types/site.type';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import {CUSTOMERS} from '@/modules/site/data/customers';
 import type {CustomerId} from '@/modules/site/data/customers';
@@ -52,17 +51,12 @@ export const gensetPowerRole = (
 
 export type FleetSummary = {
   total: number;
-  /** Distinct sites with at least one set standing on them. Not the estate's size. */
-  siteCount: number;
   depotCount: number;
-  byRole: Array<Tally<SitePowerRole | 'WORKSHOP'>>;
   /** The four buckets, worst first — see `fleetStatus.ts`. Always all four. */
   byStatus: Array<Tally<FleetStatus>>;
   /** Customers with at least one set, in roster order. Depot last, if occupied. */
   byCustomer: Array<Tally<CustomerId | 'WORKSHOP'>>;
 };
-
-const ROLE_LABEL = SITE_POWER_ROLE_LABEL;
 
 export const fleetSummary = (
   gensets: Array<Genset>,
@@ -75,10 +69,8 @@ export const fleetSummary = (
   };
   const customerCounts = new Map<CustomerId | 'WORKSHOP', number>();
   const statusCounts: Record<FleetStatus, number> = {ALARM: 0, REFUEL: 0, OK: 0};
-  const sites = new Set<string>();
 
   for (const genset of gensets) {
-    if (genset.siteId !== null) sites.add(genset.siteId);
 
     const role = gensetPowerRole(genset, roles);
     roleCounts[role ?? 'WORKSHOP'] += 1;
@@ -93,19 +85,10 @@ export const fleetSummary = (
 
   return {
     total: gensets.length,
-    siteCount: sites.size,
     depotCount: workshopCount,
     // Empty buckets are dropped rather than shown as zero. "Workshop 0" is a row
     // that never says anything on an estate that is fully fitted, and a card whose
     // shape changes with the data reads faster than one padded to a fixed height.
-    byRole: [
-      ...SITE_POWER_ROLES.map((role) => ({
-        key: role as SitePowerRole | 'WORKSHOP',
-        label: ROLE_LABEL[role],
-        count: roleCounts[role],
-      })),
-      {key: 'WORKSHOP' as SitePowerRole | 'WORKSHOP', label: 'Workshop', count: workshopCount},
-    ].filter((tally) => tally.count > 0),
     // Every bucket is kept, zero or not. Unlike the role and customer rows, these
     // three are a fixed scale a reader learns once — dropping "Alarms raised" on a
     // good day would move the other two and make the card read differently every

@@ -58,9 +58,6 @@ export const GENSET_SORT_DEFAULT_DIRECTION: Record<GensetSort, GensetSortDirecti
 
 export type GensetView = (typeof GENSET_VIEWS)[number];
 
-/** The fleet cards' filters: whose set, what it feeds, and what needs doing to it. */
-export const GENSET_ROLE_FILTERS = ['GRID_BACKUP', 'DIESEL_PRIME', 'WORKSHOP'] as const;
-
 /**
  * The /gensets URL carries the whole view state — which view, what's typed in
  * search, which unit is selected, whether the detail panel is open.
@@ -85,7 +82,6 @@ export const gensetSearchSchema = z.object({
    * id nobody recognises simply matches nothing.
    */
   customer: z.string().optional().catch(undefined),
-  role: z.enum(GENSET_ROLE_FILTERS).optional().catch(undefined),
   status: z.enum(FLEET_STATUSES).optional().catch(undefined),
   /** Ordering. Defaulted — see the sites schema's note on why it is not optional. */
   sort: z.enum(GENSET_SORTS).default('state').catch('state'),

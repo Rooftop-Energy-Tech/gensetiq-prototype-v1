@@ -48,10 +48,13 @@ export const GensetsSummaryCards = ({
         <span className="text-lg leading-none font-semibold text-primary tabular-nums">
           {summary.total}
         </span>
+        {/* The count alone. It carried `· across 25 sites` until 2026-09-28, and on a
+            fleet whose plant moves that is a fact about this week's postings rather
+            than the machines — a set in the workshop was in the total and at no site,
+            so the two numbers never reconciled. Where a set is in the country is what
+            the `State` column and the map answer. */}
         <span className="truncate text-sm text-secondary">
           {summary.total === 1 ? 'genset' : 'gensets'}
-          {' · across '}
-          {summary.siteCount} {summary.siteCount === 1 ? 'site' : 'sites'}
         </span>
       </p>
 

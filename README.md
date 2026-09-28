@@ -1076,7 +1076,7 @@ Five departures, in order of how much they matter.
 ### Hovering a state is not in the design
 
 The Figma draws the map as pins over a basemap and nothing else. Every register can
-already be narrowed by customer, duty, programme and status — geography is the one
+already be narrowed by customer, programme and status — geography is the one
 axis a reader can *see* and had no way to ask about, and counting pins by eye across
 two landmasses is not asking.
 
