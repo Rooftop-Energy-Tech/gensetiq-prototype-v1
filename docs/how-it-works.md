@@ -1228,6 +1228,21 @@ are drawn on the full-width list and dropped on the split view, where both trunc
 to the half that carries no meaning — `Bangsar S…`, `1 hour …`. The solar register
 drops `Capacity` and the estate list drops `Fuel on site` the same way.
 
+**`State` stays on both.** It sits beside the plate — which machine, and where — and it
+is short enough to survive the narrow column where `Location` is not. It is read off
+the set's coordinates through the same point-in-polygon the map's hover counts with, so
+the column and the number on the hover card cannot disagree; the placename cannot
+answer it, because half of them name a town (`Sepanggar, Kota Kinabalu`). The header
+sorts A to Z as `sort=location` — `sort=state` was already the run state's key — and a
+set in no state goes to the foot in both directions.
+
+⚠️ **The column and the Express Mission toolbar's `State` dropdown can disagree**, and
+on one row they do. The dropdown is the dataset's seeded roster, where `Wilayah
+Persekutuan` covers Kuala Lumpur and Putrajaya; the column is geography. `H 4141` is
+filed under Wilayah and labelled `Kepong, Kuala Lumpur`, and its seeded coordinates
+fall just over the line in Selangor. The seed contradicts itself; which half is right
+is a data question, not a rendering one.
+
 **The estate list is worst standing alarm first, then by name.** Its second column is
 the **alarm pill** — `Critical · Warning · Neutral`, the same three figures every metric
 strip and device card in the app draws — and the ranking is that pill: worst severity

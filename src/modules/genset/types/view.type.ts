@@ -23,7 +23,10 @@ export const GENSET_VIEWS = ['split', 'list', 'map'] as const;
  * `state` is this list's equivalent of that one's `alarms`: the machine you should
  * look at first, by what it is doing rather than by what it is called.
  */
-export const GENSET_SORTS = ['state', 'alarms', 'name', 'fuel'] as const;
+// `location` is the Malaysian state a set stands in, and it is not called `state`
+// because that key was taken first, by the run state `Status` column sorts on.
+// Renaming either would break every link already carrying `sort=state`.
+export const GENSET_SORTS = ['state', 'alarms', 'name', 'fuel', 'location'] as const;
 
 export type GensetSort = (typeof GENSET_SORTS)[number];
 
@@ -48,6 +51,9 @@ export const GENSET_SORT_DEFAULT_DIRECTION: Record<GensetSort, GensetSortDirecti
   alarms: 'desc',
   fuel: 'asc',
   name: 'asc',
+  // Johor to Terengganu. A set in no state sorts last whichever way this runs —
+  // see `sortGensets`.
+  location: 'asc',
 };
 
 export type GensetView = (typeof GENSET_VIEWS)[number];

@@ -1,6 +1,7 @@
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import {gensetCustomer, gensetPowerRole} from '../data/fleetSummary';
 import {gensetStatus} from '../data/fleetStatus';
+import {gensetStateName} from '../data/gensetState';
 import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
 import {gensetLabel, RUN_STATES} from '../types/genset.type';
@@ -119,6 +120,18 @@ export const sortGensets = (
    * whole job is to surface the loud ones, with no error anywhere to say so.
    */
   const sign = direction === GENSET_SORT_DEFAULT_DIRECTION[sort] ? 1 : -1;
+
+  // A set in no state has no place in an A-to-Z of states, so it goes to the foot of
+  // the list in both directions rather than leading it when the column is reversed.
+  if (sort === 'location') {
+    const placed = (genset: Genset) => gensetStateName(genset) !== undefined;
+    return [...gensets].sort(
+      (a, b) =>
+        Number(placed(b)) - Number(placed(a)) ||
+        sign * (gensetStateName(a) ?? '').localeCompare(gensetStateName(b) ?? '') ||
+        byName(a, b),
+    );
+  }
 
   // The name tie-break stays A to Z whichever way the column runs: it is not part of
   // the ordering the reader chose, it is what stops the quiet foot of the list
