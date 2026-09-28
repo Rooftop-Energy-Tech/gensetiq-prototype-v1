@@ -1,4 +1,4 @@
-import {malaysiaStateAt, malaysiaStateName} from '@/lib/geo/malaysiaStates';
+import {MALAYSIA_STATE_IDS, malaysiaStateAt, malaysiaStateName} from '@/lib/geo/malaysiaStates';
 
 import type {Genset} from '../types/genset.type';
 
@@ -45,3 +45,9 @@ export const gensetStateSlug = (genset: Genset): string | undefined => {
   const name = gensetStateName(genset);
   return name === undefined ? undefined : stateSlug(name);
 };
+
+/** Back from a slug to the display name — `pulau-pinang` to `Pulau Pinang` — or `undefined`. */
+export const stateNameFromSlug = (slug: string): string | undefined =>
+  MALAYSIA_STATE_IDS.map(malaysiaStateName).find(
+    (name): name is string => name !== undefined && stateSlug(name) === slug,
+  );

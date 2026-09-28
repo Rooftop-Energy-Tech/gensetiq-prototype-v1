@@ -8,6 +8,7 @@ import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
 import type {FleetSummary} from '../data/fleetSummary';
+import {stateNameFromSlug} from '../data/gensetState';
 import type {GensetAlarmFilter, GensetFuelFilter, GensetSearch, GensetView} from '../types/view.type';
 import {GENSET_ALARM_FILTERS, GENSET_FUEL_FILTERS} from '../types/view.type';
 import {RUN_STATES} from '../types/genset.type';
@@ -79,6 +80,22 @@ const FUEL_OPTION: Record<GensetFuelFilter, Omit<FilterOption<GensetFuelFilter>,
   ok: {label: `${RESERVE} and up`},
 };
 
+/**
+ * The State options: the states a set stands in, plus the picked one if it has none.
+ *
+ * A click on an empty state on the map filters to it, and the dropdown has to say so —
+ * otherwise the list is empty while the control still reads `State`, a filter on with
+ * nothing showing it. The extra option stands at zero and goes when the filter does.
+ */
+const stateOptions = (summary: FleetSummary, picked: string | undefined): Array<FilterOption<string>> => {
+  if (picked === undefined || summary.byState.some((option) => option.key === picked)) return summary.byState;
+  const label = stateNameFromSlug(picked);
+  if (label === undefined) return summary.byState;
+  return [...summary.byState, {key: picked, label, count: 0}].sort((left, right) =>
+    left.label.localeCompare(right.label),
+  );
+};
+
 export const GensetsToolbar = ({
   query,
   onQueryChange,
@@ -122,7 +139,7 @@ export const GensetsToolbar = ({
         <FilterSelect
           label="State"
           allLabel="All states"
-          options={summary.byState}
+          options={stateOptions(summary, search.location)}
           value={search.location}
           onChange={(next) => onSearchChange({location: next})}
         />

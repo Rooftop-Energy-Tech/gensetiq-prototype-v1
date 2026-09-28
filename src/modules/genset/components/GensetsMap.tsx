@@ -76,6 +76,11 @@ type GensetsMapProps = {
    * view and the first paint both want.
    */
   focusIds?: Array<string>;
+  /**
+   * A click on a state — on the basemap inside it, not on a pin or a bubble. The
+   * register filters its list to that state; the map frames it either way.
+   */
+  onStateSelect?: (stateId: string) => void;
 };
 
 const toFeatureCollection = (
@@ -127,6 +132,7 @@ export const GensetsMap = ({
   onDeselect,
   panelInset,
   focusIds,
+  onStateSelect,
 }: GensetsMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -139,6 +145,8 @@ export const GensetsMap = ({
   onSelectRef.current = onSelect;
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
+  const onStateSelectRef = useRef(onStateSelect);
+  onStateSelectRef.current = onStateSelect;
 
   // The rows currently drawn, read from inside the state hover's count. A ref for
   // the same reason as the handlers above — and because the count has to follow the
@@ -315,6 +323,7 @@ export const GensetsMap = ({
         // The same frame the fleet gets, so a clicked state sits where a fitted fleet
         // would — clear of the panel, if the panel is still there.
         fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
+        onStateClick: (stateId) => onStateSelectRef.current?.(stateId),
       });
 
       loadedRef.current = true;

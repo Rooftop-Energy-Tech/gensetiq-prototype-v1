@@ -3,9 +3,11 @@ import {SearchXIcon} from 'lucide-react';
 
 import {useIsCompact} from '@/lib/useIsCompact';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
+import {malaysiaStateName} from '@/lib/geo/malaysiaStates';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
 import {useFleet} from './data/deployment';
 import {fleetSummary} from './data/fleetSummary';
+import {stateSlug} from './data/gensetState';
 import {GensetDetailPanel} from './components/GensetDetailPanel';
 import {GensetsCards} from './components/GensetsCards';
 import {GensetsSummaryCards} from './components/GensetsSummaryCards';
@@ -183,6 +185,20 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
     onSearchChange({id: undefined, panel: undefined});
   };
 
+  /**
+   * Clicking a state on the map filters the list to it — the toolbar's `State`
+   * dropdown, set from the map. The map frames the state as well; `All states` in
+   * the dropdown is the way back out.
+   *
+   * A state with no set in it filters too, to an empty list: the click asked what is
+   * there, and "nothing" is an answer. The dropdown names it for as long as it is
+   * picked — see `GensetsToolbar`.
+   */
+  const selectState = (stateId: string) => {
+    const name = malaysiaStateName(stateId);
+    if (name !== undefined) onSearchChange({location: stateSlug(name)});
+  };
+
   const empty = gensets.length === 0;
 
   return (
@@ -267,6 +283,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
                 onDeselect={deselectGenset}
                 panelInset={mapPanelInset}
                 focusIds={split ? visibleIds : undefined}
+                onStateSelect={selectState}
               />
             </Suspense>
           </div>

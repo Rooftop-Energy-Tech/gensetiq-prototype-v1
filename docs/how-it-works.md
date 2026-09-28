@@ -1105,8 +1105,11 @@ rest would answer a different one.
 **Clicking a state frames it.** The hover says how much is here; the click says show
 me. Click the basemap anywhere inside a state and the map fits the whole of that state
 into view — islands included, centred, with the same padding the fleet is framed with.
-Nothing else changes: the fleet outside it is still drawn, the list beside the map
-holds its place, and nothing is selected. A click on a pin or a bubble is still a click
+On the gensets register the click also sets the toolbar's `State` filter to that
+state, so the list and the map narrow to the sets standing there; `All states` in the
+dropdown, or Back, undoes it. A state with no set in it filters too, to an empty
+list, and the dropdown lists it at 0 for as long as it is picked. The sites and deployments maps frame and do nothing
+else. A click on a pin or a bubble is still a click
 on a pin or a bubble; the state only answers when nothing on the fleet was hit. The
 frame is measured on the fine copy of the shapes rather than the coarse one — the
 coarse copy has shed Terengganu's islands, and a frame that left Redang off the edge

@@ -1131,10 +1131,12 @@ Four choices worth stating, because each had a cheaper wrong version:
 
 **Clicking a state frames it.** The hover says how much is here; the click says show
 me. A click on the basemap inside a state fits the viewport to the whole of that state
-— islands included, centred, with the same padding the fleet is framed with — and
-changes nothing else: the fleet outside it is still drawn, the list beside the map is
-untouched, and it is not a selection. A click on a pin or a bubble still does what it
-did; the state only answers when nothing on the fleet was hit.
+— islands included, centred, with the same padding the fleet is framed with. On the
+gensets register it also sets the `State` filter to that state, so the list narrows to
+the sets standing there (`All states`, or Back, undoes it). A state with no set in it
+filters to an empty list, and the dropdown lists it at 0 while it is picked. The sites and deployments maps only
+frame. A click on a pin or a bubble still does what it did; the state only answers
+when nothing on the fleet was hit.
 
 The box it fits to is measured on the drawn copy of the shapes, not the coarse one the
 click is resolved against. The coarse copy drops islands under ~6 km², which would put

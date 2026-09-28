@@ -65,10 +65,11 @@ import {
  *
  * The hover answers *how much is here*; the click answers *show me*. A click on the
  * basemap inside a state fits the viewport to that state's bounding box — the whole
- * of it, islands included, centred — and leaves everything else alone. It is not a
- * selection and it is not a filter: the fleet outside the state is still drawn, and
- * the list beside the map is untouched. A click on a pin or a bubble is not a click on
- * a state, and is left to the layer handlers that already own it.
+ * of it, islands included, centred — and tells the map through `onStateClick`, so a
+ * map that has a state filter beside it can narrow its list to the same state. What
+ * the click does beyond the fit is the map's to decide; this module only frames. A
+ * click on a pin or a bubble is not a click on a state, and is left to the layer
+ * handlers that already own it.
  */
 
 /**
@@ -305,6 +306,13 @@ export type StateHoverOptions = {
   fitPadding: () => maplibregl.PaddingOptions;
   /** Told when the hovered state changes, for anything outside the canvas. */
   onHoverChange?: (stateId: string | undefined) => void;
+  /**
+   * Told when a click frames a state — the gensets register filters its list to it.
+   *
+   * A getter like `fitPadding`, so the map can hand in a ref-backed handler and the
+   * latest one is what a click reaches.
+   */
+  onStateClick?: (stateId: string) => void;
 };
 
 /**
@@ -335,6 +343,7 @@ export const attachStateHover = (
     countLabel,
     fitPadding,
     onHoverChange,
+    onStateClick,
   }: StateHoverOptions,
 ): StateHoverHandle => {
   if (map.getSource(SOURCE) === undefined) {
@@ -652,8 +661,9 @@ export const attachStateHover = (
 
     const stateId = malaysiaStateAt(event.lngLat.lng, event.lngLat.lat);
     const bounds = stateId === undefined ? undefined : malaysiaStateBounds(stateId);
-    if (bounds === undefined) return;
+    if (bounds === undefined || stateId === undefined) return;
 
+    onStateClick?.(stateId);
     window.clearTimeout(pendingFit);
     pendingFit = window.setTimeout(() => {
       pendingFit = undefined;
