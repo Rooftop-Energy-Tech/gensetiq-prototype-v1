@@ -1156,14 +1156,26 @@ its tiles against this dataset *unsimplified*. Two OSM snapshots cut at differen
 times; no amount of detail closes it. The shading spilled across the line.
 
 So both come from one set of shapes. Voyager's `boundary_state` — a pale pink dashed
-hairline that starts at zoom 9 and sits *underneath* water and landuse, which is why
-it reads as absent — is hidden, and ours is drawn above the basemap's fill and below
-the fleet. One border, a wash that fits it, and nothing for either to disagree with.
+hairline — is hidden, and so are its two country layers, `boundary_country_outline`
+and `boundary_country_inner`, a pale band with a pink line on it. Ours is drawn above
+the basemap's fill and below the fleet. One border, a wash that fits it, and nothing
+for either to disagree with. The cost of the country layers: they hold every country
+border in the tiles, so borders between two *other* countries — Thailand–Myanmar —
+go too. Every border of Malaysia is still drawn, from our shapes.
 
-`findBasemapStateBoundary` locates the basemap's layer structurally — a line layer
-over a vector source whose filter names `admin_level` and `4` — rather than trusting
-the id, since a basemap is versioned by somebody else. It exists only to turn that
-layer off.
+**A coast, a land border and a border between two states are one line.** They were
+not, and the cause was geometry rather than style: the line strokes each state's
+outline, so an edge two states share is stroked twice and a coast or a border with
+another country is stroked once. Translucent, the shared edges came out at nearly
+double the darkness and the coast read as a fainter kind of line. The stroke is now
+opaque, in the colour the doubled one reached over the basemap's land, so drawing it
+twice is the same as drawing it once — and every edge, islands included, has the
+weight the internal borders had.
+
+`findBasemapBoundaries` locates the basemap's layers structurally — a line layer over
+a vector source whose filter compares `admin_level` to 2 or 4 — rather than trusting
+the ids, since a basemap is versioned by somebody else. It exists only to turn those
+layers off.
 
 What ours still has to line up against is the **coastline**, since a state's outline
 follows the coast for most of its length and the basemap draws that. It is what sets

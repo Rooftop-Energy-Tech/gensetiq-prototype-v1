@@ -1119,10 +1119,17 @@ polygons disagree with the basemap's boundary by 130 m on average and 850 m at w
 — two OpenStreetMap snapshots cut at different times, which no amount of detail
 closes. The shading spilled across the line.
 
-So one set of shapes does both, and the basemap's pink dashed hairline — which starts
-at zoom 9 and sits underneath water anyway — is hidden. What ours still has to line up
-against is the coastline the basemap draws, since a state's outline follows the coast
-for most of its length.
+So one set of shapes does both, and the basemap's own state and country lines are
+hidden. What ours still has to line up against is the coastline the basemap draws,
+since a state's outline follows the coast for most of its length.
+
+**Every edge is the same line** — a coast, an island, a border with Thailand, Brunei or
+Indonesia, and a border between two states. The coast used to be fainter, because a
+shared edge belongs to two states' outlines and was stroked twice while a coast belongs
+to one. The line is solid now, so stroking it twice changes nothing, and it carries the
+weight the internal borders always had. Hiding the basemap's country lines takes every
+country border in its tiles with them, so borders between two other countries are not
+drawn; every border of Malaysia is.
 
 Those shapes come from geoBoundaries' OSM extract, in the repo rather than fetched,
 for the reason the basemap is CARTO's: this thing has to come up on a fresh clone with

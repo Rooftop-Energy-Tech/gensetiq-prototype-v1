@@ -198,49 +198,73 @@ type BorderSource = {
 };
 
 /**
- * Where the basemap keeps its own state borders, if it has any — so they can be
- * switched off.
+ * Where the basemap keeps its own state and country borders, if it has any — so they
+ * can be switched off.
  *
- * Voyager's tiles carry a `boundary` layer and the style draws `admin_level == 4`
- * from it as `boundary_state`. Left on, it would be a second border a few hundred
- * metres from the one this file draws. Nothing is ever drawn *from* it: see the
- * border block for why the wash makes that impossible.
+ * Voyager's tiles carry a `boundary` layer, and the style draws `admin_level == 4`
+ * from it as `boundary_state` and `admin_level == 2` as `boundary_country_outline` and
+ * `boundary_country_inner` — a pale 8px band with a pink line on it. Left on, each is
+ * a second border a few hundred metres from the one this file draws, in a different
+ * style: the state line would double every internal border, and the country pair
+ * would give Malaysia's land borders with Thailand, Indonesia and Brunei a look of
+ * their own when they are meant to read exactly like the coast and the line between
+ * two states. Nothing is ever drawn *from* them: see the border block for why the
+ * wash makes that impossible.
  *
- * Found structurally rather than by its id: a line layer over a vector source whose
- * filter names `admin_level` and `4`. The id is checked first because it costs
- * nothing and is right today, but a basemap is a thing somebody else versions, and
- * the shape of the layer is the more durable fact about it. `maritime` is left to the
- * style's own filter — Voyager already excludes sea boundaries, and re-deciding that
- * here would be this file disagreeing with the map again, in a different place.
+ * The cost of hiding the country layers, stated: they hold every country border in
+ * the tiles, not only Malaysia's, so Thailand–Myanmar and the like go as well. Every
+ * border of Malaysia is still drawn, from our own shapes; what goes is borders
+ * between two other countries, which this map is not about.
+ *
+ * Found structurally rather than by id: a line layer over a vector source whose
+ * filter compares `admin_level` to 2 or 4. A basemap is a thing somebody else
+ * versions, and the shape of the layer is the more durable fact about it. `maritime`
+ * is left to the style's own filter — Voyager already excludes sea boundaries, and
+ * re-deciding that here would be this file disagreeing with the map again, in a
+ * different place.
  */
-const findBasemapStateBoundary = (
-  map: maplibregl.Map,
-):
-  | {id: string; source: string; sourceLayer: string; filter: unknown}
-  | undefined => {
+const findBasemapBoundaries = (map: maplibregl.Map): Array<string> => {
   const layers = map.getStyle().layers ?? [];
 
-  const usable = (layer: (typeof layers)[number]) => {
-    if (layer.type !== 'line') return undefined;
-    const sourceLayer = (layer as {'source-layer'?: string})['source-layer'];
-    const source = (layer as {source?: string}).source;
-    const filter = (layer as {filter?: unknown}).filter;
-    if (sourceLayer === undefined || source === undefined || filter === undefined) return undefined;
-    const printed = JSON.stringify(filter);
-    if (!printed.includes('admin_level') || !printed.includes('4')) return undefined;
-    return {id: layer.id, source, sourceLayer, filter};
-  };
-
-  const byId = layers.find((layer) => layer.id === 'boundary_state');
-  const fromId = byId === undefined ? undefined : usable(byId);
-  if (fromId !== undefined) return fromId;
-
-  for (const layer of layers) {
-    const hit = usable(layer);
-    if (hit !== undefined) return hit;
-  }
-  return undefined;
+  return layers
+    .filter((layer) => {
+      if (layer.type !== 'line') return false;
+      const sourceLayer = (layer as {'source-layer'?: string})['source-layer'];
+      const filter = (layer as {filter?: unknown}).filter;
+      if (sourceLayer === undefined || filter === undefined) return false;
+      const printed = JSON.stringify(filter);
+      return printed.includes('"admin_level",4') || printed.includes('"admin_level",2');
+    })
+    .map((layer) => layer.id);
 };
+
+/** `#rrggbb` → `[r, g, b]`, or `undefined` for anything else. */
+const parseHex = (value: unknown): [number, number, number] | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value.trim());
+  if (match === null) return undefined;
+  return [parseInt(match[1] as string, 16), parseInt(match[2] as string, 16), parseInt(match[3] as string, 16)];
+};
+
+/**
+ * `color` laid over `ground` at `alpha`, as the solid colour that results.
+ *
+ * What makes every edge draw alike: see the border block. A token that will not
+ * parse falls back to itself, which keeps the line drawn — only its weight between
+ * shared and unshared edges would then differ again.
+ */
+const flatten = (color: string, ground: [number, number, number], alpha: number): string => {
+  const rgb = parseHex(color);
+  if (rgb === undefined) return color;
+  const mix = rgb.map((channel, i) => Math.round(channel * alpha + (ground[i] as number) * (1 - alpha)));
+  return `#${mix.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+};
+
+/**
+ * The opacity a line reaches where it is drawn twice at `alpha` — which is what a
+ * border between two states always is, once per polygon. `1 − (1 − a)²`.
+ */
+const twice = (alpha: number): number => 1 - (1 - alpha) ** 2;
 
 type DimTarget = {
   layerId: string;
@@ -359,12 +383,36 @@ export const attachStateHover = (
   // disagree with the basemap's boundary by 130 m on average and 850 m at worst. The
   // shading spilled across the line.
   //
-  // So both come from one set of shapes, ours, and the basemap's own boundary layer
-  // is switched off. That leaves one border on screen with a wash that fits it, and
-  // nothing for either to disagree with. Voyager's is a pale pink dashed hairline that
-  // starts at zoom 9 and sits *underneath* water and landuse, so hiding it costs
-  // nothing a reader would miss.
-  const basemapBoundary = findBasemapStateBoundary(map);
+  // So both come from one set of shapes, ours, and the basemap's own state and
+  // country layers are switched off (see `findBasemapBoundaries`). That leaves one
+  // border on screen with a wash that fits it, and nothing for either to disagree with.
+  //
+  // ## Every edge is drawn alike
+  //
+  // A coast, a border with Thailand and a border between two states are the same line.
+  // They were not, and the reason is in the geometry rather than the style: this layer
+  // strokes every state's *outline*, so an edge two states share is stroked twice —
+  // once per polygon — and a coast or a land border with another country, which
+  // belongs to one state only, is stroked once. At a translucent opacity the shared
+  // edges came out at nearly double the darkness, and the coast read as a different,
+  // fainter kind of line beside them.
+  //
+  // So the line is drawn **opaque**, in the colour a doubled stroke used to reach over
+  // the basemap's land: `twice(alpha)` of the token, flattened onto Voyager's own
+  // background. An opaque stroke drawn twice is the same as one drawn once, so the
+  // weight the internal borders had is now the weight of every edge — coast, island
+  // and country border included. The casing gets the same treatment for the same
+  // reason. Flattened onto *land*, so over the sea the line is a touch different from
+  // a translucent one would be; the land is where the internal borders it has to match
+  // are drawn.
+  const hiddenBasemapLayers = findBasemapBoundaries(map);
+  const ground =
+    parseHex(map.getLayer('background') === undefined ? undefined : map.getPaintProperty('background', 'background-color')) ??
+    parseHex(lightToken.canvas) ?? [255, 255, 255];
+
+  /** A zoom ramp of solid colours: `color` at each stop's doubled opacity, on land. */
+  const flatRamp = (color: string, stops: Array<[number, number]>): ExpressionSpecification =>
+    ['interpolate', ['linear'], ['zoom'], ...stops.flatMap(([zoom, alpha]) => [zoom, flatten(color, ground, twice(alpha))])] as ExpressionSpecification;
 
   // Both weight and opacity ramp with zoom. Zoomed out the line sits on flat sea and
   // empty land, where anything heavier than a hairline reads as a net thrown over the
@@ -408,8 +456,8 @@ export const attachStateHover = (
   ];
 
   /**
-   * Our own polygons, the same ones the wash above is drawn from. `basemapBoundary` is
-   * found only so it can be switched off below — never drawn from.
+   * Our own polygons, the same ones the wash above is drawn from. The basemap's
+   * boundaries are found only so they can be switched off below — never drawn from.
    */
   const borderSource: BorderSource = {source: SOURCE};
 
@@ -420,8 +468,13 @@ export const attachStateHover = (
       ...borderSource,
       layout: {'line-join': 'round'},
       paint: {
-        'line-color': lightToken.canvas,
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0.35, 8, 0.6, 12, 0.8],
+        // The ramp the casing had as a translucent band, doubled and flattened — see
+        // "Every edge is drawn alike" above.
+        'line-color': flatRamp(lightToken.canvas, [
+          [4, 0.35],
+          [8, 0.6],
+          [12, 0.8],
+        ]),
         'line-width': CASING_WIDTH,
       },
     } as maplibregl.LayerSpecification,
@@ -435,8 +488,14 @@ export const attachStateHover = (
       ...borderSource,
       layout: {'line-join': 'round'},
       paint: {
-        'line-color': lightToken.primary,
-        'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0.3, 8, 0.45, 12, 0.6, 16, 0.7],
+        // What an internal border used to look like — `primary` at this ramp, drawn
+        // twice — as one solid colour, so every edge now draws it.
+        'line-color': flatRamp(lightToken.primary, [
+          [4, 0.3],
+          [8, 0.45],
+          [12, 0.6],
+          [16, 0.7],
+        ]),
         'line-width': BORDER_WIDTH,
       },
     } as maplibregl.LayerSpecification,
@@ -444,13 +503,13 @@ export const attachStateHover = (
   );
 
   // Two renderings of one border is the thing this was all to avoid, so the basemap's
-  // own goes quiet while ours is up. Restored on detach.
-  const hiddenBasemapLayer =
-    basemapBoundary === undefined
-      ? undefined
-      : {id: basemapBoundary.id, opacity: map.getPaintProperty(basemapBoundary.id, 'line-opacity')};
-  if (hiddenBasemapLayer !== undefined) {
-    map.setPaintProperty(hiddenBasemapLayer.id, 'line-opacity', 0);
+  // own go quiet while ours are up. Restored on detach.
+  const hiddenBasemap = hiddenBasemapLayers.map((id) => ({
+    id,
+    opacity: map.getPaintProperty(id, 'line-opacity'),
+  }));
+  for (const {id} of hiddenBasemap) {
+    map.setPaintProperty(id, 'line-opacity', 0);
   }
 
   // The label goes on top of the fleet rather than under it: it is the answer to the
@@ -617,8 +676,8 @@ export const attachStateHover = (
     map.off('click', handleClick);
     // A fit still queued against a map that is about to be removed.
     window.clearTimeout(pendingFit);
-    if (hiddenBasemapLayer !== undefined && map.getLayer(hiddenBasemapLayer.id) !== undefined) {
-      map.setPaintProperty(hiddenBasemapLayer.id, 'line-opacity', hiddenBasemapLayer.opacity);
+    for (const {id, opacity} of hiddenBasemap) {
+      if (map.getLayer(id) !== undefined) map.setPaintProperty(id, 'line-opacity', opacity);
     }
     apply(undefined);
     for (const layerId of Object.values(LAYER)) {
