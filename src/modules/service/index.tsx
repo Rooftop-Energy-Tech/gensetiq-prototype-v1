@@ -1,5 +1,5 @@
 import {Link, useNavigate} from '@tanstack/react-router';
-import {SearchIcon, SearchXIcon} from 'lucide-react';
+import {FileTextIcon, MapPinIcon, SearchIcon, SearchXIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 import {useMemo} from 'react';
 
@@ -10,6 +10,7 @@ import type {ChipTone} from '@/components/global/SummaryCards';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {stampDate} from '@/lib/format';
+import {useIsCompact} from '@/lib/useIsCompact';
 import {cn} from '@/lib/utils';
 import {useFleet} from '@/modules/genset/data/deployment';
 import {gensetStateName, stateNameFromSlug, stateSlug} from '@/modules/genset/data/gensetState';
@@ -56,6 +57,13 @@ const STANDING_META: Record<ServiceStanding, {label: string; unit: string; detai
  */
 const CARD_STANDINGS: Array<ServiceStanding> = ['overdue', 'due-soon', 'ok'];
 
+const STANDING_DOT: Record<ServiceStanding, string> = {
+  overdue: 'bg-severity-critical',
+  'due-soon': 'bg-severity-warning',
+  ok: 'bg-severity-ok',
+  never: 'bg-tertiary',
+};
+
 const CELL = 'px-3 py-2 whitespace-nowrap';
 
 const Th = ({children, align}: {children: ReactNode; align?: 'right'}) => (
@@ -83,7 +91,7 @@ const CounterCell = ({counter}: {counter: ServiceCounter | undefined}) => {
       <span className="text-primary tabular-nums">
         {elapsed} <span className="text-secondary">/ {counter.interval.toLocaleString('en-MY')} {unit}</span>
       </span>
-      <span className="h-1 w-full overflow-hidden rounded-full bg-tertiary/30" aria-hidden="true">
+      <span className="h-1.5 w-full overflow-hidden rounded-full bg-tertiary/30" aria-hidden="true">
         <span
           className={cn('block h-full rounded-full bg-current', counter.severity === 'OK' ? 'text-tertiary' : severity.textClassName)}
           style={{width: `${Math.min(100, fraction * 100)}%`}}
@@ -208,6 +216,167 @@ const DueTable = ({rows}: {rows: Array<FleetServiceRow>}) => {
   );
 };
 
+/** A thin interval bar, in the counter's severity once it matters. */
+const IntervalBar = ({counter}: {counter: ServiceCounter}) => {
+  const fraction = counter.interval > 0 ? counter.elapsed / counter.interval : 0;
+  return (
+    <span className="block h-1.5 w-full overflow-hidden rounded-full bg-tertiary/30" aria-hidden="true">
+      <span
+        className={cn(
+          'block h-full rounded-full bg-current',
+          counter.severity === 'OK' ? 'text-tertiary' : SERVICE_SEVERITY_META[counter.severity].textClassName,
+        )}
+        style={{width: `${Math.min(100, fraction * 100)}%`}}
+      />
+    </span>
+  );
+};
+
+const counterText = (counter: ServiceCounter): string =>
+  counter.kind === 'hours'
+    ? `${Math.round(counter.elapsed).toLocaleString('en-MY')} / ${counter.interval.toLocaleString('en-MY')} h`
+    : `${counter.elapsed.toFixed(1)} / ${counter.interval} mo`;
+
+/**
+ * The Due list at phone width: a card per set, in the table's order.
+ *
+ * The table is nine columns and 1,200px; at 358px it showed plate, state and
+ * location and put everything a reader came for a swipe away. The card leads with
+ * plate and status, then where, when it is due, the two intervals side by side, the
+ * last visit, and `Log service` full width at the foot — the phone form the gensets
+ * and deployments registers already use. `pb-20` clears the floating nav, as theirs.
+ */
+const DueCards = ({rows}: {rows: Array<FleetServiceRow>}) => (
+  <ul aria-label="Gensets by service standing" className="flex flex-col gap-2 pb-20">
+    {rows.map((row) => {
+      const {genset, status} = row;
+      const due = nextDue(row);
+      const tone =
+        status.kind === 'never-serviced'
+          ? 'border-subtle'
+          : status.severity === 'OVERDUE'
+            ? 'border-severity-critical/45'
+            : status.severity === 'DUE_SOON'
+              ? 'border-severity-warning/45'
+              : 'border-subtle';
+      return (
+        <li key={genset.id} className={cn('flex flex-col gap-2.5 rounded-lg border bg-element p-3 text-sm', tone)}>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              to="/gensets/$gensetId/service"
+              params={{gensetId: genset.id}}
+              className="text-[15px] font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              {gensetLabel(genset)}
+            </Link>
+            <StandingBadge row={row} />
+          </div>
+          <p className="flex min-w-0 items-center gap-1.5 text-secondary">
+            <MapPinIcon className="size-3.5 shrink-0" aria-hidden="true" />
+            {/* The state only when the placename does not already carry it —
+                `Workshop, Kapar · Selangor`, but not `Klang, Selangor · Selangor`. */}
+            <span className="truncate">
+              {genset.locationLabel}
+              {(() => {
+                const state = gensetStateName(genset);
+                return state !== undefined && !genset.locationLabel.includes(state) ? ` · ${state}` : '';
+              })()}
+            </span>
+          </p>
+          <p className="flex items-baseline justify-between gap-2">
+            <span className="text-secondary">Next due</span>
+            {due === undefined ? (
+              <span className="text-secondary">first service</span>
+            ) : (
+              <span className={cn('font-medium tabular-nums', due.overdue ? 'text-severity-critical' : 'text-primary')}>
+                {due.text}
+              </span>
+            )}
+          </p>
+          {status.kind === 'tracked' && (
+            <div className="grid grid-cols-2 gap-3">
+              {[status.hours, status.calendar].map((counter) => (
+                <div key={counter.kind} className="flex flex-col gap-1.5">
+                  <span className="text-xs text-secondary">
+                    {counter.kind === 'hours' ? 'Run hours' : 'Time'}{' '}
+                    <span className="text-primary tabular-nums">{counterText(counter)}</span>
+                  </span>
+                  <IntervalBar counter={counter} />
+                </div>
+              ))}
+            </div>
+          )}
+          {status.kind === 'tracked' && (
+            <p className="flex items-center justify-between gap-2 text-xs text-secondary">
+              <span className="truncate">
+                Last: {stampDate(status.lastService.performedAt)} · {status.lastService.technicianName}
+              </span>
+              <ReportLink record={status.lastService} />
+            </p>
+          )}
+          {/* Full width and 44px: the one thing a technician standing at the set
+              came to do. The dialog is the Service tab's own. */}
+          <div className="[&_button]:h-11 [&_button]:w-full [&_button]:text-sm">
+            <LogServiceDialog genset={genset} currentEngineHours={engineHoursOf(genset.id)} compact />
+          </div>
+        </li>
+      );
+    })}
+  </ul>
+);
+
+/**
+ * The History list at phone width: two lines a row instead of seven columns. The
+ * plate and date lead; technician, site and hours follow; the report is a 44px
+ * target on the right. State is left to the filter, where it already is.
+ */
+const HistoryRows = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<string, Genset>}) => (
+  <ul aria-label="Service history" className="mb-20 flex flex-col overflow-hidden rounded-lg border border-subtle bg-element">
+    {records.map((record) => {
+      const genset = byId.get(record.gensetId);
+      return (
+        <li key={record.id} className="flex min-h-15 items-center gap-3 border-subtle px-3 py-2 not-first:border-t">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-sm text-primary">
+              {genset === undefined ? (
+                <span className="font-semibold">{record.gensetId}</span>
+              ) : (
+                <Link
+                  to="/gensets/$gensetId/service"
+                  params={{gensetId: genset.id}}
+                  className="font-semibold text-primary underline-offset-4 hover:underline"
+                >
+                  {gensetLabel(genset)}
+                </Link>
+              )}{' '}
+              <span className="text-secondary">· {stampDate(record.performedAt)}</span>
+            </span>
+            <span className="truncate text-xs text-secondary">
+              {record.technicianName} · {siteLabel(record.siteId)} · {record.engineHoursAtService.toLocaleString('en-MY')} h
+            </span>
+          </div>
+          {record.document.url === null ? (
+            <span className="shrink-0 text-xs text-tertiary" title="Attached in an earlier session; the file itself is not stored.">
+              No file
+            </span>
+          ) : (
+            <a
+              href={record.document.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Report for ${genset === undefined ? record.gensetId : gensetLabel(genset)}, ${stampDate(record.performedAt)}`}
+              className="flex min-h-11 min-w-11 shrink-0 items-center justify-end gap-1.5 text-sm font-medium text-primary"
+            >
+              <FileTextIcon className="size-3.5 shrink-0" aria-hidden="true" />
+              Report
+            </a>
+          )}
+        </li>
+      );
+    })}
+  </ul>
+);
+
 const HistoryTable = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<string, Genset>}) => (
   <table className="w-full border-separate border-spacing-0 text-sm">
     <thead>
@@ -264,6 +433,7 @@ export const ServicePage = ({
   onSearchChange: (next: Partial<ServiceSearch>) => void;
 }) => {
   const {tab, q = '', location, standing} = search;
+  const compact = useIsCompact();
   const fleet = useFleet();
   const rows = useFleetService(fleet);
   const records = useServiceRecords();
@@ -325,8 +495,10 @@ export const ServicePage = ({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <InputGroup className="w-full max-w-[187px] min-w-[140px] flex-1">
+      {/* One row at phone width too: tighter gaps and a search box that gives way,
+          so the Due/History switch does not drop to a line of its own. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 md:gap-x-4">
+        <InputGroup className="w-full min-w-0 flex-1 md:max-w-[187px] md:min-w-[140px]">
           <InputGroupAddon>
             <SearchIcon aria-hidden="true" />
           </InputGroupAddon>
@@ -334,7 +506,8 @@ export const ServicePage = ({
             type="search"
             value={q}
             onChange={(event) => onSearchChange({q: event.target.value || undefined})}
-            placeholder="Number plate"
+            // `Plate` at phone width, where `Number plate` is cut to `Numb`.
+            placeholder={compact ? 'Plate' : 'Number plate'}
             aria-label="Search gensets"
           />
         </InputGroup>
@@ -357,7 +530,34 @@ export const ServicePage = ({
         </Tabs>
       </div>
 
-      {tab === 'due' && (
+      {tab === 'due' && compact && (
+        // Three across at phone width, label and count only: the explanation lines
+        // are what made them cards on a desktop, and here they would push the list
+        // below the fold.
+        <div className="grid grid-cols-3 gap-2">
+          {CARD_STANDINGS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={standing === key}
+              onClick={() => onSearchChange({standing: standing === key ? undefined : key})}
+              className={cn(
+                'flex min-h-16 cursor-pointer flex-col items-start justify-between gap-1.5 rounded-md border px-2.5 py-2 text-left',
+                'outline-none focus-visible:ring-2 focus-visible:ring-outline',
+                standing === key ? 'border-strong bg-highlight' : 'border-subtle bg-element',
+              )}
+            >
+              <span className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-secondary uppercase">
+                <span className={cn('size-1.5 shrink-0 rounded-full', STANDING_DOT[key])} aria-hidden="true" />
+                {STANDING_META[key].label}
+              </span>
+              <span className="text-xl leading-none font-semibold text-primary tabular-nums">{counts[key]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'due' && !compact && (
         <SummaryCardRow cappedColumns={3}>
           {CARD_STANDINGS.map((key) => (
             <FilterCard
@@ -389,7 +589,9 @@ export const ServicePage = ({
             </p>
           </div>
         ) : tab === 'due' ? (
-          <DueTable rows={dueRows} />
+          compact ? <DueCards rows={dueRows} /> : <DueTable rows={dueRows} />
+        ) : compact ? (
+          <HistoryRows records={historyRows} byId={byId} />
         ) : (
           <HistoryTable records={historyRows} byId={byId} />
         )}

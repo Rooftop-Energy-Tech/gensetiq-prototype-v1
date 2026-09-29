@@ -86,11 +86,9 @@ const ITEMS: Array<MobileNavItem> = [
   // component state rather than URL state, so the route takes no params and the
   // bar has nothing to name.
   {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
-  // The fleet's service standing — which set is due, and Log service on its row. On
-  // the bar because a service is logged standing beside the machine. Its table is
-  // wider than a phone and scrolls sideways inside its own container: the cards and
-  // the first three columns fit, and status, next due and Log service are a swipe
-  // right. It wants a card layout at this width, as the gensets register has.
+  // The fleet's service standing — which set is due, and Log service on its card. On
+  // the bar because a service is logged standing beside the machine. At this width
+  // its Due list is cards and its History two-line rows, not the desktop tables.
   {label: 'Service', icon: WrenchIcon, link: '/service', search: {tab: 'due'}},
 ];
 
