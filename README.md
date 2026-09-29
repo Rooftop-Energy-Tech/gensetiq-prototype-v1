@@ -504,7 +504,8 @@ through it:
 /sites?view=map&id=port-016&panel=true # one yard on the map, its preview open
 /deployments?state=active             # the register, only what is standing
 /deployments?state=planned            # what is booked and has not started
-/deployments?view=gantt&customer=east # one division's jobs on the timeline
+/deployments?view=gantt&location=johor # Johor's jobs on the timeline
+/deployments?q=wxq4562               # every job a plate has been on, spaces optional
 /deployments/ppu-013-job-0/gensets    # one job's machines, and the way to change them
 /sites/telco-001                      # the site page the Figma frame draws
 /sites/telco-001/runs?window=7d       # every set here, one log
@@ -976,10 +977,12 @@ The layout, spacing and every component's construction follow the frame. The
     at one scale. `Starts` reading `1 · 0` is the case worth having: this run is a
     start, and it began before midnight, so yesterday owns it.
 
-    **The details band is identity, and deliberately only that** — name, make and
-    model, rating, and a lorry plate on the sets that have one (most are bolted to
-    a plinth and the row is simply absent, rather than a dash pretending at missing
-    data). `Tank capacity` left the band because the fuel panel one band up already
+    **The details band is identity, and deliberately only that** — number plate,
+    lorry plate, asset tag, make and model, rating. Each set has **two plates**: its
+    own (`PGW 9748`, what every list calls it) and the lorry it is bolted to
+    (`JFQ 1637`), which is the same lorry on every job. The asset tag (`CUM-672771`)
+    is the serial, shown only here and in the header's info tooltip; everywhere else
+    a set is named by its number plate. `Tank capacity` left the band because the fuel panel one band up already
     states it as `Max capacity`, beside the level it is the denominator of; a figure
     printed twice on one page is one a reader has to check against itself. The
     rating stays because it is the denominator of every load figure above it.
@@ -1133,11 +1136,11 @@ Four choices worth stating, because each had a cheaper wrong version:
 **Clicking a state frames it.** The hover says how much is here; the click says show
 me. A click on the basemap inside a state fits the viewport to the whole of that state
 — islands included, centred, with the same padding the fleet is framed with. On the
-gensets register it also sets the `State` filter to that state, so the list narrows to
-the sets standing there (`All states`, or Back, undoes it). A state with no set in it
-filters to an empty list, and the dropdown lists it at 0 while it is picked. The map
-then keeps the state's frame instead of re-fitting to its pins, until you scroll the
-list or change another filter. The sites and deployments maps only frame. A click on a
+gensets and deployments registers it also sets the `State` filter to that state, so
+the list narrows to what stands there (`All states`, or Back, undoes it). A state with
+nothing in it filters to an empty list, and the dropdown lists it at 0 while it is
+picked. The map then keeps the state's frame instead of re-fitting to its pins, until
+you scroll the list or change another filter. The sites map only frames. A click on a
 pin or a bubble still does what it did; the state only answers when nothing on the
 fleet was hit.
 
@@ -1146,6 +1149,13 @@ and `Fuel level` count only Johor's sets; each dropdown counts over what the oth
 filters leave, so an option's number is what picking it shows. Zeros stay, greyed.
 The summary cards above the table (`Gensets`, `Status`, `Due for service`, `Fuel on
 hand`) still count the whole fleet; `Status` and `Due for service` are filters.
+
+**Deployments has the same controls.** A plate search (spaces optional, and the job
+reference too), `State` and `Status` dropdowns with the same faceted counts, the
+`Filtered by:` chip row, and four cards: `Deployments`, `Status`, `Gensets out`,
+`Diesel burned`. A job's state is read off its yard's position and uses the gensets
+page's `?location=` param. The table spaces its seven columns (State beside the job) with equal gaps, and
+scrolls sideways beside the map where they do not fit. Machines show as plates.
 
 **A `Filtered by:` row appears under the toolbar while any filter is on** — one chip
 per filter (search, State, Status, Alarm, Fuel level, the summary chip, Service due),

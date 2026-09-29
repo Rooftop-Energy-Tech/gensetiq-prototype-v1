@@ -219,15 +219,11 @@ export const REAL_DEPLOYMENTS: ReadonlyArray<Deployment> = JOBS.map((job) => ({
 
 /**
  * One membership per posting — this machine, alone, on every one of them.
- *
- * `lorryPlate` is empty rather than dealt: the eight other fields here are measured
- * and a hashed plate beside them would be the one invented fact on the record.
  */
 export const REAL_MEMBERSHIPS: ReadonlyArray<DeploymentMembership> = JOBS.map((job) => ({
   id: `${id(job)}:${REAL_GENSET_ID}`,
   deploymentId: id(job),
   gensetId: REAL_GENSET_ID,
-  lorryPlate: '',
   startFuelLitres: job.startFuelLitres,
   endFuelLitres: job.endFuelLitres,
   collectedAt: null,

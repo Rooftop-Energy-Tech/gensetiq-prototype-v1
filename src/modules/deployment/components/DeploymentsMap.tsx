@@ -79,6 +79,17 @@ type DeploymentsMapProps = {
    * stays drawn; see `GensetsMap` for why framing and filtering are kept apart.
    */
   focusIds?: Array<string>;
+  /**
+   * A click on a state — on the basemap inside it, not on a pin or a bubble. The
+   * register filters its list to that state; the map frames it either way.
+   */
+  onStateSelect?: (stateId: string) => void;
+  /**
+   * Keep the current frame rather than fitting to the feed — `GensetsMap`'s prop, for
+   * its reason: the filter a state click sets would otherwise re-fit the map to the
+   * state's pins a moment later and undo the state's own frame.
+   */
+  holdFrame?: boolean;
 };
 
 /**
@@ -183,6 +194,8 @@ export const DeploymentsMap = ({
   onDeselect,
   panelInset,
   focusIds,
+  onStateSelect,
+  holdFrame,
 }: DeploymentsMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -195,6 +208,10 @@ export const DeploymentsMap = ({
   onSelectRef.current = onSelect;
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
+  const onStateSelectRef = useRef(onStateSelect);
+  onStateSelectRef.current = onStateSelect;
+  const holdFrameRef = useRef(holdFrame);
+  holdFrameRef.current = holdFrame;
 
   // The postings currently drawn, read from inside the state hover's count — so the
   // count follows the register's filters rather than reporting every job ever made.
@@ -340,10 +357,11 @@ export const DeploymentsMap = ({
             (row) =>
               malaysiaStateAt(row.longitude as number, row.latitude as number) === stateId,
           ).length,
-        countLabel: (count) => `${count} ${count === 1 ? 'posting' : 'postings'}`,
+        countLabel: (count) => `${count} ${count === 1 ? 'deployment' : 'deployments'}`,
         // The same frame the fleet gets, so a clicked state sits where a fitted fleet
         // would — clear of the panel, if the panel is still there.
         fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
+        onStateClick: (stateId) => onStateSelectRef.current?.(stateId),
       });
 
       loadedRef.current = true;
@@ -448,6 +466,7 @@ export const DeploymentsMap = ({
   useEffect(() => {
     const map = mapRef.current;
     if (map === null) return;
+    if (holdFrameRef.current === true) return;
 
     const drawable = placed(rows);
     if (drawable.length === 0) return;

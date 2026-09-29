@@ -62,14 +62,12 @@ export type Deployment = {
  * The two fuel figures are the tank at the machine's own edges, which is what makes
  * fuel attributable per machine on a job that has three of them. The live level
  * during an open posting is *derived* from tank telemetry rather than stored. The
- * plate is here rather than on the job because each set rides its own lorry.
+ * lorry is not here: each set is bolted to its own, for life — `Genset.lorryPlate`.
  */
 export type DeploymentMembership = {
   id: string;
   deploymentId: string;
   gensetId: string;
-  /** The lorry that took this set out. */
-  lorryPlate: string;
   /** Tank level when the machine arrived, litres. */
   startFuelLitres: number;
   /** Tank level when it was collected, litres — `null` while it is still standing. */

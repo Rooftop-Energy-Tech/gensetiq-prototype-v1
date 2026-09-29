@@ -497,15 +497,16 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
       <DetailBand
         ariaLabel="Genset details"
         rows={[
-          {label: 'Name', value: genset.tag},
-          {label: 'Make and model', value: genset.model},
-          {label: 'Rated capacity', value: amount(detail.ratedKw, 'kW')},
-          // Only when there is one. Most of the estate is bolted to a plinth and
-          // has no plate, and a row reading "—" would present the ordinary case as
-          // missing data.
+          // The two plates first, each named for what it is on: the machine's own,
+          // then the lorry it is bolted to. The serial last — it is on the nameplate,
+          // and nobody in the yard says it.
           ...(genset.plateNumber === null
             ? []
-            : [{label: 'Lorry plate', value: genset.plateNumber}]),
+            : [{label: 'Number plate', value: genset.plateNumber}]),
+          {label: 'Lorry plate', value: genset.lorryPlate},
+          {label: 'Asset tag', value: genset.tag},
+          {label: 'Make and model', value: genset.model},
+          {label: 'Rated capacity', value: amount(detail.ratedKw, 'kW')},
         ]}
       />
     </div>

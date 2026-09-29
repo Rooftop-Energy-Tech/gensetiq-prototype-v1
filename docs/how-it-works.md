@@ -221,10 +221,15 @@ set arriving in week three cannot join an existing job.** It needs a successor j
 which splits one hire into two records. If that turns out to be how Express Mission
 actually work, the two dates move onto the membership and nothing else changes.
 
-A membership carries the **lorry plate** that took that set out, the tank level at
-each of its own edges, and a `collectedAt` for the one case that needs a date: a set
+A membership carries the tank level at each of its own edges, and a `collectedAt` for the one case that needs a date: a set
 pulled out early while the job runs on. The live level during an open posting is
 *derived* from telemetry rather than stored.
+
+**The lorry is the genset's, not the job's** (since 2026-09-29). Each set is bolted
+onto one lorry for life, so `Genset.lorryPlate` holds it and every job shows the same
+one. It used to be dealt afresh per membership, as a Sabah plate even on peninsular
+jobs, so one machine arrived on a different lorry every time. `fleet.ts` derives it in
+the brand's own plate style and never repeats a genset plate or another lorry's.
 
 #### Three states, and none of them is stored
 
@@ -1105,12 +1110,12 @@ rest would answer a different one.
 **Clicking a state frames it.** The hover says how much is here; the click says show
 me. Click the basemap anywhere inside a state and the map fits the whole of that state
 into view — islands included, centred, with the same padding the fleet is framed with.
-On the gensets register the click also sets the toolbar's `State` filter to that
+On the gensets and deployments registers the click also sets the toolbar's `State` filter to that
 state, so the list and the map narrow to the sets standing there; `All states` in the
 dropdown, or Back, undoes it. A state with no set in it filters too, to an empty
 list, and the dropdown lists it at 0 for as long as it is picked. The map then holds
 the state's frame rather than re-fitting to the state's pins, until the list is scrolled
-or another filter changes. The sites and deployments maps frame and do nothing
+or another filter changes. The sites map frames and does nothing
 else. A click on a pin or a bubble is still a click
 on a pin or a bubble; the state only answers when nothing on the fleet was hit. The
 frame is measured on the fine copy of the shapes rather than the coarse one — the
@@ -1306,6 +1311,17 @@ every narrowing — the search text, the four dropdowns, the summary strip's chi
 `Service due` link — because a row that named some of them would leave a short list
 unexplained, and `Clear all` would clear only part of it. The chips use each control's
 own words, so a chip and the control that set it read the same.
+
+**The deployments register copies these controls** (2026-09-29): plate search with
+spaces ignored, plus the job reference (`DEP-0076`); `State` and `Status` dropdowns,
+faceted the same way; the same chip row; and four cards in the gensets shape —
+`Deployments`, `Status` (the three states, each a toggle), `Gensets out` (with what is
+committed and a link to the depot count) and `Diesel burned` (with the typical closed
+job). The old `Customer` dropdown and `?customer=` went. A job's state is its yard's,
+read off the site's coordinates with `stateNameAt`, and travels as `?location=` so one
+state reads the same on both pages. Its machines are shown by plate, falling back to the
+tag. The table uses the gensets table's equal gaps and keeps all seven columns (State added beside the reference); beside the
+map they do not fit, so there it scrolls sideways.
 
 **Every set has a street address**, mock but plausible: a real town and postcode, an
 invented lot number (`Lot 31, Jalan Kuala Kangsar, 30010 Ipoh, Perak`). It belongs to

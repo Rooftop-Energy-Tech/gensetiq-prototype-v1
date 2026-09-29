@@ -6,12 +6,14 @@ import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {dayMonth} from '@/lib/format';
 import {cn} from '@/lib/utils';
+import {RunStateIcon} from '@/modules/genset/components/RunningPulse';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {useFleet} from '@/modules/genset/data/deployment';
 import type {Genset} from '@/modules/genset/types/genset.type';
 import {siteLabel} from '@/modules/site/data/siteSeed';
 import type {DeploymentRow} from '../../data/feed';
 import {addGenset, collectGenset, conflictFor} from '../../data/store';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
 
 /**
  * Which machines are on this job — and the control that changes it.
@@ -68,7 +70,7 @@ const GensetIdentity = ({genset, tag, model}: {genset: Genset | undefined; tag: 
       </span>
       {Icon !== undefined && meta !== undefined && (
         <Badge variant="element" className="ml-1 shrink-0 border-subtle">
-          <Icon className={cn('size-3', meta.iconClassName)} aria-hidden="true" />
+          {genset !== undefined && <RunStateIcon runState={genset.runState} className="size-3" />}
           {meta.label}
         </Badge>
       )}
@@ -96,7 +98,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
       (left, right) =>
         Number(left.conflict !== undefined) - Number(right.conflict !== undefined) ||
         Number(left.genset.siteId !== null) - Number(right.genset.siteId !== null) ||
-        left.genset.tag.localeCompare(right.genset.tag),
+        gensetLabel(left.genset).localeCompare(gensetLabel(right.genset)),
     );
 
   const free = candidates.filter((candidate) => candidate.conflict === undefined);
@@ -143,7 +145,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                 key={member.membership.id}
                 className="flex items-center justify-between gap-4 rounded-lg border border-subtle bg-element p-3"
               >
-                <GensetIdentity genset={genset} tag={member.tag} model={member.model} />
+                <GensetIdentity genset={genset} tag={member.plate} model={member.model} />
 
                 <span className="flex shrink-0 items-center gap-3">
                   <span className="flex items-center gap-1.5 text-[13px] text-secondary">
@@ -154,7 +156,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                     ) : (
                       <>
                         <TruckIcon className="size-3.5 shrink-0" aria-hidden="true" />
-                        {member.membership.lorryPlate}
+                        <span title="Lorry plate">{member.lorryPlate}</span>
                       </>
                     )}
                   </span>
@@ -175,8 +177,8 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                       </TooltipTrigger>
                       <TooltipContent side="left" className="max-w-64">
                         {state === 'planned'
-                          ? `Release ${member.tag} from this booking. It is free for another job over this window.`
-                          : `Collect ${member.tag}. Its posting ends now and it stays where it is standing until somebody moves it.`}
+                          ? `Release ${member.plate} from this booking. It is free for another job over this window.`
+                          : `Collect ${member.plate}. Its posting ends now and it stays where it is standing until somebody moves it.`}
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -210,14 +212,14 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                     <li key={genset.id}>
                       <button
                         type="button"
-                        onClick={() => put(genset.id, genset.tag)}
+                        onClick={() => put(genset.id, gensetLabel(genset))}
                         className={cn(
                           'flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left',
                           'outline-none transition-colors hover:bg-hover focus-visible:bg-hover',
                         )}
                       >
                         <span className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm text-primary">{genset.tag}</span>
+                          <span className="truncate text-sm text-primary">{gensetLabel(genset)}</span>
                           <span className="truncate text-xs text-secondary">{genset.model}</span>
                         </span>
                         {/* Where it is now, so nobody moves a set off another yard
@@ -246,7 +248,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                         key={genset.id}
                         className="flex items-baseline justify-between gap-3 px-2 text-xs"
                       >
-                        <span className="truncate text-secondary">{genset.tag}</span>
+                        <span className="truncate text-secondary">{gensetLabel(genset)}</span>
                         <span className="shrink-0 text-tertiary">
                           {conflict?.reference} · {conflict?.locationLabel}
                         </span>

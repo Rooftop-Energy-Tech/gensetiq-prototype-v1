@@ -2,6 +2,7 @@ import {MapPinIcon, TruckIcon} from 'lucide-react';
 
 import {amount, stampDate} from '@/lib/format';
 import {postingEnd} from '@/modules/deployment/types/deployment.type';
+import {lorryPlateOf} from '@/modules/genset/data/fleet';
 import type {GensetPosting} from '@/modules/deployment/types/deployment.type';
 
 /**
@@ -99,12 +100,12 @@ export const PostingContext = ({
               : amount(membership.endFuelLitres, 'L')
           }
         />
-        {membership.lorryPlate !== '' && (
+        {lorryPlateOf(membership.gensetId) !== '' && (
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="truncate text-xs font-medium text-secondary">Lorry</span>
             <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
               <TruckIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
-              {membership.lorryPlate}
+              {lorryPlateOf(membership.gensetId)}
             </span>
           </div>
         )}

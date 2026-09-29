@@ -126,7 +126,7 @@ export const GensetDetailPanel = ({
                   <Link
                     to="/gensets/$gensetId"
                     params={{gensetId: genset.id}}
-                    aria-label={`Open ${genset.tag}`}
+                    aria-label={`Open ${gensetLabel(genset)}`}
                   >
                     <ArrowRightIcon aria-hidden="true" />
                   </Link>

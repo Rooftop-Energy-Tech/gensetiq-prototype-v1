@@ -346,7 +346,6 @@ export const addGenset = (deploymentId: string, gensetId: string): PutResult => 
     id,
     deploymentId,
     gensetId,
-    lorryPlate: 'TBD',
     // A machine put on a job by hand has no metered arrival, so the tank reads zero
     // until the set actually turns up. Inventing a level here would put a figure on
     // the fuel ledger that no instrument produced.

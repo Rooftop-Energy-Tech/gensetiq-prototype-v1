@@ -99,7 +99,7 @@ const toLanes = (rows: Array<DeploymentRow>): Array<Lane> => {
 
       return {
         gensetId,
-        tag: newest?.member.tag ?? gensetId,
+        tag: newest?.member.plate ?? gensetId,
         model: newest?.member.model ?? '',
         bars: ordered,
         standing: standingBar !== undefined,
@@ -296,7 +296,7 @@ export const DeploymentsGantt = ({rows, selectedId, onSelect, now}: DeploymentsG
                     : 0;
 
                 const title = [
-                  `${row.deployment.reference} · ${member.tag} at ${row.siteName}`,
+                  `${row.deployment.reference} · ${member.plate} at ${row.siteName}`,
                   `${stampDate(row.deployment.startsAt)} – ${
                     row.deployment.endsAt === null ? 'ongoing' : stampDate(row.deployment.endsAt)
                   }`,

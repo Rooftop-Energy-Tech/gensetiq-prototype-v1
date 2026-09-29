@@ -110,7 +110,7 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
                           search={{window: DEFAULT_RUN_WINDOW, dep: deployment.id}}
                           className="block text-xs text-tertiary underline-offset-4 hover:text-secondary hover:underline"
                         >
-                          {deployment.locationLabel} · {membership.lorryPlate}
+                          {deployment.locationLabel} · lorry {genset.lorryPlate}
                         </Link>
                       </td>
 

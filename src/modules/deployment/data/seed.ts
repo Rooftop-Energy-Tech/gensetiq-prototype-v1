@@ -52,23 +52,6 @@ const DAY = 24 * HOUR;
 
 const CLOCK = Date.now();
 
-/**
- * A Sabah lorry plate, stable per machine per job.
- *
- * Dispatch is a lorry and a driver; the plate is the fact the operations room
- * actually quotes when asked where a machine is mid-move. On the job it belongs to
- * the membership, because three sets on one job arrive on three lorries.
- */
-const lorryPlate = (gensetId: string, salt: string): string => {
-  const series = ['SAA', 'SAB', 'SAC', 'SD', 'SK', 'ST', 'SS'];
-  const prefix = series[Math.floor(spread(gensetId, `${salt}/plate-series`) * series.length)];
-  const digits = 1000 + Math.floor(spread(gensetId, `${salt}/plate-digits`) * 9000);
-  const suffix = String.fromCodePoint(
-    65 + Math.floor(spread(gensetId, `${salt}/plate-suffix`) * 26),
-  );
-  return `${prefix} ${digits} ${suffix}`;
-};
-
 const locationOf = (siteId: string): string =>
   siteSeeds().find((site) => site.id === siteId)?.locationLabel ?? 'Unknown';
 
@@ -93,14 +76,12 @@ const seededOccupancy = (): Map<string, Array<string>> => {
 const membership = (
   deploymentId: string,
   gensetId: string,
-  salt: string,
   startMs: number,
   endMs: number | null,
 ): DeploymentMembership => ({
   id: `${deploymentId}:${gensetId}`,
   deploymentId,
   gensetId,
-  lorryPlate: lorryPlate(gensetId, salt),
   startFuelLitres: Math.round(fuelAt(gensetId, startMs)),
   endFuelLitres: endMs === null ? null : Math.round(fuelAt(gensetId, endMs)),
   // The seed never collects a machine early: every membership it deals stands for
@@ -132,7 +113,7 @@ const deal = (): Dealt => {
   // skips it by id, so its record is exactly what Express Mission's export says.
 
 
-  const commit = (deployment: Deployment, gensetIds: Array<string>, salt: string) => {
+  const commit = (deployment: Deployment, gensetIds: Array<string>) => {
     const startMs = new Date(deployment.startsAt).getTime();
     const endMs = deployment.endsAt === null ? null : new Date(deployment.endsAt).getTime();
 
@@ -142,7 +123,7 @@ const deal = (): Dealt => {
       // a job still standing has none either: the level is telemetry until the
       // machine is collected.
       const closed = endMs !== null && endMs <= CLOCK;
-      memberships.push(membership(deployment.id, gensetId, salt, startMs, closed ? endMs : null));
+      memberships.push(membership(deployment.id, gensetId, startMs, closed ? endMs : null));
       committed.set(gensetId, [...(committed.get(gensetId) ?? []), deployment]);
     }
   };
@@ -187,7 +168,6 @@ const deal = (): Dealt => {
         endsAt: endsAt === null ? null : new Date(endsAt).toISOString(),
       },
       members,
-      `${siteId}-job-0`,
     );
   }
 
@@ -229,7 +209,7 @@ const deal = (): Dealt => {
         if (free(genset.id, candidate)) picked.push(genset.id);
       }
 
-      if (picked.length > 0) commit(candidate, picked, candidate.id);
+      if (picked.length > 0) commit(candidate, picked);
       cursor = start;
     }
   }
@@ -264,7 +244,7 @@ const deal = (): Dealt => {
       if (free(genset.id, candidate)) picked.push(genset.id);
     }
 
-    if (picked.length > 0) commit(candidate, picked, candidate.id);
+    if (picked.length > 0) commit(candidate, picked);
   }
 
   // References last, oldest job first, so `DEP-0001` is the earliest thing on the

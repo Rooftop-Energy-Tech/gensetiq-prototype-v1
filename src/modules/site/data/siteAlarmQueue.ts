@@ -14,6 +14,7 @@ import {FALLBACK_POWER_ROLE, useSitePowerRole, useSitePowerRoles} from './siteCo
 import {siteSeeds} from './siteSeed';
 import type {PlantAlarmCategory} from '../types/plantAlarm.type';
 import type {SitePowerRole} from '../types/site.type';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
 
 /**
  * Every alarm standing anywhere on one site, in one queue.
@@ -115,7 +116,7 @@ const rowsFor = (
       ...[...controllerAlarms(genset.id, handling), ...lowFuelAlarms(genset, handling)].map((row) => ({
         ...row,
         asset: 'GENSET' as const,
-        provenance: `${genset.tag} · ${row.provenance}`,
+        provenance: `${gensetLabel(genset)} · ${row.provenance}`,
       })),
     );
   }

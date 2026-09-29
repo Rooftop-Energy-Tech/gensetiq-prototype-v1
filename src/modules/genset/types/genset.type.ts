@@ -83,10 +83,18 @@ export type Genset = {
    * is bolted down, and the details block already prints the row only when there is
    * one.
    *
-   * Not to be confused with `DeploymentSession.lorryPlate`, which is the lorry that
-   * *carried* the machine on one posting. This is the machine's own registration.
+   * Not to be confused with `lorryPlate` below, the lorry the machine is bolted to.
+   * This is the machine's own registration.
    */
   plateNumber: string | null;
+  /**
+   * The lorry this set is bolted onto, `JKT 2204`. **One per set, for its life** — it
+   * is the same lorry on every job — so it lives on the genset rather than on a
+   * deployment. It had been dealt afresh per job until 2026-09-29, which gave one
+   * machine a different lorry on every posting. Derived in `fleet.ts`: in the style of
+   * the brand's own plates, and never equal to any genset's plate or another lorry's.
+   */
+  lorryPlate: string;
   fuelLitres: number;
   fuelCapacityLitres: number;
   /**

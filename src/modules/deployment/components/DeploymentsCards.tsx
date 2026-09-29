@@ -66,7 +66,7 @@ const DeploymentCard = ({row, now}: {row: DeploymentRow; now: number}) => {
           <span className="truncate">
             {row.members.length === 0
               ? 'No machines on it yet'
-              : row.members.map((member) => member.tag).join(', ')}
+              : row.members.map((member) => member.plate).join(', ')}
             {row.state === 'planned' && ` · in ${duration(row.startedMs - now)}`}
           </span>
         </p>

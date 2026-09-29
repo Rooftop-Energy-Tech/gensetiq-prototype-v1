@@ -138,10 +138,10 @@ export const DeploymentDetailPanel = ({
                     params={{gensetId: member.membership.gensetId}}
                     className="truncate rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                   >
-                    {member.tag}
+                    {member.plate}
                   </Link>
                   <span className="shrink-0 text-xs text-tertiary">
-                    {member.collected ? 'collected' : member.membership.lorryPlate}
+                    {member.collected ? 'collected' : `Lorry ${member.lorryPlate}`}
                   </span>
                 </li>
               ))}

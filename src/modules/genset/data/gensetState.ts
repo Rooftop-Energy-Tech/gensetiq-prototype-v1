@@ -24,11 +24,18 @@ const stateIdAt = (longitude: number, latitude: number): string | undefined => {
   return cache.get(key);
 };
 
-/** The state's display name — `Pulau Pinang`, the map's own — or `undefined` offshore. */
-export const gensetStateName = (genset: Genset): string | undefined => {
-  const id = stateIdAt(genset.longitude, genset.latitude);
+/**
+ * The state a point stands in, by display name, or `undefined` offshore. Shared with
+ * the deployments register, whose yards are placed by the same polygons.
+ */
+export const stateNameAt = (longitude: number, latitude: number): string | undefined => {
+  const id = stateIdAt(longitude, latitude);
   return id === undefined ? undefined : malaysiaStateName(id);
 };
+
+/** The state's display name — `Pulau Pinang`, the map's own — or `undefined` offshore. */
+export const gensetStateName = (genset: Genset): string | undefined =>
+  stateNameAt(genset.longitude, genset.latitude);
 
 /**
  * The state as it stands in a URL — `pulau-pinang`, `kuala-lumpur` — for the

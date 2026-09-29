@@ -22,7 +22,7 @@ export type DeploymentView = (typeof DEPLOYMENT_VIEWS)[number];
  * Five, because five is what the columns can answer for: which job it is, when it
  * went out, how long it has stood, what it burned, and which machines are on it.
  */
-export const DEPLOYMENT_SORTS = ['started', 'duration', 'fuel', 'genset', 'reference'] as const;
+export const DEPLOYMENT_SORTS = ['started', 'duration', 'fuel', 'genset', 'reference', 'location'] as const;
 
 export type DeploymentSort = (typeof DEPLOYMENT_SORTS)[number];
 
@@ -44,6 +44,7 @@ export const DEPLOYMENT_SORT_DEFAULT_DIRECTION: Record<DeploymentSort, Deploymen
   fuel: 'desc',
   genset: 'asc',
   reference: 'asc',
+  location: 'asc',
 };
 
 /**
@@ -58,14 +59,14 @@ export const DEPLOYMENT_SORT_DEFAULT_DIRECTION: Record<DeploymentSort, Deploymen
 export const deploymentSearchSchema = z.object({
   view: z.enum(DEPLOYMENT_VIEWS).default('split').catch('split'),
   q: z.string().optional().catch(undefined),
-  /** The strip's three chips — what is committed, what is out, and the record. */
+  /** The job's status — the Status dropdown and the Status card's rows. */
   state: z.enum(DEPLOYMENT_STATES).optional().catch(undefined),
   /**
-   * Whose estate the posting stood at. A plain string rather than an enum for the
-   * reason the sites schema gives: the roster is the active brand's dataset's, so
-   * there is nothing static to validate against here.
+   * The Malaysian state the yard stands in, as a slug (`negeri-sembilan`) — the
+   * Gensets page's `location`, so a state picked on either page reads the same in the
+   * URL. A plain string: an unknown slug filters to nothing, which the chip row shows.
    */
-  customer: z.string().optional().catch(undefined),
+  location: z.string().optional().catch(undefined),
   sort: z.enum(DEPLOYMENT_SORTS).default('started').catch('started'),
   /**
    * Which way that ordering runs. Optional rather than defaulted, because the

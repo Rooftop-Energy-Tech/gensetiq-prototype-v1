@@ -47,7 +47,7 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
           : Math.min(new Date(member.membership.collectedAt).getTime(), to);
 
       for (const run of runsInWindow(member.membership.gensetId, from, memberTo)) {
-        collected.push({run, tag: member.tag, gensetId: member.membership.gensetId});
+        collected.push({run, tag: member.plate, gensetId: member.membership.gensetId});
       }
     }
 

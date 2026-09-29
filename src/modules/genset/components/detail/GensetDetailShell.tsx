@@ -110,6 +110,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                   <span className="sr-only">Asset details</span>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="flex flex-col gap-1">
+                  <span>Lorry plate · {genset.lorryPlate}</span>
                   <span>Asset tag · {genset.tag}</span>
                   <span>Model · {genset.model}</span>
                   <span>Location · {genset.locationLabel}</span>
@@ -121,7 +122,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                     <span>
                       On {posting.deployment.reference} ·{' '}
                       {stampDate(posting.deployment.startsAt)} ·{' '}
-                      {posting.membership.lorryPlate}
+                      lorry {genset.lorryPlate}
                     </span>
                   )}
                   <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>

@@ -176,7 +176,47 @@ const buildActivity = (seed: FleetSeed, now: number): Array<GensetActivity> => {
   }));
 };
 
+/** FNV-1a, for a lorry plate that is stable per machine. */
+const hash = (text: string): number => {
+  let value = 0x811c9dc5;
+  for (const char of text) {
+    value ^= char.codePointAt(0) ?? 0;
+    value = Math.imul(value, 0x01000193) >>> 0;
+  }
+  return value;
+};
+
+/**
+ * Every set's lorry — see `Genset.lorryPlate`.
+ *
+ * Each lorry borrows the letters and shape of another set's plate on the same
+ * estate, so a peninsular fleet's lorries read `WPK 1234` and a Borneo fleet's
+ * `SAB 1234 D`, and takes four new digits. Any clash with a genset plate or an
+ * earlier lorry moves the digits on, so every plate on screen names one thing.
+ */
+const lorryPlates = (): Map<string, string> => {
+  const plates = FLEET_SEED.map((seed) => seed.plateNumber).filter(
+    (plate): plate is string => plate !== undefined,
+  );
+  const taken = new Set(plates);
+  const lorries = new Map<string, string>();
+  for (const seed of FLEET_SEED) {
+    const seedHash = hash(`${seed.tag}/lorry`);
+    const template = plates.length === 0 ? 'WXX 0000' : plates[seedHash % plates.length];
+    const [letters, , suffix] = template.split(' ');
+    let digits = 1000 + (hash(`${seed.tag}/lorry-digits`) % 9000);
+    const plateFor = (value: number) => [letters, String(value), suffix].filter(Boolean).join(' ');
+    while (taken.has(plateFor(digits))) digits = digits === 9999 ? 1000 : digits + 1;
+    const plate = plateFor(digits);
+    taken.add(plate);
+    lorries.set(seed.tag, plate);
+  }
+  return lorries;
+};
+
 const buildFleet = (): Array<Genset> => {
+  const lorries = lorryPlates();
+
   const now = Date.now();
 
   return FLEET_SEED.map((seed) => ({
@@ -190,6 +230,7 @@ const buildFleet = (): Array<Genset> => {
     // Absent in the seed becomes `null` here rather than staying undefined, so the
     // details block asks one question — is there a plate — instead of two.
     plateNumber: seed.plateNumber ?? null,
+    lorryPlate: lorries.get(seed.tag) ?? '',
     fuelLitres: seed.fuelLitres,
     fuelCapacityLitres: seed.fuelCapacityLitres,
     siteId: seed.siteId,
@@ -224,3 +265,7 @@ const SEEDED_BY_ID = new Map(GENSETS.map((genset) => [genset.id, genset]));
  * `locationLabel` and the coordinates.
  */
 export const seededGenset = (gensetId: string): Genset | undefined => SEEDED_BY_ID.get(gensetId);
+
+/** The lorry a set is bolted to, by id — `''` for a machine the fleet no longer has. */
+export const lorryPlateOf = (gensetId: string): string =>
+  SEEDED_BY_ID.get(gensetId)?.lorryPlate ?? '';

@@ -6,6 +6,7 @@ import {Button} from '@/components/ui/button';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount, dayMonth, duration, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
+import {RunStateIcon} from '@/modules/genset/components/RunningPulse';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {useFleet} from '@/modules/genset/data/deployment';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
@@ -215,7 +216,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
                       </span>
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-sm font-medium text-primary">
-                          {member.tag}
+                          {member.plate}
                         </span>
                         <span className="truncate text-[13px] leading-[18px] text-secondary">
                           {member.model}
@@ -223,7 +224,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
                       </span>
                       {RunIcon !== undefined && runMeta !== undefined && (
                         <Badge variant="element" className="ml-1 shrink-0 border-subtle">
-                          <RunIcon className={cn('size-3', runMeta.iconClassName)} aria-hidden="true" />
+                          {genset !== undefined && <RunStateIcon runState={genset.runState} className="size-3" />}
                           {runMeta.label}
                         </Badge>
                       )}
@@ -239,7 +240,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
                       ) : (
                         <span className="flex items-center gap-1.5">
                           <TruckIcon className="size-3.5 shrink-0" aria-hidden="true" />
-                          {member.membership.lorryPlate}
+                          <span title="Lorry plate">{member.lorryPlate}</span>
                         </span>
                       )}
                       <ArrowRightIcon className="size-4 shrink-0 text-tertiary" aria-hidden="true" />
