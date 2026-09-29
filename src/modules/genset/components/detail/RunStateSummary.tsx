@@ -2,6 +2,7 @@ import {PauseIcon, PlayIcon, PowerOffIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {amount} from '@/lib/format';
+import {RunningPulse} from '../RunningPulse';
 import {cn} from '@/lib/utils';
 import type {AlertSeverity} from '../../types/alert.type';
 import type {RunState} from '../../types/genset.type';
@@ -19,6 +20,7 @@ import type {RunState} from '../../types/genset.type';
  * company it keeps, not the size.
  */
 const HERO: Record<RunState, LucideIcon> = {
+  // Unused while running — the pill draws `RunningPulse` in its own tone instead.
   RUNNING: PlayIcon,
   IDLE: PauseIcon,
   OFFLINE: PowerOffIcon,
@@ -100,7 +102,7 @@ export const RunStateSummary = ({
         tone,
       )}
     >
-      <Icon className="size-4" aria-hidden="true" />
+      {running ? <RunningPulse large /> : <Icon className="size-4" aria-hidden="true" />}
       {LABEL[runState]}
       {loadKw !== null && (
         <>

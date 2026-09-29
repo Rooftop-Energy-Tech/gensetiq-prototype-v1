@@ -169,6 +169,34 @@ body {
 }
 
 /*
+ * A running genset's ping. See `RunningPulse`. A ring the dot's size grows to twice
+ * that and fades, once a second, done three quarters of the way through: the classic
+ * `animate-ping`. Picked on 2026-09-29 by eye in Zen (Firefox) from five candidates.
+ * A slower 2s ring drawn at full size and scaled down, on split grow and fade curves,
+ * measured smoothly in Chrome but stuttered in Zen; this one is smooth in both.
+ * Decoration only, since the badge's word already says `Running`, so it stops under
+ * reduced motion.
+ */
+@keyframes run-ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.run-ping {
+  animation: run-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-ping {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/*
  * MapLibre ships light-theme chrome. These rules restyle the handful of controls
  * this prototype actually renders onto the app's tokens. Unlayered and declared
  * after the library's import above — see the note at the top of this file.
