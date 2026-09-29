@@ -119,38 +119,57 @@ export const PlantToolbar = ({
       {showViewControls && (
         <div className="ml-auto flex items-center gap-5">
           <Tabs value={view} onValueChange={(next) => onViewChange(next as PlantView)}>
-            {/* `split` sits in the middle because it is between the other two in what
+            {/* The view showing is named beside its icon, the rest on hover
+                (2026-09-29). `split` sits in the middle because it is between the other two in what
                 it shows, and because it is the default — a switcher should open on its
                 own current state without the eye travelling to an end. */}
-            <TabsList className="w-[105px]">
+            <TabsList>
               {/* `tabIndex` is set by hand because Radix's roving-focus group leaves
                   *every* trigger at -1 until one has been clicked, which makes the
                   switcher unreachable by keyboard on a fresh load. Radix spreads
                   consumer props after its own tabIndex, so this wins. */}
-              <TabsTrigger
-                value="list"
-                className="flex-1"
-                aria-label="List view"
-                tabIndex={view === 'list' ? 0 : -1}
-              >
-                <MenuIcon aria-hidden="true" />
-              </TabsTrigger>
-              <TabsTrigger
-                value="split"
-                className="flex-1"
-                aria-label="List and map"
-                tabIndex={view === 'split' ? 0 : -1}
-              >
-                <ColumnsIcon aria-hidden="true" />
-              </TabsTrigger>
-              <TabsTrigger
-                value="map"
-                className="flex-1"
-                aria-label="Map view"
-                tabIndex={view === 'map' ? 0 : -1}
-              >
-                <GlobeIcon aria-hidden="true" />
-              </TabsTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger
+                    value="list"
+                    className="group flex-1"
+                    aria-label="List"
+                    tabIndex={view === 'list' ? 0 : -1}
+                  >
+                    <MenuIcon aria-hidden="true" />
+                    <span className="hidden group-aria-selected:inline">List</span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">List</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger
+                    value="split"
+                    className="group flex-1"
+                    aria-label="List + map"
+                    tabIndex={view === 'split' ? 0 : -1}
+                  >
+                    <ColumnsIcon aria-hidden="true" />
+                    <span className="hidden group-aria-selected:inline">List + map</span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">List + map</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger
+                    value="map"
+                    className="group flex-1"
+                    aria-label="Map"
+                    tabIndex={view === 'map' ? 0 : -1}
+                  >
+                    <GlobeIcon aria-hidden="true" />
+                    <span className="hidden group-aria-selected:inline">Map</span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Map</TooltipContent>
+              </Tooltip>
             </TabsList>
           </Tabs>
 

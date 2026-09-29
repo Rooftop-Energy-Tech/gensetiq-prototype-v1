@@ -28,7 +28,11 @@ function TabsTrigger({className, ...props}: React.ComponentProps<typeof TabsPrim
       data-slot="tabs-trigger"
       className={cn(
         "relative inline-flex h-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap text-secondary transition-all hover:text-primary focus-visible:ring-[3px] focus-visible:ring-outline/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        // `aria-selected` as well as `data-state`: a trigger wrapped in a tooltip has its
+        // `data-state` taken over by the tooltip (`closed`, `delayed-open`), and would
+        // lose its highlight. Radix sets `aria-selected` on the active tab either way.
         'data-[state=active]:border-subtle data-[state=active]:bg-highlight data-[state=active]:text-primary',
+        'aria-selected:border-subtle aria-selected:bg-highlight aria-selected:text-primary',
         className,
       )}
       {...props}

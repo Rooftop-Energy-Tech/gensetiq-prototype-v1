@@ -493,12 +493,23 @@ export const ServicePage = ({
 
   const shown = tab === 'due' ? dueRows.length : historyRows.length;
 
+  // The phone's Status dropdown: each standing counted over what the search and the
+  // State filter leave — the Gensets page's faceting — zeros kept, greyed.
+  const standingOptions: Array<FilterOption<ServiceStanding>> = CARD_STANDINGS.map((key) => ({
+    key,
+    label: STANDING_META[key].label,
+    count: rows.filter(
+      (row) => row.standing === key && matching.has(row.genset.id) && inState(gensetStateName(row.genset)),
+    ).length,
+  }));
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
-      {/* One row at phone width too: tighter gaps and a search box that gives way,
-          so the Due/History switch does not drop to a line of its own. */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 md:gap-x-4">
-        <InputGroup className="w-full min-w-0 flex-1 md:max-w-[187px] md:min-w-[140px]">
+      {/* The Gensets and Deployments toolbars' layout: search first, the State filter
+          beside it, the Due/History switch hard right. On a phone the search has the
+          top row to itself and the filter and switch share the row under it. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <InputGroup className="w-full basis-full md:flex-1 md:basis-0 md:max-w-[187px] md:min-w-[140px]">
           <InputGroupAddon>
             <SearchIcon aria-hidden="true" />
           </InputGroupAddon>
@@ -506,8 +517,7 @@ export const ServicePage = ({
             type="search"
             value={q}
             onChange={(event) => onSearchChange({q: event.target.value || undefined})}
-            // `Plate` at phone width, where `Number plate` is cut to `Numb`.
-            placeholder={compact ? 'Plate' : 'Number plate'}
+            placeholder="Number plate"
             aria-label="Search gensets"
           />
         </InputGroup>
@@ -518,6 +528,17 @@ export const ServicePage = ({
           value={location}
           onChange={(next) => onSearchChange({location: next})}
         />
+        {/* Beside State on a phone, on the Due tab: the standing as a dropdown, the
+            same filter the status cards below toggle. */}
+        {compact && tab === 'due' && (
+          <FilterSelect<ServiceStanding>
+            label="Status"
+            allLabel="All statuses"
+            options={standingOptions}
+            value={standing}
+            onChange={(next) => onSearchChange({standing: next})}
+          />
+        )}
         <Tabs value={tab} onValueChange={(next) => onSearchChange({tab: next as ServiceSearch['tab']})} className="ml-auto">
           <TabsList>
             <TabsTrigger value="due" tabIndex={tab === 'due' ? 0 : -1} className="px-3">

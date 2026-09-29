@@ -69,7 +69,15 @@ type GensetsTableProps = {
  * rather than clip a cell.
  */
 /** Every real cell: held to its content, with a floor under the gap on each side. */
-const CELL = 'w-px px-2.5 whitespace-nowrap';
+const CELL = 'w-px px-2 whitespace-nowrap';
+
+/**
+ * The plate column's floor: 10% over its widest plate (109px beside the map), so the
+ * row's identity has room to breathe (2026-09-29). The gaps give up the width, and
+ * the cells' padding went from 10px to 8px a side to pay for it, so the split view
+ * has no sideways scroll from a 1366px window up.
+ */
+const PLATE_MIN = 'min-w-[120px]';
 
 /** The stretch between two columns — see above. Layout, so hidden from assistive tech. */
 const Gap = ({header = false}: {header?: boolean}) =>
@@ -207,7 +215,7 @@ export const GensetsTable = ({
                           : 'descending'
                         : 'none'
                   }
-                  className={cn(CELL, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary')}
+                  className={cn(CELL, index === 0 && PLATE_MIN, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary')}
                 >
                   {column.sort === undefined ? (
                     column.label
@@ -272,7 +280,7 @@ export const GensetsTable = ({
                   selected && 'bg-highlight hover:bg-highlight',
                 )}
               >
-                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 font-medium')}>
+                <td className={cn(CELL, PLATE_MIN, 'h-13 border-b border-subtle py-2 font-medium')}>
                   {/* The name is the way *into* a genset; the rest of the row
                       only selects it into the preview panel. `stopPropagation`
                       so the click doesn't also fire the row's select on a screen

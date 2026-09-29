@@ -127,9 +127,9 @@ export const GensetsToolbar = ({
     // push the switcher off the edge.
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {/* Half the design's 373px: a plate is eight characters, and the width is
-          better spent on the filters beside it. It shrinks on narrow viewports
-          rather than pushing the view switcher off the right edge. */}
-      <InputGroup className="w-full max-w-[187px] min-w-[140px] flex-1">
+          better spent on the filters beside it. On a phone it takes the whole
+          row, the filters wrapping under it. */}
+      <InputGroup className="w-full flex-1 md:max-w-[187px] md:min-w-[140px]">
         <InputGroupAddon>
           <SearchIcon aria-hidden="true" />
         </InputGroupAddon>
@@ -183,41 +183,61 @@ export const GensetsToolbar = ({
       {showViewControls && (
       <div className="ml-auto flex items-center gap-5">
         <Tabs value={view} onValueChange={(next) => onViewChange(next as GensetView)}>
-          {/* Three views now, so the list is 105px rather than 70. `split` sits in
+          {/* Three views, the one showing named beside its icon and the others named
+              on hover (2026-09-29) — an icon alone left a reader guessing which
+              view they were in, and four names in full crowded the filters. `split` sits in
               the middle because it is between the other two in what it shows, and
               because it is the default — the switcher should open on its own
               current state without the eye travelling to an end. */}
-          <TabsList className="w-[105px]">
+          <TabsList>
             {/* `tabIndex` is set by hand because Radix's roving-focus group
                 leaves *every* trigger at -1 until one has been clicked — which
                 makes the whole switcher unreachable by keyboard on a fresh load.
                 Radix spreads consumer props after its own tabIndex, so this
                 wins, and it restores the intended behaviour: Tab lands on the
                 active view, arrow keys move between them. */}
-            <TabsTrigger
-              value="list"
-              className="flex-1"
-              aria-label="List view"
-              tabIndex={view === 'list' ? 0 : -1}
-            >
-              <MenuIcon aria-hidden="true" />
-            </TabsTrigger>
-            <TabsTrigger
-              value="split"
-              className="flex-1"
-              aria-label="List and map"
-              tabIndex={view === 'split' ? 0 : -1}
-            >
-              <ColumnsIcon aria-hidden="true" />
-            </TabsTrigger>
-            <TabsTrigger
-              value="map"
-              className="flex-1"
-              aria-label="Map view"
-              tabIndex={view === 'map' ? 0 : -1}
-            >
-              <GlobeIcon aria-hidden="true" />
-            </TabsTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger
+                  value="list"
+                  className="group flex-1"
+                  aria-label="List"
+                  tabIndex={view === 'list' ? 0 : -1}
+                >
+                  <MenuIcon aria-hidden="true" />
+                  <span className="hidden group-aria-selected:inline">List</span>
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">List</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger
+                  value="split"
+                  className="group flex-1"
+                  aria-label="List + map"
+                  tabIndex={view === 'split' ? 0 : -1}
+                >
+                  <ColumnsIcon aria-hidden="true" />
+                  <span className="hidden group-aria-selected:inline">List + map</span>
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">List + map</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger
+                  value="map"
+                  className="group flex-1"
+                  aria-label="Map"
+                  tabIndex={view === 'map' ? 0 : -1}
+                >
+                  <GlobeIcon aria-hidden="true" />
+                  <span className="hidden group-aria-selected:inline">Map</span>
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Map</TooltipContent>
+            </Tooltip>
           </TabsList>
         </Tabs>
 
