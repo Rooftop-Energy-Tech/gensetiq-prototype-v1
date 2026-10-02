@@ -141,6 +141,11 @@ type SummaryCardProps = {
   label: string;
   children: ReactNode;
   className?: string;
+  /**
+   * The window the figures cover — `last 30 days` — as a pill in the top-right
+   * corner (Jeff, 2026-10-01), so the title stays the name of the thing.
+   */
+  pill?: string;
 };
 
 /**
@@ -160,11 +165,31 @@ export const SUMMARY_CARD_BOX =
 export const SUMMARY_CARD_LINK =
   'transition-colors outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline';
 
-export const SummaryCard = ({label, children, className}: SummaryCardProps) => (
-  <section aria-label={label} className={cn(SUMMARY_CARD_BOX, className)}>
-    <SummaryCardLabel>{label}</SummaryCardLabel>
+export const SummaryCard = ({label, children, className, pill}: SummaryCardProps) => (
+  <section
+    aria-label={pill === undefined ? label : `${label}, ${pill}`}
+    className={cn(SUMMARY_CARD_BOX, className)}
+  >
+    {pill === undefined ? (
+      <SummaryCardLabel>{label}</SummaryCardLabel>
+    ) : (
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <SummaryCardLabel>{label}</SummaryCardLabel>
+        <CardPill>{pill}</CardPill>
+      </div>
+    )}
     {children}
   </section>
+);
+
+/**
+ * The small pill in a card's top-right corner — `last 30 days` — exported so a card
+ * that is not a `SummaryCard`, such as a Fuel depot tile, wears the same one.
+ */
+export const CardPill = ({children}: {children: ReactNode}) => (
+  <span className="shrink-0 rounded-full border border-subtle bg-highlight px-2 py-0.5 text-[11px] leading-none font-medium whitespace-nowrap text-secondary">
+    {children}
+  </span>
 );
 
 /**
@@ -174,7 +199,10 @@ export const SummaryCard = ({label, children, className}: SummaryCardProps) => (
  * carries the box around them.
  */
 export const SummaryCardLabel = ({children}: {children: ReactNode}) => (
-  <h2 className="flex min-w-0 items-center gap-1.5 text-xs font-medium tracking-wide text-secondary uppercase">
+  // In the text colour and semibold, a step up from the figure's grey, so the title
+  // reads as the card's heading rather than a caption (Jeff, 2026-10-01). Shared, so
+  // every summary card in the app takes it — the Service page's too.
+  <h2 className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold tracking-wide text-primary uppercase">
     {children}
   </h2>
 );
@@ -283,7 +311,11 @@ export const CountChip = ({
 
 type FilterCardProps = {
   label: string;
-  count: number;
+  /**
+   * The figure. A string for one already formatted — `2,473` litres on the Fuel
+   * page's `Fuel unaccounted for`, which leads with the amount, not a count.
+   */
+  count: number | string;
   /** The word beside the figure — `gensets`. */
   unit: string;
   /** What the bucket means, one line, under the figure. */

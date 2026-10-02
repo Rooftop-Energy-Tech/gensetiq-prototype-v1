@@ -1,6 +1,12 @@
-import {GENSETS} from '@/modules/genset/data/fleet';
-import {historyStart, refuelsIn} from '@/modules/genset/data/history';
+import {historyStart} from '@/modules/genset/data/history';
 import {spread, spreadBetween} from '@/modules/genset/data/spread';
+import {DEPOTS} from './depots';
+import {yardFills} from './fills';
+import {depotTruckLoads} from './truckRuns';
+import type {Depot} from './depots';
+
+export {DEPOTS};
+export type {Depot};
 
 /**
  * The depot's bulk tank, and what reconciling it against the fleet can and cannot
@@ -25,6 +31,20 @@ import {spread, spreadBetween} from '@/modules/genset/data/spread';
  * the supplier delivering into the depot, which is not fuel out and must not count
  * towards it; a reconciliation that summed absolute change would net a 20,000 L
  * delivery against the week's issues and report a surplus.
+ *
+ * ## Two ways fuel leaves, where the estate runs trucks
+ *
+ * A fall is one of two things: a genset **filled in the yard** (it drove in), or a
+ * **truck loading** to take fuel out to machines in states with no depot. The
+ * sensor cannot tell them apart, but the yard's own log can — each fill and each
+ * load is stamped — so every fall is split between the two by what that hour
+ * issued, and a third share holds the fall no fill or load explains. Each part is
+ * then checked against its own receiver: yard fills against the gensets' tanks,
+ * truck loads against the trucks' tanks. See `fills.ts` for which is which, and
+ * `truckRuns.ts` for the trucks.
+ *
+ * An estate with no trucks has nothing in the second share, and the card reads as
+ * it always did.
  *
  * ## Why the two sides do not agree, and why they should not
  *
@@ -67,16 +87,15 @@ export const depotCapacityLitres = (depotId: string): number => {
   const to = Date.now();
   const from = historyStart();
   const MONTH = 30 * 24 * HOUR;
-  const served = new Set(depotFleet(depotId));
+  const issues = depotIssues(depotId);
 
   // Every 30-day window in the record, stepped a day at a time, and the fullest of
   // them. One fixed month would miss a busy fortnight that straddles two.
   let heaviest = 0;
   for (let start = from; start + MONTH <= to; start += 24 * HOUR) {
     let month = 0;
-    for (const genset of GENSETS) {
-      if (!served.has(genset.id)) continue;
-      for (const refuel of refuelsIn(genset.id, start, start + MONTH)) month += refuel.litres;
+    for (const issue of issues) {
+      if (issue.at >= start && issue.at < start + MONTH) month += issue.litres;
     }
     heaviest = Math.max(heaviest, month);
   }
@@ -86,109 +105,63 @@ export const depotCapacityLitres = (depotId: string): number => {
   return sized;
 };
 
-/** Below this the supplier is called, and the tank steps back up. */
-const REORDER_FRACTION = 0.18;
+/**
+ * Below this the supplier is called, and the tank steps back up. Exported for the
+ * Depots tab's `Low stock` card, which counts the yards under it.
+ */
+export const REORDER_FRACTION = 0.18;
 
 /**
- * The yards fuel is issued from.
+ * The machines this yard has filled, by id — every genset that drove in to it at
+ * least once in the record.
  *
- * Four, placed where the estate's machines actually are: the Klang valley holds
- * seventeen of the thirty-eight, and Perak, Penang and Johor take the rest between
- * them. A single national depot would be a fiction on an estate 700 km end to end —
- * nobody trucks diesel from Klang to Bayan Lepas — and it would also make the one
- * number on this page an average that no yard manager recognises.
- *
- * Their tanks are **not** the same size, because their catchments are not. Klang
- * fuels twenty-one machines and the others five or six, so a uniform 200,000 L gave
- * the three smaller yards five months of cover — tanks that never took a delivery in
- * the whole record and sat there draining. Each is sized from what it actually
- * issues; see `depotCapacityLitres`.
+ * On an estate with no trucks that is its nearest-depot catchment, as it always
+ * was. With trucks, a machine posted to Seremban is the truck's and not the yard's,
+ * so it is not counted here.
  */
-export type Depot = {
-  id: string;
-  name: string;
-  locationLabel: string;
-  latitude: number;
-  longitude: number;
-  /**
-   * Written down only where a yard's tank is not what its catchment implies.
-   * Absent, the capacity is derived — see `depotCapacityLitres`.
-   */
-  capacityLitres?: number;
-  /**
-   * This yard's level sensor under-reads its falls, as a fraction.
-   *
-   * A float out of calibration does not lose fuel; it mis-measures the fuel that
-   * moves. So the tank really gives up the litres the fleet took, and the
-   * instrument writes down slightly fewer — which is why the variance comes out
-   * **negative**: the gensets can prove more arrived than the depot can prove it
-   * released. That is the one shape of gap that is never a loss, and it is what
-   * `Check calibration` exists to say.
-   *
-   * Set on exactly one yard. Without it every depot reconciled to within a few
-   * litres, and the middle grade of the alarm had no way to be seen.
-   */
-  sensorDriftFraction?: number;
-};
-
-export const DEPOTS: ReadonlyArray<Depot> = [
-  {id: 'klang', name: 'Klang', locationLabel: 'Klang, Selangor', latitude: 3.0449, longitude: 101.4455},
-  {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', latitude: 4.5975, longitude: 101.0901},
-  {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', latitude: 5.3991, longitude: 100.3639, sensorDriftFraction: 0.025},
-  {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914},
+export const depotFleet = (depotId: string): ReadonlyArray<string> => [
+  ...new Set(yardFills(depotId).map((fill) => fill.gensetId)),
 ];
 
 /**
- * Which depot serves a machine: the nearest one, by straight-line distance.
- *
- * Distance on the raw coordinates rather than a great circle. Over 700 km of one
- * peninsula the two answers differ by a rounding, and the question here is only
- * *which of four is closest* — a figure that would have to be wrong by 200 km to
- * change the answer.
+ * One draw on the bulk tank: a genset filled in the yard, or a truck loading.
+ * `litres` is what the depot's pump logged giving — for a truck, the pump's figure,
+ * not the truck's tank rise; a short load is the truck's story, not the depot's.
  */
-const depotFor = (latitude: number, longitude: number): Depot => {
-  let nearest = DEPOTS[0];
-  let best = Number.POSITIVE_INFINITY;
+type DepotIssue = {at: number; litres: number; kind: 'yard' | 'truck'};
 
-  for (const depot of DEPOTS) {
-    const dx = depot.latitude - latitude;
-    const dy = depot.longitude - longitude;
-    const distance = dx * dx + dy * dy;
-    if (distance < best) {
-      best = distance;
-      nearest = depot;
-    }
-  }
-
-  return nearest;
-};
-
-/** The machines each depot fuels, by id. */
-export const depotFleet = (depotId: string): ReadonlyArray<string> =>
-  GENSETS.filter((genset) => depotFor(genset.latitude, genset.longitude).id === depotId).map(
-    (genset) => genset.id,
-  );
+/** Everything that drew on this yard's tank, from the two logs that stamp it. */
+const depotIssues = (depotId: string): Array<DepotIssue> => [
+  ...yardFills(depotId).map((fill) => ({at: fill.at, litres: fill.litres, kind: 'yard' as const})),
+  ...depotTruckLoads(depotId).map((load) => ({
+    at: load.at,
+    litres: load.soldLitres ?? load.levelChange,
+    kind: 'truck' as const,
+  })),
+];
 
 export type DepotSample = {
   t: number;
   litres: number;
   /**
-   * Litres of fleet deliveries this sample's fall accounts for.
+   * What this hour's pump log says it issued, by kind, before the sensor's drift:
+   * yard fills, truck loads, and everything else (ullage, the unexplained drop).
+   * `issuedOther` is the seed's truth only; the page never reads it, since a real
+   * yard has no log of fuel nobody logged.
    *
    * Carried on the sample rather than looked up again at reconciliation time, and
    * that is the whole fix for a bug that survived four wrong diagnoses. The two
-   * sides were timestamped differently: a fall is recorded at its sample, a
-   * delivery at the minute it happened, and the two can land either side of a
-   * window edge. A single large delivery just before `now` — counted as delivered,
-   * its fall dated after the edge — put every window out by about 1,850 L in the
-   * one direction that is impossible, machines receiving fuel the yard never
-   * released.
-   *
-   * Attributing both to the same sample makes them consistent by construction, so
-   * what is left in the variance is only what the seed actually put there: the
-   * ullage and the one unexplained drop.
+   * sides were timestamped differently: a fall is recorded at its sample, an issue
+   * at the minute it happened, and the two can land either side of a window edge.
+   * A single large fill just before `now` — counted as issued, its fall dated after
+   * the edge — put every window out by about 1,850 L. Attributing both to the same
+   * sample makes them consistent by construction, so what is left in the variance
+   * is only what the seed put there: the ullage, the drift and the one unexplained
+   * drop.
    */
-  delivered: number;
+  issuedYard: number;
+  issuedTruck: number;
+  issuedOther: number;
 };
 
 /**
@@ -200,23 +173,26 @@ export type DepotSample = {
  * walk lands. That is also the honest shape: a yard's tank is a consequence of what
  * it has issued, not a figure somebody states.
  */
-const buildSeries = (depotId: string): Array<DepotSample> => {
+/** A rise, or a sample that issued nothing. */
+const NO_ISSUE = {issuedYard: 0, issuedTruck: 0, issuedOther: 0};
+
+/** `loadScale` shrinks or grows every round's load — see `Depot.stockFraction`. */
+const buildSeries = (depotId: string, loadScale = 1): Array<DepotSample> => {
   const from = historyStart();
   const to = Date.now();
 
-  // Every delivery the fleet took, as a lookup by the step it falls in. Each one is
+  // Every yard fill and truck load, as a lookup by the step it falls in. Each one is
   // fuel that left this tank at that moment.
-  const served = new Set(depotFleet(depotId));
   const capacity = depotCapacityLitres(depotId);
   const drift = DEPOTS.find((depot) => depot.id === depotId)?.sensorDriftFraction ?? 0;
 
-  const outByStep = new Map<number, number>();
-  for (const genset of GENSETS) {
-    if (!served.has(genset.id)) continue;
-    for (const refuel of refuelsIn(genset.id, from, to)) {
-      const step = Math.floor((refuel.at - from) / STEP);
-      outByStep.set(step, (outByStep.get(step) ?? 0) + refuel.litres);
-    }
+  const yardByStep = new Map<number, number>();
+  const truckByStep = new Map<number, number>();
+  for (const issue of depotIssues(depotId)) {
+    if (issue.at < from || issue.at > to) continue;
+    const step = Math.floor((issue.at - from) / STEP);
+    const byStep = issue.kind === 'yard' ? yardByStep : truckByStep;
+    byStep.set(step, (byStep.get(step) ?? 0) + issue.litres);
   }
 
   // The unaccounted side. A slow ullage loss every step — evaporation, the dregs of
@@ -240,7 +216,10 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
   for (let step = 0; from + step * STEP <= to; step += 1) {
     const t = from + step * STEP;
 
-    const issued = (outByStep.get(step) ?? 0) + ullagePerStep + (step === mysteryStep ? mysteryLitres : 0);
+    const yard = yardByStep.get(step) ?? 0;
+    const truck = truckByStep.get(step) ?? 0;
+    const other = ullagePerStep + (step === mysteryStep ? mysteryLitres : 0);
+    const issued = yard + truck + other;
     // What the sensor writes down. Every figure below is the instrument's, because
     // the instrument is all this page has — the level, the reorder, and the size of
     // the next load a yard orders against what it believes it has issued.
@@ -262,12 +241,15 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
     const dueEvery = spreadBetween(depotId, `round-${deliveries}`, 5.5, 8.5) * 24;
 
     if (lastDelivery >= 0 && sinceLast >= dueEvery && level < capacity * 0.97) {
-      const load = Math.min(capacity - level, issuedSinceDelivery * spreadBetween(depotId, `load-${deliveries}`, 0.95, 1.2));
+      const load = Math.min(
+        capacity - level,
+        issuedSinceDelivery * spreadBetween(depotId, `load-${deliveries}`, 0.95, 1.2) * loadScale,
+      );
       if (load > 0) {
         level += load;
         // A rise gets a sample of its own: one carrying both a fill and a draw nets
         // to whichever is larger and the other vanishes from the reconciliation.
-        samples.push({t, litres: Math.round(level), delivered: 0});
+        samples.push({t, litres: Math.round(level), ...NO_ISSUE});
         lastDelivery = step;
         issuedSinceDelivery = 0;
         deliveries += 1;
@@ -280,7 +262,7 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
     // at machines the yard never released.
     if (level - sensed < capacity * REORDER_FRACTION) {
       level = capacity;
-      samples.push({t, litres: Math.round(level), delivered: 0});
+      samples.push({t, litres: Math.round(level), ...NO_ISSUE});
       lastDelivery = step;
       issuedSinceDelivery = 0;
       deliveries += 1;
@@ -291,7 +273,9 @@ const buildSeries = (depotId: string): Array<DepotSample> => {
     samples.push({
       t: t + STEP / 2,
       litres: Math.round(level),
-      delivered: outByStep.get(step) ?? 0,
+      issuedYard: yard,
+      issuedTruck: truck,
+      issuedOther: other,
     });
   }
 
@@ -305,9 +289,33 @@ export const depotSeries = (depotId: string): ReadonlyArray<DepotSample> => {
   const held = seriesByDepot.get(depotId);
   if (held !== undefined) return held;
 
-  const built = buildSeries(depotId);
+  const built = buildSeries(depotId, loadScaleFor(depotId));
   seriesByDepot.set(depotId, built);
   return built;
+};
+
+/**
+ * The round's load scale that lands a yard on its `stockFraction`, by bisection.
+ * A smaller load leaves a lower tank, so the search is one-directional — except
+ * that a walk which touches the reorder floor is refilled to the brim and ends
+ * high. So touching the floor counts as too low, and the search backs off. The walk
+ * is 1,440 hourly steps, so thirty passes cost nothing worth caching separately.
+ */
+const loadScaleFor = (depotId: string): number => {
+  const target = DEPOTS.find((depot) => depot.id === depotId)?.stockFraction;
+  if (target === undefined) return 1;
+  const capacity = depotCapacityLitres(depotId);
+  let low = 0;
+  let high = 1.5;
+  for (let pass = 0; pass < 30; pass += 1) {
+    const middle = (low + high) / 2;
+    const walk = buildSeries(depotId, middle);
+    const level = walk.at(-1)?.litres ?? 0;
+    const floored = walk.some((sample) => sample.litres < capacity * (REORDER_FRACTION + 0.01));
+    if (floored || level / capacity < target) low = middle;
+    else high = middle;
+  }
+  return (low + high) / 2;
 };
 
 export type DepotReconciliation = {
@@ -321,13 +329,26 @@ export type DepotReconciliation = {
    * netting the two would let a 50,000 L top-up cancel a week of issues.
    */
   receivedLitres: number;
-  /** Litres that arrived in machine tanks — the sum of their rises. */
-  deliveredLitres: number;
-  /** `out − delivered`. Positive means fuel left the yard and did not arrive. */
+  /**
+   * The fall, told from the depot's side only (Jeff, 2026-10-01): what the yard's
+   * own pump log says it gave to gensets filled here and to trucks loading here.
+   * Whether that fuel then reached the genset or the truck is the receiver's story,
+   * told on the Trucks tab — see `truckRuns.ts`, `Depot out vs truck in`.
+   */
+  outYardLitres: number;
+  outTruckLitres: number;
+  /**
+   * `out − (yard fills + truck loads logged)`: fuel the tank lost that no fill or
+   * load in the depot's log accounts for. Never below zero: the pumps logging more
+   * than the tank fell (a level sensor reading short) is not shown for now (Jeff,
+   * 2026-10-01), so that case reads as `0 L`. The same figure as `varianceLitres`.
+   */
+  outUnexplainedLitres: number;
+  /** See `outUnexplainedLitres` — the figure the verdict grades. */
   varianceLitres: number;
   /** The variance as a share of what left, or `null` when nothing left. */
   variancePercent: number | null;
-  /** How many deliveries the fleet took in the window. */
+  /** How many yard fills and truck loads the log holds in the window. */
   deliveries: number;
   /** The depot's level now, for the tank glyph. */
   levelLitres: number;
@@ -345,7 +366,6 @@ export const reconcile = (
   to: number,
 ): DepotReconciliation => {
   const samples = depotSeries(depotId);
-  const served = new Set(depotFleet(depotId));
 
   // ## Both sides are counted on the sensor's grid, not the clock's
   //
@@ -373,7 +393,8 @@ export const reconcile = (
 
   let outLitres = 0;
   let receivedLitres = 0;
-  let deliveredLitres = 0;
+  let outYardLitres = 0;
+  let outTruckLitres = 0;
 
   for (let index = 1; index < samples.length; index += 1) {
     const previous = samples[index - 1];
@@ -383,24 +404,29 @@ export const reconcile = (
     if (current.litres < previous.litres) outLitres += previous.litres - current.litres;
     if (current.litres > previous.litres) receivedLitres += current.litres - previous.litres;
 
-    // Both sides off the same sample — see `DepotSample.delivered`.
-    deliveredLitres += current.delivered;
+    // What the depot's pump log says it gave, off the same sample as the fall — see
+    // `DepotSample.issuedYard`.
+    outYardLitres += current.issuedYard;
+    outTruckLitres += current.issuedTruck;
   }
 
   // The count is still the fleet's own log, because a reader asking "how many
   // deliveries" means tankers, not sensor readings, and several can share an hour.
-  let deliveries = 0;
-  for (const genset of GENSETS) {
-    if (!served.has(genset.id)) continue;
-    deliveries += refuelsIn(genset.id, windowFrom, windowTo).length;
-  }
+  const deliveries = depotIssues(depotId).filter(
+    (issue) => issue.at >= windowFrom && issue.at <= windowTo,
+  ).length;
 
-  const variance = outLitres - deliveredLitres;
+  // From the depot's side alone: what the tank lost against what its log says it
+  // gave. A genset or truck recording less than it was given is not counted here.
+  // Held at zero — over-logging is set aside for now; see `outUnexplainedLitres`.
+  const variance = Math.max(0, outLitres - outYardLitres - outTruckLitres);
 
   return {
     outLitres: Math.round(outLitres),
     receivedLitres: Math.round(receivedLitres),
-    deliveredLitres: Math.round(deliveredLitres),
+    outYardLitres: Math.round(outYardLitres),
+    outTruckLitres: Math.round(outTruckLitres),
+    outUnexplainedLitres: Math.round(variance),
     varianceLitres: Math.round(variance),
     variancePercent: outLitres > 0 ? (variance / outLitres) * 100 : null,
     deliveries,

@@ -1,12 +1,15 @@
+import {useState} from 'react';
+
 import {cn} from '@/lib/utils';
 
 /**
- * Which stretch of the record the whole page reports on.
+ * Which stretch of the record a view reports on.
  *
- * One control for every figure below it — both depot cards and the delivery list —
- * because the page's subject is a reconciliation and two halves of it measured over
- * different periods do not reconcile at all. The genset pages put the range picker
- * beside the log it filters; here it belongs at the top, over everything.
+ * The Fuel page drew one of these above every tab, and a depot's own page drew
+ * another, until 2026-09-30, when both went to a fixed last month with no control
+ * (Jeff: the pages show the current state — see `useFuelWindow`). It is still drawn
+ * by the deliveries table and the truck log, each of which starts on the page's
+ * month and narrows itself alone once touched — see `TablePeriod`.
  *
  * Four presets and a custom pair. The presets are the periods a yard actually works
  * to: yesterday, the week, the month. `Custom` is for the argument that starts after
@@ -58,6 +61,27 @@ export const periodWindow = (
 
   const days = period === '1d' ? 1 : period === '7d' ? 7 : 30;
   return {from: now - days * DAY, to: now};
+};
+
+/**
+ * The Fuel pages' one window: the last month, ending now (Jeff, 2026-09-30).
+ *
+ * The page and a depot's own page each had a period control until that day; both
+ * now show the current state only. `now` is held once per mount, so the figures do
+ * not drift while the page is open. The tables' own controls still start here —
+ * see `TablePeriod`.
+ */
+export const useFuelWindow = () => {
+  const [now] = useState(() => Date.now());
+  const period: Period = '1m';
+  return {
+    now,
+    period,
+    ...periodWindow(period, now, '', ''),
+    // `last 30 days`, not `1 month` (Jeff, 2026-10-01): the window rolls, ending
+    // now, and a month would read as the calendar's, resetting on the 1st.
+    periodLabel: 'last 30 days',
+  };
 };
 
 export const PeriodControl = ({

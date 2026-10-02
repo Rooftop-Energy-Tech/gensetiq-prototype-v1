@@ -30,7 +30,16 @@ declare module '@tanstack/react-router' {
      * declared here, above the generated route tree, so the union isn't available
      * to it. The trade is a breadcrumb path that isn't checked against the router —
      * acceptable for one link, and a typo shows up the first time anyone clicks it.
+     *
+     * A list is several ancestors, outermost first: a depot's page is a sibling of
+     * `/fuel` and reads `Fuel / Depots / Klang depot` (2026-09-30).
      */
-    crumbParent?: {label: string; to: string};
+    crumbParent?: {label: string; to: string} | ReadonlyArray<{label: string; to: string}>;
+    /**
+     * A last crumb after this route's own, read off its search params, for a page
+     * whose tabs are a query string rather than child routes — `/fuel?view=trucks`
+     * reads `Fuel / Trucks` (2026-09-30). Only the deepest labelled match's is used.
+     */
+    crumbTab?: (search: Record<string, unknown>) => string | undefined;
   }
 }

@@ -90,7 +90,7 @@ const isGroup = (entry: DetailNavEntry): entry is DetailNavGroup => 'items' in e
  * The row's own styling, shared by rows and sub-rows so the two differ only in
  * height and indent — which is the only thing the design differs them by.
  */
-const rowClassName =
+export const rowClassName =
   'flex w-full items-center gap-2 rounded-lg px-2 text-sm text-secondary transition-colors hover:bg-hover hover:text-primary data-[status=active]:bg-highlight data-[status=active]:font-medium data-[status=active]:text-primary';
 
 export const DetailSidebar = ({

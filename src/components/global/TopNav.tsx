@@ -16,7 +16,8 @@ type Crumb = {label: string; to?: string};
  *   - `crumb` on the route's **loader data** when the label depends on the params,
  *     which is how `/gensets/brf9540` reads `BRF9540 | Cummins 1000 kVa`.
  *
- * `staticData.crumbParent` adds one ancestor in front. The genset detail route is
+ * `staticData.crumbParent` adds one ancestor in front, or several — a depot's page
+ * reads `Fuel / Depots / Klang depot`. The genset detail route is
  * a *sibling* of `/gensets` rather than a child — it has to be, or it would try to
  * render inside a screen with no `<Outlet />` — so the match chain does not contain
  * the fleet screen and cannot supply "Gensets" on its own.
@@ -46,6 +47,13 @@ type Crumb = {label: string; to?: string};
  * `Sites / SBH-1336 / KTB3360 | FG Wilson 20 kVa` — the register still reachable, and
  * the site sitting between it and the asset.
  *
+ * ## A tab told apart by the query string
+ *
+ * `staticData.crumbTab` names the tab a route is showing when its tabs are a search
+ * param rather than child routes, so `/fuel?view=deliveries` reads `Fuel /
+ * Deliveries` and `Fuel` links back to the page's first tab. Read off the deepest
+ * labelled match only, since that is the page the reader is on.
+ *
  * The lookup is what makes an unknown id safe: a hand-edited or stale `from` finds no
  * seed and the static parent stands, so the trail is never a crumb to nowhere. See
  * `fromSearch.type.ts`.
@@ -53,6 +61,7 @@ type Crumb = {label: string; to?: string};
 const useCrumbs = (): Array<Crumb> => {
   const matches = useMatches();
   const trail: Array<Crumb> = [];
+  let tab: string | undefined;
 
   for (const match of matches) {
     const dynamic = (match.loaderData as {crumb?: string} | undefined)?.crumb;
@@ -65,7 +74,9 @@ const useCrumbs = (): Array<Crumb> => {
       const site = from === undefined ? undefined : siteSeed(from);
 
       if (site === undefined) {
-        if (parent !== undefined) trail.push({label: parent.label, to: parent.to});
+        for (const ancestor of parent === undefined ? [] : 'label' in parent ? [parent] : parent) {
+          trail.push({label: ancestor.label, to: ancestor.to});
+        }
       } else {
         // The yard names itself and goes nowhere. It had a crumb and a parent
         // `Sites` crumb above it until the site pages were removed on 2026-09-22;
@@ -78,7 +89,9 @@ const useCrumbs = (): Array<Crumb> => {
     }
 
     trail.push({label, to: match.pathname});
+    tab = match.staticData.crumbTab?.(match.search as Record<string, unknown>);
   }
+  if (tab !== undefined) trail.push({label: tab});
 
   if (trail.length === 0) return [{label: 'Fleet'}];
 
