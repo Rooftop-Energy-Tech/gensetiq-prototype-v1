@@ -49,6 +49,7 @@ export const RangePicker = ({
   onWindowChange,
   onRunChange,
   onCustomChange,
+  showRuns = true,
 }: {
   window: AnalysisWindow;
   range: AnalysisRange;
@@ -61,6 +62,12 @@ export const RangePicker = ({
   onWindowChange: (window: AnalysisWindow) => void;
   onRunChange: (runId: string) => void;
   onCustomChange: (from: string, to: string) => void;
+  /**
+   * Offer `By run`. Off where there are no engine runs to pick — the Fuel depot
+   * page's level chart (Jeff, 2026-10-01), which takes the presets and the custom
+   * range only.
+   */
+  showRuns?: boolean;
 }) => {
   const selectedRun = range.kind === 'run' ? runs.find((run) => run.id === range.runId) : undefined;
 
@@ -131,71 +138,73 @@ export const RangePicker = ({
         </Popover>
       </div>
 
-      <Popover>
-        <PopoverTrigger asChild>
-          <Badge
-            asChild
-            variant="element"
-            size="md"
-            className={cn(
-              'cursor-pointer border-subtle transition-colors hover:bg-highlight',
-              selectedRun !== undefined && 'bg-highlight',
-            )}
-          >
-            <button type="button">
-              <span className={selectedRun === undefined ? 'text-secondary' : 'text-primary'}>
-                {selectedRun === undefined
-                  ? 'By run'
-                  : `Run · ${stampAt(selectedRun.startedAt)}`}
-              </span>
-              <ChevronDownIcon className="text-secondary" aria-hidden="true" />
-            </button>
-          </Badge>
-        </PopoverTrigger>
-
-        <PopoverContent align="end" className="max-h-[340px] w-[300px] overflow-y-auto">
-          {selectedRun !== undefined && (
-            <button
-              type="button"
-              onClick={() => onWindowChange(window)}
-              className="flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm text-secondary transition-colors hover:bg-highlight"
+      {showRuns && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Badge
+              asChild
+              variant="element"
+              size="md"
+              className={cn(
+                'cursor-pointer border-subtle transition-colors hover:bg-highlight',
+                selectedRun !== undefined && 'bg-highlight',
+              )}
             >
-              Back to the last {WINDOW_LABELS[window]}
-            </button>
-          )}
-
-          {runs.map((run) => (
-            <button
-              key={run.id}
-              type="button"
-              aria-pressed={run.id === range.runId}
-              onClick={() => onRunChange(run.id)}
-              className="flex w-full cursor-pointer flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-highlight"
-            >
-              <span className="flex items-baseline justify-between gap-2">
-                <span
-                  className={cn(
-                    'truncate text-sm',
-                    run.id === range.runId ? 'font-medium text-primary' : 'text-secondary',
-                  )}
-                >
-                  {stampAt(run.startedAt)}
+              <button type="button">
+                <span className={selectedRun === undefined ? 'text-secondary' : 'text-primary'}>
+                  {selectedRun === undefined
+                    ? 'By run'
+                    : `Run · ${stampAt(selectedRun.startedAt)}`}
                 </span>
-                {run.endedAt === null && (
-                  <span className="shrink-0 text-xs text-teal">Running</span>
-                )}
-              </span>
-              {/* The run's own totals, so choosing one is an informed pick rather
-                  than a date lottery — a 14-hour run at full output is a
-                  different thing to investigate than a 90-minute test. */}
-              <span className="text-xs text-secondary">
-                {duration(runElapsedMs(run, now))} · {amount(run.energyProducedKwh, 'kWh')} ·{' '}
-                {amount(run.fuelConsumedLitres, 'L')}
-              </span>
-            </button>
-          ))}
-        </PopoverContent>
-      </Popover>
+                <ChevronDownIcon className="text-secondary" aria-hidden="true" />
+              </button>
+            </Badge>
+          </PopoverTrigger>
+
+          <PopoverContent align="end" className="max-h-[340px] w-[300px] overflow-y-auto">
+            {selectedRun !== undefined && (
+              <button
+                type="button"
+                onClick={() => onWindowChange(window)}
+                className="flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm text-secondary transition-colors hover:bg-highlight"
+              >
+                Back to the last {WINDOW_LABELS[window]}
+              </button>
+            )}
+
+            {runs.map((run) => (
+              <button
+                key={run.id}
+                type="button"
+                aria-pressed={run.id === range.runId}
+                onClick={() => onRunChange(run.id)}
+                className="flex w-full cursor-pointer flex-col gap-0.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-highlight"
+              >
+                <span className="flex items-baseline justify-between gap-2">
+                  <span
+                    className={cn(
+                      'truncate text-sm',
+                      run.id === range.runId ? 'font-medium text-primary' : 'text-secondary',
+                    )}
+                  >
+                    {stampAt(run.startedAt)}
+                  </span>
+                  {run.endedAt === null && (
+                    <span className="shrink-0 text-xs text-teal">Running</span>
+                  )}
+                </span>
+                {/* The run's own totals, so choosing one is an informed pick rather
+                    than a date lottery — a 14-hour run at full output is a
+                    different thing to investigate than a 90-minute test. */}
+                <span className="text-xs text-secondary">
+                  {duration(runElapsedMs(run, now))} · {amount(run.energyProducedKwh, 'kWh')} ·{' '}
+                  {amount(run.fuelConsumedLitres, 'L')}
+                </span>
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+      )}
     </div>
   );
 };

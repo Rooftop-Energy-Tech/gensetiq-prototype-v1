@@ -27,6 +27,7 @@ import { Route as AuthenticatedDeploymentsDeploymentIdAlarmsRouteImport } from '
 import { Route as AuthenticatedDeploymentsDeploymentIdGensetsRouteImport } from './routes/_authenticated/deployments_.$deploymentId.gensets'
 import { Route as AuthenticatedDeploymentsDeploymentIdRunsRouteImport } from './routes/_authenticated/deployments_.$deploymentId.runs'
 import { Route as AuthenticatedDeploymentsDeploymentIdSettingsRouteImport } from './routes/_authenticated/deployments_.$deploymentId.settings'
+import { Route as AuthenticatedFuelDepotsDepotIdRouteImport } from './routes/_authenticated/fuel_.depots.$depotId'
 import { Route as AuthenticatedGensetsGensetIdIndexRouteImport } from './routes/_authenticated/gensets_.$gensetId.index'
 import { Route as AuthenticatedGensetsGensetIdAlarmsRouteImport } from './routes/_authenticated/gensets_.$gensetId.alarms'
 import { Route as AuthenticatedGensetsGensetIdAnalysisRouteImport } from './routes/_authenticated/gensets_.$gensetId.analysis'
@@ -132,6 +133,12 @@ const AuthenticatedDeploymentsDeploymentIdSettingsRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedDeploymentsDeploymentIdRoute,
   } as any)
+const AuthenticatedFuelDepotsDepotIdRoute =
+  AuthenticatedFuelDepotsDepotIdRouteImport.update({
+    id: '/fuel_/depots/$depotId',
+    path: '/fuel/depots/$depotId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedGensetsGensetIdIndexRoute =
   AuthenticatedGensetsGensetIdIndexRouteImport.update({
     id: '/',
@@ -192,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/deployments/$deploymentId/gensets': typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
   '/deployments/$deploymentId/runs': typeof AuthenticatedDeploymentsDeploymentIdRunsRoute
   '/deployments/$deploymentId/settings': typeof AuthenticatedDeploymentsDeploymentIdSettingsRoute
+  '/fuel/depots/$depotId': typeof AuthenticatedFuelDepotsDepotIdRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/gensets/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
@@ -216,6 +224,7 @@ export interface FileRoutesByTo {
   '/deployments/$deploymentId/gensets': typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
   '/deployments/$deploymentId/runs': typeof AuthenticatedDeploymentsDeploymentIdRunsRoute
   '/deployments/$deploymentId/settings': typeof AuthenticatedDeploymentsDeploymentIdSettingsRoute
+  '/fuel/depots/$depotId': typeof AuthenticatedFuelDepotsDepotIdRoute
   '/gensets/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/gensets/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/gensets/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
@@ -244,6 +253,7 @@ export interface FileRoutesById {
   '/_authenticated/deployments_/$deploymentId/gensets': typeof AuthenticatedDeploymentsDeploymentIdGensetsRoute
   '/_authenticated/deployments_/$deploymentId/runs': typeof AuthenticatedDeploymentsDeploymentIdRunsRoute
   '/_authenticated/deployments_/$deploymentId/settings': typeof AuthenticatedDeploymentsDeploymentIdSettingsRoute
+  '/_authenticated/fuel_/depots/$depotId': typeof AuthenticatedFuelDepotsDepotIdRoute
   '/_authenticated/gensets_/$gensetId/alarms': typeof AuthenticatedGensetsGensetIdAlarmsRoute
   '/_authenticated/gensets_/$gensetId/analysis': typeof AuthenticatedGensetsGensetIdAnalysisRoute
   '/_authenticated/gensets_/$gensetId/equipment': typeof AuthenticatedGensetsGensetIdEquipmentRoute
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/deployments/$deploymentId/gensets'
     | '/deployments/$deploymentId/runs'
     | '/deployments/$deploymentId/settings'
+    | '/fuel/depots/$depotId'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
     | '/gensets/$gensetId/equipment'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/deployments/$deploymentId/gensets'
     | '/deployments/$deploymentId/runs'
     | '/deployments/$deploymentId/settings'
+    | '/fuel/depots/$depotId'
     | '/gensets/$gensetId/alarms'
     | '/gensets/$gensetId/analysis'
     | '/gensets/$gensetId/equipment'
@@ -323,6 +335,7 @@ export interface FileRouteTypes {
     | '/_authenticated/deployments_/$deploymentId/gensets'
     | '/_authenticated/deployments_/$deploymentId/runs'
     | '/_authenticated/deployments_/$deploymentId/settings'
+    | '/_authenticated/fuel_/depots/$depotId'
     | '/_authenticated/gensets_/$gensetId/alarms'
     | '/_authenticated/gensets_/$gensetId/analysis'
     | '/_authenticated/gensets_/$gensetId/equipment'
@@ -468,6 +481,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeploymentsDeploymentIdSettingsRouteImport
       parentRoute: typeof AuthenticatedDeploymentsDeploymentIdRoute
     }
+    '/_authenticated/fuel_/depots/$depotId': {
+      id: '/_authenticated/fuel_/depots/$depotId'
+      path: '/fuel/depots/$depotId'
+      fullPath: '/fuel/depots/$depotId'
+      preLoaderRoute: typeof AuthenticatedFuelDepotsDepotIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/gensets_/$gensetId/': {
       id: '/_authenticated/gensets_/$gensetId/'
       path: '/'
@@ -590,6 +610,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedDeploymentsDeploymentIdRoute: typeof AuthenticatedDeploymentsDeploymentIdRouteWithChildren
   AuthenticatedGensetsGensetIdRoute: typeof AuthenticatedGensetsGensetIdRouteWithChildren
+  AuthenticatedFuelDepotsDepotIdRoute: typeof AuthenticatedFuelDepotsDepotIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -604,6 +625,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedDeploymentsDeploymentIdRouteWithChildren,
   AuthenticatedGensetsGensetIdRoute:
     AuthenticatedGensetsGensetIdRouteWithChildren,
+  AuthenticatedFuelDepotsDepotIdRoute: AuthenticatedFuelDepotsDepotIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

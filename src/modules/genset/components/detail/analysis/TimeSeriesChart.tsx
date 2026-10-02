@@ -9,6 +9,7 @@ import {sampleAt} from '../../../types/series.type';
 import type {ReadingSeries} from '../../../types/series.type';
 import {SEVERITY_META} from '../severityMeta';
 import {SERIES_SLOTS} from './seriesMeta';
+import type {SeriesSlot} from './seriesMeta';
 
 const HOUR = 3_600_000;
 
@@ -100,11 +101,25 @@ export const TimeSeriesChart = ({
   runs,
   from,
   to,
+  slots = SERIES_SLOTS,
+  formatValue,
 }: {
   series: Array<ReadingSeries>;
   runs: Array<GensetRun>;
   from: number;
   to: number;
+  /**
+   * The colour and side each series takes. The analysis tab's teal-then-violet
+   * by default; the Fuel depot page passes the fuel violet on the left for its
+   * one trace, the depot tank's level (Jeff, 2026-10-01).
+   */
+  slots?: ReadonlyArray<SeriesSlot>;
+  /**
+   * How a figure is written, on the ticks and in the readout. The app's
+   * `toLocaleString` by default; the Fuel pages pass their own, which spaces the
+   * thousands (`150, 000`).
+   */
+  formatValue?: (value: number, decimals: number) => string;
 }) => {
   const frame = useRef<HTMLDivElement>(null);
   const {width, height} = useElementSize(frame);
@@ -203,7 +218,7 @@ export const TimeSeriesChart = ({
           })}
 
           {series.map((one, index) => {
-            const slot = SERIES_SLOTS[index];
+            const slot = slots[index];
             const y = yFor(index);
             const axisX = slot.axis === 'left' ? padLeft - 8 : padLeft + plotWidth + 8;
 
@@ -238,10 +253,12 @@ export const TimeSeriesChart = ({
                       className={cn('text-[10px] font-medium', slot.text)}
                       fill="currentColor"
                     >
-                      {tick.toLocaleString('en-MY', {
-                        minimumFractionDigits: scales[index].decimals,
-                        maximumFractionDigits: scales[index].decimals,
-                      })}
+                      {formatValue === undefined
+                        ? tick.toLocaleString('en-MY', {
+                            minimumFractionDigits: scales[index].decimals,
+                            maximumFractionDigits: scales[index].decimals,
+                          })
+                        : formatValue(tick, scales[index].decimals)}
                     </text>
                   );
                 })}
@@ -342,7 +359,7 @@ export const TimeSeriesChart = ({
                     cx={x(sample.t)}
                     cy={yFor(index)(sample.value)}
                     r={3.5}
-                    className={cn(SERIES_SLOTS[index].fill, 'stroke-canvas')}
+                    className={cn(slots[index].fill, 'stroke-canvas')}
                     strokeWidth={2}
                   />
                 );
@@ -369,11 +386,13 @@ export const TimeSeriesChart = ({
               key: one.key,
               label: one.label,
               swatch: 'dot' as const,
-              token: SERIES_SLOTS[index].text,
+              token: slots[index].text,
               value:
                 sample?.value === undefined || sample.value === null
                   ? '—'
-                  : amount(sample.value, one.unit, one.precision),
+                  : formatValue === undefined
+                    ? amount(sample.value, one.unit, one.precision)
+                    : `${formatValue(sample.value, one.precision)} ${one.unit}`,
             };
           })}
           note={

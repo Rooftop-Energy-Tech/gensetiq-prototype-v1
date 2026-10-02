@@ -57,16 +57,95 @@ import {lightToken} from '@/styles/colors';
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
 const SOURCE = 'plant';
+/** Landmarks — fixed places drawn as labelled pins, never clustered. */
+const LANDMARK_SOURCE = 'plant-landmarks';
 const LAYER = {
   clusterHalo: 'plant-cluster-halo',
   clusterRing: 'plant-cluster-ring',
   clusterCore: 'plant-cluster-core',
   clusterCount: 'plant-cluster-count',
   point: 'plant-point',
+  landmark: 'plant-landmark',
+  landmarkLabel: 'plant-landmark-label',
 } as const;
 
+/** The pin image for one landmark tone, registered with the map at load. */
+const landmarkImage = (key: string) => `plant-landmark-${key}`;
+
+/**
+ * The lucide `warehouse` glyph, on its 24-unit grid — the icon the Fuel rail heads
+ * its Depots group with, so the map and the rail name a depot the same way.
+ */
+const WAREHOUSE_PATHS = [
+  'M18 21V10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v11',
+  'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 1.132-1.803l7.95-3.974a2 2 0 0 1 1.837 0l7.948 3.974A2 2 0 0 1 22 8z',
+  'M6 13h12',
+  'M6 17h12',
+];
+
+/** The landmark pin's size in CSS pixels. Its tip is the bottom edge. */
+// The head is a truck dot's width (Jeff, 2026-10-01): a dot is a 9px circle under a
+// 2px stroke, 22px across, and the head's 9.25px fill under its 3.5px outline comes
+// to the same 22px, so the two marks differ in shape and glyph and not in size.
+const PIN = {width: 24, height: 30, radius: 9.25, centreY: 11.5};
+
+/**
+ * A map pin in `color` — a round head over a point — with the warehouse glyph in
+ * white on its head (Jeff, 2026-09-30). Outlined as a pin is, in the text colour
+ * over a canvas-coloured ring, so it sits in the same family as the dots and is told
+ * apart from them at a glance by its shape and its glyph. Drawn at twice the size
+ * for a sharp edge on a high-density screen.
+ */
+const pinImage = (color: string): ImageData | undefined => {
+  const ratio = 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = PIN.width * ratio;
+  canvas.height = PIN.height * ratio;
+  const context = canvas.getContext('2d');
+  if (context === null) return undefined;
+  context.scale(ratio, ratio);
+
+  const cx = PIN.width / 2;
+  const cy = PIN.centreY;
+  const r = PIN.radius;
+  const tip = PIN.height - 1.5;
+  const pin = new Path2D();
+  pin.moveTo(cx, tip);
+  pin.bezierCurveTo(cx - 3, tip - 4.6, cx - r, cy + 6.2, cx - r, cy);
+  pin.arc(cx, cy, r, Math.PI, Math.PI * 2);
+  pin.bezierCurveTo(cx + r, cy + 6.2, cx + 3, tip - 4.6, cx, tip);
+  pin.closePath();
+
+  context.lineJoin = 'round';
+  context.strokeStyle = lightToken.primary;
+  context.lineWidth = 3.5;
+  context.stroke(pin);
+  context.strokeStyle = lightToken.canvas;
+  context.lineWidth = 2;
+  context.stroke(pin);
+  context.fillStyle = color;
+  context.fill(pin);
+
+  // The glyph, 11px square on the head, stroked as lucide draws it.
+  const glyph = 11;
+  context.save();
+  context.translate(cx - glyph / 2, cy - glyph / 2);
+  context.scale(glyph / 24, glyph / 24);
+  context.strokeStyle = lightToken.canvas;
+  context.lineWidth = 2;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  for (const d of WAREHOUSE_PATHS) context.stroke(new Path2D(d));
+  context.restore();
+
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+};
+
 /** The layers a click can land on — and, read in the negative, what a basemap click is. */
-const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
+const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point, LAYER.landmark, LAYER.landmarkLabel];
+
+/** How close a landmark click brings the map: a town's scale, near enough to see what stands at it. */
+const LANDMARK_ZOOM = 12;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
@@ -77,6 +156,14 @@ export type PlantPoint = {
   longitude: number;
   /** A key in `tones`. An unrecognised one falls back to the first tone's colour. */
   tone: string;
+  /**
+   * Marks a fixed place — a depot among trucks — rather than one of the things the
+   * map is counting. Drawn as a labelled warehouse pin instead of a circle, kept out of
+   * the clusters and the state hover's count, and never selected, so it can never
+   * be mistaken for a pin. A click on it zooms in; a click on its name, drawn beside
+   * it, goes to `onLandmarkOpen`.
+   */
+  landmark?: {label: string};
 };
 
 /**
@@ -109,6 +196,20 @@ type PlantMapProps = {
    * clear (one that hands a pin click straight to another route) passes nothing.
    */
   onDeselect?: () => void;
+  /**
+   * A landmark's name was clicked — open the place it names. Its pin zooms in; its
+   * name leads away, as a name does elsewhere in the app (Jeff, 2026-09-30).
+   * Absent, the name is plain text.
+   */
+  onLandmarkOpen?: (id: string) => void;
+  /**
+   * The cluster bubble's fill and count colour, as literals for the shader. Absent,
+   * a bubble is the canvas colour with the count in text colour. The Trucks map
+   * fills its bubbles in fuel violet (Jeff, 2026-09-30), so a cluster of trucks
+   * reads as the same thing as a truck; a tone ring segment in the fill colour then
+   * drops into it and only the other tones' share shows.
+   */
+  clusterFill?: {color: string; text: string};
   /**
    * Right-hand inset in px for a floating panel, so `fitBounds` does not tuck pins
    * underneath it. `0` where there is no panel.
@@ -149,6 +250,7 @@ const toFeatureCollection = (
     properties: {
       id: point.id,
       tone: point.tone,
+      label: point.landmark?.label ?? '',
       // Which state this pin stands in, so the hover can tell its own from everyone
       // else's — and so the per-state cluster sums have something to count. Filed on
       // the feature rather than on the record, because it is a fact about a
@@ -184,6 +286,8 @@ export const PlantMap = ({
   selectedId,
   onSelect,
   onDeselect,
+  onLandmarkOpen,
+  clusterFill,
   panelInset = 0,
   focusIds,
   label,
@@ -203,6 +307,10 @@ export const PlantMap = ({
   onSelectRef.current = onSelect;
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
+  const clusterFillRef = useRef(clusterFill);
+  clusterFillRef.current = clusterFill;
+  const onLandmarkOpenRef = useRef(onLandmarkOpen);
+  onLandmarkOpenRef.current = onLandmarkOpen;
 
   // The plant currently drawn, and what to call it, read from inside the state
   // hover's count. Refs for the same reason as the handlers above: the hover is
@@ -314,7 +422,7 @@ export const PlantMap = ({
         filter: ['has', 'point_count'],
         paint: {
           'circle-radius': 18,
-          'circle-color': lightToken.canvas,
+          'circle-color': clusterFillRef.current?.color ?? lightToken.canvas,
           'circle-stroke-width': 1.5,
           'circle-stroke-color': lightToken.primary,
         },
@@ -332,7 +440,7 @@ export const PlantMap = ({
           'text-size': 12,
           'text-allow-overlap': true,
         },
-        paint: {'text-color': lightToken.primary},
+        paint: {'text-color': clusterFillRef.current?.text ?? lightToken.primary},
       });
 
       map.addLayer({
@@ -371,12 +479,59 @@ export const PlantMap = ({
         beforeLayerId: LAYER.clusterHalo,
         countIn: (stateId) =>
           pointsRef.current.filter(
-            (point) => malaysiaStateAt(point.longitude, point.latitude) === stateId,
+            (point) =>
+              point.landmark === undefined && malaysiaStateAt(point.longitude, point.latitude) === stateId,
           ).length,
         countLabel: (count) => `${count} ${count === 1 ? countNounRef.current.one : countNounRef.current.many}`,
         // The same frame the fleet gets, so a clicked state sits where a fitted fleet
         // would — clear of the panel, if the panel is still there.
         fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
+      });
+
+      // Landmarks over everything: few, fixed, and the places the pins move
+      // between. One image per tone, since a symbol's icon cannot take a colour.
+      for (const tone of tonesRef.current) {
+        const image = pinImage(tone.color);
+        if (image !== undefined) map.addImage(landmarkImage(tone.key), image, {pixelRatio: 2});
+      }
+      // `promoteId` so a name's hover can be held as feature state.
+      map.addSource(LANDMARK_SOURCE, {type: 'geojson', data: toFeatureCollection([], undefined), promoteId: 'id'});
+      map.addLayer({
+        id: LAYER.landmark,
+        type: 'symbol',
+        source: LANDMARK_SOURCE,
+        layout: {
+          'icon-image': ['concat', 'plant-landmark-', ['get', 'tone']],
+          // The pin's tip on the place, as a map pin stands.
+          'icon-anchor': 'bottom',
+          'icon-allow-overlap': true,
+        },
+      });
+      // The name as a layer of its own, so a click can tell it from the pin: the
+      // pin zooms, the name opens the place. Drawn as a link (Jeff, 2026-09-30):
+      // the brand colour and a trailing `›`, going to the text colour on hover —
+      // a map label cannot be underlined. Plain text where nothing opens it.
+      map.addLayer({
+        id: LAYER.landmarkLabel,
+        type: 'symbol',
+        source: LANDMARK_SOURCE,
+        layout: {
+          'text-field': onLandmarkOpenRef.current === undefined ? ['get', 'label'] : ['concat', ['get', 'label'], ' ›'],
+          'text-font': ['Open Sans Bold', 'Open Sans Regular'],
+          'text-size': 11,
+          'text-anchor': 'left',
+          // Beside the pin's head, which stands 18.5px above the place.
+          'text-offset': [1.25, -1.7],
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color':
+            onLandmarkOpenRef.current === undefined
+              ? lightToken.primary
+              : ['case', ['boolean', ['feature-state', 'hover'], false], lightToken.primary, lightToken.brand],
+          'text-halo-color': lightToken.canvas,
+          'text-halo-width': 1.5,
+        },
       });
 
       loadedRef.current = true;
@@ -410,6 +565,28 @@ export const PlantMap = ({
     };
 
     /**
+     * A landmark click zooms in on it (Jeff, 2026-09-30), and selects nothing: a
+     * depot is where the trucks are, not one of them. To a town's scale, or one step
+     * closer if the map is already there, and clear of the panel on the right.
+     */
+    const handleLandmarkClick = (event: MapMouseEvent) => {
+      const [feature] = map.queryRenderedFeatures(event.point, {layers: [LAYER.landmark]});
+      if (feature === undefined) return;
+      map.easeTo({
+        center: (feature.geometry as GeoJSON.Point).coordinates as [number, number],
+        zoom: Math.min(16, Math.max(LANDMARK_ZOOM, map.getZoom() + 1)),
+        padding: {top: 0, bottom: 0, left: 0, right: panelInsetRef.current},
+        duration: 600,
+      });
+    };
+
+    const handleLandmarkLabelClick = (event: MapMouseEvent) => {
+      const [feature] = map.queryRenderedFeatures(event.point, {layers: [LAYER.landmarkLabel]});
+      const id = feature?.properties?.id as string | undefined;
+      if (id !== undefined) onLandmarkOpenRef.current?.(id);
+    };
+
+    /**
      * A click on the basemap — no bubble, no pin — clears the selection.
      *
      * Bound to the map rather than to a layer, because what it listens for is the
@@ -438,6 +615,22 @@ export const PlantMap = ({
     map.on('click', LAYER.clusterCore, handleClusterClick);
     map.on('click', LAYER.clusterHalo, handleClusterClick);
     map.on('click', LAYER.point, handlePointClick);
+    map.on('click', LAYER.landmark, handleLandmarkClick);
+    map.on('click', LAYER.landmarkLabel, handleLandmarkLabelClick);
+
+    // The name's hover, as feature state the label's paint reads.
+    let hoveredLandmark: string | undefined;
+    const setLandmarkHover = (id: string | undefined) => {
+      if (hoveredLandmark !== undefined) {
+        map.setFeatureState({source: LANDMARK_SOURCE, id: hoveredLandmark}, {hover: false});
+      }
+      hoveredLandmark = id;
+      if (id !== undefined) map.setFeatureState({source: LANDMARK_SOURCE, id}, {hover: true});
+    };
+    map.on('mousemove', LAYER.landmarkLabel, (event) => {
+      setLandmarkHover(event.features?.[0]?.properties?.id as string | undefined);
+    });
+    map.on('mouseleave', LAYER.landmarkLabel, () => setLandmarkHover(undefined));
     map.on('click', handleBackgroundClick);
     for (const layer of INTERACTIVE_LAYERS) {
       map.on('mouseenter', layer, setPointer);
@@ -506,7 +699,18 @@ export const PlantMap = ({
     const push = () => {
       const source = map.getSource(SOURCE) as GeoJSONSource | undefined;
       if (source === undefined) return;
-      source.setData(toFeatureCollection(points, selectedId));
+      source.setData(
+        toFeatureCollection(
+          points.filter((point) => point.landmark === undefined),
+          selectedId,
+        ),
+      );
+      (map.getSource(LANDMARK_SOURCE) as GeoJSONSource | undefined)?.setData(
+        toFeatureCollection(
+          points.filter((point) => point.landmark !== undefined),
+          undefined,
+        ),
+      );
     };
 
     if (loadedRef.current) {

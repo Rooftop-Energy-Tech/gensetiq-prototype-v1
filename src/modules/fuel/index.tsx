@@ -1,34 +1,57 @@
-import {useMemo, useState} from 'react';
-import {Link} from '@tanstack/react-router';
-import {DropletIcon, SearchXIcon} from 'lucide-react';
+import {Link, useNavigate} from '@tanstack/react-router';
+import {useMemo} from 'react';
 
-import {stampAt} from '@/lib/format';
+import {Headline, SummaryCard, SummaryCardRow} from '@/components/global/SummaryCards';
 import {cn} from '@/lib/utils';
-import {seededDeployments, seededMemberships} from '@/modules/deployment/data/seed';
-import {GENSETS} from '@/modules/genset/data/fleet';
-import {refuelsIn} from '@/modules/genset/data/history';
+import {seededGenset} from '@/modules/genset/data/fleet';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
-import {DepotTank} from './DepotTank';
-import {DEPOTS, depotFleet} from './data/depotTank';
-import {PERIOD_LABEL, PeriodControl, inputDay, periodWindow} from './PeriodControl';
-import type {Period} from './PeriodControl';
+import {DeliveriesTable} from './DeliveriesTable';
+import type {PageWindow} from './TablePeriod';
+import type {DeliveryRow} from './DeliveriesTable';
+import {DepotTank, verdictLabel} from './DepotTank';
+import {DEPOTS, depotCapacityLitres, reconcile, varianceSeverity} from './data/depotTank';
+import {allFills} from './data/fills';
+import {TRUCKS, truckById} from './data/trucks';
+import {useFuelWindow} from './PeriodControl';
+import {TruckLog} from './TruckLog';
+import {TrucksView} from './TrucksView';
+import {ViewSwitch} from './ViewSwitch';
+import {FuelNav} from './FuelNav';
 import {historyStart} from '@/modules/genset/data/history';
+import {FuelBalanceCard} from './FuelBalanceCard';
 
 /**
  * `/fuel` — diesel, in the two halves an operations room asks about.
  *
- * **Tanks first, deliveries under them.** The tank panel is who will need a tanker;
- * the delivery list is where one has already been. That order is deliberate and is
- * the argument in `FleetTanks` — a machine at 8% with nothing booked against it is
- * invisible on a page made only of what has been booked.
+ * **Tanks first, deliveries after them.** The tanks are who will need a tanker; the
+ * delivery list is where one has already been. That order is deliberate and is the
+ * argument in `FleetTanks` — a machine at 8% with nothing booked against it is
+ * invisible on a page made only of what has been booked. Each yard's card opens that
+ * yard's own page, `/fuel/depots/$depotId` (`DepotPage`).
  *
- * ## Where a delivery says it happened
+ * ## Where a delivery happened
  *
- * The placename on a delivery row is **the posting that held the machine at that
- * instant**, not where the set is standing now. A delivery is history: BRF 9540 took
- * 1,057 L at a yard on the 16th and is in the workshop today, and a list built from
- * current placenames would put five deliveries in a workshop no tanker ever visited.
- * A fill between two jobs says so rather than borrowing the nearest yard.
+ * At the depot on its row, and nowhere else: this list is gensets that drove in to
+ * a yard, so the depot *is* the place. A separate `Where` column once gave the
+ * machine's posting, which beside the depot said the same thing twice (Jeff,
+ * 2026-09-29).
+ *
+ * ## Two halves, where the estate runs trucks
+ *
+ * Chosen from a second rail on the left (`FuelNav`), whose rows also jump to each
+ * half's sections, or two cards at the top on a phone (`ViewSwitch`).
+ * A combined page of both was tried and dropped (Jeff, 2026-09-29): depots and
+ * trucks are different jobs, and one page of both read as neither.
+ *
+ * **Depots** is the yards' tanks. **Deliveries** is every genset filled at a yard, a
+ * tab of its own (Jeff, 2026-09-30) rather than a table under the tanks. **Trucks**
+ * is the other way fuel reaches a machine — a truck driving it out to a genset in a
+ * state with no depot — with each truck's tank, where it is, and whether what it
+ * pumped arrived. One window under all three — the last month — for the reason it is one: a
+ * reconciliation measured over two periods does not reconcile.
+ *
+ * An estate with no trucks gets Depots and Deliveries only, not a Trucks row with
+ * nothing behind it. See `data/trucks.ts`.
  *
  * ## What is not here yet
  *
@@ -40,99 +63,77 @@ import {historyStart} from '@/modules/genset/data/history';
  * answer today.
  */
 
-type DeliveryRow = {
-  id: string;
-  gensetId: string;
-  name: string;
-  at: number;
-  litres: number;
-  place: string;
-  /**
-   * The yard this machine draws from, by id, and its name for the row.
-   *
-   * Carried on the delivery rather than looked up in the table, because the
-   * question it answers — *which depot issued this* — is the one the list is
-   * filtered by, and resolving it per render for hundreds of rows on every
-   * keystroke of the period control is work for nothing.
-   */
-  depotId: string;
-  depotName: string;
-};
+/** Which tab `/fuel` is showing — the `view` search parameter. */
+export type FuelView = 'depots' | 'deliveries' | 'trucks' | 'truck-log';
 
-/** Where a machine was standing at an instant — the posting that held it then. */
-const placeAt = (gensetId: string, at: number): string => {
-  const deployments = new Map(seededDeployments().map((d) => [d.id, d]));
+/**
+ * The tab's name for the breadcrumb, from the raw `view` param. Resolved as the page
+ * does — anything unknown, or a truck tab on an estate with none, is Depots — so
+ * the crumb never names a tab the page is not showing.
+ */
+export const fuelTabLabel = (view: unknown): string =>
+  view === 'deliveries'
+    ? 'Deliveries'
+    : TRUCKS.length > 0 && view === 'trucks'
+      ? 'Trucks'
+      : TRUCKS.length > 0 && view === 'truck-log'
+        ? 'Truck log'
+        : 'Depots';
 
-  for (const member of seededMemberships()) {
-    if (member.gensetId !== gensetId) continue;
-    const deployment = deployments.get(member.deploymentId);
-    if (deployment === undefined) continue;
+/**
+ * Every genset filled at a yard, off the one fill record the depot cards and the
+ * trucks also read, so they cannot disagree about where a fill happened.
+ *
+ * Yard fills only. A truck's fill is the Trucks tab's, in its log: listed here under
+ * the truck's home depot, it read as the depot filling a genset in a state it has
+ * no yard in (Jeff, 2026-09-29).
+ */
+const buildDeliveries = (): Array<DeliveryRow> =>
+  allFills()
+    .flatMap((fill) => (fill.route.kind === 'yard' ? [{fill, depotId: fill.route.depotId}] : []))
+    .map(({fill, depotId}) => {
+      const genset = seededGenset(fill.gensetId);
+      const depot = DEPOTS.find((d) => d.id === depotId);
 
-    const startMs = new Date(deployment.startsAt).getTime();
-    const endMs =
-      deployment.endsAt === null
-        ? Number.POSITIVE_INFINITY
-        : new Date(deployment.endsAt).getTime();
-    if (at >= startMs && at <= endMs) return deployment.locationLabel;
-  }
-
-  return 'Between postings';
-};
-
-const buildDeliveries = (now: number): Array<DeliveryRow> => {
-  const rows: Array<DeliveryRow> = [];
-
-  // Machine id to the yard that fuels it, built once rather than asked per row:
-  // `depotFleet` walks the whole estate, and there are four of them.
-  const depotOf = new Map<string, {id: string; name: string}>();
-  for (const depot of DEPOTS) {
-    for (const gensetId of depotFleet(depot.id)) {
-      depotOf.set(gensetId, {id: depot.id, name: depot.name});
-    }
-  }
-
-  for (const genset of GENSETS) {
-    // The whole record rather than a window: this list is short by nature — a fleet
-    // takes a few deliveries a week — and a reader scanning it wants the last one
-    // each machine had, not the last thirty days of them.
-    for (const refuel of refuelsIn(genset.id, 0, now)) {
-      const depot = depotOf.get(genset.id);
-
-      rows.push({
-        depotId: depot?.id ?? '',
+      return {
+        id: fill.id,
+        gensetId: fill.gensetId,
+        name: genset === undefined ? fill.gensetId : gensetLabel(genset),
+        at: fill.at,
+        litres: Math.round(fill.litres),
+        depotId,
         depotName: depot?.name ?? 'Unassigned',
-        id: `${genset.id}-${refuel.at}`,
-        gensetId: genset.id,
-        name: gensetLabel(genset),
-        at: refuel.at,
-        litres: Math.round(refuel.litres),
-        place: placeAt(genset.id, refuel.at),
-      });
-    }
-  }
+        depotLocation: depot === undefined ? 'Unassigned' : `${depot.name} depot, ${depot.locationLabel.split(', ').at(-1)}`,
+      };
+    })
+    .sort((a, b) => b.at - a.at);
 
-  return rows.sort((a, b) => b.at - a.at);
-};
+export const FuelPage = ({
+  view,
+  onViewChange,
+  truckId,
+  onTruckChange,
+}: {
+  view: FuelView;
+  onViewChange: (next: FuelView) => void;
+  /** The truck whose panel is open — the `truck` search parameter. */
+  truckId: string | undefined;
+  onTruckChange: (next: string | undefined) => void;
+}) => {
+  // ## One fixed window, and no control over it
+  //
+  // The page reports on the last month, and says so in each row's label (`Fuel
+  // Out, 1 month`). It had a 1 day / 7 days / 1 month / custom control above every
+  // tab until 2026-09-30, when Jeff asked for the page to show the current state
+  // only. The tables keep their own control for looking further back. See
+  // `useFuelWindow`.
+  const {now, period, from, to, periodLabel} = useFuelWindow();
+  // What the two tables follow until their own period control is touched.
+  const pageWindow: PageWindow = {period, from, to, now, earliest: historyStart()};
 
-export const FuelPage = () => {
-  const [now] = useState(() => Date.now());
-  const [period, setPeriod] = useState<Period>('1m');
-  const [customFrom, setCustomFrom] = useState(() => inputDay(now - 30 * 24 * 3_600_000));
-  const [customTo, setCustomTo] = useState(() => inputDay(now));
-  // `undefined` is every yard. A filter that defaults to one depot would hide most
-  // of the estate behind a control a reader has not touched yet.
-  const [depotId, setDepotId] = useState<string | undefined>(undefined);
-
-  const {from, to} = periodWindow(period, now, customFrom, customTo);
-
-  // Every delivery the record holds, then cut to the window. Built once because the
-  // full list is the expensive part and the filter is a comparison.
-  const all = useMemo(() => buildDeliveries(now), [now]);
-  const inWindow = all.filter((row) => row.at >= from && row.at <= to);
-  const deliveries =
-    depotId === undefined ? inWindow : inWindow.filter((row) => row.depotId === depotId);
-
-  const litres = deliveries.reduce((sum, row) => sum + row.litres, 0);
+  // A truck tab in the URL of an estate without any is the depot tab, not an empty one.
+  const hasTrucks = TRUCKS.length > 0;
+  const active: FuelView = (view === 'trucks' || view === 'truck-log') && !hasTrucks ? 'depots' : view;
 
   return (
     // The page scrolls, not the table inside it. The shell is `h-screen
@@ -142,157 +143,143 @@ export const FuelPage = () => {
     // scrolling past.
     // `pb-24` below `md`: `MobileNav` is a floating pill rather than a docked bar,
     // so nothing reserves space for it and the last card's final rows sat under it.
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-24 md:pb-4">
-      {/* Above everything, because the page is a reconciliation and two halves of
-          one measured over different periods do not reconcile. */}
-      <PeriodControl
-        period={period}
-        customFrom={customFrom}
-        customTo={customTo}
-        earliest={historyStart()}
-        now={now}
-        onPeriodChange={setPeriod}
-        onCustomChange={(nextFrom, nextTo) => {
-          setCustomFrom(nextFrom);
-          setCustomTo(nextTo);
-          setPeriod('custom');
-        }}
-      />
+    //
+    // Depots, Deliveries and Trucks are a second rail on the left from `md` (Jeff,
+    // 2026-09-29), and cards above the page on a phone. See `FuelNav`.
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <FuelNav value={active} onChange={onViewChange} from={from} to={to} />
+
+      {/* The Trucks tab, from `md`, fills the screen rather than scrolling it, as
+          the Gensets page does, with that page's `gap-3`. */}
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-24 md:pb-4',
+          active === 'trucks' ? 'gap-3' : 'gap-4',
+        )}
+      >
+        <ViewSwitch value={active} onChange={onViewChange} from={from} to={to} />
+
+        {active === 'trucks' ? (
+          <TrucksView from={from} to={to} truckId={truckId} onTruckChange={onTruckChange} />
+        ) : active === 'truck-log' ? (
+          // Every truck's log, a tab of its own (Jeff, 2026-09-30) rather than a
+          // table under the register — as Deliveries is beside Depot tanks.
+          // Keyed by truck, so the panel's `View in Truck log` link for another
+          // truck starts the search afresh.
+          <TruckLog key={truckId ?? ''} page={pageWindow} initialQuery={truckById(truckId ?? '')?.plate} />
+        ) : active === 'deliveries' ? (
+          <DeliveriesView page={pageWindow} />
+        ) : (
+          <DepotsView from={from} to={to} periodLabel={periodLabel} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+/** The depot tab: an overview row, then each yard's tank. A card opens that yard's own page. */
+const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLabel: string}) => {
+  const navigate = useNavigate();
+
+  // Each yard's reconciliation once, for the overview and its tank both.
+  const yards = DEPOTS.map((depot) => {
+    const movement = reconcile(depot.id, from, to);
+    return {
+      depot,
+      movement,
+      verdict: varianceSeverity(movement.outLitres, movement.varianceLitres),
+    };
+  });
+  // Worst first: fuel missing before a sensor to check, and the bigger loss first.
+  const flagged = yards
+    .filter((yard) => yard.verdict !== undefined)
+    .sort(
+      (a, b) =>
+        Number(b.verdict?.severity === 'CRITICAL') - Number(a.verdict?.severity === 'CRITICAL') ||
+        b.movement.varianceLitres - a.movement.varianceLitres,
+    );
+  const fuelIn = yards.reduce((sum, yard) => sum + yard.movement.receivedLitres, 0);
+  const fuelOut = yards.reduce((sum, yard) => sum + yard.movement.outLitres, 0);
+  const balance = yards.reduce((sum, yard) => sum + yard.movement.levelLitres, 0);
+  const capacity = DEPOTS.reduce((sum, depot) => sum + depotCapacityLitres(depot.id), 0);
+
+  return (
+    <>
+      {/* ## Two cards: which yards need someone, and the month's fuel in and out
+          (Jeff, 2026-10-01)
+
+          `Needs attention` names each yard with a verdict and says what, in the
+          tile's own words — `1,249 L unlogged`, `Sensor fault` — each a
+          link to that yard's page. It replaced two cards, `Fuel unaccounted for`
+          and `Sensor faults`, that counted yards without naming them: with four
+          tiles a count sent the reader scanning for which, and their filters hid
+          one or two tiles that were already on screen. `Fuel in stock`, `Low stock`
+          and `Days of stock` were tried and cut the same day. */}
+      <SummaryCardRow cappedColumns={2}>
+        <SummaryCard label="Needs attention" pill={periodLabel}>
+          {flagged.length === 0 ? (
+            <Headline value="None" detail="every depot balances and its sensors agree" />
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {flagged.map(({depot, verdict, movement}) => (
+                <li key={depot.id}>
+                  <Link
+                    to="/fuel/depots/$depotId"
+                    params={{depotId: depot.id}}
+                    className="group flex items-center gap-2 rounded-sm text-sm outline-none focus-visible:ring-2 focus-visible:ring-outline"
+                  >
+                    <span
+                      className={cn(
+                        'size-2 shrink-0 rounded-full',
+                        verdict?.severity === 'CRITICAL' ? 'bg-severity-critical' : 'bg-severity-warning',
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="font-medium text-primary underline-offset-2 group-hover:underline">
+                      {depot.name}
+                    </span>
+                    <span className="truncate text-secondary">
+                      {verdict === undefined ? '' : verdictLabel(verdict, movement.varianceLitres)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SummaryCard>
+        {/* All four tanks together — see `FuelBalanceCard`. */}
+        <FuelBalanceCard
+          fuelIn={fuelIn}
+          fuelOut={fuelOut}
+          balance={balance}
+          balanceNote={`left in all depots, ${capacity > 0 ? Math.round((balance / capacity) * 100) : 0}% full`}
+          periodLabel={periodLabel}
+        />
+      </SummaryCardRow>
 
       {/* One card per yard. A grid rather than a row: four of these on a wide band
           would each be 320px and the tank inside would shrink to a smudge, and at
           phone width a row would scroll sideways. */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {DEPOTS.map((depot) => (
+      <div id="fuel-tanks" className="grid scroll-mt-3 gap-4 md:grid-cols-2">
+        {yards.map(({depot}) => (
           <DepotTank
             key={depot.id}
             depot={depot}
             from={from}
             to={to}
-            periodLabel={PERIOD_LABEL[period].toLowerCase()}
+            periodLabel={periodLabel}
+            onOpen={() => void navigate({to: '/fuel/depots/$depotId', params: {depotId: depot.id}})}
           />
         ))}
       </div>
-
-      <section className="flex min-h-0 flex-col gap-2">
-        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h2 className="text-sm font-medium text-primary">Deliveries</h2>
-
-            {/* Which yard's round this list is. The counts sit on the chips so a
-                reader picking one already knows what they will get, and an empty
-                yard is visible without selecting it. */}
-            <div className="flex flex-wrap items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setDepotId(undefined)}
-                className={cn(
-                  'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-outline',
-                  depotId === undefined
-                    ? 'border-transparent bg-highlight text-primary'
-                    : 'border-subtle text-secondary hover:text-primary',
-                )}
-              >
-                {`All depots · ${inWindow.length}`}
-              </button>
-
-              {DEPOTS.map((depot) => {
-                const count = inWindow.filter((row) => row.depotId === depot.id).length;
-
-                return (
-                  <button
-                    key={depot.id}
-                    type="button"
-                    onClick={() => setDepotId(depot.id)}
-                    className={cn(
-                      'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-outline',
-                      depotId === depot.id
-                        ? 'border-transparent bg-highlight text-primary'
-                        : 'border-subtle text-secondary hover:text-primary',
-                    )}
-                  >
-                    {`${depot.name} · ${count}`}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <p className="text-xs text-secondary">
-            {deliveries.length.toLocaleString('en-MY')} in this period ·{' '}
-            {litres.toLocaleString('en-MY')} L
-          </p>
-        </header>
-
-        {deliveries.length === 0 ? (
-          <p className="flex items-center gap-2 rounded-md border border-subtle bg-element p-3 text-sm text-secondary">
-            <SearchXIcon className="size-4 shrink-0" aria-hidden="true" />
-            No delivery in this period.
-          </p>
-        ) : (
-          // No overflow of any kind on this wrapper, and that is deliberate.
-          //
-          // It carried `overflow-x-auto` so a narrow window would scroll the table
-          // sideways rather than the page — and that alone put the vertical scroll
-          // back inside the box. CSS computes `overflow-y: visible` to `auto`
-          // whenever the other axis is not visible, so asking for a horizontal
-          // scrollbar asks for both, and the reader was back to dragging a list of
-          // hundreds inside a frame.
-          //
-          // Four columns of short cells do not need sideways scrolling; if they ever
-          // do, the page's own `overflow-y-auto` gives it for the same reason, one
-          // level up, where it scrolls the page instead of trapping the table.
-          //
-          // On a phone five columns cannot fit in 390px either way, and with no
-          // overflow anywhere it was the *page* that scrolled sideways. So two of
-          // them drop below `sm` rather than being scrolled to: `Depot`, which the
-          // chips above already filter by, and `Where`, which is the yard the
-          // genset on that row is posted to and reachable by tapping it.
-          <div className="rounded-md border border-subtle">
-            <table className="w-full border-collapse text-sm">
-              <thead className="bg-element">
-                <tr className="text-left text-xs text-secondary">
-                  <th className="border-b border-subtle p-2 font-medium">Genset</th>
-                  <th className="hidden border-b border-subtle p-2 font-medium sm:table-cell">Depot</th>
-                  <th className="border-b border-subtle p-2 font-medium">Delivered</th>
-                  <th className="border-b border-subtle p-2 font-medium">Litres</th>
-                  <th className="hidden border-b border-subtle p-2 font-medium sm:table-cell">Where</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deliveries.map((row) => (
-                  <tr key={row.id} className="bg-element">
-                    <td className="h-11 truncate border-b border-subtle p-2">
-                      <Link
-                        to="/gensets/$gensetId"
-                        params={{gensetId: row.gensetId}}
-                        className="text-primary underline-offset-2 outline-none hover:underline focus-visible:underline"
-                      >
-                        {row.name}
-                      </Link>
-                    </td>
-                    <td className="hidden h-11 truncate border-b border-subtle p-2 text-secondary sm:table-cell">
-                      {row.depotName}
-                    </td>
-                    <td className="h-11 truncate border-b border-subtle p-2 text-primary">
-                      {stampAt(new Date(row.at).toISOString())}
-                    </td>
-                    <td className="h-11 truncate border-b border-subtle p-2 text-primary tabular-nums">
-                      <span className="inline-flex items-center gap-1.5">
-                        <DropletIcon className="size-3.5 text-fuel" aria-hidden="true" />
-                        {row.litres.toLocaleString('en-MY')} L
-                      </span>
-                    </td>
-                    <td className="hidden h-11 truncate border-b border-subtle p-2 text-secondary sm:table-cell">
-                      {row.place}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
+    </>
   );
+};
+
+/** The deliveries tab: every genset filled at a yard. */
+const DeliveriesView = ({page}: {page: PageWindow}) => {
+  // Every delivery the record holds. Built once because the full list is the
+  // expensive part; the table cuts it to the page's period, or its own.
+  const all = useMemo(() => buildDeliveries(), []);
+  return <DeliveriesTable rows={all} page={page} />;
 };

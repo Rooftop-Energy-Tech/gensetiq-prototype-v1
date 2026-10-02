@@ -10,6 +10,7 @@ import {
   fuelLevelKind,
 } from '@/modules/genset/types/fuelLevel.type';
 import type {FuelLevelKind} from '@/modules/genset/types/fuelLevel.type';
+import {figure} from './format';
 
 /**
  * Every tank on the estate, worst first — the panel above the order list.
@@ -89,7 +90,7 @@ export const FleetTanks = () => {
         <p className="text-xs text-secondary">
           {needing.length === 0
             ? 'Every tank above its reserve line'
-            : `${needing.length} of ${rows.length} below reserve · ${Math.round(litresToFill).toLocaleString('en-MY')} L to fill them`}
+            : `${needing.length} of ${rows.length} below reserve · ${figure(Math.round(litresToFill))} L to fill them`}
         </p>
       </header>
 
@@ -129,7 +130,7 @@ export const FleetTanks = () => {
                     className="absolute top-0 -translate-x-1/2 text-xs whitespace-nowrap text-primary tabular-nums"
                     style={{left: `${Math.min(92, Math.max(8, percent))}%`}}
                   >
-                    {Math.round(row.litres).toLocaleString('en-MY')} L
+                    {figure(Math.round(row.litres))} L
                   </span>
 
                   <span className="relative block h-2 overflow-hidden rounded-full bg-highlight">
@@ -155,7 +156,7 @@ export const FleetTanks = () => {
                 {/* The tank, not what is left in it. The level is on the bar now, and
                     two litre figures a column apart were read as a pair to subtract. */}
                 <span className="w-24 shrink-0 text-right text-sm text-secondary tabular-nums">
-                  {Math.round(row.capacityLitres).toLocaleString('en-MY')} L
+                  {figure(Math.round(row.capacityLitres))} L
                 </span>
                 <span className="w-10 shrink-0 text-right text-sm text-secondary tabular-nums">
                   {percent}%

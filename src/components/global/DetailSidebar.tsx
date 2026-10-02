@@ -100,9 +100,9 @@ const isGroup = (entry: DetailNavEntry): entry is DetailNavGroup => 'items' in e
 // 16px and 14px), so every rail reads at the same larger size. The size is on each
 // label (`LABEL`) rather than here: `cn` reads `text-secondary` as a font size and
 // would drop a `text-[15.4px]` beside it.
-const LABEL = 'text-[15.4px] leading-6';
+export const LABEL = 'text-[15.4px] leading-6';
 
-const rowClassName =
+export const rowClassName =
   'flex w-full items-center gap-2 rounded-lg px-2 text-secondary transition-colors hover:bg-hover hover:text-primary data-[status=active]:bg-highlight data-[status=active]:font-medium data-[status=active]:text-primary';
 
 export const DetailSidebar = ({

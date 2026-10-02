@@ -13,7 +13,7 @@ import type {BrandDataset} from '../types';
  * `feat/sesb-demo`, which is where it was stranded — the branch predates the
  * hybrid plant, the generation series and the energy screen, and every one of
  * those was invisible on it.
- * Twenty-five distribution substations from Kepong down to Johor Bahru, with
+ * Twenty-five distribution substations from Kangar down to Johor Bahru, with
  * thirty-seven machines standing on them.
  *
  * ## Why every site is a `PE`
@@ -53,7 +53,7 @@ import type {BrandDataset} from '../types';
  * The distribution states this estate is divided by.
  *
  * A Peninsular licensee organises by state rather than by region, so the grouping
- * is the state list — Wilayah Persekutuan first, since the densest sixth of the
+ * is the state list — Wilayah Persekutuan first, since the densest share of the
  * estate is there, then out through Selangor and the corridors north and south.
  */
 const CUSTOMERS = [
@@ -64,6 +64,8 @@ const CUSTOMERS = [
   {id: 'johor', name: 'Johor', shortName: 'Johor'},
   {id: 'negeri-sembilan', name: 'Negeri Sembilan', shortName: 'N. Sembilan'},
   {id: 'pahang', name: 'Pahang', shortName: 'Pahang'},
+  {id: 'kedah', name: 'Kedah', shortName: 'Kedah'},
+  {id: 'perlis', name: 'Perlis', shortName: 'Perlis'},
 ] as const;
 
 /**
@@ -103,11 +105,8 @@ const SITE_KIND_LABELS = {
 } as const;
 
 const SITES = [
-  // — Wilayah Persekutuan (6) — the cluster in the map view.
+  // — Wilayah Persekutuan (3) — Bangsar, Kepong and Putrajaya.
   {id: 'pe-001', name: 'PE-001', kind: 'PE', locationLabel: 'Bangsar, Kuala Lumpur', address: 'Lot 14, Jalan Maarof, Bangsar, 59000 Kuala Lumpur',          latitude: 3.1290, longitude: 101.6700, loadKw: 412, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
-  {id: 'pe-002', name: 'PE-002', kind: 'PE', locationLabel: 'Setapak, Kuala Lumpur', address: 'Lot 3, Jalan Genting Kelang, Setapak, 53300 Kuala Lumpur',          latitude: 3.1980, longitude: 101.7200, loadKw: 288, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
-  {id: 'pe-003', name: 'PE-003', kind: 'PE', locationLabel: 'Cheras, Kuala Lumpur', address: 'Lot 27, Jalan Cheras, Taman Connaught, 56000 Kuala Lumpur',           latitude: 3.1000, longitude: 101.7400, loadKw: 355, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
-  {id: 'pe-004', name: 'PE-004', kind: 'PE', locationLabel: 'Sentul, Kuala Lumpur', address: 'Lot 9, Jalan Sentul, 51000 Kuala Lumpur',           latitude: 3.1830, longitude: 101.6900, loadKw: 196, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
   {id: 'pe-005', name: 'PE-005', kind: 'PE', locationLabel: 'Putrajaya', address: 'Lot 2, Persiaran Perdana, Presint 2, 62100 Putrajaya',                      latitude: 2.9264, longitude: 101.6964, loadKw: 534, customer: 'wilayah',         powerRole: 'GRID_BACKUP', program: 'demand-growth'},
   {id: 'pe-006', name: 'PE-006', kind: 'PE', locationLabel: 'Kepong, Kuala Lumpur', address: 'Lot 41, Jalan Kepong, Kepong Baru, 52100 Kuala Lumpur',           latitude: 3.2100, longitude: 101.6300, loadKw: 243, customer: 'wilayah',         powerRole: 'GRID_BACKUP'},
 
@@ -135,10 +134,18 @@ const SITES = [
   {id: 'pe-021', name: 'PE-021', kind: 'PE', locationLabel: 'Kulai, Johor', address: 'Lot 8, Jalan Kulai–Kota Tinggi, 81000 Kulai, Johor',                   latitude: 1.6580, longitude: 103.6030, loadKw: 171, customer: 'johor',           powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
   {id: 'pe-022', name: 'PE-022', kind: 'PE', locationLabel: 'Batu Pahat, Johor', address: 'Lot 37, Jalan Kluang, 83000 Batu Pahat, Johor',              latitude: 1.8548, longitude: 102.9325, loadKw: 224, customer: 'johor',           powerRole: 'GRID_BACKUP'},
 
-  // — Negeri Sembilan (2) and Pahang (1) — the south coast, and the road across.
+  // — Negeri Sembilan (2) and Pahang (2) — the south coast, and the roads across.
   {id: 'pe-023', name: 'PE-023', kind: 'PE', locationLabel: 'Seremban, Negeri Sembilan', address: 'Lot 21, Jalan Rasah, 70300 Seremban, Negeri Sembilan',      latitude: 2.7297, longitude: 101.9381, loadKw: 266, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
   {id: 'pe-024', name: 'PE-024', kind: 'PE', locationLabel: 'Port Dickson, Negeri Sembilan', address: 'Lot 11, Jalan Pantai, 71000 Port Dickson, Negeri Sembilan',  latitude: 2.5228, longitude: 101.7960, loadKw: 109, customer: 'negeri-sembilan', powerRole: 'GRID_BACKUP'},
   {id: 'pe-025', name: 'PE-025', kind: 'PE', locationLabel: 'Kuantan, Pahang', address: 'Lot 74, Jalan Gambang, 25150 Kuantan, Pahang',                latitude: 3.8077, longitude: 103.3260, loadKw: 187, customer: 'pahang',          powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
+  {id: 'pe-002', name: 'PE-002', kind: 'PE', locationLabel: 'Temerloh, Pahang', address: 'Lot 3, Jalan Tengku Bakar, 28000 Temerloh, Pahang',                latitude: 3.4500, longitude: 102.4170, loadKw: 288, customer: 'pahang',          powerRole: 'GRID_BACKUP'},
+
+  // — Kedah and Perlis (1 each) — the far north, worked by Butterworth's truck.
+  //   PE-002 to PE-004 were Setapak, Cheras and Sentul in Kuala Lumpur until
+  //   2026-09-29. They moved so each refuel truck has a similar share of the work
+  //   (Jeff); with six yards in the Klang valley, one truck did most of it.
+  {id: 'pe-004', name: 'PE-004', kind: 'PE', locationLabel: 'Alor Setar, Kedah', address: 'Lot 9, Jalan Sultan Badlishah, 05000 Alor Setar, Kedah',                latitude: 6.1210, longitude: 100.3670, loadKw: 196, customer: 'kedah',           powerRole: 'GRID_BACKUP'},
+  {id: 'pe-003', name: 'PE-003', kind: 'PE', locationLabel: 'Kangar, Perlis', address: 'Lot 27, Jalan Bukit Lagi, 01000 Kangar, Perlis',                latitude: 6.4414, longitude: 100.1986, loadKw: 355, customer: 'perlis',          powerRole: 'GRID_BACKUP'},
 
   // — The six yards `BRF 9540` actually stood at, May–September 2026. Named as the
   //   job sheet names them rather than `PE-0nn`: these came off Express Mission's
@@ -179,16 +186,12 @@ const SITES = [
  * Plates carry the state prefix of the yard the machine is posted to, which is what
  * a lorry's paperwork would say: `W` in the Federal Territory, `B` in Selangor, `A`
  * in Perak, `P` in Pulau Pinang, `J` in Johor, `N` in Negeri Sembilan, `C` in
- * Pahang.
+ * Pahang, `K` in Kedah, `R` in Perlis.
  */
 const GENSETS = [
-  // — Wilayah Persekutuan (9).
+  // — Wilayah Persekutuan (5).
   {tag: 'CUM-739893', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-001', locationLabel: 'Bangsar, Kuala Lumpur',        latitude: 3.1286, longitude: 101.6694, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57, plateNumber: 'WVA 5385'},
   {tag: 'CUM-303952', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-032', locationLabel: 'Damansara, Kuala Lumpur', latitude: 3.1484, longitude: 101.6626, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'WXQ 4562'},
-  {tag: 'PRK-690242', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-002', locationLabel: 'Setapak, Kuala Lumpur',        latitude: 3.1976, longitude: 101.7194, fuelLitres: 1338, fuelCapacityLitres: 1800, staleMinutes: 12, plateNumber: 'WPK 4055'},
-  {tag: 'CAT-639573', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-003', locationLabel: 'Cheras, Kuala Lumpur',         latitude: 3.0996, longitude: 101.7394, fuelLitres: 2255, fuelCapacityLitres: 3000, staleMinutes: 3,  plateNumber: 'WTE 4879'},
-  {tag: 'KHL-306060', model: 'Kohler 400 kVa',       runState: 'IDLE',    siteId: 'pe-033', locationLabel: 'Kuchai Lama, Kuala Lumpur', latitude: 3.0904, longitude: 101.6876, fuelLitres: 448,  fuelCapacityLitres: 900,  staleMinutes: 31, plateNumber: 'WSD 7780'},
-  {tag: 'CUM-801936', model: 'Cummins 500 kVa',      runState: 'RUNNING', siteId: 'pe-004', locationLabel: 'Sentul, Kuala Lumpur',         latitude: 3.1830, longitude: 101.6900, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8,  plateNumber: 'WHB 9411'},
   {tag: 'CAT-736523', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9260, longitude: 101.6958, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1,  plateNumber: 'WLA 9480'},
   {tag: 'DNY-201708', model: 'Denyo 250 kVa',        runState: 'OFFLINE', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9268, longitude: 101.6970, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'WKC 3190'},
   {tag: 'FGW-181837', model: 'FG Wilson 650 kVa',    runState: 'RUNNING', siteId: 'pe-006', locationLabel: 'Kepong, Kuala Lumpur',         latitude: 3.2100, longitude: 101.6300, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST', plateNumber: 'H 4141'},
@@ -226,10 +229,16 @@ const GENSETS = [
   {tag: 'DNY-359597', model: 'Denyo 250 kVa',        runState: 'RUNNING', siteId: 'pe-021', locationLabel: 'Kulai, Johor',                 latitude: 1.6576, longitude: 103.6024, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 21, plateNumber: 'JLQ 8401'},
   {tag: 'DNY-323530', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-022', locationLabel: 'Batu Pahat, Johor',            latitude: 1.8548, longitude: 102.9325, fuelLitres: 546,  fuelCapacityLitres: 600,  staleMinutes: 3,  plateNumber: 'JWQ 5891'},
 
-  // — Negeri Sembilan (2) and Pahang (1).
+  // — Negeri Sembilan (2) and Pahang (2).
   {tag: 'PRK-954710', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-023', locationLabel: 'Seremban, Negeri Sembilan',    latitude: 2.7297, longitude: 101.9381, fuelLitres: 1244, fuelCapacityLitres: 1800, staleMinutes: 9,  plateNumber: 'NHA 1169'},
   {tag: 'DNY-566998', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-024', locationLabel: 'Port Dickson, Negeri Sembilan',latitude: 2.5228, longitude: 101.7960, fuelLitres: 168,  fuelCapacityLitres: 600,  staleMinutes: 73, plateNumber: 'NKC 3446'},
   {tag: 'DNY-619585', model: 'Denyo 250 kVa',        runState: 'IDLE',    siteId: 'pe-025', locationLabel: 'Kuantan, Pahang',              latitude: 3.8077, longitude: 103.3260, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 27, plateNumber: 'CLB 9831'},
+  {tag: 'PRK-690242', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-002', locationLabel: 'Temerloh, Pahang',             latitude: 3.4496, longitude: 102.4164, fuelLitres: 1338, fuelCapacityLitres: 1800, staleMinutes: 12, plateNumber: 'CPK 4055'},
+
+  // — Kedah (1) and Perlis (2).
+  {tag: 'CUM-801936', model: 'Cummins 500 kVa',      runState: 'RUNNING', siteId: 'pe-004', locationLabel: 'Alor Setar, Kedah',            latitude: 6.1210, longitude: 100.3670, fuelLitres: 733,  fuelCapacityLitres: 1200, staleMinutes: 8,  plateNumber: 'KHB 9411'},
+  {tag: 'CAT-639573', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-003', locationLabel: 'Kangar, Perlis',               latitude: 6.4410, longitude: 100.1980, fuelLitres: 2255, fuelCapacityLitres: 3000, staleMinutes: 3,  plateNumber: 'RTE 4879'},
+  {tag: 'KHL-306060', model: 'Kohler 400 kVa',       runState: 'IDLE',    siteId: 'pe-003', locationLabel: 'Kangar, Perlis',               latitude: 6.4418, longitude: 100.1992, fuelLitres: 448,  fuelCapacityLitres: 900,  staleMinutes: 31, plateNumber: 'RSD 7780'},
 
   // — The one real machine on this estate. —
   //
