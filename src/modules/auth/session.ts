@@ -72,3 +72,11 @@ export const useSession = (): Session | null =>
 /** `tristan@rooftop.my` → `T`, for the sidebar avatar. */
 export const sessionInitial = (session: Session | null): string =>
   (session?.email.trim()[0] ?? 'U').toUpperCase();
+
+/** `jeff.lim@rooftop.my` → `Jeff Lim`, for signing a note. */
+export const sessionName = (session: Session | null): string =>
+  (session?.email.split('@')[0] ?? 'You')
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join(' ');

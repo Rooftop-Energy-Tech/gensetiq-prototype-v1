@@ -1,6 +1,7 @@
 import type {FilterOption} from '@/components/global/FilterSelect';
 import {fleet, gensetById} from '@/modules/genset/data/deployment';
-import {customerShortName} from '@/modules/site/data/customers';
+import {stateNameAt, stateSlug} from '@/modules/genset/data/gensetState';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
 import type {CustomerId} from '@/modules/site/data/customers';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import type {Deployment, DeploymentMembership, DeploymentState} from '../types/deployment.type';
@@ -33,9 +34,20 @@ export type DeploymentRow = {
   /** The machines on the job, tag order — the column, the pin size and the panel. */
   members: Array<DeploymentMember>;
   state: DeploymentState;
-  siteName: string;
+  /**
+   * Where the machines stand: the yard's street address, or the placename copied
+   * onto the job where there is no seed. Deployments name no site (2026-09-29) —
+   * a reader needs where the set is, not the yard's code.
+   */
+  address: string;
   /** The placename copied onto the job — history survives a site rename. */
   locationLabel: string;
+  /**
+   * The Malaysian state the yard stands in, read off its position the way a genset's
+   * is (`gensetStateName`), and its URL form. `undefined` offshore or with no seed.
+   */
+  stateName: string | undefined;
+  stateSlug: string | undefined;
   /**
    * The yard's division, or `undefined` for a job at a site this dataset no longer
    * declares. The filter treats that the way the fleet does an unfitted machine: it
@@ -61,6 +73,11 @@ export type DeploymentMember = {
   membership: DeploymentMembership;
   /** `BRF9540`, or the raw id for a machine the fleet no longer carries. */
   tag: string;
+  /**
+   * What the register calls the machine — its road plate, `WXQ 4562`, the Gensets
+   * page's label — falling back to the tag where a set has none.
+   */
+  plate: string;
   model: string;
   /** Gone home while the job runs on. */
   collected: boolean;
@@ -83,21 +100,34 @@ export const deploymentRow = (
       return {
         membership,
         tag: genset?.tag ?? membership.gensetId,
+        plate: genset === undefined ? membership.gensetId : gensetLabel(genset),
         model: genset?.model ?? '',
         collected: membership.collectedAt !== null,
       };
     })
-    .sort((a, b) => a.tag.localeCompare(b.tag));
+    .sort((a, b) => a.plate.localeCompare(b.plate));
+
+  // A pin moved off the site wins for everything positional; the division stays the
+  // site's, since the deployment was booked through it.
+  const pin = deployment.pin;
+  const latitude = pin?.latitude ?? seed?.latitude;
+  const longitude = pin?.longitude ?? seed?.longitude;
+  const stateName =
+    latitude === undefined || longitude === undefined
+      ? undefined
+      : stateNameAt(longitude, latitude);
 
   return {
     deployment,
     members,
     state: deploymentState(deployment, now),
-    siteName: seed?.name ?? deployment.locationLabel,
+    address: pin?.address ?? seed?.address ?? deployment.locationLabel,
     locationLabel: deployment.locationLabel,
+    stateName,
+    stateSlug: stateName === undefined ? undefined : stateSlug(stateName),
     customerId: seed?.customer,
-    latitude: seed?.latitude,
-    longitude: seed?.longitude,
+    latitude,
+    longitude,
     elapsedMs: deploymentElapsedMs(deployment, now),
     startedMs: new Date(deployment.startsAt).getTime(),
     endedMs: deploymentEndMs(deployment, now),
@@ -126,47 +156,44 @@ export const deploymentRows = (now: number): Array<DeploymentRow> => {
 };
 
 /**
- * Free-text search: the reference, the yard, the placename, and every machine on the
- * job by tag, model and lorry.
- *
- * The plate is in there because "where is SAB 4417 T" is a question the operations
- * room asks out loud, and it is the one field on this screen that belongs to neither
- * the job nor the site. It is searched across the members, since a job with three
- * sets arrived on three lorries.
+ * Search: the Gensets page's rules — **number plate**, with the spaces ignored on both
+ * sides, so `wxq4562` and `WXQ 4562` find the same set — plus the job's reference,
+ * since `DEP-0076` is what a job is quoted as. A job matches when any machine on it
+ * does.
  */
+const compact = (text: string): string => text.toLowerCase().replace(/\s+/g, '');
+
 export const searchDeployments = (
   rows: Array<DeploymentRow>,
   query: string,
 ): Array<DeploymentRow> => {
-  const needle = query.trim().toLowerCase();
+  const needle = compact(query);
   if (needle === '') return rows;
 
   return rows.filter((row) =>
-    [
-      row.deployment.reference,
-      row.siteName,
-      row.locationLabel,
-      ...row.members.flatMap((member) => [
-        member.tag,
-        member.model,
-        member.membership.lorryPlate,
-      ]),
-    ].some((field) => field.toLowerCase().includes(needle)),
+    [row.deployment.reference, ...row.members.map((member) => member.plate)].some((field) =>
+      compact(field).includes(needle),
+    ),
   );
 };
 
 export type DeploymentFilters = {
+  /** The job's status — planned, deployed, completed. */
   state: DeploymentState | undefined;
-  customer: string | undefined;
+  /** The Malaysian state the yard is in, as a slug — the Gensets page's `location`. */
+  location: string | undefined;
+  /** The job type's id, on an estate that has them. */
+  job: string | undefined;
 };
 
 export const filterDeployments = (
   rows: Array<DeploymentRow>,
-  {state, customer}: DeploymentFilters,
+  {state, location, job}: DeploymentFilters,
 ): Array<DeploymentRow> =>
   rows.filter((row) => {
     if (state !== undefined && row.state !== state) return false;
-    if (customer !== undefined && row.customerId !== customer) return false;
+    if (location !== undefined && row.stateSlug !== location) return false;
+    if (job !== undefined && row.deployment.jobType !== job) return false;
     return true;
   });
 
@@ -195,7 +222,7 @@ export const sortDeployments = (
   const sign = direction === 'asc' ? 1 : -1;
 
   /** A job's machines as one string, so a three-set job sorts somewhere stable. */
-  const tags = (row: DeploymentRow) => row.members.map((member) => member.tag).join(' ');
+  const tags = (row: DeploymentRow) => row.members.map((member) => member.plate).join(' ');
 
   const compare = (a: DeploymentRow, b: DeploymentRow): number => {
     switch (sort) {
@@ -207,6 +234,12 @@ export const sortDeployments = (
         return sign * (a.totals.fuelBurnedLitres - b.totals.fuelBurnedLitres);
       case 'reference':
         return sign * a.deployment.reference.localeCompare(b.deployment.reference);
+      case 'location':
+        // By state name, newest first inside one state; a yard with no state last.
+        return (
+          sign * (a.stateName ?? '\uffff').localeCompare(b.stateName ?? '\uffff') ||
+          b.startedMs - a.startedMs
+        );
       case 'genset':
         // Then newest job first inside one machine's set, so a tag lookup reads as
         // that machine's history rather than as an arbitrary interleave.
@@ -246,7 +279,10 @@ export type DeploymentSummary = {
   /** Mean length of a *closed* job, ms — an open one has not finished yet. */
   meanCompletedMs: number;
   byState: Array<FilterOption<DeploymentState>>;
-  byCustomer: Array<FilterOption<string>>;
+  /** Jobs per Malaysian state, by slug, A to Z — the State dropdown. */
+  byLocation: Array<FilterOption<string>>;
+  /** Distinct states holding an active job. */
+  occupiedStates: number;
 };
 
 const STATE_LABEL: Record<DeploymentState, string> = {
@@ -272,10 +308,11 @@ export const deploymentSummary = (rows: Array<DeploymentRow>): DeploymentSummary
     row.members.filter((member) => !member.collected).map((member) => member.membership.gensetId),
   );
 
-  const byCustomer = new Map<string, number>();
+  const byLocation = new Map<string, {label: string; count: number}>();
   for (const row of rows) {
-    if (row.customerId === undefined) continue;
-    byCustomer.set(row.customerId, (byCustomer.get(row.customerId) ?? 0) + 1);
+    if (row.stateSlug === undefined || row.stateName === undefined) continue;
+    const entry = byLocation.get(row.stateSlug) ?? {label: row.stateName, count: 0};
+    byLocation.set(row.stateSlug, {...entry, count: entry.count + 1});
   }
 
   return {
@@ -299,12 +336,11 @@ export const deploymentSummary = (rows: Array<DeploymentRow>): DeploymentSummary
       label: STATE_LABEL[state],
       count: inState(state).length,
     })),
-    byCustomer: [...byCustomer.entries()]
-      .map(([id, count]) => ({
-        key: id,
-        label: customerShortName(id as CustomerId),
-        count,
-      }))
+    byLocation: [...byLocation.entries()]
+      .map(([key, {label, count}]) => ({key, label, count}))
       .sort((a, b) => a.label.localeCompare(b.label)),
+    occupiedStates: new Set(
+      active.map((row) => row.stateSlug).filter((slug) => slug !== undefined),
+    ).size,
   };
 };

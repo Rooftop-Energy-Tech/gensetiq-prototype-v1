@@ -213,7 +213,7 @@ export const fuelRunway = (
 };
 
 /**
- * The same fact, short enough for a strip tile: `6.4 days · 12 Sep 2026`.
+ * The same fact, short enough for a strip tile: `6.4 days · 12/09/2026`.
  *
  * The tile carries the date and the panel's badge does not, because this is the
  * figure a reader scans to decide whether a lorry goes out this week — and a date

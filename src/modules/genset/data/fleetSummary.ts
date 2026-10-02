@@ -1,7 +1,7 @@
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import {FLEET_STATUSES, STATUS_META, gensetStatus} from './fleetStatus';
 import type {FleetStatus} from './fleetStatus';
-import {RUN_STATES} from '../types/genset.type';
+import {RUN_STATES, gensetKva} from '../types/genset.type';
 import type {Genset, RunState} from '../types/genset.type';
 import {gensetStateName, stateSlug} from './gensetState';
 import {ALERT_SEVERITIES} from '../types/alert.type';
@@ -77,6 +77,8 @@ export type FleetSummary = {
   byRunState: Record<RunState, number>;
   byAlarm: Record<GensetAlarmFilter, number>;
   byFuel: Record<GensetFuelFilter, number>;
+  /** The kVA ratings the fleet has, biggest first, keyed by the rating as a string. */
+  byCapacity: Array<Tally<string>>;
 };
 
 export const fleetSummary = (
@@ -95,6 +97,7 @@ export const fleetSummary = (
   const runCounts = Object.fromEntries(RUN_STATES.map((state) => [state, 0])) as Record<RunState, number>;
   const alarmCounts = Object.fromEntries(GENSET_ALARM_FILTERS.map((key) => [key, 0])) as Record<GensetAlarmFilter, number>;
   const fuelCounts = Object.fromEntries(GENSET_FUEL_FILTERS.map((key) => [key, 0])) as Record<GensetFuelFilter, number>;
+  const capacityCounts = new Map<number, number>();
 
   for (const genset of gensets) {
 
@@ -108,6 +111,7 @@ export const fleetSummary = (
     runCounts[genset.runState] += 1;
     alarmCounts[gensetAlarmFilter(counts[genset.id])] += 1;
     fuelCounts[gensetFuelFilter(genset)] += 1;
+    capacityCounts.set(gensetKva(genset), (capacityCounts.get(gensetKva(genset)) ?? 0) + 1);
   }
 
   const workshopCount = roleCounts.WORKSHOP;
@@ -133,5 +137,8 @@ export const fleetSummary = (
     byRunState: runCounts,
     byAlarm: alarmCounts,
     byFuel: fuelCounts,
+    byCapacity: [...capacityCounts.entries()]
+      .sort(([left], [right]) => right - left)
+      .map(([kva, count]) => ({key: String(kva), label: `${kva.toLocaleString('en-MY')} kVA`, count})),
   };
 };

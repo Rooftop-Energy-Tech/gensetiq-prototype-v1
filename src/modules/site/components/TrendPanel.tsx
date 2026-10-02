@@ -2,6 +2,7 @@ import {useMemo, useState} from 'react';
 import {ChevronLeftIcon, ChevronRightIcon} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
+import {numericDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {
   SITE_TREND_METRIC_LABEL,
@@ -37,7 +38,7 @@ const viewLabel = (view: TrendView): string => SITE_TREND_METRIC_LABEL[view];
  * ## Why it is shared rather than copied
  *
  * Because all three designs draw the same control. The site frame, the solar frame
- * and the battery frame each put a `‹ 31 Aug 2026 ›` stepper beside
+ * and the battery frame each put a `‹ 31/08/2026 ›` stepper beside
  * `Day / Month / Year / Lifetime` over a full-width chart, and the only thing that
  * differs between them is how many metrics the picker offers: the site page offers
  * everything the yard can answer for, a system's page offers generation, a bank's
@@ -165,11 +166,7 @@ export const TrendPanel = ({
               </Button>
 
               <span className="min-w-[6.5rem] text-center text-sm text-primary tabular-nums">
-                {new Date(dayAt).toLocaleDateString('en-MY', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}
+                {numericDate(dayAt)}
               </span>
 
               <Button

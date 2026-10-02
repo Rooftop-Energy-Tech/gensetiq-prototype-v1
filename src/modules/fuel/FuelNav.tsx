@@ -4,7 +4,7 @@ import {Link} from '@tanstack/react-router';
 import {useState} from 'react';
 import type {ReactNode} from 'react';
 
-import {DetailSidebarLabel, rowClassName} from '@/components/global/DetailSidebar';
+import {DetailSidebarLabel, LABEL, rowClassName} from '@/components/global/DetailSidebar';
 import {cn} from '@/lib/utils';
 import {DOT, depotStatus, truckStatus} from './ViewSwitch';
 import type {Status} from './ViewSwitch';
@@ -156,7 +156,7 @@ export const FuelNav = ({value, onChange, from, to, depotId}: RailProps) => {
                       data-status={active ? 'active' : undefined}
                       className={cn(rowClassName, 'h-8 cursor-pointer pl-7 text-left', hasDepots && 'pr-8')}
                     >
-                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      <span className={cn(LABEL, 'min-w-0 flex-1 truncate')}>{item.label}</span>
                     </button>
                     {/* The link opens the tab; its chevron, a separate button,
                         folds the depot list under it, as a heading's does its

@@ -1,9 +1,14 @@
 import maplibregl from 'maplibre-gl';
-import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
+import type {GeoJSONSource, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount, refreshClusterDonuts} from '@/lib/clusterDonut';
-import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {
+  MALAYSIA_STATE_CLUSTER_PROPERTIES,
+  PENINSULA,
+  PENINSULA_PADDING,
+  malaysiaStateAt,
+} from '@/lib/geo/malaysiaStates';
 import {attachStateHover} from '@/lib/geo/stateHover';
 import type {StateHoverHandle} from '@/lib/geo/stateHover';
 import {lightToken} from '@/styles/colors';
@@ -141,13 +146,6 @@ const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point, L
 
 /** How close a landmark click brings the map: a town's scale, near enough to see what stands at it. */
 const LANDMARK_ZOOM = 12;
-
-/**
- * Malaysia, for the moment before any data has been fitted. Centred on the South
- * China Sea rather than either landmass, because the estate spans both.
- */
-const INITIAL_CENTER: LngLatLike = [109.5, 3.8];
-const INITIAL_ZOOM = 5;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
@@ -342,8 +340,8 @@ export const PlantMap = ({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      bounds: PENINSULA,
+      fitBoundsOptions: {padding: PENINSULA_PADDING},
       attributionControl: {compact: true},
     });
     mapRef.current = map;

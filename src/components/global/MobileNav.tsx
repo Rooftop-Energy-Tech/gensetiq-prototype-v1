@@ -89,7 +89,7 @@ const ITEMS: Array<MobileNavItem> = [
   // The fleet's service standing — which set is due, and Log service on its card. On
   // the bar because a service is logged standing beside the machine. At this width
   // its Due list is cards and its History two-line rows, not the desktop tables.
-  {label: 'Service', icon: WrenchIcon, link: '/service', search: {tab: 'due'}},
+  {label: 'Service', icon: WrenchIcon, link: '/service', search: {tab: 'due', sort: 'standing'}},
 ];
 
 export const MobileNav = () => (

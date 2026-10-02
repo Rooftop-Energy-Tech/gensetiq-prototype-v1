@@ -1,4 +1,4 @@
-import type {Deployment, DeploymentMembership} from '../types/deployment.type';
+import type {DeploymentBooking, DeploymentMembership} from '../types/deployment.type';
 
 /**
  * `BRF9540`'s postings — **the only measured records in this prototype**.
@@ -15,8 +15,7 @@ import type {Deployment, DeploymentMembership} from '../types/deployment.type';
  * The **windows, the tank readings and the loads** are real. The **yards** are real
  * names with placename coordinates rather than surveyed ones, and two postings have
  * no location on the record at all — those carry `siteId: null`, which is the record
- * saying so rather than the app inventing a yard. The **lorry plates are absent**
- * for the same reason: the export knows what the machine did, not what carried it.
+ * saying so rather than the app inventing a yard.
  *
  * ## The tank figures are two different kinds of fact
  *
@@ -206,7 +205,7 @@ const id = (job: RealJob): string => `real-job-${job.index}`;
  * honest value is "no yard on file" — `locationLabel` carries that in words, and an
  * empty id matches no site, which is what stops the site pages claiming this job.
  */
-export const REAL_DEPLOYMENTS: ReadonlyArray<Deployment> = JOBS.map((job) => ({
+export const REAL_DEPLOYMENTS: ReadonlyArray<DeploymentBooking> = JOBS.map((job) => ({
   id: id(job),
   // Filled by the dealer, with every other job, so the register numbers read in one
   // sequence rather than this machine's eight carrying a scheme of their own.
@@ -219,15 +218,11 @@ export const REAL_DEPLOYMENTS: ReadonlyArray<Deployment> = JOBS.map((job) => ({
 
 /**
  * One membership per posting — this machine, alone, on every one of them.
- *
- * `lorryPlate` is empty rather than dealt: the eight other fields here are measured
- * and a hashed plate beside them would be the one invented fact on the record.
  */
 export const REAL_MEMBERSHIPS: ReadonlyArray<DeploymentMembership> = JOBS.map((job) => ({
   id: `${id(job)}:${REAL_GENSET_ID}`,
   deploymentId: id(job),
   gensetId: REAL_GENSET_ID,
-  lorryPlate: '',
   startFuelLitres: job.startFuelLitres,
   endFuelLitres: job.endFuelLitres,
   collectedAt: null,

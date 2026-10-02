@@ -18,6 +18,7 @@ import type {Genset} from '../../types/genset.type';
 import {RunsRangeControl} from './RunsRangeControl';
 import {RunsTimeline} from './RunsTimeline';
 import type {TimelineLane} from './RunsTimeline';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
 
 /**
  * The runs tab, for a genset or for a site.
@@ -295,7 +296,7 @@ export const RunsPanel = ({
                         params={{gensetId: genset.id}}
                         className="text-secondary underline-offset-4 hover:text-primary hover:underline"
                       >
-                        {genset.tag}
+                        {gensetLabel(genset)}
                       </Link>
                     </td>
                   )}

@@ -1,11 +1,11 @@
 import {Link} from '@tanstack/react-router';
-import {useEffect} from 'react';
+import {Fragment, useEffect} from 'react';
 import type {KeyboardEvent, RefObject} from 'react';
 import {ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
-import {amount, dayMonth, duration, stampDate} from '@/lib/format';
+import {amount, duration, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {DeploymentRow} from '../data/feed';
 import type {DeploymentSort, DeploymentSortDirection} from '../types/view.type';
@@ -16,16 +16,16 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  *
  * ## The columns, and the two that left with the model
  *
- * `Deployment`, `Status`, `Gensets`, `Window`, `On load`, `Fuel burned`.
+ * `Deployment`, `State`, `Status`, `Gensets`, `Window`, `On load`, `Fuel burned`.
  *
  * `Genset` was the leading column while a row *was* one machine's posting. A job has
- * one to three sets on it, so the machine becomes a count with the tags behind it and
+ * one to three sets on it, so the machine becomes a count with the plates behind it and
  * the reference takes the lead: `DEP-0042` over the yard it is at, which is the pair
  * an operations room says out loud.
  *
  * `Lorry` went with it. A plate belongs to a machine rather than to a job, and a job
  * with three sets arrived on three of them — one column cannot hold that honestly.
- * It stays searchable, and it is on the job's own page against each machine.
+ * It is on the job's own page against each machine.
  *
  * Energy stays out, for the reason it was left out before: it is the same job's work
  * stated a second way, nobody dispatches against it, and the preview panel states it
@@ -33,7 +33,7 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  *
  * ## Which columns are sortable and which are not
  *
- * Five of the six, and the odd one out is `Status`, which is the strip's three chips.
+ * Six of the seven, and the odd one out is `Status`, which is the strip's three chips.
  * A header that is not a control is drawn as plain text rather than as a button with
  * nothing behind it.
  *
@@ -41,30 +41,48 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  * line under the window, where it already was.
  */
 const COLUMNS = [
-  {label: 'Deployment', width: '24%', sort: 'reference'},
-  {label: 'Status', width: '12%', sort: undefined},
-  {label: 'Gensets', width: '20%', sort: 'genset'},
-  {label: 'Window', width: '20%', sort: 'started'},
-  {label: 'On load', width: '12%', sort: 'duration'},
-  {label: 'Fuel burned', width: '12%', sort: 'fuel'},
+  {label: 'Deployment', sort: 'reference', beside: true},
+  // Where the yard is, beside the job — the Gensets table's `State`, read off the
+  // site's position (`stateNameAt`), so it agrees with the map and the State filter.
+  {label: 'State', sort: 'location', beside: true},
+  {label: 'Status', sort: undefined, beside: true},
+  {label: 'Gensets', sort: 'genset', beside: true},
+  // `beside: false` — off in the split view (2026-09-29), kept on the full-width
+  // list, as `GensetsTable` drops `Location`. Beside the map the row is read to find
+  // the job; its dates and what it cost are in the preview panel a click opens.
+  {label: 'Dates', sort: 'started', beside: false},
+  {label: 'Run hours', sort: 'duration', beside: false},
+  {label: 'Fuel burned', sort: 'fuel', beside: false},
 ] as const satisfies ReadonlyArray<{
   label: string;
-  width: string;
   sort: DeploymentSort | undefined;
+  /** Kept in the split view. */
+  beside: boolean;
 }>;
 
 /**
- * The width below which this table scrolls sideways rather than squeezing.
+ * **The gaps between columns are equal, and together they fill the table** — the
+ * Gensets table's layout, and see `GensetsTable` for how: each column is held to its
+ * widest entry, and an empty spacer cell between every two columns takes an equal
+ * share of what is left. All seven columns stay beside the map; where they outgrow the
+ * space, the gaps close to the cells' padding and the table scrolls sideways.
  *
- * Six columns rather than the sites list's three, and two of them hold figures with
- * units — so the floor is higher than that table's 600px. Below it the row's own
- * scroll container takes over, which is the honest failure: a table you can push
- * sideways, rather than `1,240 L` printed over a date.
+ * The plates under the count are capped, so one long list cannot take every other
+ * gap's share. The address is not in the table (2026-09-29) — it is in the preview
+ * panel a row click opens; the `State` column says where at a glance.
  */
-const TABLE_MIN_WIDTH = 'min-w-[820px]';
+const CELL = 'w-px px-1.5 whitespace-nowrap';
+
+/** The stretch between two columns. Layout, so hidden from assistive tech. */
+const Gap = ({header = false}: {header?: boolean}) =>
+  header ? (
+    <th aria-hidden="true" className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas p-0" />
+  ) : (
+    <td aria-hidden="true" className="h-13 border-b border-subtle p-0" />
+  );
 
 /**
- * "12 Aug – ongoing" / "3 Aug – 14 Aug" / "from 2 Oct". The job's span, tersely.
+ * "12/08/2026 – ongoing" / "03/08/2026 – 14/08/2026" / "from 02/10/2026". The span.
  *
  * A planned job reads *from* its start rather than as a range, because the range is
  * the thing about it that has not happened: what a dispatcher needs off this row is
@@ -72,9 +90,9 @@ const TABLE_MIN_WIDTH = 'min-w-[820px]';
  */
 const windowLabel = (row: DeploymentRow): string => {
   const {startsAt, endsAt} = row.deployment;
-  if (row.state === 'planned') return `from ${dayMonth(startsAt)}`;
-  if (endsAt === null) return `${dayMonth(startsAt)} – ongoing`;
-  return `${dayMonth(startsAt)} – ${dayMonth(endsAt)}`;
+  if (row.state === 'planned') return `from ${stampDate(startsAt)}`;
+  if (endsAt === null) return `${stampDate(startsAt)} – ongoing`;
+  return `${stampDate(startsAt)} – ${stampDate(endsAt)}`;
 };
 
 /**
@@ -89,6 +107,8 @@ const windowDetail = (row: DeploymentRow, now: number): string => {
 
 type DeploymentsTableProps = {
   rows: Array<DeploymentRow>;
+  /** The table has the screen to itself. `false` beside the map, where three columns go. */
+  wide: boolean;
   /** One clock reading for the whole table — see `DeploymentPage`. */
   now: number;
   selectedId: string | undefined;
@@ -109,6 +129,7 @@ type DeploymentsTableProps = {
 
 export const DeploymentsTable = ({
   rows,
+  wide,
   now,
   selectedId,
   onSelect,
@@ -144,26 +165,18 @@ export const DeploymentsTable = ({
     onSelect(id);
   };
 
+  const columns = COLUMNS.filter((column) => wide || column.beside);
+
   return (
     <div ref={scrollRef} className="h-full overflow-auto">
-      <table
-        className={cn(
-          'w-full table-fixed border-separate border-spacing-0 text-sm',
-          TABLE_MIN_WIDTH,
-        )}
-      >
+      <table className="w-full border-separate border-spacing-0 text-sm">
         <caption className="sr-only">
           Deployments, the ones standing first, with each job's window, the machines on
           it, and what it cost
         </caption>
-        <colgroup>
-          {COLUMNS.map((column) => (
-            <col key={column.label} style={{width: column.width}} />
-          ))}
-        </colgroup>
         <thead>
           <tr>
-            {COLUMNS.map((column) => {
+            {columns.map((column, index) => {
               const active = column.sort !== undefined && column.sort === sort;
               const Icon = !active
                 ? ChevronsUpDownIcon
@@ -172,8 +185,9 @@ export const DeploymentsTable = ({
                   : ArrowDownIcon;
 
               return (
+                <Fragment key={column.label}>
+                {index > 0 && <Gap header />}
                 <th
-                  key={column.label}
                   scope="col"
                   // `none` on the sortable-but-inactive headers, and *absent* on the
                   // three that are not controls — the attribute is what tells a
@@ -188,7 +202,13 @@ export const DeploymentsTable = ({
                           : 'descending'
                         : 'none'
                   }
-                  className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas px-2 text-left font-medium whitespace-nowrap text-secondary"
+                  className={cn(
+                    CELL,
+                    'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary',
+                    // The hover arrow sits in the next gap; the last column has none,
+                    // so it keeps room of its own — `GensetsTable`'s fix.
+                    index === columns.length - 1 && 'pr-6',
+                  )}
                 >
                   {column.sort === undefined ? (
                     column.label
@@ -197,7 +217,7 @@ export const DeploymentsTable = ({
                       type="button"
                       onClick={() => onSortChange(column.sort)}
                       className={cn(
-                        'group/sort -mx-1 flex cursor-pointer items-center gap-1 rounded-sm px-1 py-0.5',
+                        'group/sort relative -mx-1 flex cursor-pointer items-center gap-1 rounded-sm px-1 py-0.5',
                         'transition-colors outline-none hover:text-primary',
                         'focus-visible:ring-2 focus-visible:ring-outline',
                         active && 'text-primary',
@@ -208,7 +228,7 @@ export const DeploymentsTable = ({
                         className={cn(
                           'size-3.5 shrink-0 transition-opacity',
                           !active &&
-                            'opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100',
+                            'absolute top-1/2 left-full -translate-y-1/2 opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100',
                         )}
                         aria-hidden="true"
                       />
@@ -220,6 +240,7 @@ export const DeploymentsTable = ({
                     </button>
                   )}
                 </th>
+                </Fragment>
               );
             })}
           </tr>
@@ -245,7 +266,7 @@ export const DeploymentsTable = ({
                 {/* The row selects into the preview panel and the links navigate
                     — the registers' split. `stopPropagation` on each, or opening a
                     job would also move the panel onto a row we are leaving. */}
-                <td className="h-13 truncate border-b border-subtle p-2 font-medium">
+                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 font-medium')}>
                   <Link
                     to="/deployments/$deploymentId"
                     params={{deploymentId: row.deployment.id}}
@@ -254,12 +275,13 @@ export const DeploymentsTable = ({
                   >
                     {row.deployment.reference}
                   </Link>
-                  {/* The yard, as a caption under the reference. Not a link since
-                      the site pages went — see `DeploymentDetailPanel`. */}
-                  <span className="block truncate text-xs text-tertiary">{row.siteName}</span>
                 </td>
-
-                <td className="h-13 border-b border-subtle p-2">
+                <Gap />
+                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
+                  {row.stateName ?? '—'}
+                </td>
+                <Gap />
+                <td className={cn(CELL, 'h-13 border-b border-subtle py-2')}>
                   {(() => {
                     const meta = DEPLOYMENT_STATE_META[row.state];
                     const Icon = meta.icon;
@@ -272,11 +294,12 @@ export const DeploymentsTable = ({
                   })()}
                 </td>
 
-                {/* The count leads and the tags sit under it, because three tags do
-                    not fit a 20% column and "three sets" is the fact the row is
+                {/* The count leads and the plates sit under it, because three plates
+                    do not fit one line and "three sets" is the fact the row is
                     scanned for. The full list is one hover away, and it is on the
                     job's own page for anybody who needs to click a machine. */}
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
+                <Gap />
+                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="block cursor-help truncate">
@@ -287,64 +310,63 @@ export const DeploymentsTable = ({
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-64">
                       {row.members.length === 0
-                        ? 'No machines on this job yet'
+                        ? 'No machines on this deployment yet'
                         : row.members
                             .map(
                               (member) =>
-                                `${member.tag}${member.collected ? ' (collected)' : ''}`,
+                                `${member.plate}${member.collected ? ' (collected)' : ''}`,
                             )
                             .join(' · ')}
                     </TooltipContent>
                   </Tooltip>
-                  <span className="block truncate text-xs text-tertiary">
-                    {row.members.map((member) => member.tag).join(', ')}
+                  <span className="block max-w-[8rem] truncate text-xs text-tertiary">
+                    {row.members.map((member) => member.plate).join(', ')}
                   </span>
                 </td>
 
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  <span
-                    className="block truncate"
-                    title={`${stampDate(row.deployment.startsAt)}${
-                      row.deployment.endsAt === null
-                        ? ''
-                        : ` to ${stampDate(row.deployment.endsAt)}`
-                    }`}
-                  >
-                    {windowLabel(row)}
-                  </span>
-                  <span className="block truncate text-xs text-tertiary">
-                    {windowDetail(row, now)}
-                  </span>
-                </td>
-
-                {/* A planned job has nothing to report: no runs, no litres. A dash
-                    rather than `0 h`, which would read as a job that stood and did
-                    nothing. */}
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {row.state === 'planned' ? (
-                    <span className="text-tertiary">—</span>
-                  ) : (
-                    <>
+                {wide && (
+                  <>
+                    <Gap />
+                    <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
                       <span
                         className="block truncate"
-                        title={`${row.totals.starts} start${row.totals.starts === 1 ? '' : 's'} inside this deployment`}
+                        title={`${stampDate(row.deployment.startsAt)}${
+                          row.deployment.endsAt === null
+                            ? ''
+                            : ` to ${stampDate(row.deployment.endsAt)}`
+                        }`}
                       >
-                        {amount(row.totals.runtimeHours, 'hrs')}
+                        {windowLabel(row)}
                       </span>
                       <span className="block truncate text-xs text-tertiary">
-                        {row.totals.starts} start{row.totals.starts === 1 ? '' : 's'}
+                        {windowDetail(row, now)}
                       </span>
-                    </>
-                  )}
-                </td>
+                    </td>
 
-                <td className="h-13 truncate border-b border-subtle p-2 text-primary">
-                  {row.state === 'planned' ? (
-                    <span className="text-tertiary">—</span>
-                  ) : (
-                    amount(row.totals.fuelBurnedLitres, 'L')
-                  )}
-                </td>
+                    {/* A planned job has nothing to report: no runs, no litres. A dash
+                        rather than `0 h`, which would read as a job that stood and did
+                        nothing. */}
+                    <Gap />
+                    <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
+                      {row.state === 'planned' ? (
+                        <span className="text-tertiary">—</span>
+                      ) : (
+                        // Hours alone: the start count under it was taken off on
+                        // 2026-09-29 — a job is judged by how long it ran, not how often.
+                        amount(row.totals.runtimeHours, 'hrs')
+                      )}
+                    </td>
+
+                    <Gap />
+                    <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
+                      {row.state === 'planned' ? (
+                        <span className="text-tertiary">—</span>
+                      ) : (
+                        amount(row.totals.fuelBurnedLitres, 'L')
+                      )}
+                    </td>
+                  </>
+                )}
               </tr>
             );
           })}

@@ -1,11 +1,18 @@
 import maplibregl from 'maplibre-gl';
-import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
+import type {GeoJSONSource, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
-import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {
+  MALAYSIA_STATE_CLUSTER_PROPERTIES,
+  PENINSULA,
+  PENINSULA_PADDING,
+  malaysiaStateAt,
+} from '@/lib/geo/malaysiaStates';
 import {attachStateHover} from '@/lib/geo/stateHover';
 import type {StateHoverHandle} from '@/lib/geo/stateHover';
+import {locateControl} from '@/lib/locateControl';
+import {pingImage} from '@/lib/mapPing';
 import {lightToken} from '@/styles/colors';
 import type {DeploymentRow} from '../data/feed';
 
@@ -42,29 +49,31 @@ const LAYER = {
   clusterRing: 'deployments-cluster-ring',
   clusterCore: 'deployments-cluster-core',
   clusterCount: 'deployments-cluster-count',
+  /** A deployed job's ping — `pingImage`, as the gensets map's running pins. */
+  pointPing: 'deployments-point-ping',
   point: 'deployments-point',
 } as const;
 
 const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
-
-/** Malaysia, before any data has been fitted — `SitesMap`'s centre, for its reason. */
-const INITIAL_CENTER: LngLatLike = [109.5, 3.8];
-const INITIAL_ZOOM = 5;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
 /** The three states, and the one place their colours are written down. */
 const STATE_COLOR = {
   active: lightToken['severity-ok'],
-  // The brand accent, for the reason `stateMeta.ts` gives: a booked job is not a
-  // condition, so it does not take a severity colour.
-  planned: lightToken.brand,
-  // A literal rather than `lightToken.tertiary`, which is the text scale's 40%
-  // black-on-white: an alpha colour over a basemap takes the roads' own colour
-  // through it, and a pin that changes hue as it crosses a motorway is not a
-  // category any more. This is that grey resolved against the canvas.
-  completed: '#9A9DA6',
+  // Deployed's green — the pin is hollow, which is what marks it as not started.
+  planned: lightToken['severity-ok'],
+  // Offline's slate, as the badge and the chips draw it. Opaque, which matters: an
+  // alpha grey over a basemap takes the roads' colour through it.
+  completed: lightToken['status-offline'],
 } as const;
+
+/**
+ * A booked job's slice of a cluster ring. A ring has no outline to go hollow with,
+ * so it takes a pale tint of Deployed's green instead of the green itself, which
+ * would run the two states together into one arc. Green 300 on the Tailwind scale.
+ */
+const PLANNED_RING = '#86EFAC';
 
 type DeploymentsMapProps = {
   rows: Array<DeploymentRow>;
@@ -79,6 +88,17 @@ type DeploymentsMapProps = {
    * stays drawn; see `GensetsMap` for why framing and filtering are kept apart.
    */
   focusIds?: Array<string>;
+  /**
+   * A click on a state — on the basemap inside it, not on a pin or a bubble. The
+   * register filters its list to that state; the map frames it either way.
+   */
+  onStateSelect?: (stateId: string) => void;
+  /**
+   * Keep the current frame rather than fitting to the feed — `GensetsMap`'s prop, for
+   * its reason: the filter a state click sets would otherwise re-fit the map to the
+   * state's pins a moment later and undo the state's own frame.
+   */
+  holdFrame?: boolean;
 };
 
 /**
@@ -183,6 +203,8 @@ export const DeploymentsMap = ({
   onDeselect,
   panelInset,
   focusIds,
+  onStateSelect,
+  holdFrame,
 }: DeploymentsMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -195,6 +217,10 @@ export const DeploymentsMap = ({
   onSelectRef.current = onSelect;
   const onDeselectRef = useRef(onDeselect);
   onDeselectRef.current = onDeselect;
+  const onStateSelectRef = useRef(onStateSelect);
+  onStateSelectRef.current = onStateSelect;
+  const holdFrameRef = useRef(holdFrame);
+  holdFrameRef.current = holdFrame;
 
   // The postings currently drawn, read from inside the state hover's count — so the
   // count follows the register's filters rather than reporting every job ever made.
@@ -215,8 +241,8 @@ export const DeploymentsMap = ({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      bounds: PENINSULA,
+      fitBoundsOptions: {padding: PENINSULA_PADDING},
       attributionControl: {compact: true},
     });
     mapRef.current = map;
@@ -226,6 +252,8 @@ export const DeploymentsMap = ({
     }
 
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
+
+    map.addControl(locateControl(), 'bottom-right');
 
     // `style.load`, not `load` — see `SitesMap`: MapLibre defers `load` until the map
     // has painted a frame, which a backgrounded tab never does.
@@ -296,6 +324,23 @@ export const DeploymentsMap = ({
         paint: {'text-color': lightToken.primary},
       });
 
+      map.addImage('deployed-ping', pingImage(map, STATE_COLOR.active), {
+        pixelRatio: window.devicePixelRatio || 1,
+      });
+      map.addLayer({
+        id: LAYER.pointPing,
+        type: 'symbol',
+        source: SOURCE,
+        filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'state'], 'active']],
+        layout: {
+          'icon-image': 'deployed-ping',
+          // The image is drawn for a 9px pin; these grow with the machines on them.
+          'icon-size': ['/', POINT_RADIUS, 9],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+      });
+
       map.addLayer({
         id: LAYER.point,
         type: 'circle',
@@ -303,23 +348,27 @@ export const DeploymentsMap = ({
         filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': POINT_RADIUS,
-          'circle-color': stateColor(),
+          // A booked job is hollow — a green ring, nothing filled in, because
+          // nothing is standing there yet.
+          'circle-color': ['case', ['==', ['get', 'state'], 'planned'], lightToken.canvas, stateColor()],
           // A closed job draws paler than a standing one, so a stack of history
           // reads as a background the live pin sits on rather than as a crowd
-          // competing with it. A booked job is paler still: nothing is there yet.
-          'circle-opacity': [
+          // competing with it.
+          'circle-opacity': ['case', ['==', ['get', 'state'], 'completed'], 0.8, 1],
+          'circle-stroke-width': [
             'case',
-            ['==', ['get', 'state'], 'active'],
-            1,
+            ['get', 'selected'],
+            3,
             ['==', ['get', 'state'], 'planned'],
-            0.65,
-            0.8,
+            2.5,
+            2,
           ],
-          'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
           'circle-stroke-color': [
             'case',
             ['get', 'selected'],
             lightToken.brand,
+            ['==', ['get', 'state'], 'planned'],
+            STATE_COLOR.planned,
             lightToken.primary,
           ],
         },
@@ -340,10 +389,11 @@ export const DeploymentsMap = ({
             (row) =>
               malaysiaStateAt(row.longitude as number, row.latitude as number) === stateId,
           ).length,
-        countLabel: (count) => `${count} ${count === 1 ? 'posting' : 'postings'}`,
+        countLabel: (count) => `${count} ${count === 1 ? 'deployment' : 'deployments'}`,
         // The same frame the fleet gets, so a clicked state sits where a fitted fleet
         // would — clear of the panel, if the panel is still there.
         fitPadding: () => ({...FIT_PADDING, right: FIT_PADDING.right + panelInsetRef.current}),
+        onStateClick: (stateId) => onStateSelectRef.current?.(stateId),
       });
 
       loadedRef.current = true;
@@ -404,7 +454,7 @@ export const DeploymentsMap = ({
       clusterLayerId: LAYER.clusterCore,
       segmentsFor: (properties) =>
         (['active', 'planned', 'completed'] as const).map((state) => ({
-          color: STATE_COLOR[state],
+          color: state === 'planned' ? PLANNED_RING : STATE_COLOR[state],
           count: clusterCount(properties, stateKey(state)),
         })),
       opacityFor: (properties) => stateHover?.clusterOpacity(properties) ?? 1,
@@ -448,6 +498,7 @@ export const DeploymentsMap = ({
   useEffect(() => {
     const map = mapRef.current;
     if (map === null) return;
+    if (holdFrameRef.current === true) return;
 
     const drawable = placed(rows);
     if (drawable.length === 0) return;

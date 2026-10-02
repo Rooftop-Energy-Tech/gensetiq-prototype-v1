@@ -61,9 +61,9 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
               <thead>
                 <tr className="border-b border-subtle text-xs text-secondary">
                   <Th>Deployment</Th>
-                  <Th>Window</Th>
+                  <Th>Dates</Th>
                   <Th align="right">Duration</Th>
-                  <Th align="right">On load</Th>
+                  <Th align="right">Run hours</Th>
                   <Th align="right">Starts</Th>
                   <Th align="right">Energy</Th>
                   <Th align="right">Fuel burned</Th>
@@ -110,7 +110,7 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
                           search={{window: DEFAULT_RUN_WINDOW, dep: deployment.id}}
                           className="block text-xs text-tertiary underline-offset-4 hover:text-secondary hover:underline"
                         >
-                          {deployment.locationLabel} · {membership.lorryPlate}
+                          {deployment.locationLabel}
                         </Link>
                       </td>
 

@@ -1,11 +1,18 @@
 import maplibregl from 'maplibre-gl';
-import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
+import type {GeoJSONSource, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
-import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {
+  MALAYSIA_STATE_CLUSTER_PROPERTIES,
+  PENINSULA,
+  PENINSULA_PADDING,
+  malaysiaStateAt,
+} from '@/lib/geo/malaysiaStates';
 import {attachStateHover} from '@/lib/geo/stateHover';
 import type {StateHoverHandle} from '@/lib/geo/stateHover';
+import {locateControl} from '@/lib/locateControl';
+import {pingImage} from '@/lib/mapPing';
 import {lightToken} from '@/styles/colors';
 import {RUN_STATE_META} from './runStateMeta';
 import {RUN_STATES, gensetLabel} from '../types/genset.type';
@@ -26,6 +33,8 @@ const LAYER = {
   clusterCore: 'gensets-cluster-core',
   clusterCount: 'gensets-cluster-count',
   point: 'gensets-point',
+  /** The running pins' ping — see `pingImage`. Drawn under the pin, never clickable. */
+  pointPing: 'gensets-point-ping',
 } as const;
 
 /**
@@ -35,15 +44,6 @@ const LAYER = {
  */
 const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
 
-/**
- * Malaysia, for the moment before any data has been fitted.
- *
- * Centred on the South China Sea rather than on either landmass, because the
- * estate spans both: a peninsular centre puts Kapit and Belaga off the right edge
- * on arrival, and a Bornean one loses the Klang Valley cluster the other way.
- */
-const INITIAL_CENTER: LngLatLike = [109.5, 3.8];
-const INITIAL_ZOOM = 5;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
@@ -214,8 +214,8 @@ export const GensetsMap = ({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      bounds: PENINSULA,
+      fitBoundsOptions: {padding: PENINSULA_PADDING},
       attributionControl: {compact: true},
     });
     mapRef.current = map;
@@ -228,6 +228,8 @@ export const GensetsMap = ({
     }
 
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
+
+    map.addControl(locateControl(), 'bottom-right');
 
     // `style.load`, not `load`: MapLibre defers `load` until the style has
     // parsed *and* the map has painted a frame. A hidden or backgrounded tab
@@ -316,6 +318,23 @@ export const GensetsMap = ({
           'text-allow-overlap': true,
         },
         paint: {'text-color': lightToken.primary},
+      });
+
+      map.addImage('running-ping', pingImage(map, RUN_STATE_META.RUNNING.mapColor), {
+        pixelRatio: window.devicePixelRatio || 1,
+      });
+      map.addLayer({
+        id: LAYER.pointPing,
+        type: 'symbol',
+        source: SOURCE,
+        filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'runState'], 'RUNNING']],
+        layout: {
+          'icon-image': 'running-ping',
+          // A selected pin is half as big again, and so is its ring.
+          'icon-size': ['case', ['get', 'selected'], 1.5, 1],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
       });
 
       map.addLayer({

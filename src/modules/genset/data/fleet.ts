@@ -177,6 +177,7 @@ const buildActivity = (seed: FleetSeed, now: number): Array<GensetActivity> => {
 };
 
 const buildFleet = (): Array<Genset> => {
+
   const now = Date.now();
 
   return FLEET_SEED.map((seed) => ({
@@ -224,3 +225,4 @@ const SEEDED_BY_ID = new Map(GENSETS.map((genset) => [genset.id, genset]));
  * `locationLabel` and the coordinates.
  */
 export const seededGenset = (gensetId: string): Genset | undefined => SEEDED_BY_ID.get(gensetId);
+

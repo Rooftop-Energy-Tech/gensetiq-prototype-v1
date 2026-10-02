@@ -3,6 +3,7 @@ import {isOpen, runElapsedMs} from '../types/run.type';
 import type {GensetRun} from '../types/run.type';
 import {countsInRange} from '../types/runsView.type';
 import type {RunRange, RunTotals} from '../types/runsView.type';
+import {numericDate} from '@/lib/format';
 
 /**
  * The run log as a file somebody bills against.
@@ -27,21 +28,6 @@ import type {RunRange, RunTotals} from '../types/runsView.type';
  */
 
 const HOUR = 3_600_000;
-
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const;
 
 const pad = (value: number): string => String(value).padStart(2, '0');
 
@@ -77,11 +63,8 @@ const isoLocal = (at: number): string => {
  */
 const lastInstant = (exclusiveEnd: number): number => exclusiveEnd - 1;
 
-/** `16 Aug 2026` — for the prose lines in the header block. */
-const readable = (at: number): string => {
-  const day = new Date(at);
-  return `${day.getDate()} ${MONTHS[day.getMonth()]} ${day.getFullYear()}`;
-};
+/** `16/08/2026` — for the prose lines in the header block. */
+const readable = (at: number): string => numericDate(at);
 
 /**
  * One CSV field, quoted only when it has to be.

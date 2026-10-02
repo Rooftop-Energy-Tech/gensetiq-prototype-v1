@@ -3,10 +3,12 @@ import {useSyncExternalStore} from 'react';
 import {siteSeed} from '@/modules/site/data/siteSeed';
 import type {
   Deployment,
+  DeploymentBooking,
   DeploymentMembership,
+  DeploymentParticulars,
   GensetPosting,
 } from '../types/deployment.type';
-import {deploymentState, windowsOverlap} from '../types/deployment.type';
+import {NO_PARTICULARS, deploymentState, windowsOverlap} from '../types/deployment.type';
 import {seededDeployments, seededMemberships} from './seed';
 
 /**
@@ -117,7 +119,8 @@ const applyPatch = (state: Patch): Snapshot => {
     .filter((deployment) => !deleted.has(deployment.id))
     .map((deployment) => {
       const edit = state.edited[deployment.id];
-      return edit === undefined ? deployment : {...deployment, ...edit};
+      // A deployment stored before particulars existed (2026-09-30) reads as empty.
+      return {...NO_PARTICULARS, ...deployment, ...edit};
     });
 
   const live = new Set(deployments.map((deployment) => deployment.id));
@@ -244,7 +247,10 @@ export const plannedPostings = (gensetId: string, now: number): Array<GensetPost
  * is not an answer a reader can act on, and "on DEP-0117 at Kapit until the 14th"
  * is. A machine already on the candidate job is not a conflict with itself.
  */
-export const conflictFor = (gensetId: string, candidate: Deployment): Deployment | undefined => {
+export const conflictFor = (
+  gensetId: string,
+  candidate: DeploymentBooking,
+): Deployment | undefined => {
   const held = gensetPostings(gensetId);
   return held.find(
     (posting) =>
@@ -264,12 +270,20 @@ const nowIso = () => new Date().toISOString();
  * Highest seeded number plus one, so a reader's job reads as the next one in the
  * book rather than as `DEP-LOCAL-3`.
  */
-const nextReference = (): string => {
+export const nextReference = (): string => {
   const numbers = current().deployments
     .map((deployment) => Number.parseInt(deployment.reference.replace(/\D/g, ''), 10))
     .filter((value) => Number.isFinite(value));
   const next = numbers.length === 0 ? 1 : Math.max(...numbers) + 1;
   return `DEP-${String(next).padStart(4, '0')}`;
+};
+
+/** Whether another deployment already goes by this reference, ignoring case. */
+export const referenceTaken = (reference: string, exceptId?: string): boolean => {
+  const wanted = reference.trim().toUpperCase();
+  return current().deployments.some(
+    (deployment) => deployment.id !== exceptId && deployment.reference.toUpperCase() === wanted,
+  );
 };
 
 export type OpenJob = {
@@ -279,6 +293,8 @@ export type OpenJob = {
   /** ISO 8601, or `null` for a job with no agreed end. */
   endsAt: string | null;
   reference?: string;
+  /** Customer, contacts, notes and pin, where the form collected them. */
+  particulars?: Partial<DeploymentParticulars>;
 };
 
 /**
@@ -298,23 +314,34 @@ export const createDeployment = (job: OpenJob): Deployment => {
     locationLabel: seed?.locationLabel ?? 'Unknown',
     startsAt: job.startsAt,
     endsAt: job.endsAt,
+    ...NO_PARTICULARS,
+    ...job.particulars,
   };
+  if (deployment.pin !== null) deployment.locationLabel = deployment.pin.locationLabel;
 
   write({...patch, created: [...patch.created, deployment]});
   return deployment;
 };
 
-/** Change a job's reference, yard or window. */
+/** Change a deployment's reference, site, pin, window, customer, contacts or notes. */
 export const updateDeployment = (id: string, edit: Partial<Deployment>) => {
   const deployment = deploymentById(id);
   if (deployment === undefined) return;
 
   // The placename travels with the yard, because it is copied at the time rather
   // than read from the site: a job moved to another yard is a job at that yard.
+  // Picking a site also drops any pin, since the site's own position is the answer.
+  // A pin brings its own placename.
   const withLocation =
-    edit.siteId === undefined
-      ? edit
-      : {...edit, locationLabel: siteSeed(edit.siteId)?.locationLabel ?? deployment.locationLabel};
+    edit.pin !== undefined && edit.pin !== null
+      ? {...edit, locationLabel: edit.pin.locationLabel}
+      : edit.siteId === undefined
+        ? edit
+        : {
+            ...edit,
+            pin: null,
+            locationLabel: siteSeed(edit.siteId)?.locationLabel ?? deployment.locationLabel,
+          };
 
   write({
     ...patch,
@@ -346,7 +373,6 @@ export const addGenset = (deploymentId: string, gensetId: string): PutResult => 
     id,
     deploymentId,
     gensetId,
-    lorryPlate: 'TBD',
     // A machine put on a job by hand has no metered arrival, so the tank reads zero
     // until the set actually turns up. Inventing a level here would put a figure on
     // the fuel ledger that no instrument produced.

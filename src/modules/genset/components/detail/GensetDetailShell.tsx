@@ -120,8 +120,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                   {posting !== undefined && (
                     <span>
                       On {posting.deployment.reference} ·{' '}
-                      {stampDate(posting.deployment.startsAt)} ·{' '}
-                      {posting.membership.lorryPlate}
+                      {stampDate(posting.deployment.startsAt)}
                     </span>
                   )}
                   <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>

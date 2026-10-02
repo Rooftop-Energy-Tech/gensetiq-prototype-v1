@@ -281,6 +281,36 @@ export type BrandFleetSeed = {
   staleMinutes: number;
 };
 
+/**
+ * How an estate's operator books and crews a deployment (2026-10-01), where it has
+ * its own vocabulary for it. The utility estate's work orders arrive as ERQ
+ * (emergency) or PRQ (planned) requests, or are standby, and each lorry goes out
+ * with a named crew; the carrier estate has neither, and its form does not ask.
+ *
+ * The feature is the product's: job type and crew are one model on every estate.
+ * What is the estate's is the list of types, the roles a crew is made of, and the
+ * people on the roster, the same way `customers` is the estate's.
+ */
+export type DeploymentWork = {
+  /**
+   * Every reference on the estate is a request type's three letters and this many
+   * digits, `ERQ0065692`, with no separator, so one shape reads down the list.
+   */
+  referenceDigits: number;
+  /**
+   * Picked on every deployment. A type with a `prefix` is a request type: its
+   * numbers are the only references allowed (ERQ, PRQ), and a typed `ERQ0065692`
+   * sets it. A type without one (Standby) is a way of working a request, so it sits
+   * on an ERQ or PRQ number and the ID does not change it. A type only one customer
+   * issues names it (`clientId`), and the form fills it in.
+   */
+  jobTypes: ReadonlyArray<{id: string; label: string; prefix?: string; clientId?: string}>;
+  /** The roles on a lorry's crew, in the order a report lists them. */
+  crewRoles: ReadonlyArray<string>;
+  /** The crew a name can be picked from. A name typed that is not here is added. */
+  crew: ReadonlyArray<string>;
+};
+
 export type BrandDataset = {
   id: DatasetId;
   /** For error messages and the integrity check. */
@@ -325,6 +355,8 @@ export type BrandDataset = {
   defaultSiteId: string;
   /** The genset the app opens on, lowercased tag. */
   defaultGensetId: string;
+  /** Job types and crew, where this estate's deployments carry them. */
+  work?: DeploymentWork;
 };
 
 /**

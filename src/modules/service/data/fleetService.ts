@@ -1,13 +1,15 @@
 import {useMemo} from 'react';
 
+import {numericDate} from '@/lib/format';
 import {malaysiaStateAt, malaysiaStateName} from '@/lib/geo/malaysiaStates';
 import {gensetStateName} from '@/modules/genset/data/gensetState';
 import {engineHoursOf, scheduleOf, useServiceRecords} from '@/modules/genset/data/services';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
 import type {Genset} from '@/modules/genset/types/genset.type';
 import {calendarDueDate, serviceStatus} from '@/modules/genset/types/service.type';
 import type {ServiceCounter, ServiceRecord, ServiceStatus} from '@/modules/genset/types/service.type';
 import {siteSeed} from '@/modules/site/data/siteSeed';
-import type {ServiceStanding} from '../types/view.type';
+import type {ServiceSort, ServiceSortDirection, ServiceStanding} from '../types/view.type';
 
 /**
  * One genset's line on the fleet service page.
@@ -68,6 +70,37 @@ export const useFleetService = (fleet: Array<Genset>): Array<FleetServiceRow> =>
   }, [fleet, records]);
 };
 
+/**
+ * What each Due-table header sorts by. `undefined` is a set with nothing to sort on
+ * (never serviced, or in no state) and goes last whichever way the header runs, as a
+ * stateless set does on the gensets register.
+ */
+const SORT_KEY: Record<ServiceSort, (row: FleetServiceRow) => number | string | undefined> = {
+  standing: (row) => STANDING_RANK[row.standing] - row.progress / 1000,
+  name: (row) => gensetLabel(row.genset),
+  location: (row) => gensetStateName(row.genset),
+  due: (row) => (row.nearer === undefined ? undefined : row.progress),
+  hours: (row) => (row.status.kind === 'tracked' ? ratio(row.status.hours) : undefined),
+  time: (row) => (row.status.kind === 'tracked' ? ratio(row.status.calendar) : undefined),
+  last: (row) => (row.status.kind === 'tracked' ? Date.parse(row.status.lastService.performedAt) : undefined),
+};
+
+/** The Due rows in the header's order. Ties keep the worst-first ranking, since the sort is stable. */
+export const sortFleetService = (
+  rows: Array<FleetServiceRow>,
+  sort: ServiceSort,
+  direction: ServiceSortDirection,
+): Array<FleetServiceRow> => {
+  const key = SORT_KEY[sort];
+  const sign = direction === 'asc' ? 1 : -1;
+  return [...rows].sort((left, right) => {
+    const a = key(left);
+    const b = key(right);
+    if (a === undefined || b === undefined) return a === b ? 0 : a === undefined ? 1 : -1;
+    return sign * (typeof a === 'string' ? a.localeCompare(String(b)) : a - Number(b));
+  });
+};
+
 /** When the nearer counter comes due — a date for the calendar, hours for the meter. */
 export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} | undefined => {
   const {status, nearer} = row;
@@ -75,14 +108,20 @@ export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} 
 
   if (nearer.kind === 'hours') {
     const left = Math.round(nearer.interval - nearer.elapsed);
+    // Spelled out (2026-09-30): `run h` read as a unit code.
+    const hours = (count: number) =>
+      `${count.toLocaleString('en-MY')} running ${count === 1 ? 'hour' : 'hours'}`;
     return left <= 0
-      ? {text: `${Math.abs(left).toLocaleString('en-MY')} h over`, overdue: true}
-      : {text: `in ${left.toLocaleString('en-MY')} run h`, overdue: false};
+      ? {text: `${hours(Math.abs(left))} over`, overdue: true}
+      : {text: `In ${hours(left)}`, overdue: false};
   }
 
   const due = calendarDueDate(status.lastService, status.schedule);
-  const date = due.toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
-  return due.getTime() <= Date.now() ? {text: `was due ${date}`, overdue: true} : {text: date, overdue: false};
+  const date = numericDate(due.getTime());
+  // `Due on` / `Was due on` so a bare date is not left to explain itself.
+  return due.getTime() <= Date.now()
+    ? {text: `Was due on ${date}`, overdue: true}
+    : {text: `Due on ${date}`, overdue: false};
 };
 
 /** The state a service was done in — its site's, not where the set is today. */

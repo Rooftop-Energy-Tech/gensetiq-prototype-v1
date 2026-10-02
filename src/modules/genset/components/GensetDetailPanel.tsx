@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {ArrowRightIcon, BellIcon} from 'lucide-react';
+import {ArrowRightIcon, BellIcon, XIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
 import {AlarmBadge} from '@/components/global/AlarmCounts';
@@ -13,7 +13,7 @@ import {SEVERITY_META} from './detail/severityMeta';
 import {useGensetStandingAlarms} from '../data/alarmViews';
 import {countBySeverity} from '../types/alert.type';
 import type {AlarmView} from '../types/alarmView.type';
-import {gensetLabel} from '../types/genset.type';
+import {gensetKva, gensetLabel} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
 const DetailRow = ({label, children}: {label: string; children: ReactNode}) => (
@@ -64,7 +64,10 @@ const AlarmRows = ({genset, standing}: {genset: Genset; standing: Array<AlarmVie
             {listed.map((alarm) => (
               <li key={alarm.id} className="flex min-w-0 gap-1.5">
                 <BellIcon
-                  className={cn('mt-0.5 size-3.5 shrink-0', SEVERITY_META[alarm.severity].textClassName)}
+                  className={cn(
+                    'mt-0.5 size-3.5 shrink-0',
+                    SEVERITY_META[alarm.severity].textClassName,
+                  )}
                   aria-label={SEVERITY_META[alarm.severity].label}
                 />
                 <span className="flex min-w-0 flex-col">
@@ -92,9 +95,12 @@ const AlarmRows = ({genset, standing}: {genset: Genset; standing: Array<AlarmVie
 export const GensetDetailPanel = ({
   genset,
   className,
+  onClose,
 }: {
   genset: Genset | undefined;
   className?: string;
+  /** Put the panel away — it clears the selection, as a click on the basemap does. */
+  onClose: () => void;
 }) => {
   const standing = useGensetStandingAlarms(genset);
 
@@ -120,20 +126,37 @@ export const GensetDetailPanel = ({
             {/* Bare: this panel is the register's own preview, opened from a row that
                 is already under a `Number plate` column. See `gensetLabel`. */}
             <h2 className="truncate font-medium text-primary">{gensetLabel(genset)}</h2>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" className="size-7 shrink-0" asChild>
-                  <Link
-                    to="/gensets/$gensetId"
-                    params={{gensetId: genset.id}}
-                    aria-label={`Open ${genset.tag}`}
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" className="size-7 shrink-0" asChild>
+                    <Link
+                      to="/gensets/$gensetId"
+                      params={{gensetId: genset.id}}
+                      aria-label={`Open ${gensetLabel(genset)}`}
+                    >
+                      <ArrowRightIcon aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Open genset</TooltipContent>
+              </Tooltip>
+              {/* The deployments panel's close, beside the open arrow. */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-7 shrink-0"
+                    onClick={onClose}
+                    aria-label="Close panel"
                   >
-                    <ArrowRightIcon aria-hidden="true" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">Open genset</TooltipContent>
-            </Tooltip>
+                    <XIcon aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Close</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
 
           <dl className="flex flex-col">
@@ -148,10 +171,18 @@ export const GensetDetailPanel = ({
                 {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
               </span>
             </DetailRow>
+            {/* After fuel, as the register's `Capacity` column follows `Fuel level`. */}
+            <DetailRow label="Capacity">
+              <span className="text-primary tabular-nums">
+                {gensetKva(genset).toLocaleString('en-MY')} kVA
+              </span>
+            </DetailRow>
             {/* The town, then the street address under it — the short answer
                 first, the one a driver needs second. */}
             <div className="flex gap-px">
-              <dt className="flex h-8 w-[122px] shrink-0 items-center font-medium text-secondary">Location</dt>
+              <dt className="flex h-8 w-[122px] shrink-0 items-center font-medium text-secondary">
+                Location
+              </dt>
               <dd className="flex min-w-0 flex-1 flex-col py-1.5">
                 <span className="truncate text-primary">{genset.locationLabel}</span>
                 <span className="text-xs text-secondary">{genset.address}</span>

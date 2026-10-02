@@ -1,6 +1,7 @@
 import {Popover as PopoverPrimitive} from 'radix-ui';
 import type * as React from 'react';
 
+import {useDialogContainer} from '@/components/ui/dialog';
 import {cn} from '@/lib/utils';
 
 function Popover(props: React.ComponentProps<typeof PopoverPrimitive.Root>) {
@@ -11,14 +12,20 @@ function PopoverTrigger(props: React.ComponentProps<typeof PopoverPrimitive.Trig
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />;
 }
 
+function PopoverAnchor(props: React.ComponentProps<typeof PopoverPrimitive.Anchor>) {
+  return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />;
+}
+
 function PopoverContent({
   className,
   align = 'start',
   sideOffset = 6,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  const container = useDialogContainer();
   return (
-    <PopoverPrimitive.Portal>
+    // Inside a dialog, into the dialog — see `useDialogContainer`.
+    <PopoverPrimitive.Portal container={container ?? undefined}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}
@@ -33,4 +40,4 @@ function PopoverContent({
   );
 }
 
-export {Popover, PopoverTrigger, PopoverContent};
+export {Popover, PopoverAnchor, PopoverTrigger, PopoverContent};

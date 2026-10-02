@@ -1,16 +1,18 @@
 import {Link} from '@tanstack/react-router';
-import {ArrowRightIcon, BoomBoxIcon, MapPinIcon, TruckIcon} from 'lucide-react';
+import {ArrowRightIcon, BoomBoxIcon, MapPinIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {MetricStrip} from '@/components/global/MetricStrip';
 import {amount, dayMonth, duration, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
+import {RunStateIcon} from '@/modules/genset/components/RunningPulse';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {useFleet} from '@/modules/genset/data/deployment';
 import {countBySeverity} from '@/modules/genset/types/alert.type';
 import {useSiteAlarmQueue} from '@/modules/site/data/siteAlarmQueue';
 import type {DeploymentRow} from '../../data/feed';
+import {CustomerCard} from '../CustomerCard';
 import {DEPLOYMENT_STATE_META} from '../stateMeta';
 
 /**
@@ -69,10 +71,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
 
           <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-secondary">
             <MapPinIcon className="size-3.5 shrink-0" aria-hidden="true" />
-            {/* Named, not linked — the site pages went on 2026-09-22. */}
-            <span className="text-primary">{row.siteName}</span>
-            <span className="text-tertiary">·</span>
-            <span className="truncate">{row.locationLabel}</span>
+            <span className="text-primary">{row.address}</span>
           </p>
         </div>
 
@@ -81,16 +80,16 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
             end says so rather than showing a blank. */}
         <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           <div className="flex flex-col gap-0.5">
-            <dt className="text-secondary">{row.state === 'planned' ? 'Starts' : 'Out since'}</dt>
+            <dt className="text-secondary">{row.state === 'planned' ? 'Starts on' : 'Started on'}</dt>
             <dd className="font-medium text-primary">{stampDate(row.deployment.startsAt)}</dd>
           </div>
           <div className="flex flex-col gap-0.5">
             <dt className="text-secondary">
-              {row.state === 'completed' ? 'Collected' : 'Agreed end'}
+              {row.state === 'completed' ? 'Ended on' : 'Planned end'}
             </dt>
             <dd className="font-medium text-primary">
               {row.deployment.endsAt === null ? (
-                <span className="font-normal text-secondary">No agreed end</span>
+                <span className="font-normal text-secondary">No planned end</span>
               ) : (
                 stampDate(row.deployment.endsAt)
               )}
@@ -98,7 +97,13 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
           </div>
           <div className="flex flex-col gap-0.5">
             <dt className="text-secondary">
-              {row.state === 'planned' ? 'Lorry wanted' : 'Standing'}
+              {/* `Duration ran` on a finished job (2026-09-30): `Standing` read as
+                  though its machines were still out. */}
+              {row.state === 'planned'
+                ? 'Lorry wanted'
+                : row.state === 'completed'
+                  ? 'Duration ran'
+                  : 'Standing'}
             </dt>
             <dd className="font-medium text-primary">
               {row.state === 'planned'
@@ -108,6 +113,8 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
           </div>
         </dl>
       </section>
+
+      <CustomerCard deployment={row.deployment} className="max-w-3xl" />
 
       <div className="border-t border-subtle" />
 
@@ -125,17 +132,17 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
             from {dayMonth(row.deployment.startsAt)}
           </h2>
           <p className="max-w-2xl text-sm text-secondary">
-            Nothing has moved. The machines below are booked to this job and are still
-            standing wherever they are now; their pins move when the job starts. There
-            are no runs, no litres and no alarms against a job that has not begun.
+            Nothing has moved. The machines below are booked to this deployment and are still
+            standing wherever they are now; their pins move when the deployment starts. There
+            are no runs, no litres and no alarms against a deployment that has not begun.
           </p>
         </section>
       ) : (
         <MetricStrip
-          ariaLabel="What the job cost"
+          ariaLabel="Summary"
           metrics={[
             {
-              label: 'On load',
+              label: 'Run hours',
               value: `${amount(row.totals.runtimeHours, 'hrs')}`,
             },
             {label: 'Energy', value: amount(row.totals.energyKwh, 'kWh')},
@@ -144,7 +151,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
             {
               // The point of the whole model. Withheld rather than printed as `0.00`
               // where nothing turned, because a ratio over no energy is not a ratio.
-              label: 'Efficiency',
+              label: 'SFC',
               value:
                 row.totals.energyKwh < 1 ? (
                   <span className="text-base font-normal text-secondary">
@@ -168,7 +175,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
       <section aria-labelledby="deployment-gensets" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="deployment-gensets" className="text-sm font-medium text-primary">
-            Gensets on this job
+            Gensets on this deployment
             <span className="font-normal text-secondary">
               {' · '}
               {row.members.length}
@@ -187,7 +194,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
 
         {row.members.length === 0 ? (
           <p className="rounded-lg border border-dashed border-subtle px-4 py-6 text-center text-sm text-secondary">
-            No machines on this job yet. Put one on from the Gensets section.
+            No machines on this deployment yet. Put one on from the Gensets section.
           </p>
         ) : (
           <ul className="flex max-w-3xl flex-col gap-2">
@@ -215,7 +222,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
                       </span>
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-sm font-medium text-primary">
-                          {member.tag}
+                          {member.plate}
                         </span>
                         <span className="truncate text-[13px] leading-[18px] text-secondary">
                           {member.model}
@@ -223,23 +230,16 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
                       </span>
                       {RunIcon !== undefined && runMeta !== undefined && (
                         <Badge variant="element" className="ml-1 shrink-0 border-subtle">
-                          <RunIcon className={cn('size-3', runMeta.iconClassName)} aria-hidden="true" />
+                          {genset !== undefined && <RunStateIcon runState={genset.runState} className="size-3" />}
                           {runMeta.label}
                         </Badge>
                       )}
                     </span>
 
                     <span className="flex shrink-0 items-center gap-3 text-[13px] text-secondary">
-                      {/* The lorry belongs to the machine, and this is the one place
-                          the app can say which one took which set out. */}
-                      {member.collected ? (
+                      {member.collected && (
                         <span className="text-tertiary">
                           collected {dayMonth(member.membership.collectedAt as string)}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5">
-                          <TruckIcon className="size-3.5 shrink-0" aria-hidden="true" />
-                          {member.membership.lorryPlate}
                         </span>
                       )}
                       <ArrowRightIcon className="size-4 shrink-0 text-tertiary" aria-hidden="true" />

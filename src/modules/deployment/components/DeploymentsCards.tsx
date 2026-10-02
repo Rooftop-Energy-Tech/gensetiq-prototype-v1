@@ -2,7 +2,7 @@ import {Link} from '@tanstack/react-router';
 import {BoomBoxIcon, ChevronRightIcon, DropletIcon, MapPinIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
-import {amount, dayMonth, duration} from '@/lib/format';
+import {amount, duration, stampDate} from '@/lib/format';
 import type {DeploymentRow} from '../data/feed';
 import {DEPLOYMENT_STATE_META} from './stateMeta';
 
@@ -33,18 +33,18 @@ const DeploymentCard = ({row, now}: {row: DeploymentRow; now: number}) => {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-primary">{row.deployment.reference}</p>
-          <p className="truncate text-xs text-secondary">{row.siteName}</p>
+          <p className="truncate text-xs text-secondary">{row.address}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant="secondary">
             <Icon className={meta.iconClassName} aria-hidden="true" />
             {row.state === 'planned'
-              ? `from ${dayMonth(row.deployment.startsAt)}`
+              ? `from ${stampDate(row.deployment.startsAt)}`
               : row.state === 'active'
                 ? `${duration(row.elapsedMs)} standing`
-                : `${dayMonth(row.deployment.startsAt)} – ${
-                    row.deployment.endsAt === null ? 'ongoing' : dayMonth(row.deployment.endsAt)
+                : `${stampDate(row.deployment.startsAt)} – ${
+                    row.deployment.endsAt === null ? 'ongoing' : stampDate(row.deployment.endsAt)
                   }`}
           </Badge>
           <Badge variant="secondary">
@@ -66,7 +66,7 @@ const DeploymentCard = ({row, now}: {row: DeploymentRow; now: number}) => {
           <span className="truncate">
             {row.members.length === 0
               ? 'No machines on it yet'
-              : row.members.map((member) => member.tag).join(', ')}
+              : row.members.map((member) => member.plate).join(', ')}
             {row.state === 'planned' && ` · in ${duration(row.startedMs - now)}`}
           </span>
         </p>

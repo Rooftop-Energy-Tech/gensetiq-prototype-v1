@@ -10,6 +10,7 @@ import {hasMains, isolatorStateOf, mainsContactorStateOf} from '../types/site.ty
 import type {MainsSupply, SitePowerRole, SwitchState} from '../types/site.type';
 import {siteFeed} from './sites';
 import type {SiteFeed, SiteSummary} from './sites';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
 
 /**
  * What is standing at a site and what each thing is putting into the bus.
@@ -205,7 +206,7 @@ export const sourcesOf = (
       key: genset.id,
       icon: BoomBoxIcon,
       label: 'GENSET',
-      caption: genset.tag,
+      caption: gensetLabel(genset),
       power: powerLabel(genset.runState, switchState.live, detail.loadKw),
       switchState,
     };

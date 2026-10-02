@@ -2,6 +2,7 @@ import {Suspense, lazy, useEffect, useMemo, useRef, useState} from 'react';
 import {SearchXIcon} from 'lucide-react';
 
 import {useIsCompact} from '@/lib/useIsCompact';
+import {TablePager} from '@/components/global/TablePager';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
 import {malaysiaStateName} from '@/lib/geo/malaysiaStates';
 import {useSitePowerRoles} from '@/modules/site/data/siteConfig';
@@ -15,7 +16,7 @@ import {GensetsTable} from './components/GensetsTable';
 import {GensetsActiveFilters, GensetsToolbar} from './components/GensetsToolbar';
 import {useFleetAlarmCounts} from './data/alarmViews';
 import {filterGensets, searchGensets, sortGensets} from './utils/searchGensets';
-import {GENSET_SORT_DEFAULT_DIRECTION} from './types/view.type';
+import {GENSET_PAGE_SIZE, GENSET_SORT_DEFAULT_DIRECTION} from './types/view.type';
 import type {GensetSearch, GensetSort} from './types/view.type';
 
 /**
@@ -44,7 +45,7 @@ type GensetsPageProps = {
 };
 
 export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
-  const {view, q = '', id, panel, location, status, service, run, alarm, fuel, sort, dir} = search;
+  const {view, q = '', id, panel, location, status, service, run, alarm, fuel, capacity, sort, dir, page} = search;
 
   // The key's own natural direction until a reader flips it — see
   // `GENSET_SORT_DEFAULT_DIRECTION`, and `changeSort` below for what a click means.
@@ -107,10 +108,10 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    */
   const changeSort = (next: GensetSort) => {
     if (next === sort) {
-      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc'});
+      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc', page: undefined});
       return;
     }
-    onSearchChange({sort: next, dir: undefined});
+    onSearchChange({sort: next, dir: undefined, page: undefined});
   };
 
   /**
@@ -123,7 +124,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    */
   const facets = useMemo(() => {
     const searched = searchGensets(all, q);
-    const filters = {location, status, service, run, alarm, fuel};
+    const filters = {location, status, service, run, alarm, fuel, capacity};
     const without = (dimension: keyof typeof filters) =>
       fleetSummary(filterGensets(searched, {...filters, [dimension]: undefined}, alarmCounts), roles, alarmCounts);
     return {
@@ -131,19 +132,39 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
       byRunState: without('run').byRunState,
       byAlarm: without('alarm').byAlarm,
       byFuel: without('fuel').byFuel,
+      byCapacity: without('capacity').byCapacity,
     };
-  }, [all, q, location, status, service, run, alarm, fuel, alarmCounts, roles]);
+  }, [all, q, location, status, service, run, alarm, fuel, capacity, alarmCounts, roles]);
 
   const gensets = useMemo(
     () =>
       sortGensets(
-        filterGensets(searchGensets(all, q), {location, status, service, run, alarm, fuel}, alarmCounts),
+        filterGensets(searchGensets(all, q), {location, status, service, run, alarm, fuel, capacity}, alarmCounts),
         sort,
         direction,
         alarmCounts,
       ),
-    [all, q, location, status, service, run, alarm, fuel, sort, direction, alarmCounts],
+    [all, q, location, status, service, run, alarm, fuel, capacity, sort, direction, alarmCounts],
   );
+
+  /**
+   * The table shows `GENSET_PAGE_SIZE` rows at a time. The map, the cards at phone
+   * width and the selection still read the whole filtered list, so a pin is never
+   * missing because its row is on another page.
+   */
+  const pageCount = Math.max(1, Math.ceil(gensets.length / GENSET_PAGE_SIZE));
+  const currentPage = Math.min(page ?? 1, pageCount);
+  const pageRows = useMemo(
+    () => gensets.slice((currentPage - 1) * GENSET_PAGE_SIZE, currentPage * GENSET_PAGE_SIZE),
+    [gensets, currentPage],
+  );
+  const pageOf = (gensetId: string) => {
+    const index = gensets.findIndex((genset) => genset.id === gensetId);
+    return index < 0 ? undefined : Math.floor(index / GENSET_PAGE_SIZE) + 1;
+  };
+
+  /** A filter or search changed: the old page number means nothing in the new list. */
+  const refilter = (next: Partial<GensetSearch>) => onSearchChange({...next, page: undefined});
 
   // Resolved against the *filtered* list, not the whole fleet: if a search hides
   // the selected unit, the panel should say so rather than describing a row the
@@ -173,7 +194,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * isn't there would fit the full-width map to whatever the list last showed.
    */
   const listRef = useRef<HTMLDivElement>(null);
-  const rowIds = useMemo(() => gensets.map((genset) => genset.id), [gensets]);
+  const rowIds = useMemo(() => pageRows.map((genset) => genset.id), [pageRows]);
   const {ids: visibleIds, suppress} = useVisibleRowIds(listRef, rowIds, split);
 
   /**
@@ -186,7 +207,11 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * makes it. Row-click previews, name-click navigates; the toggle no longer sits
    * between the two.
    */
-  const selectGenset = (next: string) => onSearchChange({id: next, panel: true});
+  // A pin picked on the map turns the table to the page its row is on.
+  const selectGenset = (next: string) => {
+    const onPage = pageOf(next);
+    onSearchChange({id: next, panel: true, page: onPage === 1 ? undefined : onPage});
+  };
 
   /**
    * Clicking the basemap — not a pin, not a cluster — puts the selection down.
@@ -221,14 +246,22 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * while they are what the screen shows and nobody has scrolled the list: change
    * any filter, or scroll, and the map follows the list again.
    */
-  const filterKey = JSON.stringify([q, location, status, service, run, alarm, fuel]);
-  const [framedBy, setFramedBy] = useState<string | undefined>(undefined);
+  const filterKey = JSON.stringify([q, location, status, service, run, alarm, fuel, capacity]);
+  // Held on arrival too, when nothing narrows the fleet: the map opens on the
+  // whole peninsula (`PENINSULA`) rather than on the first screenful
+  // of rows, and the same release — a filter or a scroll — hands it to the list.
+  const [framedBy, setFramedBy] = useState<string | undefined>(() =>
+    [location, status, service, run, alarm, fuel, capacity].every((value) => value === undefined) &&
+    q === ''
+      ? filterKey
+      : undefined,
+  );
   const selectState = (stateId: string) => {
     const name = malaysiaStateName(stateId);
     if (name === undefined) return;
     const slug = stateSlug(name);
-    setFramedBy(JSON.stringify([q, slug, status, service, run, alarm, fuel]));
-    onSearchChange({location: slug});
+    setFramedBy(JSON.stringify([q, slug, status, service, run, alarm, fuel, capacity]));
+    refilter({location: slug});
   };
   const holdFrame = framedBy !== undefined && framedBy === filterKey;
 
@@ -254,7 +287,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
       <GensetsToolbar
         query={q}
-        onQueryChange={(next) => onSearchChange({q: next || undefined})}
+        onQueryChange={(next) => refilter({q: next || undefined})}
         view={view}
         onViewChange={(next) => onSearchChange({view: next})}
         panelOpen={panelOpen}
@@ -263,17 +296,16 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         summary={summary}
         facets={facets}
         search={search}
-        onSearchChange={onSearchChange}
+        onSearchChange={refilter}
       />
 
-      <GensetsActiveFilters summary={summary} search={search} onSearchChange={onSearchChange} />
+      <GensetsActiveFilters summary={summary} search={search} onSearchChange={refilter} />
 
       <GensetsSummaryCards
         summary={summary}
-        fleet={all}
         showing={gensets.length}
         search={search}
-        onSearchChange={onSearchChange}
+        onSearchChange={refilter}
       />
 
       <div className="relative flex min-h-0 flex-1 gap-3">
@@ -284,23 +316,40 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
               <p className="text-sm text-secondary">No gensets match the current filters.</p>
             </div>
           ) : (
-            <div className="min-h-0 min-w-0 flex-1">
+            // Half and half with the map beside it (2026-09-30, on request). It was
+            // 60/40 from 2026-09-29, when the table still had a Capacity column.
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               {compact ? (
                 <GensetsCards gensets={gensets} />
               ) : (
-                <GensetsTable
-                  gensets={gensets}
-                  // Full width means every column; beside the map `Location` and
-                  // `Last updated` come out. See `GensetsTable`'s `COLUMNS`.
-                  wide={!split}
-                  sort={sort}
-                  direction={direction}
-                  onSortChange={changeSort}
-                  selectedId={id}
-                  onSelect={selectGenset}
-                  scrollRef={listRef}
-                  onBeforeAutoScroll={suppress}
-                />
+                <>
+                  <div className="min-h-0 flex-1">
+                    <GensetsTable
+                      gensets={pageRows}
+                      // Full width means every column; beside the map `Location` and
+                      // `Last updated` come out. See `GensetsTable`'s `COLUMNS`.
+                      wide={!split}
+                      sort={sort}
+                      direction={direction}
+                      onSortChange={changeSort}
+                      selectedId={id}
+                      onSelect={selectGenset}
+                      scrollRef={listRef}
+                      onBeforeAutoScroll={suppress}
+                    />
+                  </div>
+                  <TablePager
+                    label="Gensets table pages"
+                    page={currentPage}
+                    pageCount={pageCount}
+                    pageSize={GENSET_PAGE_SIZE}
+                    total={gensets.length}
+                    onPageChange={(next) => {
+                      listRef.current?.scrollTo({top: 0});
+                      onSearchChange({page: next === 1 ? undefined : next});
+                    }}
+                  />
+                </>
               )}
             </div>
           ))}
@@ -308,7 +357,8 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         {showMap && (
           <div
             className={
-              // Full width on its own; beside the list it takes a shade over half.
+              // Full width on its own; beside the list it takes half, floored at 440px
+              // so the 393px preview panel still floats over a strip of basemap.
               //
               // Sized for the panel whether or not the panel is showing. The column
               // used to widen as the panel opened — 620px being the panel plus enough
@@ -318,7 +368,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
               // space is set aside up front and the panel floats into ground the map
               // was already holding.
               split
-                ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
+                ? 'min-h-0 min-w-[440px] flex-1 overflow-hidden rounded-md border border-subtle bg-element'
                 : 'min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element'
             }
           >
@@ -346,6 +396,7 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
         {panelOpen && (
           <GensetDetailPanel
             genset={selected}
+            onClose={deselectGenset}
             className={
               // Over the map, the panel floats — the basemap should keep running
               // underneath it, the way the design shows. In the list-only view it

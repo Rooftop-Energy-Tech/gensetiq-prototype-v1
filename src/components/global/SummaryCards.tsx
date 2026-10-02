@@ -239,7 +239,17 @@ export const Headline = ({value, unit, detail}: HeadlineProps) => (
   </div>
 );
 
-export type ChipTone = 'neutral' | 'ok' | 'warning' | 'critical' | 'fuel' | 'fuel-low';
+export type ChipTone =
+  | 'neutral'
+  | 'ok'
+  | 'warning'
+  | 'critical'
+  | 'fuel'
+  | 'fuel-low'
+  | 'running'
+  | 'idle'
+  | 'offline'
+  | 'ok-hollow';
 
 /**
  * Tone → **the dot's** colour, and the dot's alone.
@@ -258,6 +268,10 @@ const DOT_CLASS: Record<ChipTone, string> = {
   critical: 'bg-severity-critical',
   fuel: 'bg-fuel',
   'fuel-low': 'bg-fuel-tip',
+  running: 'bg-status-running',
+  idle: 'bg-status-idle',
+  offline: 'bg-status-offline',
+  'ok-hollow': 'bg-transparent ring-[1.5px] ring-inset ring-severity-ok',
 };
 
 type CountChipProps = {

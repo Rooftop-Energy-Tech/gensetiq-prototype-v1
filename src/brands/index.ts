@@ -28,6 +28,7 @@ export type {
   BrandTheme,
   CustomerId,
   DatasetId,
+  DeploymentWork,
   ProgramId,
   SiteKindId,
 } from './types';

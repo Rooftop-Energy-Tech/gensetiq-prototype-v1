@@ -27,7 +27,7 @@ export const GENSET_VIEWS = ['split', 'list', 'map'] as const;
 // `location` is the Malaysian state a set stands in, and it is not called `state`
 // because that key was taken first, by the run state `Status` column sorts on.
 // Renaming either would break every link already carrying `sort=state`.
-export const GENSET_SORTS = ['state', 'alarms', 'name', 'fuel', 'location'] as const;
+export const GENSET_SORTS = ['state', 'alarms', 'name', 'fuel', 'location', 'capacity'] as const;
 
 export type GensetSort = (typeof GENSET_SORTS)[number];
 
@@ -55,9 +55,14 @@ export const GENSET_SORT_DEFAULT_DIRECTION: Record<GensetSort, GensetSortDirecti
   // Johor to Terengganu. A set in no state sorts last whichever way this runs —
   // see `sortGensets`.
   location: 'asc',
+  // Biggest set first: capacity is scanned for what can carry a load.
+  capacity: 'desc',
 };
 
 export type GensetView = (typeof GENSET_VIEWS)[number];
+
+/** Rows per table page (2026-09-30): the full fleet ran well past one screen. */
+export const GENSET_PAGE_SIZE = 20;
 
 /**
  * The toolbar's alarm filter: a set's **worst** standing alarm, or none.
@@ -119,6 +124,12 @@ export const gensetSearchSchema = z.object({
   run: z.enum(RUN_STATES).optional().catch(undefined),
   alarm: z.enum(GENSET_ALARM_FILTERS).optional().catch(undefined),
   fuel: z.enum(GENSET_FUEL_FILTERS).optional().catch(undefined),
+  /**
+   * Rated capacity in kVA, `?capacity=1000`. Held as a string, as the options are
+   * the ratings the brand's fleet actually has; an unknown one filters to nothing.
+   * The router hands a bare number over as a number, so both are accepted.
+   */
+  capacity: z.union([z.string(), z.number()]).transform(String).optional().catch(undefined),
   /** Ordering. Defaulted — see the sites schema's note on why it is not optional. */
   sort: z.enum(GENSET_SORTS).default('state').catch('state'),
   /**
@@ -128,6 +139,12 @@ export const gensetSearchSchema = z.object({
    * shared URL and freeze today's idea of which way a key runs into yesterday's link.
    */
   dir: z.enum(GENSET_SORT_DIRECTIONS).optional().catch(undefined),
+  /**
+   * The table's page, 1-based, `GENSET_PAGE_SIZE` rows each. Absent is page 1, so a
+   * shared link to the top of the list carries no `page`. A filter or sort change
+   * drops it, and a number past the end is clamped to the last page.
+   */
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
   /**
    * Narrow to sets inside their service window — what the overview's service tile
    * links to. Not one of the chips: it cuts across the other three rather than

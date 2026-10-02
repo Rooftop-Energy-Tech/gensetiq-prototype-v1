@@ -1,17 +1,21 @@
 import {useState} from 'react';
-import {BoomBoxIcon, PlusIcon, TruckIcon, XIcon} from 'lucide-react';
+import {BoomBoxIcon, PlusIcon, XIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {dayMonth} from '@/lib/format';
 import {cn} from '@/lib/utils';
+import {RunStateIcon} from '@/modules/genset/components/RunningPulse';
 import {RUN_STATE_META} from '@/modules/genset/components/runStateMeta';
 import {useFleet} from '@/modules/genset/data/deployment';
 import type {Genset} from '@/modules/genset/types/genset.type';
-import {siteLabel} from '@/modules/site/data/siteSeed';
+import {siteSeed} from '@/modules/site/data/siteSeed';
 import type {DeploymentRow} from '../../data/feed';
 import {addGenset, collectGenset, conflictFor} from '../../data/store';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
+
+const siteAddress = (siteId: string): string => siteSeed(siteId)?.address ?? 'another deployment';
 
 /**
  * Which machines are on this job — and the control that changes it.
@@ -68,7 +72,7 @@ const GensetIdentity = ({genset, tag, model}: {genset: Genset | undefined; tag: 
       </span>
       {Icon !== undefined && meta !== undefined && (
         <Badge variant="element" className="ml-1 shrink-0 border-subtle">
-          <Icon className={cn('size-3', meta.iconClassName)} aria-hidden="true" />
+          {genset !== undefined && <RunStateIcon runState={genset.runState} className="size-3" />}
           {meta.label}
         </Badge>
       )}
@@ -96,7 +100,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
       (left, right) =>
         Number(left.conflict !== undefined) - Number(right.conflict !== undefined) ||
         Number(left.genset.siteId !== null) - Number(right.genset.siteId !== null) ||
-        left.genset.tag.localeCompare(right.genset.tag),
+        gensetLabel(left.genset).localeCompare(gensetLabel(right.genset)),
     );
 
   const free = candidates.filter((candidate) => candidate.conflict === undefined);
@@ -121,18 +125,18 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
         </h2>
         <p className="max-w-2xl text-sm text-secondary">
           {state === 'active' &&
-            `The machines standing at ${row.siteName}. Adding one deploys it here: it takes this site's location and moves on the fleet map. Collecting one ends its posting; nothing physically moves until somebody comes for it.`}
+            `The machines standing at ${row.address}. Adding one deploys it here: it takes this address and moves on the fleet map. Collecting one ends its posting; nothing physically moves until somebody comes for it.`}
           {state === 'planned' &&
-            `The machines booked to this job. Nothing moves until it starts on ${dayMonth(deployment.startsAt)}, and a machine committed here cannot be booked to another job over the same window.`}
+            `The machines booked to this deployment. Nothing moves until it starts on ${dayMonth(deployment.startsAt)}, and a machine committed here cannot be booked to another deployment over the same window.`}
           {state === 'completed' &&
-            'This job is closed, so its machines are the record of what stood there. Nothing can be added to a window that is over.'}
+            'This deployment is closed, so its machines are the record of what stood there. Nothing can be added to a window that is over.'}
         </p>
       </div>
 
       <div className="flex max-w-3xl flex-col gap-2">
         {row.members.length === 0 ? (
           <p className="rounded-lg border border-dashed border-subtle px-4 py-6 text-center text-sm text-secondary">
-            No machines on this job.
+            No machines on this deployment.
           </p>
         ) : (
           row.members.map((member) => {
@@ -143,19 +147,14 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                 key={member.membership.id}
                 className="flex items-center justify-between gap-4 rounded-lg border border-subtle bg-element p-3"
               >
-                <GensetIdentity genset={genset} tag={member.tag} model={member.model} />
+                <GensetIdentity genset={genset} tag={member.plate} model={member.model} />
 
                 <span className="flex shrink-0 items-center gap-3">
                   <span className="flex items-center gap-1.5 text-[13px] text-secondary">
-                    {member.collected ? (
+                    {member.collected && (
                       <span className="text-tertiary">
                         collected {dayMonth(member.membership.collectedAt as string)}
                       </span>
-                    ) : (
-                      <>
-                        <TruckIcon className="size-3.5 shrink-0" aria-hidden="true" />
-                        {member.membership.lorryPlate}
-                      </>
                     )}
                   </span>
 
@@ -175,8 +174,8 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                       </TooltipTrigger>
                       <TooltipContent side="left" className="max-w-64">
                         {state === 'planned'
-                          ? `Release ${member.tag} from this booking. It is free for another job over this window.`
-                          : `Collect ${member.tag}. Its posting ends now and it stays where it is standing until somebody moves it.`}
+                          ? `Release ${member.plate} from this booking. It is free for another deployment over this window.`
+                          : `Collect ${member.plate}. Its posting ends now and it stays where it is standing until somebody moves it.`}
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -193,7 +192,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
             <div className="flex flex-col gap-2 rounded-lg border border-subtle bg-element p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium text-primary">
-                  {state === 'active' ? 'Deploy a genset here' : 'Book a genset to this job'}
+                  {state === 'active' ? 'Deploy a genset here' : 'Book a genset to this deployment'}
                 </p>
                 <Button variant="ghost" size="sm" onClick={() => setPicking(false)}>
                   Cancel
@@ -210,14 +209,14 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                     <li key={genset.id}>
                       <button
                         type="button"
-                        onClick={() => put(genset.id, genset.tag)}
+                        onClick={() => put(genset.id, gensetLabel(genset))}
                         className={cn(
                           'flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left',
                           'outline-none transition-colors hover:bg-hover focus-visible:bg-hover',
                         )}
                       >
                         <span className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm text-primary">{genset.tag}</span>
+                          <span className="truncate text-sm text-primary">{gensetLabel(genset)}</span>
                           <span className="truncate text-xs text-secondary">{genset.model}</span>
                         </span>
                         {/* Where it is now, so nobody moves a set off another yard
@@ -225,7 +224,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                         <span className="shrink-0 text-xs text-tertiary">
                           {genset.siteId === null
                             ? 'In the depot'
-                            : `At ${siteLabel(genset.siteId)}`}
+                            : `At ${siteAddress(genset.siteId)}`}
                         </span>
                       </button>
                     </li>
@@ -246,7 +245,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                         key={genset.id}
                         className="flex items-baseline justify-between gap-3 px-2 text-xs"
                       >
-                        <span className="truncate text-secondary">{genset.tag}</span>
+                        <span className="truncate text-secondary">{gensetLabel(genset)}</span>
                         <span className="shrink-0 text-tertiary">
                           {conflict?.reference} · {conflict?.locationLabel}
                         </span>

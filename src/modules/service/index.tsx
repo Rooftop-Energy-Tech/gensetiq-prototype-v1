@@ -1,9 +1,23 @@
 import {Link, useNavigate} from '@tanstack/react-router';
-import {FileTextIcon, MapPinIcon, SearchIcon, SearchXIcon} from 'lucide-react';
-import type {ReactNode} from 'react';
-import {useMemo} from 'react';
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CalendarClockIcon,
+  ChevronsUpDownIcon,
+  FileTextIcon,
+  HistoryIcon,
+  MapPinIcon,
+  SearchIcon,
+  SearchXIcon,
+  XIcon,
+} from 'lucide-react';
+import type {KeyboardEvent, ReactNode} from 'react';
+import {Fragment, useMemo, useRef} from 'react';
 
+import {DetailSidebar, DetailSidebarLabel} from '@/components/global/DetailSidebar';
+import type {DetailNavEntry} from '@/components/global/DetailSidebar';
 import {FilterSelect} from '@/components/global/FilterSelect';
+import {TablePager} from '@/components/global/TablePager';
 import type {FilterOption} from '@/components/global/FilterSelect';
 import {FilterCard, SummaryCardRow} from '@/components/global/SummaryCards';
 import type {ChipTone} from '@/components/global/SummaryCards';
@@ -22,10 +36,10 @@ import type {Genset} from '@/modules/genset/types/genset.type';
 import type {ServiceCounter, ServiceRecord} from '@/modules/genset/types/service.type';
 import {searchGensets} from '@/modules/genset/utils/searchGensets';
 import {siteLabel} from '@/modules/site/data/siteSeed';
-import {nextDue, recordStateName, useFleetService} from './data/fleetService';
+import {nextDue, recordStateName, sortFleetService, useFleetService} from './data/fleetService';
 import type {FleetServiceRow} from './data/fleetService';
-import {SERVICE_STANDINGS} from './types/view.type';
-import type {ServiceSearch, ServiceStanding} from './types/view.type';
+import {SERVICE_PAGE_SIZE, SERVICE_SORT_DEFAULT_DIRECTION, SERVICE_STANDINGS} from './types/view.type';
+import type {ServiceSearch, ServiceSort, ServiceSortDirection, ServiceStanding} from './types/view.type';
 
 /**
  * Service, fleet-wide: which sets are due, and every service on record.
@@ -132,23 +146,132 @@ const ReportLink = ({record}: {record: ServiceRecord}) =>
     </a>
   );
 
-const DueTable = ({rows}: {rows: Array<FleetServiceRow>}) => {
+/**
+ * The Due table's columns, sortable as the Gensets and Deployments tables' are.
+ * The action column is not a control, so it is drawn as plain text. `Location` left
+ * on 2026-09-29: it repeated the state beside it, so the town is now the State
+ * cell's hover.
+ */
+const DUE_COLUMNS = [
+  {label: 'Number plate', sort: 'name'},
+  {label: 'State', sort: 'location'},
+  {label: 'Status', sort: 'standing'},
+  {label: 'Next due', sort: 'due'},
+  {label: 'Running hours', sort: 'hours'},
+  {label: 'Time', sort: 'time'},
+  {label: 'Last service', sort: 'last'},
+] as const satisfies ReadonlyArray<{label: string; sort: ServiceSort}>;
+
+/** The registers' cell: held to its content, so the gaps share the spare width. See `GensetsTable`. */
+const DUE_CELL = 'w-px px-2 whitespace-nowrap';
+
+const Gap = ({header = false}: {header?: boolean}) =>
+  header ? (
+    <th aria-hidden="true" className="sticky top-0 z-10 h-10 border-b border-subtle bg-canvas p-0" />
+  ) : (
+    <td aria-hidden="true" className="h-13 border-b border-subtle p-0" />
+  );
+
+const SortHeader = ({
+  label,
+  sort,
+  active,
+  direction,
+  onSortChange,
+}: {
+  label: string;
+  sort: ServiceSort;
+  active: boolean;
+  direction: ServiceSortDirection;
+  onSortChange: (next: ServiceSort) => void;
+}) => {
+  const Icon = !active ? ChevronsUpDownIcon : direction === 'asc' ? ArrowUpIcon : ArrowDownIcon;
+  return (
+    <button
+      type="button"
+      onClick={() => onSortChange(sort)}
+      className={cn(
+        'group/sort relative -mx-1 flex cursor-pointer items-center gap-1 rounded-sm px-1 py-0.5',
+        'transition-colors outline-none hover:text-primary',
+        'focus-visible:ring-2 focus-visible:ring-outline',
+        active && 'text-primary',
+      )}
+    >
+      {label}
+      <Icon
+        className={cn(
+          'size-3.5 shrink-0 transition-opacity',
+          !active &&
+            'absolute top-1/2 left-full -translate-y-1/2 opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100',
+        )}
+        aria-hidden="true"
+      />
+      <span className="sr-only">
+        {active ? `Sorted by ${label.toLowerCase()} — click to reverse` : `Sort by ${label.toLowerCase()}`}
+      </span>
+    </button>
+  );
+};
+
+const DueTable = ({
+  rows,
+  sort,
+  direction,
+  onSortChange,
+}: {
+  rows: Array<FleetServiceRow>;
+  sort: ServiceSort;
+  direction: ServiceSortDirection;
+  onSortChange: (next: ServiceSort) => void;
+}) => {
   const navigate = useNavigate();
+  const open = (gensetId: string) => void navigate({to: '/gensets/$gensetId/service', params: {gensetId}});
+  // Enter and Space open the set, as a click does; Space's default would scroll the table.
+  const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, gensetId: string) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault();
+    open(gensetId);
+  };
+  const cell = cn(DUE_CELL, 'h-13 border-b border-subtle py-2');
+
   return (
     <table className="w-full border-separate border-spacing-0 text-sm">
+      <caption className="sr-only">
+        Gensets by service standing, with when each is next due, how far through each interval it is, and its last
+        service
+      </caption>
       <thead>
         <tr>
-          <Th>Number plate</Th>
-          <Th>State</Th>
-          <Th>Location</Th>
-          <Th>Status</Th>
-          <Th>Next due</Th>
-          <Th>Run hours</Th>
-          <Th>Time</Th>
-          <Th>Last service</Th>
-          <Th>
+          {DUE_COLUMNS.map((column, index) => {
+            const active = column.sort === sort;
+            return (
+              <Fragment key={column.label}>
+                {index > 0 && <Gap header />}
+                <th
+                  scope="col"
+                  aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className={cn(
+                    DUE_CELL,
+                    'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary',
+                  )}
+                >
+                  <SortHeader
+                    label={column.label}
+                    sort={column.sort}
+                    active={active}
+                    direction={direction}
+                    onSortChange={onSortChange}
+                  />
+                </th>
+              </Fragment>
+            );
+          })}
+          {/* The hover arrow of the last sortable header sits in this gap. */}
+          <Gap header />
+          <th scope="col" className={cn(DUE_CELL, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas')}>
             <span className="sr-only">Actions</span>
-          </Th>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -158,40 +281,50 @@ const DueTable = ({rows}: {rows: Array<FleetServiceRow>}) => {
           return (
             <tr
               key={genset.id}
-              onClick={() => void navigate({to: '/gensets/$gensetId/service', params: {gensetId: genset.id}})}
-              className="cursor-pointer hover:bg-hover"
+              tabIndex={0}
+              onClick={() => open(genset.id)}
+              onKeyDown={(event) => handleKeyDown(event, genset.id)}
+              className={cn(
+                'cursor-pointer transition-colors outline-none',
+                'hover:bg-hover focus-visible:bg-hover focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-outline',
+              )}
             >
-              <td className={cn(CELL, 'border-b border-subtle font-medium')}>
+              <td className={cn(cell, 'font-medium')}>
                 <Link
                   to="/gensets/$gensetId/service"
                   params={{gensetId: genset.id}}
                   onClick={(event) => event.stopPropagation()}
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="block rounded-sm text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
                 >
                   {gensetLabel(genset)}
                 </Link>
               </td>
-              <td className={cn(CELL, 'border-b border-subtle text-primary')}>{gensetStateName(genset) ?? '—'}</td>
-              <td className={cn(CELL, 'max-w-56 truncate border-b border-subtle text-primary')} title={genset.address}>
-                {genset.locationLabel}
+              <Gap />
+              <td className={cn(cell, 'text-primary')} title={genset.locationLabel}>
+                {gensetStateName(genset) ?? '—'}
               </td>
-              <td className={cn(CELL, 'border-b border-subtle')}>
+              <Gap />
+              <td className={cell}>
                 <StandingBadge row={row} />
               </td>
-              <td className={cn(CELL, 'border-b border-subtle tabular-nums')}>
+              <Gap />
+              <td className={cn(cell, 'tabular-nums')}>
                 {due === undefined ? (
-                  <span className="text-secondary">first service</span>
+                  <span className="text-secondary">First service</span>
                 ) : (
                   <span className={due.overdue ? 'text-severity-critical' : 'text-primary'}>{due.text}</span>
                 )}
               </td>
-              <td className={cn(CELL, 'border-b border-subtle')}>
+              <Gap />
+              <td className={cell}>
                 <CounterCell counter={status.kind === 'tracked' ? status.hours : undefined} />
               </td>
-              <td className={cn(CELL, 'border-b border-subtle')}>
+              <Gap />
+              <td className={cell}>
                 <CounterCell counter={status.kind === 'tracked' ? status.calendar : undefined} />
               </td>
-              <td className={cn(CELL, 'border-b border-subtle')}>
+              <Gap />
+              <td className={cell}>
                 {status.kind === 'tracked' ? (
                   <span className="flex flex-col">
                     <span className="text-primary">{stampDate(status.lastService.performedAt)}</span>
@@ -203,9 +336,14 @@ const DueTable = ({rows}: {rows: Array<FleetServiceRow>}) => {
                   <span className="text-tertiary">—</span>
                 )}
               </td>
+              <Gap />
               {/* Stops here: the dialog is portalled, but its clicks still bubble
                   through React's tree to the row, which would navigate away. */}
-              <td className={cn(CELL, 'border-b border-subtle text-right')} onClick={(event) => event.stopPropagation()}>
+              <td
+                className={cn(cell, 'text-right')}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
                 <LogServiceDialog genset={genset} currentEngineHours={engineHoursOf(genset.id)} compact />
               </td>
             </tr>
@@ -286,7 +424,7 @@ const DueCards = ({rows}: {rows: Array<FleetServiceRow>}) => (
           <p className="flex items-baseline justify-between gap-2">
             <span className="text-secondary">Next due</span>
             {due === undefined ? (
-              <span className="text-secondary">first service</span>
+              <span className="text-secondary">First service</span>
             ) : (
               <span className={cn('font-medium tabular-nums', due.overdue ? 'text-severity-critical' : 'text-primary')}>
                 {due.text}
@@ -298,7 +436,7 @@ const DueCards = ({rows}: {rows: Array<FleetServiceRow>}) => (
               {[status.hours, status.calendar].map((counter) => (
                 <div key={counter.kind} className="flex flex-col gap-1.5">
                   <span className="text-xs text-secondary">
-                    {counter.kind === 'hours' ? 'Run hours' : 'Time'}{' '}
+                    {counter.kind === 'hours' ? 'Running hours' : 'Time'}{' '}
                     <span className="text-primary tabular-nums">{counterText(counter)}</span>
                   </span>
                   <IntervalBar counter={counter} />
@@ -425,6 +563,72 @@ const HistoryTable = ({records, byId}: {records: Array<ServiceRecord>; byId: Map
   </table>
 );
 
+/**
+ * `GensetsActiveFilters`, over the service page: the search, the state and, on the
+ * Due tab, the status. One removable chip each and `Clear all`, only while
+ * something is on.
+ */
+const ServiceActiveFilters = ({
+  search,
+  onSearchChange,
+}: {
+  search: ServiceSearch;
+  onSearchChange: (next: Partial<ServiceSearch>) => void;
+}) => {
+  const chips: Array<{key: string; label: string; clear: Partial<ServiceSearch>}> = [];
+  if (search.q) chips.push({key: 'q', label: `“${search.q}”`, clear: {q: undefined}});
+  if (search.location !== undefined) {
+    chips.push({
+      key: 'location',
+      label: stateNameFromSlug(search.location) ?? search.location,
+      clear: {location: undefined},
+    });
+  }
+  // The status narrows the Due tab only, so History does not offer to clear it.
+  if (search.tab === 'due' && search.standing !== undefined) {
+    chips.push({key: 'standing', label: STANDING_META[search.standing].label, clear: {standing: undefined}});
+  }
+
+  if (chips.length === 0) return null;
+
+  const clearAll = Object.assign({}, ...chips.map((chip) => chip.clear)) as Partial<ServiceSearch>;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm" aria-label="Active filters" role="group">
+      <span className="text-secondary">Filtered by:</span>
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          onClick={() => onSearchChange(chip.clear)}
+          aria-label={`Remove filter ${chip.label}`}
+          className={cn(
+            'flex h-7 cursor-pointer items-center gap-1 rounded-full border border-subtle bg-highlight pr-1.5 pl-2.5',
+            'font-medium whitespace-nowrap text-primary transition-colors outline-none',
+            'hover:bg-hover focus-visible:ring-2 focus-visible:ring-outline',
+          )}
+        >
+          {chip.label}
+          <XIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onSearchChange(clearAll)}
+        className="cursor-pointer px-1 font-medium text-secondary underline-offset-4 outline-none hover:text-primary hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+      >
+        Clear all
+      </button>
+    </div>
+  );
+};
+
+/** The rail's two rows: the page's two tabs, as `?tab=` on the one route. */
+const SERVICE_NAV: Array<DetailNavEntry> = [
+  {label: 'Due', icon: CalendarClockIcon, to: '/service', search: {tab: 'due'}, matchSearch: true},
+  {label: 'History', icon: HistoryIcon, to: '/service', search: {tab: 'history'}, matchSearch: true},
+];
+
 export const ServicePage = ({
   search,
   onSearchChange,
@@ -432,7 +636,14 @@ export const ServicePage = ({
   search: ServiceSearch;
   onSearchChange: (next: Partial<ServiceSearch>) => void;
 }) => {
-  const {tab, q = '', location, standing} = search;
+  const {tab, q = '', location, standing, sort, dir, page} = search;
+  // Every change but a page turn starts the table back on page 1.
+  const update = (next: Partial<ServiceSearch>) => onSearchChange({...next, page: undefined});
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // The key's own direction until a header is clicked twice — the registers' `changeSort`.
+  const direction = dir ?? SERVICE_SORT_DEFAULT_DIRECTION[sort];
+  const changeSort = (next: ServiceSort) =>
+    update(next === sort ? {dir: direction === 'asc' ? 'desc' : 'asc'} : {sort: next, dir: undefined});
   const compact = useIsCompact();
   const fleet = useFleet();
   const rows = useFleetService(fleet);
@@ -450,11 +661,15 @@ export const ServicePage = ({
   const inState = (name: string | undefined) =>
     location === undefined || (name !== undefined && stateSlug(name) === location);
 
-  const dueRows = rows.filter(
-    (row) =>
-      matching.has(row.genset.id) &&
-      inState(gensetStateName(row.genset)) &&
-      (standing === undefined || row.standing === standing),
+  const dueRows = sortFleetService(
+    rows.filter(
+      (row) =>
+        matching.has(row.genset.id) &&
+        inState(gensetStateName(row.genset)) &&
+        (standing === undefined || row.standing === standing),
+    ),
+    sort,
+    direction,
   );
   const historyRows = records.filter((record) => {
     const genset = byId.get(record.gensetId);
@@ -493,21 +708,46 @@ export const ServicePage = ({
 
   const shown = tab === 'due' ? dueRows.length : historyRows.length;
 
+  // The tables show `SERVICE_PAGE_SIZE` rows at a time — the registers' paging. The
+  // phone's card lists are not paged, as on the registers.
+  const pageCount = Math.max(1, Math.ceil(shown / SERVICE_PAGE_SIZE));
+  const currentPage = Math.min(page ?? 1, pageCount);
+  const pageSlice = <T,>(list: Array<T>) =>
+    list.slice((currentPage - 1) * SERVICE_PAGE_SIZE, currentPage * SERVICE_PAGE_SIZE);
+
+  // The phone's Status dropdown: each standing counted over what the search and the
+  // State filter leave — the Gensets page's faceting — zeros kept, greyed.
+  const standingOptions: Array<FilterOption<ServiceStanding>> = CARD_STANDINGS.map((key) => ({
+    key,
+    label: STANDING_META[key].label,
+    count: rows.filter(
+      (row) => row.standing === key && matching.has(row.genset.id) && inState(gensetStateName(row.genset)),
+    ).length,
+  }));
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
-      {/* One row at phone width too: tighter gaps and a search box that gives way,
-          so the Due/History switch does not drop to a line of its own. */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 md:gap-x-4">
-        <InputGroup className="w-full min-w-0 flex-1 md:max-w-[187px] md:min-w-[140px]">
+    // `Due` and `History` sit in the second rail on the left (2026-09-30), the way a
+    // genset's own sections do, rather than as a switch at the toolbar's right end.
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+    <DetailSidebar
+      ariaLabel="Service sections"
+      header={<DetailSidebarLabel>Service</DetailSidebarLabel>}
+      entries={SERVICE_NAV}
+    />
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
+      {/* The Gensets and Deployments toolbars' layout: search first, the State filter
+          beside it, the Due/History switch hard right. On a phone the search has the
+          top row to itself and the filter and switch share the row under it. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <InputGroup className="w-full basis-full md:flex-1 md:basis-0 md:max-w-[187px] md:min-w-[140px]">
           <InputGroupAddon>
             <SearchIcon aria-hidden="true" />
           </InputGroupAddon>
           <InputGroupInput
             type="search"
             value={q}
-            onChange={(event) => onSearchChange({q: event.target.value || undefined})}
-            // `Plate` at phone width, where `Number plate` is cut to `Numb`.
-            placeholder={compact ? 'Plate' : 'Number plate'}
+            onChange={(event) => update({q: event.target.value || undefined})}
+            placeholder="Number plate"
             aria-label="Search gensets"
           />
         </InputGroup>
@@ -516,19 +756,37 @@ export const ServicePage = ({
           allLabel="All states"
           options={stateOptions}
           value={location}
-          onChange={(next) => onSearchChange({location: next})}
+          onChange={(next) => update({location: next})}
         />
-        <Tabs value={tab} onValueChange={(next) => onSearchChange({tab: next as ServiceSearch['tab']})} className="ml-auto">
-          <TabsList>
-            <TabsTrigger value="due" tabIndex={tab === 'due' ? 0 : -1} className="px-3">
-              Due
-            </TabsTrigger>
-            <TabsTrigger value="history" tabIndex={tab === 'history' ? 0 : -1} className="px-3">
-              History
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Beside State on the Due tab: the standing as a dropdown, the same filter
+            the status cards below toggle. Phone-only until 2026-09-30, when the
+            desktop toolbar got it too, as Gensets has its Status dropdown. */}
+        {tab === 'due' && (
+          <FilterSelect<ServiceStanding>
+            label="Status"
+            allLabel="All statuses"
+            options={standingOptions}
+            value={standing}
+            onChange={(next) => update({standing: next})}
+          />
+        )}
+        {/* Phone only: from `md` up the two are rows in the rail on the left (see
+            `SERVICE_NAV`), which is hidden below it. */}
+        {compact && (
+          <Tabs value={tab} onValueChange={(next) => update({tab: next as ServiceSearch['tab']})} className="ml-auto">
+            <TabsList>
+              <TabsTrigger value="due" tabIndex={tab === 'due' ? 0 : -1} className="px-3">
+                Due
+              </TabsTrigger>
+              <TabsTrigger value="history" tabIndex={tab === 'history' ? 0 : -1} className="px-3">
+                History
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
       </div>
+
+      <ServiceActiveFilters search={search} onSearchChange={update} />
 
       {tab === 'due' && compact && (
         // Three across at phone width, label and count only: the explanation lines
@@ -540,7 +798,7 @@ export const ServicePage = ({
               key={key}
               type="button"
               aria-pressed={standing === key}
-              onClick={() => onSearchChange({standing: standing === key ? undefined : key})}
+              onClick={() => update({standing: standing === key ? undefined : key})}
               className={cn(
                 'flex min-h-16 cursor-pointer flex-col items-start justify-between gap-1.5 rounded-md border px-2.5 py-2 text-left',
                 'outline-none focus-visible:ring-2 focus-visible:ring-outline',
@@ -568,19 +826,19 @@ export const ServicePage = ({
               detail={STANDING_META[key].detail}
               tone={STANDING_META[key].tone}
               active={standing === key}
-              onToggle={(next) => onSearchChange({standing: next ? key : undefined})}
+              onToggle={(next) => update({standing: next ? key : undefined})}
             />
           ))}
         </SummaryCardRow>
       )}
 
-      <p className="text-sm text-secondary">
-        {tab === 'due'
-          ? `${shown} of ${rows.length} gensets`
-          : `${shown} ${shown === 1 ? 'service' : 'services'} on record`}
-      </p>
+      {/* `N of 38 gensets` came off the Due tab on 2026-09-30: the cards above count
+          the fleet and the pager under the table counts the rows. */}
+      {tab === 'history' && (
+        <p className="text-sm text-secondary">{`${shown} ${shown === 1 ? 'service' : 'services'} on record`}</p>
+      )}
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         {shown === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 py-12 text-center">
             <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
@@ -589,13 +847,27 @@ export const ServicePage = ({
             </p>
           </div>
         ) : tab === 'due' ? (
-          compact ? <DueCards rows={dueRows} /> : <DueTable rows={dueRows} />
+          compact ? <DueCards rows={dueRows} /> : <DueTable rows={pageSlice(dueRows)} sort={sort} direction={direction} onSortChange={changeSort} />
         ) : compact ? (
           <HistoryRows records={historyRows} byId={byId} />
         ) : (
-          <HistoryTable records={historyRows} byId={byId} />
+          <HistoryTable records={pageSlice(historyRows)} byId={byId} />
         )}
       </div>
+      {!compact && shown > 0 && (
+        <TablePager
+          label={tab === 'due' ? 'Due table pages' : 'History table pages'}
+          page={currentPage}
+          pageCount={pageCount}
+          pageSize={SERVICE_PAGE_SIZE}
+          total={shown}
+          onPageChange={(next) => {
+            scrollRef.current?.scrollTo({top: 0});
+            onSearchChange({page: next === 1 ? undefined : next});
+          }}
+        />
+      )}
+    </div>
     </div>
   );
 };

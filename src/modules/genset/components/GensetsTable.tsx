@@ -69,7 +69,15 @@ type GensetsTableProps = {
  * rather than clip a cell.
  */
 /** Every real cell: held to its content, with a floor under the gap on each side. */
-const CELL = 'w-px px-2.5 whitespace-nowrap';
+const CELL = 'w-px px-2 whitespace-nowrap';
+
+/**
+ * The plate column's floor: 10% over its widest plate (109px beside the map), so the
+ * row's identity has room to breathe (2026-09-29). The gaps give up the width, and
+ * the cells' padding went from 10px to 8px a side to pay for it, so the split view
+ * has no sideways scroll from a 1366px window up.
+ */
+const PLATE_MIN = 'min-w-[120px]';
 
 /** The stretch between two columns — see above. Layout, so hidden from assistive tech. */
 const Gap = ({header = false}: {header?: boolean}) =>
@@ -99,6 +107,8 @@ const COLUMNS = [
   {label: 'Status', beside: true, sort: 'state'},
   {label: 'Alarm', beside: true, sort: 'alarms'},
   {label: 'Fuel level', beside: true, sort: 'fuel'},
+  // `Capacity` (the kVA rating) came off on 2026-09-29, with its filter; the
+  // preview panel carries it.
   // `beside: false` — dropped in the split view, kept on the full-width list. Both
   // truncated to nothing useful beside the map: `Bangsar S…` and `1 hour …` are the
   // halves of each that carry no meaning. `SolarTable` drops `Capacity` and
@@ -207,7 +217,15 @@ export const GensetsTable = ({
                           : 'descending'
                         : 'none'
                   }
-                  className={cn(CELL, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary')}
+                  className={cn(
+                    CELL,
+                    index === 0 && PLATE_MIN,
+                    // The hover arrow sits past the label, in the next gap; the last
+                    // column has no gap after it, so it keeps room of its own or the
+                    // arrow pushes the table into a sideways scroll.
+                    index === columns.length - 1 && 'pr-6',
+                    'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary',
+                  )}
                 >
                   {column.sort === undefined ? (
                     column.label
@@ -272,7 +290,7 @@ export const GensetsTable = ({
                   selected && 'bg-highlight hover:bg-highlight',
                 )}
               >
-                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 font-medium')}>
+                <td className={cn(CELL, PLATE_MIN, 'h-13 border-b border-subtle py-2 font-medium')}>
                   {/* The name is the way *into* a genset; the rest of the row
                       only selects it into the preview panel. `stopPropagation`
                       so the click doesn't also fire the row's select on a screen
@@ -327,7 +345,7 @@ export const GensetsTable = ({
                     {/* The full street address, on one line. Capped so one long
                         address cannot take the spare width from every other column;
                         the rest is in the tooltip. */}
-                    <span className="block max-w-[26rem] truncate" title={genset.address}>
+                    <span className="block max-w-[24rem] truncate" title={genset.address}>
                       {genset.address}
                     </span>
                   </td>

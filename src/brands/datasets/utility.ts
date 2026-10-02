@@ -159,11 +159,22 @@ const SITES = [
   {id: 'pe-029', name: 'PE Tmn Sementa Jaya', kind: 'PE', locationLabel: 'Sementa, Selangor', address: 'Lot 10, Jalan Sementa Jaya, Taman Sementa, 42100 Klang, Selangor', latitude: 3.0900, longitude: 101.3600, loadKw: 347, customer: 'selangor', powerRole: 'GRID_BACKUP'},
   {id: 'pe-030', name: 'PE Pusat Ternakan Itik', kind: 'PE', locationLabel: 'Jeram, Selangor', address: 'Lot 3, Jalan Jeram, 45800 Jeram, Selangor', latitude: 3.2167, longitude: 101.3167, loadKw: 22, customer: 'selangor', powerRole: 'GRID_BACKUP'},
   {id: 'pe-031', name: 'PE Alam Perdana No 3', kind: 'PE', locationLabel: 'Bandar Puncak Alam, Selangor', address: 'Lot 52, Jalan Alam Perdana 3, 42300 Bandar Puncak Alam, Selangor', latitude: 3.2300, longitude: 101.4200, loadKw: 172, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+
+  // — Seven more yards (2026-09-29), each taking the second set off a yard that held
+  //   two, so a job is one set as a rule and two only now and then.
+  {id: 'pe-032', name: 'PE-032', kind: 'PE', locationLabel: 'Damansara, Kuala Lumpur', address: 'Lot 8, Jalan Damansara, Bukit Damansara, 50490 Kuala Lumpur', latitude: 3.1480, longitude: 101.6620, loadKw: 238, customer: 'wilayah', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-033', name: 'PE-033', kind: 'PE', locationLabel: 'Kuchai Lama, Kuala Lumpur', address: 'Lot 20, Jalan Kuchai Lama, 58200 Kuala Lumpur', latitude: 3.0900, longitude: 101.6870, loadKw: 176, customer: 'wilayah', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-034', name: 'PE-034', kind: 'PE', locationLabel: 'Subang Jaya, Selangor', address: 'Lot 33, Jalan SS 15/4, 47500 Subang Jaya, Selangor', latitude: 3.0780, longitude: 101.5860, loadKw: 284, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-035', name: 'PE-035', kind: 'PE', locationLabel: 'Port Klang, Selangor', address: 'Lot 71, Jalan Pelabuhan, 42000 Port Klang, Selangor', latitude: 3.0000, longitude: 101.3920, loadKw: 512, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-036', name: 'PE-036', kind: 'PE', locationLabel: 'Selayang, Selangor', address: 'Lot 12, Jalan Selayang Baru, 68100 Batu Caves, Selangor', latitude: 3.2500, longitude: 101.6480, loadKw: 152, customer: 'selangor', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-037', name: 'PE-037', kind: 'PE', locationLabel: 'Air Itam, Pulau Pinang', address: 'Lot 9, Jalan Air Itam, 11500 Air Itam, Pulau Pinang', latitude: 5.4020, longitude: 100.2790, loadKw: 211, customer: 'pulau-pinang', powerRole: 'GRID_BACKUP'},
+  {id: 'pe-038', name: 'PE-038', kind: 'PE', locationLabel: 'Bukit Mertajam, Pulau Pinang', address: 'Lot 27, Jalan Kulim, 14000 Bukit Mertajam, Pulau Pinang', latitude: 5.3630, longitude: 100.4650, loadKw: 654, customer: 'pulau-pinang', powerRole: 'GRID_BACKUP'},
 ] as const;
 
 /**
- * The machines. Thirty-seven across twenty-five yards — a substation compound holds
- * a pair far more often than a tower does, so twelve of the sites carry two.
+ * The machines. Thirty-seven across thirty-two yards: a job is one set as a rule,
+ * and five yards carry two — about one job in seven, which is how often Express
+ * Mission sends a pair (2026-09-29; twelve yards held two before).
  *
  * Their tank levels are chosen rather than scattered. `rulesFor` deals alarms from a
  * hash of the tag, so a fleet seeded without thought lands almost everything in the
@@ -180,19 +191,19 @@ const SITES = [
 const GENSETS = [
   // — Wilayah Persekutuan (5).
   {tag: 'CUM-739893', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-001', locationLabel: 'Bangsar, Kuala Lumpur',        latitude: 3.1286, longitude: 101.6694, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57, plateNumber: 'WVA 5385'},
-  {tag: 'CUM-303952', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-001', locationLabel: 'Bangsar, Kuala Lumpur',        latitude: 3.1294, longitude: 101.6706, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'WXQ 4562'},
+  {tag: 'CUM-303952', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-032', locationLabel: 'Damansara, Kuala Lumpur', latitude: 3.1484, longitude: 101.6626, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'WXQ 4562'},
   {tag: 'CAT-736523', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9260, longitude: 101.6958, fuelLitres: 2810, fuelCapacityLitres: 3000, staleMinutes: 1,  plateNumber: 'WLA 9480'},
   {tag: 'DNY-201708', model: 'Denyo 250 kVa',        runState: 'OFFLINE', siteId: 'pe-005', locationLabel: 'Putrajaya',                    latitude: 2.9268, longitude: 101.6970, fuelLitres: 96,   fuelCapacityLitres: 600,  staleMinutes: 2_890, plateNumber: 'WKC 3190'},
   {tag: 'FGW-181837', model: 'FG Wilson 650 kVa',    runState: 'RUNNING', siteId: 'pe-006', locationLabel: 'Kepong, Kuala Lumpur',         latitude: 3.2100, longitude: 101.6300, fuelLitres: 1455, fuelCapacityLitres: 1600, staleMinutes: 5,  startReason: 'TEST', plateNumber: 'H 4141'},
 
   // — Selangor (8).
   {tag: 'CUM-930666', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-007', locationLabel: 'Shah Alam, Selangor',          latitude: 3.0726, longitude: 101.5174, fuelLitres: 2004, fuelCapacityLitres: 2450, staleMinutes: 2,  plateNumber: 'BQH 7644'},
-  {tag: 'CUM-646777', model: 'Cummins 500 kVa',      runState: 'IDLE',    siteId: 'pe-007', locationLabel: 'Shah Alam, Selangor',          latitude: 3.0734, longitude: 101.5186, fuelLitres: 511,  fuelCapacityLitres: 1200, staleMinutes: 95, plateNumber: 'BMU 6334'},
+  {tag: 'CUM-646777', model: 'Cummins 500 kVa',      runState: 'IDLE',    siteId: 'pe-034', locationLabel: 'Subang Jaya, Selangor', latitude: 3.0784, longitude: 101.5866, fuelLitres: 511,  fuelCapacityLitres: 1200, staleMinutes: 95, plateNumber: 'BMU 6334'},
   {tag: 'CAT-939070', model: 'Caterpillar 1250 kVa', runState: 'RUNNING', siteId: 'pe-008', locationLabel: 'Klang, Selangor',              latitude: 3.0436, longitude: 101.4444, fuelLitres: 2040, fuelCapacityLitres: 3000, staleMinutes: 1,  plateNumber: 'BJN 2371'},
-  {tag: 'CAT-281248', model: 'Caterpillar 1250 kVa', runState: 'IDLE',    siteId: 'pe-008', locationLabel: 'Klang, Selangor',              latitude: 3.0444, longitude: 101.4456, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16, plateNumber: 'BRU 3805'},
+  {tag: 'CAT-281248', model: 'Caterpillar 1250 kVa', runState: 'IDLE',    siteId: 'pe-035', locationLabel: 'Port Klang, Selangor', latitude: 3.0004, longitude: 101.3926, fuelLitres: 1650, fuelCapacityLitres: 3000, staleMinutes: 16, plateNumber: 'BRU 3805'},
   {tag: 'PRK-252128', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-009', locationLabel: 'Petaling Jaya, Selangor',      latitude: 3.1066, longitude: 101.6054, fuelLitres: 1102, fuelCapacityLitres: 1800, staleMinutes: 6,  plateNumber: 'BND 8026'},
   {tag: 'PRK-230015', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-010', locationLabel: 'Rawang, Selangor',             latitude: 3.3206, longitude: 101.5764, fuelLitres: 1520, fuelCapacityLitres: 1800, staleMinutes: 7,  plateNumber: 'BQL 9297'},
-  {tag: 'KHL-599013', model: 'Kohler 400 kVa',       runState: 'IDLE',    siteId: 'pe-010', locationLabel: 'Rawang, Selangor',             latitude: 3.3214, longitude: 101.5776, fuelLitres: 305,  fuelCapacityLitres: 900,  staleMinutes: 44, plateNumber: 'BME 3713'},
+  {tag: 'KHL-599013', model: 'Kohler 400 kVa',       runState: 'IDLE',    siteId: 'pe-036', locationLabel: 'Selayang, Selangor', latitude: 3.2504, longitude: 101.6486, fuelLitres: 305,  fuelCapacityLitres: 900,  staleMinutes: 44, plateNumber: 'BME 3713'},
   {tag: 'DNY-246845', model: 'Denyo 250 kVa',        runState: 'RUNNING', siteId: 'pe-011', locationLabel: 'Banting, Selangor',            latitude: 2.8160, longitude: 101.5000, fuelLitres: 402,  fuelCapacityLitres: 600,  staleMinutes: 11, plateNumber: 'BTW 8463'},
 
   // — Perak (6).
@@ -205,9 +216,9 @@ const GENSETS = [
 
   // — Pulau Pinang (5) — Bayan Lepas carries the estate's heaviest pair.
   {tag: 'CUM-882799', model: 'Cummins 500 kVa',      runState: 'RUNNING', siteId: 'pe-016', locationLabel: 'George Town, Pulau Pinang',    latitude: 5.4137, longitude: 100.3282, fuelLitres: 220,  fuelCapacityLitres: 1000, staleMinutes: 12, plateNumber: 'PHQ 8279'},
-  {tag: 'CUM-440939', model: 'Cummins 500 kVa',      runState: 'IDLE',    siteId: 'pe-016', locationLabel: 'George Town, Pulau Pinang',    latitude: 5.4145, longitude: 100.3294, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4,  plateNumber: 'PFA 5976'},
+  {tag: 'CUM-440939', model: 'Cummins 500 kVa',      runState: 'IDLE',    siteId: 'pe-037', locationLabel: 'Air Itam, Pulau Pinang', latitude: 5.4024, longitude: 100.2796, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4,  plateNumber: 'PFA 5976'},
   {tag: 'CUM-672771', model: 'Cummins 1000 kVa',     runState: 'RUNNING', siteId: 'pe-017', locationLabel: 'Bayan Lepas, Pulau Pinang',    latitude: 5.2944, longitude: 100.2776, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9,  plateNumber: 'PGW 9748'},
-  {tag: 'CUM-167879', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-017', locationLabel: 'Bayan Lepas, Pulau Pinang',    latitude: 5.2936, longitude: 100.2764, fuelLitres: 1936, fuelCapacityLitres: 2450, staleMinutes: 44, plateNumber: 'PWG 6140'},
+  {tag: 'CUM-167879', model: 'Cummins 1000 kVa',     runState: 'IDLE',    siteId: 'pe-038', locationLabel: 'Bukit Mertajam, Pulau Pinang', latitude: 5.3634, longitude: 100.4656, fuelLitres: 1936, fuelCapacityLitres: 2450, staleMinutes: 44, plateNumber: 'PWG 6140'},
   {tag: 'PRK-541815', model: 'Perkins 800 kVa',      runState: 'RUNNING', siteId: 'pe-018', locationLabel: 'Butterworth, Pulau Pinang',    latitude: 5.3990, longitude: 100.3630, fuelLitres: 740,  fuelCapacityLitres: 1000, staleMinutes: 7,  plateNumber: 'PPB 8012'},
 
   // — Johor (6).
@@ -270,4 +281,29 @@ export const UTILITY_DATASET: BrandDataset = {
   // diesel-prime circuit rather than an incomer with a set behind it.
   defaultSiteId: 'pe-010',
   defaultGensetId: 'cum-739893',
+  // Express Mission's genset-on report (2026-10-01): an ERQ/PRQ number, a job type,
+  // and a driver, worker, chargeman and engine driver on every lorry.
+  work: {
+    referenceDigits: 7,
+    jobTypes: [
+      {id: 'erq', label: 'ERQ', prefix: 'ERQ', clientId: 'tnb'},
+      {id: 'prq', label: 'PRQ', prefix: 'PRQ', clientId: 'tnb'},
+      {id: 'standby', label: 'Standby'},
+    ],
+    crewRoles: ['Driver', 'Worker', 'Chargeman', 'Engine driver'],
+    crew: [
+      'Norahim',
+      'Syukri',
+      'Haziq',
+      'Fadzil',
+      'Syam',
+      'Zuhdi',
+      'Amirul',
+      'Faizal',
+      'Hafiz',
+      'Iskandar',
+      'Khairul',
+      'Rizal',
+    ],
+  },
 };

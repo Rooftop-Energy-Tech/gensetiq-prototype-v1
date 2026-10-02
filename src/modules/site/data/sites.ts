@@ -15,6 +15,7 @@ import {alarmRank, alarmRankCount} from './siteAlarmQueue';
 import {SITE_KIND_LABEL, siteSeeds} from './siteSeed';
 import {subscribeSiteOverrides} from './siteOverrides';
 import type {SiteSeed} from './siteSeed';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
 
 /**
  * Everything the site pages report, derived from the fleet standing on each site.
@@ -304,9 +305,9 @@ const stateRank = (genset: Genset) => RUN_STATES.indexOf(genset.runState);
 const buildSummary = (seed: SiteSeed, all: Array<Genset>): SiteSummary => {
   const members: Array<Genset> = all
     .filter((genset) => genset.siteId === seed.id)
-    // `RUN_STATES` is declared attention-first, so a turning set leads and the tag
+    // `RUN_STATES` is declared attention-first, so a turning set leads and the plate
     // breaks ties — the same order the fleet table uses, for the same reason.
-    .sort((left, right) => stateRank(left) - stateRank(right) || left.tag.localeCompare(right.tag));
+    .sort((left, right) => stateRank(left) - stateRank(right) || gensetLabel(left).localeCompare(gensetLabel(right)));
 
   const gensets: Array<SiteGenset> = members.flatMap((genset) => {
     const detail = gensetDetail(genset.id);
@@ -537,7 +538,7 @@ export const searchSites = (
       summary.site.name,
       summary.site.locationLabel,
       SITE_KIND_LABEL[summary.site.kind],
-      ...summary.gensets.map(({genset}) => genset.tag),
+      ...summary.gensets.flatMap(({genset}) => [gensetLabel(genset), genset.tag]),
     ].some((field) => field.toLowerCase().includes(needle)),
   );
 };

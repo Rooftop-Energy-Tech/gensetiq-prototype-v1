@@ -17,12 +17,43 @@ export type ServiceTab = (typeof SERVICE_TABS)[number];
 export const SERVICE_STANDINGS = ['overdue', 'due-soon', 'ok', 'never'] as const;
 export type ServiceStanding = (typeof SERVICE_STANDINGS)[number];
 
+/**
+ * How the Due table is ordered — the gensets register's sortable headers, over service
+ * standing. `standing` is the default and the page's own ranking: worst first.
+ */
+export const SERVICE_SORTS = ['standing', 'name', 'location', 'due', 'hours', 'time', 'last'] as const;
+export type ServiceSort = (typeof SERVICE_SORTS)[number];
+
+export const SERVICE_SORT_DIRECTIONS = ['asc', 'desc'] as const;
+export type ServiceSortDirection = (typeof SERVICE_SORT_DIRECTIONS)[number];
+
+/**
+ * Which way each key runs when first picked: the end a workshop lead wants on top.
+ * Soonest due, furthest through each interval, and the longest since a visit.
+ */
+export const SERVICE_SORT_DEFAULT_DIRECTION: Record<ServiceSort, ServiceSortDirection> = {
+  standing: 'asc',
+  name: 'asc',
+  location: 'asc',
+  due: 'desc',
+  hours: 'desc',
+  time: 'desc',
+  last: 'asc',
+};
+
+/** Rows per table page (2026-09-30) — `GENSET_PAGE_SIZE`, for the same reason. */
+export const SERVICE_PAGE_SIZE = 20;
+
 export const serviceSearchSchema = z.object({
   tab: z.enum(SERVICE_TABS).default('due').catch('due'),
   q: z.string().optional().catch(undefined),
   /** A state, as `stateSlug` writes it — the gensets register's `location`. */
   location: z.string().optional().catch(undefined),
   standing: z.enum(SERVICE_STANDINGS).optional().catch(undefined),
+  sort: z.enum(SERVICE_SORTS).default('standing').catch('standing'),
+  dir: z.enum(SERVICE_SORT_DIRECTIONS).optional().catch(undefined),
+  /** The table's page, 1-based — the gensets schema's `page`, for its reasons. Both tabs share it. */
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
 });
 
 export type ServiceSearch = z.infer<typeof serviceSearchSchema>;

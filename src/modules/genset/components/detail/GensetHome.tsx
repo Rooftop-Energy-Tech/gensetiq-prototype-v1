@@ -306,26 +306,26 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           but on a phone both halves *can* squeeze into one line once they are allowed
           to shrink, and the result is two 170px columns with the labels truncated
           away. The two questions are separate; at this width they are separate rows. */}
-      <div className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-stretch">
-        {/* The 560px floor is a desktop instruction — "keep the run beside the state
-            or wrap the whole band" — and on a 390px screen it is unsatisfiable, so
-            it would win over `flex-wrap` and push the page into a sideways scroll.
-            `min-w-0` replaces it below `md`: a flex item's automatic minimum is its
-            content's, so without it the run card's widest line — a timestamp that
-            must not wrap — becomes the floor for the whole band. */}
-        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 p-3 md:min-w-[560px] md:flex-row md:items-center">
+      {/* Under the fuel strip: the 2 × 2 controls at the far left, then the run card
+          taking the rest of the row (2026-09-29). The pad had sat at the far right of
+          two equal halves, which left a gap wider than either. Both sit flush with
+          the strip's edges. On a phone the pad is a full-width 2 × 2 above the run. */}
+      <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch">
+        {/* Where the fuel panel stood until 2026-09-22, and first in the row since
+            2026-09-29: the controls lead, and the run they act on follows. */}
+        <div className="flex min-w-0 md:shrink-0">
+          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
+        </div>
+        {/* The 360px floor is a desktop instruction — keep the run beside the pad or
+            wrap it under — and it is the width the card already fits on a phone, so
+            the row holds together down to a 1180px window. `min-w-0` below `md`: a
+            flex item's automatic minimum is its content's, so without it the card's
+            widest line, a timestamp that must not wrap, would push the page into a
+            sideways scroll. */}
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 md:min-w-[360px] md:flex-row">
           <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
         </div>
 
-        {/* Where the fuel panel stood until 2026-09-22. The pad comes down from
-            band 2 to take it, which is the better home for it on two counts: the
-            readings band above is now three columns of figures and a control column
-            beside them made the page's only interactive thing compete with its
-            densest reading, and a reader reaching for START has usually just read
-            the run state a few pixels to the left of here. */}
-        <div className="flex min-w-0 flex-1 items-center p-3 md:min-w-[420px] md:justify-end">
-          <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
-        </div>
       </div>
 
       <hr className="border-subtle" />
@@ -370,7 +370,10 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             nothing. The panel below says it in one. */}
         {running && (
         <Column title="Generator conditions">
-          <div className="flex flex-wrap items-start gap-x-8 gap-y-6 pt-1">
+          {/* Two equal columns, each tile centred in its half, so the column lines
+              hold down the card; a lone last tile stays in the first (2026-09-29).
+              As a left-packed wrap the tiles sat out of line with each other. */}
+          <div className="grid grid-cols-2 items-start justify-items-center gap-x-4 gap-y-6 pt-1">
             {detail.gauges.map((gauge) => (
               <ReadingTile
                 key={gauge.key}
@@ -497,15 +500,15 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
       <DetailBand
         ariaLabel="Genset details"
         rows={[
-          {label: 'Name', value: genset.tag},
-          {label: 'Make and model', value: genset.model},
-          {label: 'Rated capacity', value: amount(detail.ratedKw, 'kW')},
-          // Only when there is one. Most of the estate is bolted to a plinth and
-          // has no plate, and a row reading "—" would present the ordinary case as
-          // missing data.
+          // The plate first, which is also its lorry's since the set is bolted to
+          // one. The serial after it: it is on the nameplate, and nobody in the yard
+          // says it.
           ...(genset.plateNumber === null
             ? []
-            : [{label: 'Lorry plate', value: genset.plateNumber}]),
+            : [{label: 'Number plate', value: genset.plateNumber}]),
+          {label: 'Asset tag', value: genset.tag},
+          {label: 'Make and model', value: genset.model},
+          {label: 'Rated capacity', value: amount(detail.ratedKw, 'kW')},
         ]}
       />
     </div>

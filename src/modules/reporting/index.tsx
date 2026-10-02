@@ -3,7 +3,14 @@ import {DownloadIcon} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
 import {downloadText} from '@/lib/download';
+import {numericDate} from '@/lib/format';
+import {seededGenset} from '@/modules/genset/data/fleet';
 import {historyStart} from '@/modules/genset/data/history';
+import {REAL_GENSET_ID} from '@/modules/deployment/data/realJobs';
+import {gensetLabel} from '@/modules/genset/types/genset.type';
+
+/** The measured machine, where this brand's fleet has it — the carrier fleet does not. */
+const MEASURED = seededGenset(REAL_GENSET_ID);
 import {EXPORTS, exportFilename} from './exports';
 import type {ExportRange} from './exports';
 
@@ -98,8 +105,9 @@ export const ReportingPage = () => {
         </div>
 
         <p className="text-xs text-tertiary">
-          The history layer holds {new Date(historyStart()).toLocaleDateString('en-MY')} onward.
-          BRF 9540 is the exception — its record is measured and reaches back to May.
+          The history layer holds {numericDate(historyStart())} onward.
+          {MEASURED !== undefined &&
+            ` ${gensetLabel(MEASURED)} is the exception — its record is measured and reaches back to May.`}
         </p>
       </section>
 

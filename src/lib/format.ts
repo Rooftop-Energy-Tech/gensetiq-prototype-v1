@@ -70,16 +70,27 @@ const MONTHS = [
 ] as const;
 
 /**
- * "8:09 9 Aug 2026" — a run's start and end stamps.
+ * "09/08/2026" — every full date in the app, day first (2026-10-01).
+ *
+ * Padded day and month, so a column of dates lines up and nobody has to ask whether
+ * "9/8" is August or September.
+ */
+export const numericDate = (at: number | string): string => {
+  const day = new Date(at);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${pad(day.getDate())}/${pad(day.getMonth() + 1)}/${day.getFullYear()}`;
+};
+
+/**
+ * "8:09 09/08/2026" — a run's start and end stamps.
  *
  * Hand-assembled rather than `Intl.DateTimeFormat`: the design writes the hour
- * unpadded ("8:09", not "08:09") and the day unpadded, and no locale gives that
- * combination. `en-GB` comes closest and still pads the hour.
+ * unpadded ("8:09", not "08:09"), and no locale gives that beside a padded date.
  */
 export const stampAt = (iso: string): string => {
   const at = new Date(iso);
   const minute = String(at.getMinutes()).padStart(2, '0');
-  return `${at.getHours()}:${minute} ${at.getDate()} ${MONTHS[at.getMonth()]} ${at.getFullYear()}`;
+  return `${at.getHours()}:${minute} ${numericDate(iso)}`;
 };
 
 /**
@@ -93,52 +104,32 @@ export const clockTime = (at: number | string): string => {
   return `${time.getHours()}:${String(time.getMinutes()).padStart(2, '0')}`;
 };
 
-/** "9 Aug" — an axis tick on a window too wide to label by the hour. */
+/** "09/08" — an axis tick on a window too wide to label by the hour (2026-10-01). */
+export const tickDate = (at: number | string): string => numericDate(at).slice(0, 5);
+
+/** "9 Aug" — a day inside a sentence or a range, where the year goes without saying. */
 export const dayMonth = (at: number | string): string => {
   const day = new Date(at);
   return `${day.getDate()} ${MONTHS[day.getMonth()]}`;
 };
 
-/**
- * "2 Sep 2026" — the day half of a run stamp, for a card that sets the time above
- * the date rather than beside it.
- *
- * Unpadded day, like `stampAt`'s and unlike `stampDate`'s. The two really do
- * differ in the design: `Refuel by` is a date on its own in a column of figures
- * and pads to keep that column straight, while a run stamp is read as a phrase
- * under a clock time and "02" there is a form field, not a date.
- */
-export const stampDay = (iso: string): string =>
-  `${dayMonth(iso)} ${new Date(iso).getFullYear()}`;
+/** "02/09/2026" — the day half of a run stamp, for a card that sets the time above it. */
+export const stampDay = (iso: string): string => numericDate(iso);
 
 /**
- * "1–7 Aug 2026", "28 Jul – 3 Aug 2026", "28 Dec 2025 – 3 Jan 2026".
+ * "01/08/2026 – 07/08/2026", or one date when the range is a single day.
  *
- * Says each part exactly once. Repeating the month across a range that stays
- * inside one, or the year across a range that stays inside one, makes the chip
- * twice as wide to carry the same fact — and the reader is scanning it to check
- * a span, not to read a sentence.
+ * Both ends in full: a numeric date with its year or month dropped stops reading as
+ * a date at all.
  */
 export const dateRange = (from: number, to: number): string => {
-  const start = new Date(from);
-  const end = new Date(to);
-
-  if (start.getFullYear() !== end.getFullYear()) {
-    return `${dayMonth(from)} ${start.getFullYear()} – ${dayMonth(to)} ${end.getFullYear()}`;
-  }
-  if (start.getMonth() !== end.getMonth()) {
-    return `${dayMonth(from)} – ${dayMonth(to)} ${end.getFullYear()}`;
-  }
-  if (start.getDate() === end.getDate()) return `${dayMonth(from)} ${end.getFullYear()}`;
-
-  return `${start.getDate()}–${dayMonth(to)} ${end.getFullYear()}`;
+  const start = numericDate(from);
+  const end = numericDate(to);
+  return start === end ? start : `${start} – ${end}`;
 };
 
-/** "01 Jul 2026" — a date with no time of day, e.g. "Refuel by". */
-export const stampDate = (iso: string): string => {
-  const at = new Date(iso);
-  return `${String(at.getDate()).padStart(2, '0')} ${MONTHS[at.getMonth()]} ${at.getFullYear()}`;
-};
+/** "01/07/2026" — a date with no time of day, e.g. "Refuel by". */
+export const stampDate = (iso: string): string => numericDate(iso);
 
 /**
  * "12 hours", "45 minutes", "3 days 4 hours" — how long a run has lasted.

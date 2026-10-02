@@ -103,29 +103,41 @@ export const TopNav = () => {
   const router = useRouter();
   const crumbs = useCrumbs();
 
+  /**
+   * No back arrow on a top-level page — Gensets, Deployments, Fuel, Service and the
+   * rest of the rail, whose trail is one crumb. There is nothing above them to go
+   * back to, and the rail is how a reader moves between them. Removed there on
+   * 2026-09-29; a page one level down or deeper keeps it.
+   */
+  const topLevel = crumbs.length === 1;
+
   return (
     <header className="flex h-11 shrink-0 items-center gap-3 border-b border-default pr-4 pl-3">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="size-7"
-        onClick={() => router.history.back()}
-        aria-label="Go back"
-      >
-        <ArrowLeftIcon aria-hidden="true" />
-      </Button>
+      {!topLevel && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="size-7"
+          onClick={() => router.history.back()}
+          aria-label="Go back"
+        >
+          <ArrowLeftIcon aria-hidden="true" />
+        </Button>
+      )}
+      {/* The trail is set at 18px, 30% over the 14px body size (2026-09-29): it is
+          the page's title, and at body size it read as a caption. */}
       <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-2">
         {crumbs.map((crumb, index) => (
           <span key={crumb.label} className="flex min-w-0 items-center gap-2">
             {index > 0 && (
-              <ChevronRightIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
+              <ChevronRightIcon className="size-4.5 shrink-0 text-secondary" aria-hidden="true" />
             )}
             {crumb.to === undefined ? (
-              <span className="truncate text-sm font-medium text-primary">{crumb.label}</span>
+              <span className="truncate text-lg font-medium text-primary">{crumb.label}</span>
             ) : (
               <Link
                 to={crumb.to}
-                className="truncate text-sm font-medium text-secondary transition-colors hover:text-primary"
+                className="truncate text-lg font-medium text-secondary transition-colors hover:text-primary"
               >
                 {crumb.label}
               </Link>
