@@ -60,7 +60,7 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
       <div className="flex flex-col gap-2 overflow-y-auto px-6 py-7">
         <h2 className="text-sm font-medium text-primary">Runs</h2>
         <p className="max-w-2xl text-sm text-secondary">
-          This job starts on {stampDate(row.deployment.startsAt)}. Nothing has run on it,
+          This deployment starts on {stampDate(row.deployment.startsAt)}. Nothing has run on it,
           because nothing has been delivered yet.
         </p>
       </div>
@@ -80,10 +80,10 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
         <p className="max-w-2xl text-sm text-secondary">
           Every run the machines on {row.deployment.reference} started inside its window.
           {' '}
-          {amount(row.totals.runtimeHours, 'hrs')} on load ·{' '}
+          {amount(row.totals.runtimeHours, 'hrs')} run ·{' '}
           {amount(row.totals.energyKwh, 'kWh')} produced ·{' '}
           {amount(row.totals.fuelBurnedLitres, 'L')} burned. Energy is what the sets
-          produced rather than what the site drew: only one set is on the bus at a time.
+          produced rather than what the load drew: only one set is on the bus at a time.
         </p>
       </div>
 

@@ -48,6 +48,10 @@ const DOT_CLASS: Record<ChipTone, string> = {
   critical: 'bg-severity-critical',
   fuel: 'bg-fuel',
   'fuel-low': 'bg-fuel-tip',
+  running: 'bg-status-running',
+  idle: 'bg-status-idle',
+  offline: 'bg-status-offline',
+  'ok-hollow': 'bg-transparent ring-[1.5px] ring-inset ring-severity-ok',
 };
 
 type FilterSelectProps<K extends string> = {

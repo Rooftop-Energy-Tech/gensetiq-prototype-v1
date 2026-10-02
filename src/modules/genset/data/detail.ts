@@ -22,6 +22,7 @@ import {GENSETS} from './fleet';
 import {seededHoursSinceService} from './serviceSeed';
 import {spread} from './spread';
 import {REAL_GENSET_ID, REAL_RUNS} from '@/modules/deployment/data/realJobs';
+import {modelKva} from '../types/genset.type';
 
 /**
  * Everything the genset home page needs beyond the fleet row, in place of the
@@ -118,7 +119,6 @@ const POWER_FACTOR = 0.8;
 const HOUR = 3_600_000;
 
 /** `1000` out of `Cummins 1000 kVa`. */
-const ratingKva = (model: string): number => Number(model.match(/(\d+)\s*kVa/i)?.[1] ?? 500);
 
 // ─── Readings ────────────────────────────────────────────────────────────────
 
@@ -1119,7 +1119,7 @@ const rulesFor = (genset: Genset): Array<AlertRule> => {
 
 const buildDetail = (genset: Genset, now: number): GensetDetail => {
   const running = genset.runState === 'RUNNING';
-  const kva = ratingKva(genset.model);
+  const kva = modelKva(genset.model);
   // 500 kVA and under starts on a 12 V bank rather than 24 V. Named once, because
   // it decides both the voltage readings and the face they are drawn on, and those
   // two disagreeing is exactly the bug it prevents.

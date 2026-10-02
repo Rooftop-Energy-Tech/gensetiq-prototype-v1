@@ -14,6 +14,9 @@ export const DEPLOYMENT_VIEWS = ['split', 'list', 'map', 'gantt'] as const;
 
 export type DeploymentView = (typeof DEPLOYMENT_VIEWS)[number];
 
+/** Rows per table page (2026-09-30) — `GENSET_PAGE_SIZE`, for the same reason. */
+export const DEPLOYMENT_PAGE_SIZE = 20;
+
 /**
  * How the register is ordered. `started` is the default and the register's own
  * ranking — active jobs first, then what is committed, then the record, newest at
@@ -67,6 +70,12 @@ export const deploymentSearchSchema = z.object({
    * URL. A plain string: an unknown slug filters to nothing, which the chip row shows.
    */
   location: z.string().optional().catch(undefined),
+  /**
+   * The job type, as an id from the estate's `work.jobTypes` (`erq`, `prq`, `standby`)
+   * — the Job type dropdown, on an estate that has job types (2026-10-01). An unknown
+   * id filters to nothing, which the chip row shows.
+   */
+  job: z.string().optional().catch(undefined),
   sort: z.enum(DEPLOYMENT_SORTS).default('started').catch('started'),
   /**
    * Which way that ordering runs. Optional rather than defaulted, because the
@@ -74,6 +83,8 @@ export const deploymentSearchSchema = z.object({
    * keeps `dir` out of the URL until a reader flips a header off its own grain.
    */
   dir: z.enum(DEPLOYMENT_SORT_DIRECTIONS).optional().catch(undefined),
+  /** The table's page, 1-based — the gensets schema's `page`, for its reasons. */
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
   /** Selected posting id. Absent = nothing selected. */
   id: z.string().optional().catch(undefined),
   /**

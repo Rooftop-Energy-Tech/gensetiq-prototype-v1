@@ -3,7 +3,7 @@ import {gensetStatus} from '../data/fleetStatus';
 import {gensetStateName, gensetStateSlug} from '../data/gensetState';
 import {isDueForService} from '../data/services';
 import type {FleetStatus} from '../data/fleetStatus';
-import {gensetLabel, RUN_STATES} from '../types/genset.type';
+import {gensetKva, gensetLabel, RUN_STATES} from '../types/genset.type';
 import type {AlertSeverity} from '../types/alert.type';
 import {alarmRank, alarmRankCount} from '@/modules/site/data/siteAlarmQueue';
 import {GENSET_SORT_DEFAULT_DIRECTION} from '../types/view.type';
@@ -31,6 +31,8 @@ export type GensetFilters = {
   run?: RunState;
   alarm?: GensetAlarmFilter;
   fuel?: GensetFuelFilter;
+  /** Rated capacity in kVA, as a string — see `capacity` in `view.type.ts`. */
+  capacity?: string;
 };
 
 /**
@@ -109,6 +111,8 @@ export const sortGensets = (
       return level(a) - level(b);
     }
 
+    if (sort === 'capacity') return gensetKva(b) - gensetKva(a);
+
     if (sort === 'alarms') {
       // Severity before volume — see `alarmRank`. The rank counts *down* from the
       // worst, so ascending rank is the worst first; the default direction calls
@@ -176,5 +180,6 @@ export const filterGensets = (
     if (filters.run !== undefined && genset.runState !== filters.run) return false;
     if (filters.alarm !== undefined && gensetAlarmFilter(counts[genset.id]) !== filters.alarm) return false;
     if (filters.fuel !== undefined && gensetFuelFilter(genset) !== filters.fuel) return false;
+    if (filters.capacity !== undefined && String(gensetKva(genset)) !== filters.capacity) return false;
     return true;
   });

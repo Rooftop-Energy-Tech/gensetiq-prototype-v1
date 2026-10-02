@@ -24,8 +24,8 @@ import {spread, spreadBetween} from './spread';
  *
  * ## Why some units are pinned
  *
- * A fleet where everything is green does not exercise the screen. Five units are
- * placed by hand so every state the Service tab can render actually exists
+ * A fleet where everything is green does not exercise the screen. A handful of
+ * units are placed by hand so every state the Service tab can render actually exists
  * somewhere in the prototype — including the two that are the whole point of
  * having two counters:
  *
@@ -100,6 +100,23 @@ const PINNED: Record<string, ServiceProfile> = {
 
   // Never serviced — commissioned and not yet visited.
   kbr4128: null,
+  // Examples for the fleet service page (2026-09-30, on request): two more overdue
+  // and five more due soon in each estate, split between the two counters so both
+  // kinds of lateness show. Express Mission first, then the carrier's.
+  'khl-599013': {elapsedHours: 276, elapsedMonths: 3.0, technicianName: 'Syafiq Aziz'}, // BME 3713
+  'dny-246845': {elapsedHours: 61, elapsedMonths: 6.5, technicianName: 'Ravi Kumaran'}, // BTW 8463
+  'cum-164691': {elapsedHours: 238, elapsedMonths: 2.8, technicianName: 'Fazlan'}, // JLA 5601
+  'khl-306060': {elapsedHours: 104, elapsedMonths: 5.6, technicianName: 'Wei Kang Lim'}, // WSD 7780
+  'dny-201708': {elapsedHours: 241, elapsedMonths: 3.4, technicianName: 'Hafiz Rahman'}, // WKC 3190
+  'prk-954710': {elapsedHours: 118, elapsedMonths: 5.8, technicianName: 'Syafiq Aziz'}, // NHA 1169
+  'cum-882799': {elapsedHours: 229, elapsedMonths: 4.1, technicianName: 'Ravi Kumaran'}, // PHQ 8279
+  'fgw-954710': {elapsedHours: 281, elapsedMonths: 3.3, technicianName: 'Hafiz Rahman'}, // SAB 1169 H
+  'dny-758670': {elapsedHours: 72, elapsedMonths: 6.3, technicianName: 'Fazlan'}, // SAA 4956 W
+  'fgw-140106': {elapsedHours: 236, elapsedMonths: 2.9, technicianName: 'Wei Kang Lim'}, // SAC 1255 R
+  'fgw-497643': {elapsedHours: 97, elapsedMonths: 5.7, technicianName: 'Syafiq Aziz'}, // QS 9224 T
+  'fgw-645179': {elapsedHours: 244, elapsedMonths: 3.6, technicianName: 'Ravi Kumaran'}, // SA 1671 S
+  'fgw-428760': {elapsedHours: 83, elapsedMonths: 5.5, technicianName: 'Fazlan'}, // SD 9478 E
+  'prk-243887': {elapsedHours: 231, elapsedMonths: 4.4, technicianName: 'Hafiz Rahman'}, // SAB 2877 W
 };
 
 /**

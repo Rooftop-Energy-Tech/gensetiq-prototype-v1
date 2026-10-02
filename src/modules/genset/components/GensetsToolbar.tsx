@@ -38,7 +38,7 @@ type GensetsToolbarProps = {
    * The dropdowns' counts, each over the sets the *other* filters leave — see
    * `facets` in the page. Johor picked, and `Status` counts Johor's sets.
    */
-  facets: Pick<FleetSummary, 'byState' | 'byRunState' | 'byAlarm' | 'byFuel'>;
+  facets: Pick<FleetSummary, 'byState' | 'byRunState' | 'byAlarm' | 'byFuel' | 'byCapacity'>;
   search: GensetSearch;
   onSearchChange: (next: Partial<GensetSearch>) => void;
 };
@@ -73,7 +73,7 @@ const RESERVE = `${Math.round(RESERVE_FRACTION * 100)}%`;
  * column say the same word. Alarm takes the pill's three severity colours and the
  * all-clear green; fuel's low option takes the red the figure turns below the line.
  */
-const ALARM_OPTION: Record<GensetAlarmFilter, Omit<FilterOption<GensetAlarmFilter>, 'key' | 'count'>> = {
+export const ALARM_OPTION: Record<GensetAlarmFilter, Omit<FilterOption<GensetAlarmFilter>, 'key' | 'count'>> = {
   CRITICAL: {label: 'Critical', tone: 'critical'},
   WARNING: {label: 'Warning', tone: 'warning'},
   NEUTRAL: {label: 'Neutral', tone: 'neutral'},
@@ -129,7 +129,7 @@ export const GensetsToolbar = ({
       {/* Half the design's 373px: a plate is eight characters, and the width is
           better spent on the filters beside it. On a phone it takes the whole
           row, the filters wrapping under it. */}
-      <InputGroup className="w-full flex-1 md:max-w-[187px] md:min-w-[140px]">
+      <InputGroup className="w-full flex-1 md:max-w-[281px] md:min-w-[210px]">
         <InputGroupAddon>
           <SearchIcon aria-hidden="true" />
         </InputGroupAddon>
@@ -144,7 +144,8 @@ export const GensetsToolbar = ({
 
       {/* Between the search and the view switcher, in the order the sentence runs:
           where the set is, then the three columns it can be narrowed by, in the
-          order the columns stand — `Status`, `Alarm`, `Fuel level`. Each option's
+          order the columns stand — `Status`, `Alarm`, `Fuel level`. `Capacity` (one
+          option per kVA rating) came off on 2026-09-29 with its column. Each option's
           count is over the sets the other filters leave (`facets`), so with Johor
           picked the other three count Johor's sets. The options themselves stay
           put, zeros included. They combine with each other, with the chips and with
@@ -293,6 +294,9 @@ export const GensetsActiveFilters = ({
     chips.push({key: 'alarm', label, clear: {alarm: undefined}});
   }
   if (search.fuel !== undefined) chips.push({key: 'fuel', label: `Fuel ${FUEL_OPTION[search.fuel].label.toLowerCase()}`, clear: {fuel: undefined}});
+  if (search.capacity !== undefined) {
+    chips.push({key: 'capacity', label: `${Number(search.capacity).toLocaleString('en-MY')} kVA`, clear: {capacity: undefined}});
+  }
   if (search.status !== undefined) {
     const label = summary.byStatus.find((tally) => tally.key === search.status)?.label ?? search.status;
     chips.push({key: 'status', label, clear: {status: undefined}});

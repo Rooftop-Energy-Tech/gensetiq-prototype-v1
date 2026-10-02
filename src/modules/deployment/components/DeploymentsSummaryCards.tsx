@@ -10,14 +10,15 @@ import {
   SummaryCardRow,
   SummaryCollapseButton,
 } from '@/components/global/SummaryCards';
-import {durationCompact} from '@/lib/format';
 import {gensetSearch} from '@/modules/genset/types/view.type';
 import type {DeploymentSummary} from '../data/feed';
 import type {DeploymentSearch} from '../types/view.type';
+import {DEPLOYMENT_STATE_META} from './stateMeta';
 
 /**
- * The deployment summary: four cards in the Gensets page's shape —
- * `Deployments`, `Status`, `Gensets out`, `Diesel burned`.
+ * The deployment summary: three cards in the Gensets page's shape —
+ * `Status`, `Deployments`, `Gensets out`. `Status` leads, as it does
+ * on the Gensets page (swapped with `Deployments` on 2026-09-29).
  *
  * ## History
  *
@@ -33,15 +34,15 @@ import type {DeploymentSearch} from '../types/view.type';
  *   one yard's worth of logistics and two machines' worth of fuel. What is committed
  *   to a job that has not started rides under it, and the depot count leads to the
  *   Gensets page, since the next question is *which ones*.
- * - **Diesel burned**, with the typical job length under it — the two figures nobody
- *   can read off the list. The mean is over closed jobs only; an open one has not
- *   finished, and folding it in would drag the mean down.
+ * - **Diesel burned**, with the typical job length under it, was the fourth card
+ *   until 2026-09-29 and came off on request; each job's litres are in its preview
+ *   panel and on its own page.
  */
 
 /** What each status row means, spelled out where a reader can hover it. */
 const CHIP_TITLE: Record<string, string> = {
   planned: 'Booked to start later — the machines are committed and nothing has moved',
-  active: 'Standing now — the machines are at the site',
+  active: 'Standing now — the machines are on location',
   completed: 'Closed in the last 60 days',
 };
 
@@ -71,11 +72,28 @@ export const DeploymentsSummaryCards = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={4}>
+      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={3}>
+        <SummaryCard label="Status">
+          <div className="flex flex-col gap-0.5">
+            {summary.byState.map((tally) => (
+              <CountChip
+                key={tally.key}
+                label={tally.label}
+                count={tally.count}
+                tone={DEPLOYMENT_STATE_META[tally.key].tone}
+                active={search.state === tally.key}
+                onToggle={(next) => onSearchChange({state: next ? tally.key : undefined})}
+                title={CHIP_TITLE[tally.key]}
+                block
+              />
+            ))}
+          </div>
+        </SummaryCard>
+
         <SummaryCard label="Deployments">
           <Headline
             value={summary.total}
-            unit={summary.total === 1 ? 'job' : 'jobs'}
+            unit={summary.total === 1 ? 'deployment' : 'deployments'}
             detail={
               filtered ? `Showing ${showing}` : `across ${states} ${states === 1 ? 'state' : 'states'}`
             }
@@ -87,28 +105,11 @@ export const DeploymentsSummaryCards = ({
           )}
         </SummaryCard>
 
-        <SummaryCard label="Status">
-          <div className="flex flex-col gap-0.5">
-            {summary.byState.map((tally) => (
-              <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                tone={tally.key === 'active' ? 'ok' : 'neutral'}
-                active={search.state === tally.key}
-                onToggle={(next) => onSearchChange({state: next ? tally.key : undefined})}
-                title={CHIP_TITLE[tally.key]}
-                block
-              />
-            ))}
-          </div>
-        </SummaryCard>
-
         <SummaryCard label="Gensets out">
           <Headline
             value={summary.deployedGensets}
             unit={summary.deployedGensets === 1 ? 'genset' : 'gensets'}
-            detail={`at ${summary.occupiedSites} ${summary.occupiedSites === 1 ? 'site' : 'sites'}${committed}`}
+            detail={`at ${summary.occupiedSites} ${summary.occupiedSites === 1 ? 'address' : 'addresses'}${committed}`}
           />
           {/* The one line here that leads somewhere else rather than filtering, so
               it keeps the arrow every other way-out in this app carries. */}
@@ -124,17 +125,6 @@ export const DeploymentsSummaryCards = ({
           </Link>
         </SummaryCard>
 
-        <SummaryCard label="Diesel burned">
-          <Headline
-            value={Math.round(summary.fuelBurnedLitres).toLocaleString('en-MY')}
-            unit="L"
-            detail={
-              summary.meanCompletedMs === 0
-                ? 'no job closed yet'
-                : `typical job ${durationCompact(summary.meanCompletedMs)}`
-            }
-          />
-        </SummaryCard>
       </SummaryCardRow>
 
       <SummaryCollapseButton

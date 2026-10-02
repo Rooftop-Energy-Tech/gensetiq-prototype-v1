@@ -1,7 +1,7 @@
 import {useMemo, useRef, useState} from 'react';
 
 import {ChartTooltip} from '@/components/global/ChartTooltip';
-import {amount, clockTime, dayMonth} from '@/lib/format';
+import {amount, clockTime, tickDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {GensetRun} from '../../../types/run.type';
@@ -318,7 +318,7 @@ export const TimeSeriesChart = ({
               className="text-[10px] font-medium text-secondary"
               fill="currentColor"
             >
-              {byHour ? clockTime(tick) : dayMonth(tick)}
+              {byHour ? clockTime(tick) : tickDate(tick)}
             </text>
           ))}
 
@@ -361,7 +361,7 @@ export const TimeSeriesChart = ({
           frameWidth={width}
           width={READOUT_WIDTH}
           top={24}
-          title={`${clockTime(hovered.t)} · ${dayMonth(hovered.t)}`}
+          title={`${clockTime(hovered.t)} · ${tickDate(hovered.t)}`}
           rows={series.map((one, index) => {
             const sample = sampleAt(one, hovered.t);
 

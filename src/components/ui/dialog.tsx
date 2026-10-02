@@ -1,4 +1,5 @@
 import {Dialog as DialogPrimitive} from 'radix-ui';
+import {createContext, useContext, useState} from 'react';
 import type * as React from 'react';
 
 import {cn} from '@/lib/utils';
@@ -10,6 +11,17 @@ import {cn} from '@/lib/utils';
  * popover with a border: a form that is halfway through being filled in should
  * not lose its contents to a stray click on the page behind it.
  */
+/**
+ * The open dialog's own element, so a popover opened inside it portals *into* it.
+ *
+ * A modal dialog blocks scrolling everywhere outside itself, and a popover portalled
+ * to `<body>` is outside it: its list would not scroll with the wheel (2026-09-30,
+ * the new-deployment genset picker). `null` outside any dialog, where `<body>` is right.
+ */
+const DialogContainerContext = createContext<HTMLElement | null>(null);
+
+export const useDialogContainer = () => useContext(DialogContainerContext);
+
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -23,6 +35,7 @@ function DialogClose(props: React.ComponentProps<typeof DialogPrimitive.Close>) 
 }
 
 function DialogContent({className, children, ...props}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  const [container, setContainer] = useState<HTMLElement | null>(null);
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -30,6 +43,7 @@ function DialogContent({className, children, ...props}: React.ComponentProps<typ
         className="fixed inset-0 z-50 bg-black/50"
       />
       <DialogPrimitive.Content
+        ref={setContainer}
         data-slot="dialog-content"
         className={cn(
           'fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-lg border border-default bg-overlay p-5 text-primary shadow-lg outline-none',
@@ -37,7 +51,7 @@ function DialogContent({className, children, ...props}: React.ComponentProps<typ
         )}
         {...props}
       >
-        {children}
+        <DialogContainerContext.Provider value={container}>{children}</DialogContainerContext.Provider>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );

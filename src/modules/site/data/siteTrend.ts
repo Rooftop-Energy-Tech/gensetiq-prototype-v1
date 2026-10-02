@@ -1,3 +1,4 @@
+import {tickDate} from '@/lib/format';
 import {runTotalsIn} from '@/modules/genset/data/history';
 
 import {loadShape} from './load';
@@ -566,7 +567,7 @@ const clockSpine = (
       spine.push({
         from,
         to: from + 86_400_000,
-        label: new Date(from).toLocaleDateString('en-MY', {day: 'numeric', month: 'short'}),
+        label: tickDate(from),
       });
     }
     return spine;

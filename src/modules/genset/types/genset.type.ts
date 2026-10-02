@@ -83,18 +83,11 @@ export type Genset = {
    * is bolted down, and the details block already prints the row only when there is
    * one.
    *
-   * Not to be confused with `lorryPlate` below, the lorry the machine is bolted to.
-   * This is the machine's own registration.
+   * It is also the lorry's plate: the set is bolted to its lorry, so the two are one
+   * registration. A separate lorry plate existed until 2026-09-29 and was removed as
+   * the same fact stated twice.
    */
   plateNumber: string | null;
-  /**
-   * The lorry this set is bolted onto, `JKT 2204`. **One per set, for its life** — it
-   * is the same lorry on every job — so it lives on the genset rather than on a
-   * deployment. It had been dealt afresh per job until 2026-09-29, which gave one
-   * machine a different lorry on every posting. Derived in `fleet.ts`: in the style of
-   * the brand's own plates, and never equal to any genset's plate or another lorry's.
-   */
-  lorryPlate: string;
   fuelLitres: number;
   fuelCapacityLitres: number;
   /**
@@ -201,3 +194,13 @@ export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(ge
  * once; a page title has to carry its own.
  */
 export const gensetLabel = (genset: Genset): string => genset.plateNumber ?? genset.tag;
+
+/**
+ * A model's rated capacity in kVA, read off its name (`Cummins 1000 kVa` → 1000) —
+ * the Capacity filter and column, and the rating the detail model derives kW from.
+ * 500 where a name carries none, the fleet's middle size.
+ */
+export const modelKva = (model: string): number => Number(model.match(/(\d+)\s*kVa/i)?.[1] ?? 500);
+
+/** A set's rated capacity in kVA. See `modelKva`. */
+export const gensetKva = (genset: Genset): number => modelKva(genset.model);

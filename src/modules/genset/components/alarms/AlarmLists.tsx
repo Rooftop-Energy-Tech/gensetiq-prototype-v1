@@ -5,7 +5,7 @@ import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {CATEGORY_META} from '@/modules/site/components/categoryMeta';
 import {PART_META} from '@/modules/site/components/partMeta';
-import {relativeTime, stampAt} from '@/lib/format';
+import {clockTime, numericDate, relativeTime, stampAt} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {ALERT_SEVERITIES, countBySeverity} from '../../types/alert.type';
 import type {AlertSeverity} from '../../types/alert.type';
@@ -187,6 +187,14 @@ const ClassBadge = ({alarm}: {alarm: AlarmView}) => (
   </Badge>
 );
 
+/** The time and the date on lines of their own (2026-10-01), so a column of them reads down. */
+const RaisedAt = ({at}: {at: string}) => (
+  <>
+    <span className="block">{clockTime(at)}</span>
+    <span className="block">{numericDate(at)}</span>
+  </>
+);
+
 /**
  * One standing alarm, and the two things that can be done to it.
  *
@@ -228,7 +236,7 @@ const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
         <ClassBadge alarm={alarm} />
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-secondary">
-        {stampAt(alarm.raisedAt)}
+        <RaisedAt at={alarm.raisedAt} />
         <span className="block text-xs text-tertiary">{relativeTime(alarm.raisedAt)}</span>
       </td>
       <td className="px-3 py-2.5">
@@ -295,7 +303,9 @@ const ClearedRow = ({alarm}: {alarm: AlarmView}) => (
     <td className="px-3 py-2.5">
       <ClassBadge alarm={alarm} />
     </td>
-    <td className="px-3 py-2.5 whitespace-nowrap text-secondary">{stampAt(alarm.raisedAt)}</td>
+    <td className="px-3 py-2.5 whitespace-nowrap text-secondary">
+      <RaisedAt at={alarm.raisedAt} />
+    </td>
     <td className="px-3 py-2.5 whitespace-nowrap text-secondary">
       {alarm.handling.clearedAt === null ? '—' : stampAt(alarm.handling.clearedAt)}
       <span className="block text-xs text-tertiary">by {alarm.handling.clearedBy}</span>

@@ -34,7 +34,12 @@ export type DeploymentRow = {
   /** The machines on the job, tag order — the column, the pin size and the panel. */
   members: Array<DeploymentMember>;
   state: DeploymentState;
-  siteName: string;
+  /**
+   * Where the machines stand: the yard's street address, or the placename copied
+   * onto the job where there is no seed. Deployments name no site (2026-09-29) —
+   * a reader needs where the set is, not the yard's code.
+   */
+  address: string;
   /** The placename copied onto the job — history survives a site rename. */
   locationLabel: string;
   /**
@@ -73,8 +78,6 @@ export type DeploymentMember = {
    * page's label — falling back to the tag where a set has none.
    */
   plate: string;
-  /** The lorry the set is bolted to — the same one on every job. */
-  lorryPlate: string;
   model: string;
   /** Gone home while the job runs on. */
   collected: boolean;
@@ -98,27 +101,33 @@ export const deploymentRow = (
         membership,
         tag: genset?.tag ?? membership.gensetId,
         plate: genset === undefined ? membership.gensetId : gensetLabel(genset),
-        lorryPlate: genset?.lorryPlate ?? '',
         model: genset?.model ?? '',
         collected: membership.collectedAt !== null,
       };
     })
     .sort((a, b) => a.plate.localeCompare(b.plate));
 
+  // A pin moved off the site wins for everything positional; the division stays the
+  // site's, since the deployment was booked through it.
+  const pin = deployment.pin;
+  const latitude = pin?.latitude ?? seed?.latitude;
+  const longitude = pin?.longitude ?? seed?.longitude;
   const stateName =
-    seed === undefined ? undefined : stateNameAt(seed.longitude, seed.latitude);
+    latitude === undefined || longitude === undefined
+      ? undefined
+      : stateNameAt(longitude, latitude);
 
   return {
     deployment,
     members,
     state: deploymentState(deployment, now),
-    siteName: seed?.name ?? deployment.locationLabel,
+    address: pin?.address ?? seed?.address ?? deployment.locationLabel,
     locationLabel: deployment.locationLabel,
     stateName,
     stateSlug: stateName === undefined ? undefined : stateSlug(stateName),
     customerId: seed?.customer,
-    latitude: seed?.latitude,
-    longitude: seed?.longitude,
+    latitude,
+    longitude,
     elapsedMs: deploymentElapsedMs(deployment, now),
     startedMs: new Date(deployment.startsAt).getTime(),
     endedMs: deploymentEndMs(deployment, now),
@@ -173,15 +182,18 @@ export type DeploymentFilters = {
   state: DeploymentState | undefined;
   /** The Malaysian state the yard is in, as a slug — the Gensets page's `location`. */
   location: string | undefined;
+  /** The job type's id, on an estate that has them. */
+  job: string | undefined;
 };
 
 export const filterDeployments = (
   rows: Array<DeploymentRow>,
-  {state, location}: DeploymentFilters,
+  {state, location, job}: DeploymentFilters,
 ): Array<DeploymentRow> =>
   rows.filter((row) => {
     if (state !== undefined && row.state !== state) return false;
     if (location !== undefined && row.stateSlug !== location) return false;
+    if (job !== undefined && row.deployment.jobType !== job) return false;
     return true;
   });
 

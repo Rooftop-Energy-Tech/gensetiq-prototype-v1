@@ -2,6 +2,7 @@ import {Suspense, lazy, useEffect, useMemo, useRef, useState} from 'react';
 import {SearchXIcon} from 'lucide-react';
 
 import {malaysiaStateName} from '@/lib/geo/malaysiaStates';
+import {TablePager} from '@/components/global/TablePager';
 import {useIsCompact} from '@/lib/useIsCompact';
 import {useVisibleRowIds} from '@/lib/useVisibleRows';
 import {
@@ -17,8 +18,10 @@ import {DeploymentsGantt} from './components/DeploymentsGantt';
 import {DeploymentsSummaryCards} from './components/DeploymentsSummaryCards';
 import {DeploymentsTable} from './components/DeploymentsTable';
 import {DeploymentsActiveFilters, DeploymentsToolbar} from './components/DeploymentsToolbar';
+import {WORK} from './components/detail/DeploymentWork';
+import {NewDeploymentButton} from './components/NewDeploymentDialog';
 import {stateSlug} from '@/modules/genset/data/gensetState';
-import {DEPLOYMENT_SORT_DEFAULT_DIRECTION} from './types/view.type';
+import {DEPLOYMENT_PAGE_SIZE, DEPLOYMENT_SORT_DEFAULT_DIRECTION} from './types/view.type';
 import type {DeploymentSearch, DeploymentSort} from './types/view.type';
 
 /**
@@ -54,8 +57,8 @@ type DeploymentPageProps = {
  * It was a flat feed of postings, one row per machine, which is the shape Helios
  * `DeploymentSession` has. A yard that needs three sets for five weeks is **one job**,
  * and three rows with identical dates is that job with its identity taken away. So a
- * row here is a job at a site over a window, with one to three machines on it, and
- * the machine's own view of the same fact lives on its pages.
+ * row here is a job at a site over a window, with one machine on it (two about one
+ * job in seven), and the machine's own view of the same fact lives on its pages.
  *
  * ## Three states, and the third one is new
  *
@@ -85,7 +88,7 @@ type DeploymentPageProps = {
  * `DeploymentsSummaryCards` for what the cards count.
  */
 export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) => {
-  const {view, q = '', id, panel, state, location, sort, dir} = search;
+  const {view, q = '', id, panel, state, location, job, sort, dir, page} = search;
 
   // Absent `dir` means the key's own grain — see `DEPLOYMENT_SORT_DEFAULT_DIRECTION`.
   const direction = dir ?? DEPLOYMENT_SORT_DEFAULT_DIRECTION[sort];
@@ -111,22 +114,29 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
    */
   const facets = useMemo(() => {
     const searched = searchDeployments(all, q);
+    const jobRows = filterDeployments(searched, {state, location, job: undefined});
     return {
-      byState: deploymentSummary(filterDeployments(searched, {state: undefined, location}))
+      byState: deploymentSummary(filterDeployments(searched, {state: undefined, location, job}))
         .byState,
-      byLocation: deploymentSummary(filterDeployments(searched, {state, location: undefined}))
-        .byLocation,
+      byLocation: deploymentSummary(
+        filterDeployments(searched, {state, location: undefined, job}),
+      ).byLocation,
+      byJobType: (WORK?.jobTypes ?? []).map((type) => ({
+        key: type.id,
+        label: type.label,
+        count: jobRows.filter((row) => row.deployment.jobType === type.id).length,
+      })),
     };
-  }, [all, q, state, location]);
+  }, [all, q, state, location, job]);
 
   const rows = useMemo(
     () =>
       sortDeployments(
-        filterDeployments(searchDeployments(all, q), {state, location}),
+        filterDeployments(searchDeployments(all, q), {state, location, job}),
         sort,
         direction,
       ),
-    [all, q, state, location, sort, direction],
+    [all, q, state, location, job, sort, direction],
   );
 
   // Resolved against the *filtered* feed, not the whole record: if a search hides the
@@ -157,13 +167,31 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
 
   // The rows on screen, which the map frames while the two halves are side by side.
   const listRef = useRef<HTMLDivElement>(null);
-  const rowIds = useMemo(() => rows.map((row) => row.deployment.id), [rows]);
+  /**
+   * The table shows `DEPLOYMENT_PAGE_SIZE` rows at a time — `GensetsPage`'s paging.
+   * The map, the timeline and the phone cards still read the whole filtered list.
+   */
+  const pageCount = Math.max(1, Math.ceil(rows.length / DEPLOYMENT_PAGE_SIZE));
+  const currentPage = Math.min(page ?? 1, pageCount);
+  const pageRows = useMemo(
+    () => rows.slice((currentPage - 1) * DEPLOYMENT_PAGE_SIZE, currentPage * DEPLOYMENT_PAGE_SIZE),
+    [rows, currentPage],
+  );
+  /** A filter or search changed: the old page number means nothing in the new list. */
+  const refilter = (next: Partial<DeploymentSearch>) => onSearchChange({...next, page: undefined});
+
+  const rowIds = useMemo(() => pageRows.map((row) => row.deployment.id), [pageRows]);
   const {ids: visibleIds, suppress} = useVisibleRowIds(listRef, rowIds, split);
 
   // Selecting a posting opens the panel whether or not the toggle was on — the
   // registers' rule, for its reason: with the panel closed, clicking a pin tints it
   // and does nothing else, which reads as a broken control.
-  const selectDeployment = (next: string) => onSearchChange({id: next, panel: true});
+  // A pin picked on the map turns the table to the page its row is on.
+  const selectDeployment = (next: string) => {
+    const index = rows.findIndex((row) => row.deployment.id === next);
+    const onPage = index < 0 ? undefined : Math.floor(index / DEPLOYMENT_PAGE_SIZE) + 1;
+    onSearchChange({id: next, panel: true, page: onPage === 1 ? undefined : onPage});
+  };
 
   /**
    * A column header was clicked — the registers' handler, and see `SitesPage` for
@@ -172,10 +200,10 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
    */
   const changeSort = (next: DeploymentSort) => {
     if (next === sort) {
-      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc'});
+      onSearchChange({dir: direction === 'asc' ? 'desc' : 'asc', page: undefined});
       return;
     }
-    onSearchChange({sort: next, dir: undefined});
+    onSearchChange({sort: next, dir: undefined, page: undefined});
   };
 
   const deselectDeployment = () => {
@@ -189,14 +217,20 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
    * filters are the ones the click set, and ends the moment the reader scrolls the
    * list, so the map goes back to framing the rows on screen.
    */
-  const filterKey = JSON.stringify([q, location, state]);
-  const [framedBy, setFramedBy] = useState<string | undefined>(undefined);
+  const filterKey = JSON.stringify([q, location, state, job]);
+  // Held on an unfiltered arrival too, so the map opens on the whole peninsula
+  // (`PENINSULA`) rather than the first screenful of rows — `GensetsPage`'s rule.
+  const [framedBy, setFramedBy] = useState<string | undefined>(() =>
+    q === '' && location === undefined && state === undefined && job === undefined
+      ? filterKey
+      : undefined,
+  );
   const selectState = (stateId: string) => {
     const name = malaysiaStateName(stateId);
     if (name === undefined) return;
     const slug = stateSlug(name);
-    setFramedBy(JSON.stringify([q, slug, state]));
-    onSearchChange({location: slug});
+    setFramedBy(JSON.stringify([q, slug, state, job]));
+    refilter({location: slug});
   };
   const holdFrame = framedBy !== undefined && framedBy === filterKey;
 
@@ -218,9 +252,13 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
+      {/* The page's one creating action, on its own row above the search (2026-09-30). */}
+      <div className="flex">
+        <NewDeploymentButton />
+      </div>
       <DeploymentsToolbar
         query={q}
-        onQueryChange={(next) => onSearchChange({q: next || undefined})}
+        onQueryChange={(next) => refilter({q: next || undefined})}
         view={view}
         onViewChange={(next) => onSearchChange({view: next})}
         panelOpen={panelOpen}
@@ -238,16 +276,16 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
         summary={summary}
         facets={facets}
         search={search}
-        onSearchChange={onSearchChange}
+        onSearchChange={refilter}
       />
 
-      <DeploymentsActiveFilters search={search} onSearchChange={onSearchChange} />
+      <DeploymentsActiveFilters search={search} onSearchChange={refilter} />
 
       <DeploymentsSummaryCards
         summary={summary}
         showing={rows.length}
         search={search}
-        onSearchChange={onSearchChange}
+        onSearchChange={refilter}
       />
 
       <div className="relative flex min-h-0 flex-1 gap-3">
@@ -259,21 +297,37 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
         )}
 
         {showList && !empty && (
-          <div className="min-h-0 min-w-0 flex-1">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {compact ? (
               <DeploymentsCards rows={rows} now={now} />
             ) : (
-              <DeploymentsTable
-                rows={rows}
-                now={now}
-                selectedId={id}
-                onSelect={selectDeployment}
-                sort={sort}
-                direction={direction}
-                onSortChange={changeSort}
-                scrollRef={listRef}
-                onBeforeAutoScroll={suppress}
-              />
+              <>
+                <div className="min-h-0 flex-1">
+                  <DeploymentsTable
+                    rows={pageRows}
+                    wide={!split}
+                    now={now}
+                    selectedId={id}
+                    onSelect={selectDeployment}
+                    sort={sort}
+                    direction={direction}
+                    onSortChange={changeSort}
+                    scrollRef={listRef}
+                    onBeforeAutoScroll={suppress}
+                  />
+                </div>
+                <TablePager
+                  label="Deployments table pages"
+                  page={currentPage}
+                  pageCount={pageCount}
+                  pageSize={DEPLOYMENT_PAGE_SIZE}
+                  total={rows.length}
+                  onPageChange={(next) => {
+                    listRef.current?.scrollTo({top: 0});
+                    onSearchChange({page: next === 1 ? undefined : next});
+                  }}
+                />
+              </>
             )}
           </div>
         )}
@@ -289,10 +343,9 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
         {showMap && (
           <div
             className={
-              // The registers' proportions — see `SitesPage`, including why the
-              // column is sized for the panel whether or not it is showing.
+              // Half and half with the list, as on Gensets (2026-09-30; 60/40 before).
               split
-                ? 'min-h-0 min-w-[620px] flex-[1.2] overflow-hidden rounded-md border border-subtle bg-element'
+                ? 'min-h-0 min-w-[440px] flex-1 overflow-hidden rounded-md border border-subtle bg-element'
                 : 'min-h-0 flex-1 overflow-hidden rounded-md border border-subtle bg-element'
             }
           >
@@ -321,13 +374,15 @@ export const DeploymentPage = ({search, onSearchChange}: DeploymentPageProps) =>
           <DeploymentDetailPanel
             row={selected}
             now={now}
+            onClose={deselectDeployment}
             className={
               // Over the map the panel floats, so the basemap keeps running
-              // underneath it. Everywhere else it takes its own column instead, so it
-              // can't sit on top of the table's last two columns or the timeline's
-              // most recent week.
-              showMap
-                ? 'absolute inset-y-2 right-2 z-10 w-[393px] shadow-lg'
+              // underneath it. Over the timeline too (2026-09-30): the track scrolls
+              // sideways, so nothing under the panel is out of reach, and the chart
+              // keeps its full width. Only the list-only table takes it as a column,
+              // so it can't sit on its last two columns.
+              showMap || showGantt
+                ? 'absolute inset-y-2 right-2 z-40 w-[393px] shadow-lg'
                 : 'w-[393px] shrink-0'
             }
           />

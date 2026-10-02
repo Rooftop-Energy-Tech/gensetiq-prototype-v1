@@ -119,7 +119,7 @@ const deploymentEntries = (genset: Genset): Array<GensetActivity> =>
         // The job's reference leads, because that is what the operations room
         // called the move: "on DEP-0042 to Kapit" is one fact, and the placename
         // alone left a reader with no way back to the job.
-        message: `Deployed to ${deployment.locationLabel} on lorry ${genset.lorryPlate} · ${deployment.reference}`,
+        message: `Deployed to ${deployment.locationLabel} · ${deployment.reference}`,
         at: deployment.startsAt,
         source: 'Deployment register',
       },

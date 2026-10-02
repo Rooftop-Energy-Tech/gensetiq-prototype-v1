@@ -107,6 +107,8 @@ const COLUMNS = [
   {label: 'Status', beside: true, sort: 'state'},
   {label: 'Alarm', beside: true, sort: 'alarms'},
   {label: 'Fuel level', beside: true, sort: 'fuel'},
+  // `Capacity` (the kVA rating) came off on 2026-09-29, with its filter; the
+  // preview panel carries it.
   // `beside: false` — dropped in the split view, kept on the full-width list. Both
   // truncated to nothing useful beside the map: `Bangsar S…` and `1 hour …` are the
   // halves of each that carry no meaning. `SolarTable` drops `Capacity` and
@@ -215,7 +217,15 @@ export const GensetsTable = ({
                           : 'descending'
                         : 'none'
                   }
-                  className={cn(CELL, index === 0 && PLATE_MIN, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary')}
+                  className={cn(
+                    CELL,
+                    index === 0 && PLATE_MIN,
+                    // The hover arrow sits past the label, in the next gap; the last
+                    // column has no gap after it, so it keeps room of its own or the
+                    // arrow pushes the table into a sideways scroll.
+                    index === columns.length - 1 && 'pr-6',
+                    'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary',
+                  )}
                 >
                   {column.sort === undefined ? (
                     column.label
@@ -335,7 +345,7 @@ export const GensetsTable = ({
                     {/* The full street address, on one line. Capped so one long
                         address cannot take the spare width from every other column;
                         the rest is in the tooltip. */}
-                    <span className="block max-w-[26rem] truncate" title={genset.address}>
+                    <span className="block max-w-[24rem] truncate" title={genset.address}>
                       {genset.address}
                     </span>
                   </td>

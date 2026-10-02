@@ -1,6 +1,6 @@
 import {
+  CalendarRangeIcon,
   ColumnsIcon,
-  GanttChartIcon,
   GlobeIcon,
   MenuIcon,
   PanelRightIcon,
@@ -22,6 +22,8 @@ import {deploymentStateLabel} from '../data/feed';
 import type {DeploymentSummary} from '../data/feed';
 import type {DeploymentState} from '../types/deployment.type';
 import type {DeploymentSearch, DeploymentSort, DeploymentView} from '../types/view.type';
+import {WORK} from './detail/DeploymentWork';
+import {DEPLOYMENT_STATE_META} from './stateMeta';
 
 /**
  * The registers' toolbar, over postings — copied in shape rather than generalised,
@@ -47,6 +49,8 @@ const DEPLOYMENT_SORT_OPTIONS: ReadonlyArray<SortOption<DeploymentSort>> = [
 export type DeploymentFacets = {
   byState: Array<FilterOption<DeploymentState>>;
   byLocation: Array<FilterOption<string>>;
+  /** Empty on an estate without job types, which then shows no Job type dropdown. */
+  byJobType: Array<FilterOption<string>>;
 };
 
 /**
@@ -119,7 +123,7 @@ export const DeploymentsToolbar = ({
     {/* The Gensets page's box and rules: half the design's 373px, number plate
         with the spaces ignored — plus the job's reference; the whole row on a phone.
         See `searchDeployments`. */}
-    <InputGroup className="w-full flex-1 md:max-w-[187px] md:min-w-[140px]">
+    <InputGroup className="w-full flex-1 md:max-w-[281px] md:min-w-[210px]">
       <InputGroupAddon>
         <SearchIcon aria-hidden="true" />
       </InputGroupAddon>
@@ -127,7 +131,7 @@ export const DeploymentsToolbar = ({
         type="search"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
-        placeholder="Plate or reference"
+        placeholder="Plate or deployment"
         aria-label="Search deployments"
       />
     </InputGroup>
@@ -145,10 +149,23 @@ export const DeploymentsToolbar = ({
       <FilterSelect<DeploymentState>
         label="Status"
         allLabel="All statuses"
-        options={facets.byState}
+        options={facets.byState.map((option) => ({
+          ...option,
+          tone: DEPLOYMENT_STATE_META[option.key].tone,
+        }))}
         value={search.state}
         onChange={(next) => onSearchChange({state: next})}
       />
+      {/* ERQ, PRQ or Standby (2026-10-01), on an estate whose deployments carry one. */}
+      {facets.byJobType.length > 0 && (
+        <FilterSelect
+          label="Job type"
+          allLabel="All job types"
+          options={facets.byJobType}
+          value={search.job}
+          onChange={(next) => onSearchChange({job: next})}
+        />
+      )}
 
       {/* The *fallback* ordering control — see `showSort`. Picking a key here drops
           `dir`, so the dropdown always means that key's natural direction, which is
@@ -233,7 +250,7 @@ export const DeploymentsToolbar = ({
                   aria-label="Timeline"
                   tabIndex={view === 'gantt' ? 0 : -1}
                 >
-                  <GanttChartIcon aria-hidden="true" />
+                  <CalendarRangeIcon aria-hidden="true" />
                   <span className="hidden group-aria-selected:inline">Timeline</span>
                 </TabsTrigger>
               </TooltipTrigger>
@@ -284,6 +301,13 @@ export const DeploymentsActiveFilters = ({
   }
   if (search.state !== undefined) {
     chips.push({key: 'state', label: deploymentStateLabel(search.state), clear: {state: undefined}});
+  }
+  if (search.job !== undefined) {
+    chips.push({
+      key: 'job',
+      label: WORK?.jobTypes.find((type) => type.id === search.job)?.label ?? search.job,
+      clear: {job: undefined},
+    });
   }
 
   if (chips.length === 0) return null;

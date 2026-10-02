@@ -1,4 +1,4 @@
-import {dayMonth, duration} from '@/lib/format';
+import {dayMonth, duration, tickDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {runElapsedMs} from '../../types/run.type';
 import type {GensetRun} from '../../types/run.type';
@@ -112,8 +112,8 @@ export const RunsTimeline = ({
           stretch of time, and every judgement it invites — "that is a big gap" —
           depends on knowing whether it spans a day or two months. */}
       <div className={cn('flex justify-between text-xs text-secondary', labelled && 'pl-23')}>
-        <span>{dayMonth(from)}</span>
-        <span>{dayMonth(to)}</span>
+        <span>{tickDate(from)}</span>
+        <span>{tickDate(to)}</span>
       </div>
     </div>
   );

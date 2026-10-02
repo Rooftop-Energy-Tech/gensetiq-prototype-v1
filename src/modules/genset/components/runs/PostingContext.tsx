@@ -1,8 +1,7 @@
-import {MapPinIcon, TruckIcon} from 'lucide-react';
+import {MapPinIcon} from 'lucide-react';
 
 import {amount, stampDate} from '@/lib/format';
 import {postingEnd} from '@/modules/deployment/types/deployment.type';
-import {lorryPlateOf} from '@/modules/genset/data/fleet';
 import type {GensetPosting} from '@/modules/deployment/types/deployment.type';
 
 /**
@@ -21,13 +20,13 @@ import type {GensetPosting} from '@/modules/deployment/types/deployment.type';
  * written on the argument that a posting is the window the questions are actually
  * asked of — "what did the Ranau posting burn?" — so the page could already answer
  * for one job. What it could not do is say *anything about the job itself*: which
- * yard, which lorry, what the tank read when it arrived and when it left. Those were
+ * yard, what the tank read when it arrived and when it left. Those were
  * a tab away, which is exactly the split that made two tabs confusing.
  *
  * ## Two states, because the picker has two
  *
- * With a posting chosen, this is that posting: where, when, the tank at both edges,
- * the lorry. With none chosen, the window is a stretch of calendar that may cross
+ * With a posting chosen, this is that posting: where, when, the tank at both edges.
+ * With none chosen, the window is a stretch of calendar that may cross
  * several postings, and the honest summary is the machine's posting record as a
  * whole — how many it has held and where it is standing now. That second state is
  * what the deployments tab's three tiles used to say.
@@ -100,15 +99,6 @@ export const PostingContext = ({
               : amount(membership.endFuelLitres, 'L')
           }
         />
-        {lorryPlateOf(membership.gensetId) !== '' && (
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-xs font-medium text-secondary">Lorry</span>
-            <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-              <TruckIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
-              {lorryPlateOf(membership.gensetId)}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

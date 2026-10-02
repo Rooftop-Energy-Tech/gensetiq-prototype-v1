@@ -1,11 +1,17 @@
 import maplibregl from 'maplibre-gl';
-import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
+import type {GeoJSONSource, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
-import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {
+  MALAYSIA_STATE_CLUSTER_PROPERTIES,
+  PENINSULA,
+  PENINSULA_PADDING,
+  malaysiaStateAt,
+} from '@/lib/geo/malaysiaStates';
 import {attachStateHover} from '@/lib/geo/stateHover';
 import type {StateHoverHandle} from '@/lib/geo/stateHover';
+import {locateControl} from '@/lib/locateControl';
 import {lightToken} from '@/styles/colors';
 import {FLEET_STATUSES, STATUS_META} from '@/modules/genset/data/fleetStatus';
 import {siteStatus} from '../data/estateSummary';
@@ -45,16 +51,6 @@ const LAYER = {
 
 /** The layers a click can land on — `GensetsMap`'s constant, for its reason. */
 const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
-
-/**
- * Malaysia, for the moment before any data has been fitted.
- *
- * Centred on the South China Sea rather than on either landmass, because the
- * estate spans both: a peninsular centre puts Kapit and Belaga off the right edge
- * on arrival, and a Bornean one loses the Klang Valley cluster the other way.
- */
-const INITIAL_CENTER: LngLatLike = [109.5, 3.8];
-const INITIAL_ZOOM = 5;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
@@ -231,8 +227,8 @@ export const SitesMap = ({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      bounds: PENINSULA,
+      fitBoundsOptions: {padding: PENINSULA_PADDING},
       attributionControl: {compact: true},
     });
     mapRef.current = map;
@@ -244,6 +240,8 @@ export const SitesMap = ({
     }
 
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
+
+    map.addControl(locateControl(), 'bottom-right');
 
     // `style.load`, not `load`: MapLibre defers `load` until the map has painted a
     // frame, which a hidden or backgrounded tab never does — so the layers would

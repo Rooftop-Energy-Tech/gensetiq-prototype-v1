@@ -57,8 +57,8 @@ export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) 
       <div className="flex flex-col gap-2 overflow-y-auto px-6 py-7">
         <h2 className="text-sm font-medium text-primary">Alarms</h2>
         <p className="max-w-2xl text-sm text-secondary">
-          This job starts on {stampDate(row.deployment.startsAt)}. Nothing can be asserting
-          against a job whose machines have not arrived.
+          This deployment starts on {stampDate(row.deployment.startsAt)}. Nothing can be asserting
+          against a deployment whose machines have not arrived.
         </p>
       </div>
     );
@@ -75,27 +75,19 @@ export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) 
           </span>
         </h2>
         <p className="max-w-2xl text-sm text-secondary">
-          What the controllers on {row.deployment.reference} raised inside its window.
-          Clearing a row here clears it on the machine&rsquo;s own tab and on{' '}
-          {row.siteName}&rsquo;s: one queue, one set of rows.
+          What the controllers on {row.deployment.reference} raised inside its window. Clearing a
+          row here clears it on the machine&rsquo;s own tab too: one queue, one set of rows.
         </p>
       </div>
 
       {standing.length === 0 && cleared.length === 0 ? (
-        <p className="max-w-3xl rounded-lg border border-dashed border-subtle px-4 py-6 text-center text-sm text-secondary">
+        <p className="rounded-lg border border-dashed border-subtle px-4 py-6 text-center text-sm text-secondary">
           {row.state === 'active'
-            ? 'Nothing standing. The controllers on this job are reporting and asserting nothing.'
-            : 'Nothing on the record for this window. Alarms here are a live view of what is asserting now, so a closed job usually has none.'}
+            ? 'Nothing standing. The controllers on this deployment are reporting and asserting nothing.'
+            : 'Nothing on the record for this window. Alarms here are a live view of what is asserting now, so a closed deployment usually has none.'}
         </p>
       ) : (
-        <div className="max-w-3xl">
-          <AlarmLists
-            standing={standing}
-            cleared={cleared}
-            by={by}
-            subject="this deployment"
-          />
-        </div>
+        <AlarmLists standing={standing} cleared={cleared} by={by} subject="this deployment" />
       )}
     </div>
   );

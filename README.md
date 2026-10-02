@@ -447,7 +447,7 @@ behind the code is worse than no bench, because a reader trusts it.
 | Screen | Route | Notes |
 | --- | --- | --- |
 | Login | `/login` | Wordmark, email + password, teal CTA. Matches the Figma frame. |
-| Gensets — list | `/gensets?view=list` | 24 units, sortable by attention (faults first): name, the Malaysian state it stands in, run state, alarm counts, fuel level, and — on the full-width list only — location and telemetry age. `sort=location` orders by state. |
+| Gensets — list | `/gensets?view=list` | 24 units, sortable by attention (faults first): name, the Malaysian state it stands in, run state, alarm counts, fuel level, and — on the full-width list only — location and telemetry age. `sort=location` orders by state. 20 rows a page, `page=2` onward. |
 | Gensets — map | `/gensets?view=map` | Real MapLibre map with live clustering. |
 | Genset home | `/gensets/<id>` | The genset's own page: tank + runway + service, controls + live gauges, this run beside today, what it is, alerts. All 24 units have one. |
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
@@ -460,15 +460,16 @@ behind the code is worse than no bench, because a reader trusts it.
 | Site deployments | `/sites/<id>/deployments` | Every job this yard has held, newest first — the answer to "have we had a set here before". Not a Figma frame. |
 | Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
 | Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
-| Deployments — list | `/deployments?view=list` | The register: a row per **job**, the ones standing first, six columns with the headers as the ordering control. Not a Figma frame. |
+| Deployments — list | `/deployments?view=list` | The register: a row per **job**, the ones standing first, six columns with the headers as the ordering control. 20 jobs a page, `page=2` onward. Not a Figma frame. |
 | Deployments — map | `/deployments?view=map` | One pin per job, green standing, brand-tinted booked, grey closed, sized by how much plant is on it. Not a Figma frame. |
-| Deployments — timeline | `/deployments?view=gantt` | One lane per machine, one bar per job it is on, on a week-ticked axis that runs past today. The only view that draws depot time — see [how-it-works](docs/how-it-works.md#the-deployments-register). |
+| Deployments — timeline | `/deployments?view=gantt` | One lane per machine, one bar per job it is on, on a week-ticked one-month axis with today in the middle. The only view that draws depot time — see [how-it-works](docs/how-it-works.md#the-deployments-register). |
+| New deployment | Button above the search on `/deployments` | A dialog: ID, customer, address with a pin, dates, gensets (nearest free first), contacts and a first note. Opens the new deployment's page on Create. |
 | Deployment home | `/deployments/<id>` | The job: its window, its state, what it cost in hours, energy and litres, the ratio between the last two, and the machines on it. Not a Figma frame. |
 | Deployment gensets | `/deployments/<id>/gensets` | **Where machines go on and come off.** The candidate list offers what is free for the window and names the job blocking anything that is not. |
 | Deployment runs | `/deployments/<id>/runs` | The runs of its machines inside the window. No range picker: the window is the job. |
 | Deployment alarms | `/deployments/<id>/alarms` | The site's own queue, filtered to this job's machines and window. |
-| Deployment settings | `/deployments/<id>/settings` | The reference, the yard, the dates, close, and delete (a booking only). |
-| Service — fleet | `/service` | Every genset's service standing in one list, worst first: status, next due, run hours and months against the interval, last service with its report, and **Log service** on each row (the genset Service tab's own dialog). Cards for Overdue / Due soon / In service filter it (a never-serviced set still lists, with its own status); `WXQ 4562` / `SA 4562 D` is seeded overdue so the state has an example; search and `State` narrow it. A **History** tab lists every logged service, newest first. On the phone bottom nav. At phone width the Due list is a card per genset (status, next due, both interval bars, last service, full-width Log service) and History is two-line rows; both end clear of the floating nav. Not a Figma frame. |
+| Deployment settings | `/deployments/<id>/settings` | The ID, the address with a pin you move by moving the map, the dates, the customer and site contacts, a notes log, and End or Delete (a planned deployment only). Read-only once completed. |
+| Service — fleet | `/service` | Every genset's service standing in one list, worst first: status, next due, run hours and months against the interval, last service with its report, and **Log service** on each row (the genset Service tab's own dialog). Cards for Overdue / Due soon / In service filter it (a never-serviced set still lists, with its own status); `WXQ 4562` / `SA 4562 D` is seeded overdue so the state has an example, and since 2026-09-30 each estate has two more overdue and five more due soon (`serviceSeed.ts`); search, `State` and a `Status` dropdown (the cards' filter, as a menu) narrow it, with a `Filtered by:` chip row and `Clear all` under the toolbar while any is on. A **History** tab lists every logged service, newest first. From tablet width up, `Due` and `History` are rows in a second rail on the left (a genset page's `DetailSidebar`); the phone keeps the switch in the toolbar. Both tables show 20 rows a page (`page=2` onward). On the phone bottom nav. At phone width the Due list is a card per genset (status, next due, both interval bars, last service, full-width Log service) and History is two-line rows; both end clear of the floating nav. Not a Figma frame. |
 | `/deployment` | → `/deployments` | The singular path redirects, so links in decks and docs keep working. |
 | Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
 | Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
@@ -505,6 +506,7 @@ through it:
 /deployments?state=active             # the register, only what is standing
 /deployments?state=planned            # what is booked and has not started
 /deployments?view=gantt&location=johor # Johor's jobs on the timeline
+/deployments?job=standby               # standby jobs only (an estate with job types)
 /deployments?q=wxq4562               # every job a plate has been on, spaces optional
 /deployments/ppu-013-job-0/gensets    # one job's machines, and the way to change them
 /sites/telco-001                      # the site page the Figma frame draws
@@ -978,11 +980,10 @@ The layout, spacing and every component's construction follow the frame. The
     start, and it began before midnight, so yesterday owns it.
 
     **The details band is identity, and deliberately only that** — number plate,
-    lorry plate, asset tag, make and model, rating. Each set has **two plates**: its
-    own (`PGW 9748`, what every list calls it) and the lorry it is bolted to
-    (`JFQ 1637`), which is the same lorry on every job. The asset tag (`CUM-672771`)
-    is the serial, shown only here and in the header's info tooltip; everywhere else
-    a set is named by its number plate. `Tank capacity` left the band because the fuel panel one band up already
+    asset tag, make and model, rating. A set is bolted to its lorry, so its **number
+    plate** (`PGW 9748`) is the lorry's too, and is what every list calls it. The
+    asset tag (`CUM-672771`) is the serial, shown only here and in the header's info
+    tooltip. `Tank capacity` left the band because the fuel panel one band up already
     states it as `Max capacity`, beside the level it is the denominator of; a figure
     printed twice on one page is one a reader has to check against itself. The
     rating stays because it is the denominator of every load figure above it.
@@ -1133,6 +1134,9 @@ Four choices worth stating, because each had a cheaper wrong version:
   what it swallowed is in the hovered state. The map opens at a zoom where the Klang
   Valley is one bubble over four states.
 
+**The gensets and deployments maps open on the whole peninsula**, Perlis to Johor, when no filter or
+search is on. It holds that frame until you scroll the list or change a filter.
+
 **Clicking a state frames it.** The hover says how much is here; the click says show
 me. A click on the basemap inside a state fits the viewport to the whole of that state
 — islands included, centred, with the same padding the fleet is framed with. On the
@@ -1147,13 +1151,18 @@ fleet was hit.
 **The dropdowns' counts follow the other filters.** Pick Johor and `Status`, `Alarm`
 and `Fuel level` count only Johor's sets; each dropdown counts over what the other
 filters leave, so an option's number is what picking it shows. Zeros stay, greyed.
-The summary cards above the table (`Gensets`, `Status`, `Due for service`, `Fuel on
-hand`) still count the whole fleet; `Status` and `Due for service` are filters.
+The summary cards above the table (`Status`, `Alarm`) still count the whole fleet, and
+both are filters, named for the table columns they count. `Due for service` was a third
+card until 2026-09-29; `?service=due` still filters from a link.
+
+**Capacity is in the preview panel only.** The `Capacity` dropdown and the table's
+`Capacity` column came off on 2026-09-29; the panel states each set's kVA rating. An
+old link carrying `?capacity=1000` still filters, and its chip clears it. Beside the
+map the list and the map take half the width each (60/40 until 2026-09-30), on Gensets and Deployments alike.
 
 **Deployments has the same controls.** A plate search (spaces optional, and the job
 reference too), `State` and `Status` dropdowns with the same faceted counts, the
-`Filtered by:` chip row, and four cards: `Deployments`, `Status`, `Gensets out`,
-`Diesel burned`. A job's state is read off its yard's position and uses the gensets
+`Filtered by:` chip row, and three cards: `Status`, `Deployments`, `Gensets out`. A job's state is read off its yard's position and uses the gensets
 page's `?location=` param. The table spaces its seven columns (State beside the job) with equal gaps, and
 scrolls sideways beside the map where they do not fit. Machines show as plates.
 
@@ -1188,9 +1197,10 @@ times; no amount of detail closes it. The shading spilled across the line.
 
 So both come from one set of shapes. Voyager's `boundary_state` — a pale pink dashed
 hairline — is hidden, and so are its two country layers, `boundary_country_outline`
-and `boundary_country_inner`, a pale band with a pink line on it. Ours is drawn above
-the basemap's fill and below the fleet. One border, a wash that fits it, and nothing
-for either to disagree with. The cost of the country layers: they hold every country
+and `boundary_country_inner`, a pale band with a pink line on it. Ours sits over the
+basemap's land, rivers, roads and buildings, and under its sea, bridges and labels
+(2026-10-01; under the roads, a border vanished wherever it crossed a town). One border, a wash that
+fits it, and nothing for either to disagree with. The cost of the country layers: they hold every country
 border in the tiles, so borders between two *other* countries — Thailand–Myanmar —
 go too. Every border of Malaysia is still drawn, from our shapes.
 
@@ -1208,17 +1218,44 @@ a vector source whose filter compares `admin_level` to 2 or 4 — rather than tr
 the ids, since a basemap is versioned by somebody else. It exists only to turn those
 layers off.
 
-What ours still has to line up against is the **coastline**, since a state's outline
-follows the coast for most of its length and the basemap draws that. It is what sets
-the 22 m tolerance on the drawn copy.
+**The coast is the basemap's own (2026-09-30).** Our shapes were OSM in 2017 (today's
+since 2026-10-01, below); the basemap is OSM today, generalised afresh at every zoom. Drawn from our shapes, the coast
+cut across Penang's reclaimed land, missed Forest City and ran a hundred metres off the
+Johor shore. So the coast is now traced at runtime off the ocean polygons in the tiles
+on screen (`src/lib/geo/coastline.ts`) and cannot be a pixel off. Only Malaysia's shore
+is kept: a stretch counts if our outline is within 3–5 km and nearer than any
+neighbour's, which is what leaves Singapore's side of the Johor Strait, the Thai islands
+off Langkawi and the Philippine Turtle Islands unlined.
 
-**Two copies, for two jobs.** They are geoBoundaries `gbOpen` ADM1 for MYS — OSM
-under ODbL 1.0, attributed on the MapLibre source, which is the second row of a credit
-the basemap already carries.
+The borders between states and the land borders still come from our shapes, cut out of
+the outlines by the build and drawn once each. Where one meets the coast the build
+carries it a kilometre out to sea, and the basemap's ocean, lifted above our borders,
+roads and buildings but kept under its bridges and labels, trims it at the shore. Lakes and rivers stay under the
+borders, because the Bernam, the Golok and a dozen other rivers are borders.
+
+The hover wash follows the same shore. It is painted solid on the basemap's bare
+ground, under its parks, roads and water, and a band along each state's coast
+carries it up to 1.5 km out (less where Singapore or another state is near). The
+basemap's water cuts it off at today's shore, so reclaimed land such as Gurney Wharf
+and the Penaga strip is washed with the rest of Penang.
+
+**Two copies, for two jobs.** They are OpenStreetMap as it stood on 2026-10-01: OSM's
+state relations from Overpass, cut to OSM's land polygons (about half the relations run
+out to sea, Sabah's nearly 200 km), with the land borders from relation 2108121's
+non-maritime ways and the neighbours' coasts from the same land polygons. Land inside
+Malaysia's national boundary that no state relation reaches (Pulau Aur, Pulau Jarak,
+Layang-Layang, slivers along coasts) goes to the nearest state, and islands down to
+250 m² are kept; without both, those shores went unlined. ODbL 1.0,
+credited by the basemap's own OpenStreetMap attribution. Until 2026-10-01 they were
+geoBoundaries `gbOpen` ADM1, OSM in 2017. Rebuild with `src/lib/geo/fetchOsmStates.py`
+then `buildMalaysiaStates.mjs`; the first's header has the steps.
 
 | file | detail | used for |
 | --- | --- | --- |
-| `public/malaysia-states.geo.json` | ~22 m, 810 kB | the borders and the hover wash |
+| `public/malaysia-states.geo.json` | ~22 m, 1.3 MB | the hover wash, and telling Malaysia's shore from a neighbour's |
+| `public/malaysia-state-borders.geo.json` | ~22 m, 381 kB | the borders between states and the land borders |
+| `public/malaysia-state-shores.geo.json` | ~55 m, 496 kB | the wash's band out to today's shore |
+| `public/malaysia-neighbours.geo.json` | ~22 m, 244 kB | the neighbours' outlines within 6 km, never drawn |
 | `src/lib/geo/malaysiaStates.geo.json` | ~440 m, 94 kB | point-in-polygon, and the label anchors |
 
 The fine one is **served, not bundled** — it would otherwise be the largest thing in

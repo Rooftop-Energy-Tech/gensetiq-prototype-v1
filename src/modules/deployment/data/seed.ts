@@ -10,10 +10,12 @@ import {spread, spreadBetween} from '@/modules/genset/data/spread';
 import {siteSeeds} from '@/modules/site/data/siteSeed';
 import type {
   Deployment,
+  DeploymentBooking,
   DeploymentMembership,
   GensetPosting,
 } from '../types/deployment.type';
 import {postingEnd, windowsOverlap} from '../types/deployment.type';
+import {MAX_SEEDED_STANDBY, seedParticulars, seedReference} from './particulars';
 import {REAL_DEPLOYMENTS, REAL_GENSET_ID, REAL_MEMBERSHIPS} from './realJobs';
 
 /**
@@ -54,6 +56,16 @@ const CLOCK = Date.now();
 
 const locationOf = (siteId: string): string =>
   siteSeeds().find((site) => site.id === siteId)?.locationLabel ?? 'Unknown';
+
+/**
+ * How often a job takes a second set: about one in seven (2026-09-29). A job is one
+ * machine as a rule, two on the odd large load, and never three — Express Mission's
+ * own record. The present's live jobs follow from `utility.ts`, where five yards of
+ * thirty-two hold a pair; this deals the past and the planned ones to match.
+ */
+const PAIR_SHARE = 0.15;
+
+const jobSize = (salt: string): number => (spread(salt, 'job/size') < PAIR_SHARE ? 2 : 1);
 
 /** Where the fleet seed stands each machine, grouped by yard. */
 const seededOccupancy = (): Map<string, Array<string>> => {
@@ -101,11 +113,11 @@ type Dealt = {
  * what the earlier ones committed — which is the only way rule 4 holds.
  */
 const deal = (): Dealt => {
-  const deployments: Array<Deployment> = [];
+  const deployments: Array<DeploymentBooking> = [];
   const memberships: Array<DeploymentMembership> = [];
 
   /** Every window a machine is already on, so nothing gets double-booked. */
-  const committed = new Map<string, Array<Deployment>>();
+  const committed = new Map<string, Array<DeploymentBooking>>();
 
   // `free()` alone is not enough to keep the measured machine off the dealt record:
   // it only refuses an *overlapping* window, and `BRF9540` has months of daylight
@@ -113,7 +125,7 @@ const deal = (): Dealt => {
   // skips it by id, so its record is exactly what Express Mission's export says.
 
 
-  const commit = (deployment: Deployment, gensetIds: Array<string>) => {
+  const commit = (deployment: DeploymentBooking, gensetIds: Array<string>) => {
     const startMs = new Date(deployment.startsAt).getTime();
     const endMs = deployment.endsAt === null ? null : new Date(deployment.endsAt).getTime();
 
@@ -128,7 +140,7 @@ const deal = (): Dealt => {
     }
   };
 
-  const free = (gensetId: string, candidate: Deployment): boolean =>
+  const free = (gensetId: string, candidate: DeploymentBooking): boolean =>
     (committed.get(gensetId) ?? []).every((held) => !windowsOverlap(held, candidate));
 
   // 0. The measured record, before anything is dealt. Committing it first is what
@@ -186,7 +198,7 @@ const deal = (): Dealt => {
       const start = end - lengthDays * DAY;
       if (start < horizon) break;
 
-      const candidate: Deployment = {
+      const candidate: DeploymentBooking = {
         id: `${siteId}-job-${k}`,
         reference: '',
         siteId,
@@ -195,12 +207,13 @@ const deal = (): Dealt => {
         endsAt: new Date(end).toISOString(),
       };
 
-      // One to three machines, drawn from the whole fleet by hash and skipped where
-      // they were already somewhere else in this window. Past jobs are dealt across
+      // One machine as a rule, two now and then (`jobSize`), drawn from the whole
+      // fleet by hash and skipped where they were already somewhere else in this
+      // window. Past jobs are dealt across
       // the fleet rather than from the yard's present occupants, because a hire
       // fleet's machines move: a yard that has two sets today had different ones in
       // July.
-      const wanted = 1 + Math.floor(spread(`${siteId}-${k}`, 'job/size') * 3);
+      const wanted = jobSize(`${siteId}-${k}`);
       const offset = Math.floor(spread(`${siteId}-${k}`, 'job/pick') * GENSETS.length);
       const picked: Array<string> = [];
       for (let step = 0; step < GENSETS.length && picked.length < wanted; step += 1) {
@@ -226,7 +239,7 @@ const deal = (): Dealt => {
     const start = CLOCK + spreadBetween(salt, 'job/lead', 2, 20) * DAY;
     const end = start + spreadBetween(salt, 'job/len', 8, 18) * DAY;
 
-    const candidate: Deployment = {
+    const candidate: DeploymentBooking = {
       id: `planned-job-${k}`,
       reference: '',
       siteId: site.id,
@@ -235,7 +248,7 @@ const deal = (): Dealt => {
       endsAt: new Date(end).toISOString(),
     };
 
-    const wanted = 1 + Math.floor(spread(salt, 'job/size') * 3);
+    const wanted = jobSize(`${salt}-booked`);
     const offset = Math.floor(spread(salt, 'job/pick') * GENSETS.length);
     const picked: Array<string> = [];
     for (let step = 0; step < GENSETS.length && picked.length < wanted; step += 1) {
@@ -248,19 +261,32 @@ const deal = (): Dealt => {
   }
 
   // References last, oldest job first, so `DEP-0001` is the earliest thing on the
-  // record and the numbers read as a register rather than as hashes.
+  // record and the numbers read as a register rather than as hashes. An estate with
+  // request numbers gets those instead; see `seedReference`.
+  let standby = 0;
+  const particulars = new Map(
+    deployments.map((each) => {
+      const dealtParticulars = seedParticulars(each, standby < MAX_SEEDED_STANDBY);
+      if (dealtParticulars.jobType === 'standby') standby += 1;
+      return [each.id, dealtParticulars];
+    }),
+  );
   const ordered = [...deployments].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const counts = new Map<string | null, number>();
   const references = new Map(
-    ordered.map((deployment, index) => [
-      deployment.id,
-      `DEP-${String(index + 1).padStart(4, '0')}`,
-    ]),
+    ordered.map((deployment) => {
+      const jobType = particulars.get(deployment.id)?.jobType ?? null;
+      const ordinal = (counts.get(jobType) ?? 0) + 1;
+      counts.set(jobType, ordinal);
+      return [deployment.id, seedReference(deployment, jobType, ordinal)];
+    }),
   );
 
   return {
     deployments: deployments.map((deployment) => ({
       ...deployment,
       reference: references.get(deployment.id) ?? deployment.id,
+      ...particulars.get(deployment.id)!,
     })),
     memberships,
   };
@@ -366,7 +392,7 @@ export const postingTotals = (posting: GensetPosting, now: number): DeploymentTo
 
 /** What a job cost: its members' postings, summed. */
 export const jobTotals = (
-  deployment: Deployment,
+  deployment: DeploymentBooking,
   members: ReadonlyArray<DeploymentMembership>,
   now: number,
 ): DeploymentTotals => {
@@ -390,7 +416,7 @@ export const jobTotals = (
  * arriving three-quarters full arrived that way.
  */
 export const fuelDeliveredLitres = (
-  deployment: Deployment,
+  deployment: DeploymentBooking,
   members: ReadonlyArray<DeploymentMembership>,
   now: number,
 ): number => {

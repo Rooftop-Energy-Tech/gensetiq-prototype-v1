@@ -32,7 +32,7 @@
  * fortnight at a substation may contain thirty runs, and the questions asked of it —
  * litres in, litres burned, hours on load — are asked of the fortnight.
  */
-export type Deployment = {
+export type DeploymentBooking = {
   id: string;
   /** `DEP-0142`. What the operations room says out loud. */
   reference: string;
@@ -44,6 +44,86 @@ export type Deployment = {
   startsAt: string;
   /** ISO 8601, or `null` while the job is open. */
   endsAt: string | null;
+};
+
+/**
+ * One person to call at the customer's end.
+ *
+ * Several per deployment, and exactly one of them `primary` once there are any: the
+ * overview and the side panel show that one, so a reader never has to guess which
+ * of three numbers to ring.
+ */
+export type DeploymentContact = {
+  id: string;
+  name: string;
+  role: string;
+  phone: string;
+  email: string;
+  primary: boolean;
+};
+
+/**
+ * One entry in a deployment's log. Signed with the session's email, because there is
+ * no user record to point at, and only its author may edit or delete it.
+ */
+export type DeploymentNote = {
+  id: string;
+  authorEmail: string;
+  authorName: string;
+  /** ISO 8601. */
+  createdAt: string;
+  /** ISO 8601 of the last edit, or `null` if it is as first posted. */
+  editedAt: string | null;
+  body: string;
+};
+
+/**
+ * Where a deployment's gensets stand when somebody has put the pin somewhere other
+ * than the site's own position (2026-09-30): moved under the pin on the Settings map, or picked
+ * as a street address from the search. It belongs to this deployment only; the site
+ * it was booked at keeps its position. `null` is the site's own position and address.
+ */
+export type DeploymentPin = {
+  address: string;
+  /** Placename for headers and the switcher — `Klang, Selangor`. */
+  locationLabel: string;
+  latitude: number;
+  longitude: number;
+};
+
+/** One person on the lorry's crew, in a role from the estate's `crewRoles`. */
+export type DeploymentCrewMember = {
+  id: string;
+  role: string;
+  name: string;
+};
+
+/**
+ * What the booking is *for*: who hired it, who to call, what has been said about it,
+ * and the pin where it has been moved off its site.
+ */
+export type DeploymentParticulars = {
+  /** Id into `DEPLOYMENT_CLIENTS`, or `null` where nobody has said. */
+  clientId: string | null;
+  contacts: Array<DeploymentContact>;
+  /** Oldest first. */
+  notes: Array<DeploymentNote>;
+  pin: DeploymentPin | null;
+  /** Id into the estate's `work.jobTypes`, or `null` on an estate without them. */
+  jobType: string | null;
+  crew: Array<DeploymentCrewMember>;
+};
+
+export type Deployment = DeploymentBooking & DeploymentParticulars;
+
+/** Particulars for a deployment nobody has filled in. */
+export const NO_PARTICULARS: DeploymentParticulars = {
+  clientId: null,
+  contacts: [],
+  notes: [],
+  pin: null,
+  jobType: null,
+  crew: [],
 };
 
 /**
@@ -62,7 +142,8 @@ export type Deployment = {
  * The two fuel figures are the tank at the machine's own edges, which is what makes
  * fuel attributable per machine on a job that has three of them. The live level
  * during an open posting is *derived* from tank telemetry rather than stored. The
- * lorry is not here: each set is bolted to its own, for life — `Genset.lorryPlate`.
+ * lorry needs no field: each set is bolted to its own, so the genset's number plate is
+ * the lorry's too.
  */
 export type DeploymentMembership = {
   id: string;
@@ -99,7 +180,7 @@ export type DeploymentState = (typeof DEPLOYMENT_STATES)[number];
  * screen drawing eighty jobs should measure them all against one reading, or two
  * rows a millisecond apart can disagree about whether a job has started.
  */
-export const deploymentState = (deployment: Deployment, now: number): DeploymentState => {
+export const deploymentState = (deployment: DeploymentBooking, now: number): DeploymentState => {
   if (deployment.endsAt !== null && new Date(deployment.endsAt).getTime() <= now) {
     return 'completed';
   }
@@ -107,7 +188,7 @@ export const deploymentState = (deployment: Deployment, now: number): Deployment
 };
 
 /** True while the job is standing — the row the register leads with. */
-export const isActive = (deployment: Deployment, now: number): boolean =>
+export const isActive = (deployment: DeploymentBooking, now: number): boolean =>
   deploymentState(deployment, now) === 'active';
 
 /**
@@ -117,9 +198,9 @@ export const isActive = (deployment: Deployment, now: number): boolean =>
  * *agreed* end in the future. Returning that would make a bar on the timeline claim
  * days the machines have not yet stood, and a window's totals read against energy
  * nobody has produced. The agreed end is a separate fact, drawn as the dashed tail
- * on the timeline and stated as `Agreed end` on the job's own page.
+ * on the timeline and stated as `Planned end` on the job's own page.
  */
-export const deploymentEndMs = (deployment: Deployment, now: number): number =>
+export const deploymentEndMs = (deployment: DeploymentBooking, now: number): number =>
   deployment.endsAt === null ? now : Math.min(new Date(deployment.endsAt).getTime(), now);
 
 /**
@@ -130,7 +211,7 @@ export const deploymentEndMs = (deployment: Deployment, now: number): number =>
  * agreed end would have it standing five. A planned job has not started, so it is
  * zero rather than the negative number a naive subtraction would give.
  */
-export const deploymentElapsedMs = (deployment: Deployment, now: number): number => {
+export const deploymentElapsedMs = (deployment: DeploymentBooking, now: number): number => {
   const start = new Date(deployment.startsAt).getTime();
   if (start > now) return 0;
   return Math.max(0, deploymentEndMs(deployment, now) - start);
@@ -145,7 +226,7 @@ export const deploymentElapsedMs = (deployment: Deployment, now: number): number
  * transfer impossible. An open-ended job runs to infinity, which is why an
  * unclosed job blocks everything after it.
  */
-export const windowsOverlap = (left: Deployment, right: Deployment): boolean => {
+export const windowsOverlap = (left: DeploymentBooking, right: DeploymentBooking): boolean => {
   const leftStart = new Date(left.startsAt).getTime();
   const leftEnd = left.endsAt === null ? Number.POSITIVE_INFINITY : new Date(left.endsAt).getTime();
   const rightStart = new Date(right.startsAt).getTime();

@@ -73,6 +73,12 @@ export type DetailNavItem = {
    * every one of its children, so without it `Site` stays lit on `Alarms`.
    */
   end?: boolean;
+  /**
+   * Light the row only when the URL carries this row's `search` as well as its
+   * path. For rails whose rows share one route and differ by a query key — the
+   * fleet service page's `Due` and `History`, which are `?tab=`.
+   */
+  matchSearch?: boolean;
 };
 
 /** A nested list under a row, which is what `Asset` is. */
@@ -90,8 +96,14 @@ const isGroup = (entry: DetailNavEntry): entry is DetailNavGroup => 'items' in e
  * The row's own styling, shared by rows and sub-rows so the two differ only in
  * height and indent — which is the only thing the design differs them by.
  */
+// Icons 17.6px and labels 15.4px (2026-09-30, on request: 10% over the design's
+// 16px and 14px), so every rail reads at the same larger size. The size is on each
+// label (`LABEL`) rather than here: `cn` reads `text-secondary` as a font size and
+// would drop a `text-[15.4px]` beside it.
+const LABEL = 'text-[15.4px] leading-6';
+
 const rowClassName =
-  'flex w-full items-center gap-2 rounded-lg px-2 text-sm text-secondary transition-colors hover:bg-hover hover:text-primary data-[status=active]:bg-highlight data-[status=active]:font-medium data-[status=active]:text-primary';
+  'flex w-full items-center gap-2 rounded-lg px-2 text-secondary transition-colors hover:bg-hover hover:text-primary data-[status=active]:bg-highlight data-[status=active]:font-medium data-[status=active]:text-primary';
 
 export const DetailSidebar = ({
   header,
@@ -166,11 +178,11 @@ const DetailSidebarLink = ({
       // `includeSearch: false` throughout: the genset home page carries its alert
       // filter in the query string, and with the default a reader who picked a
       // severity chip would un-light the row they are standing on.
-      activeOptions={{exact: item.end ?? false, includeSearch: false}}
+      activeOptions={{exact: item.end ?? false, includeSearch: item.matchSearch ?? false}}
       className={cn(rowClassName, className)}
     >
-      <Icon className="size-4 shrink-0" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+      <Icon className="size-[17.6px] shrink-0" aria-hidden="true" />
+      <span className={cn(LABEL, 'min-w-0 flex-1 truncate text-left')}>{item.label}</span>
     </Link>
   );
 };
@@ -200,8 +212,8 @@ const DetailNavDisclosure = ({group}: {group: DetailNavGroup}) => {
         aria-expanded={open}
         className={cn(rowClassName, 'h-8 cursor-pointer')}
       >
-        <Icon className="size-4 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate text-left">{group.label}</span>
+        <Icon className="size-[17.6px] shrink-0" aria-hidden="true" />
+        <span className={cn(LABEL, 'min-w-0 flex-1 truncate text-left')}>{group.label}</span>
         <ChevronRightIcon
           className={cn('size-4 shrink-0 transition-transform', open && 'rotate-90')}
           aria-hidden="true"
@@ -240,7 +252,7 @@ export const DetailSidebarLabel = ({
   aside?: ReactNode;
 }) => (
   <div className="flex h-[30px] w-full items-center gap-2 px-2">
-    <span className="min-w-0 flex-1 truncate text-sm font-medium text-primary">
+    <span className="min-w-0 flex-1 truncate text-[15.4px] font-medium text-primary">
       {children}
     </span>
     {aside}

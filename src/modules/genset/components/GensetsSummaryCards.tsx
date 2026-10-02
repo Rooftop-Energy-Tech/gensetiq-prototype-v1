@@ -3,22 +3,25 @@ import {useId, useState} from 'react';
 import {
   CardNote,
   CountChip,
-  FilterCard,
-  Headline,
   SummaryCard,
   SummaryCardRow,
   SummaryCollapseButton,
 } from '@/components/global/SummaryCards';
-import {STATUS_META} from '../data/fleetStatus';
+import type {ChipTone} from '@/components/global/SummaryCards';
+import {ALARM_OPTION} from './GensetsToolbar';
 import type {FleetSummary} from '../data/fleetSummary';
-import {gensetStateName} from '../data/gensetState';
-import {isDueForService} from '../data/services';
-import type {Genset} from '../types/genset.type';
+import {RUN_STATES} from '../types/genset.type';
+import {GENSET_ALARM_FILTERS} from '../types/view.type';
+import type {RunState} from '../types/genset.type';
+import {RUN_STATE_META} from './runStateMeta';
 import type {GensetSearch} from '../types/view.type';
 
 /**
- * The fleet's summary: four cards, in the shape the telcoIQ estate strip draws —
- * `Gensets`, `Status`, `Due for service`, `Fuel on hand`.
+ * The fleet's summary: two cards, in the shape the telcoIQ estate strip draws —
+ * `Status` and `Alarm`. `Status` splits the fleet
+ * into running, idle and offline (2026-09-29), each a `?run=` toggle. The first two
+ * were `Gensets` and `Status` until 2026-09-29, renamed to the table columns they
+ * count: the run state is the `Status` column, and the buckets are the `Alarm` one.
  *
  * ## History
  *
@@ -29,19 +32,24 @@ import type {GensetSearch} from '../types/view.type';
  * - **The cards count the whole fleet**, and only `Showing N` follows the filters. The
  *   strip is a picture of the estate that holds still while the list below answers a
  *   narrower question; the toolbar's dropdowns are what follow the filters.
- * - **The status buckets are always drawn, zero or not** — a fixed scale a reader
- *   learns once. Each is still a toggle (`?status=`), as the chips were.
+ * - **Every chip is always drawn, zero or not** — a fixed scale a reader learns
+ *   once. Each is a toggle (`?run=`, `?alarm=`), as the chips were.
  *
- * `Due for service` is a toggle too (`?service=due`), not a link as on the estate
- * strip: that card sends a reader here, and this is here. `Fuel on hand` stands where
- * the estate's `Solar share` does — this estate has no solar, and diesel on hand is
- * the figure a fleet's day turns on.
+ * `Due for service` was a third card, a toggle for `?service=due`, until 2026-09-29;
+ * the filter still works from a link and clears from its chip. A fourth card stood where
+ * the estate's `Solar share` does — `Fuel on hand`, then `Today` (run hours and
+ * litres since midnight, and why the running sets started) — and came off on
+ * 2026-09-29 at Jeff's request.
  */
+
+const RUN_TONE: Record<RunState, ChipTone> = {
+  RUNNING: 'running',
+  IDLE: 'idle',
+  OFFLINE: 'offline',
+};
 
 type GensetsSummaryCardsProps = {
   summary: FleetSummary;
-  /** The whole fleet, for the service and fuel cards. */
-  fleet: Array<Genset>;
   /** How many rows the list is actually showing, once search and filters are applied. */
   showing: number;
   search: GensetSearch;
@@ -50,7 +58,6 @@ type GensetsSummaryCardsProps = {
 
 export const GensetsSummaryCards = ({
   summary,
-  fleet,
   showing,
   search,
   onSearchChange,
@@ -62,64 +69,53 @@ export const GensetsSummaryCards = ({
   const [collapsed, setCollapsed] = useState(false);
   const cardsId = useId();
 
-  const due = fleet.filter((genset) => isDueForService(genset.id));
-  const dueStates = new Set(due.map(gensetStateName).filter((name) => name !== undefined)).size;
-
-  const litres = fleet.reduce((sum, genset) => sum + genset.fuelLitres, 0);
-  const capacity = fleet.reduce((sum, genset) => sum + genset.fuelCapacityLitres, 0);
-  const share = capacity === 0 ? 0 : litres / capacity;
-
-  const activeCount = (search.status === undefined ? 0 : 1) + (search.service === undefined ? 0 : 1);
+  const activeCount =
+    (search.run === undefined ? 0 : 1) +
+    (search.alarm === undefined ? 0 : 1);
 
   return (
     <div className="flex flex-col gap-3">
-      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={4}>
-        <SummaryCard label="Gensets">
-          <Headline
-            value={summary.total}
-            unit={summary.total === 1 ? 'genset' : 'gensets'}
-            detail={filtered ? `Showing ${showing}` : `across ${summary.byState.length} states`}
-          />
-          {filtered && <CardNote>across {summary.byState.length} states</CardNote>}
-        </SummaryCard>
-
+      <SummaryCardRow id={cardsId} collapsed={collapsed} cappedColumns={2}>
+        {/* What the engines are doing, one toggle per run state (`?run=`) — the
+            Alarm card's shape, so the two read as a pair.
+            The fleet total is not stated; the three add up to it. */}
         <SummaryCard label="Status">
           <div className="flex flex-col gap-0.5">
-            {summary.byStatus.map((tally) => (
+            {RUN_STATES.map((state) => (
               <CountChip
-                key={tally.key}
-                label={tally.label}
-                count={tally.count}
-                tone={STATUS_META[tally.key].tone}
-                active={search.status === tally.key}
-                onToggle={(next) => onSearchChange({status: next ? tally.key : undefined})}
-                title={STATUS_META[tally.key].detail}
+                key={state}
+                label={RUN_STATE_META[state].label}
+                count={summary.byRunState[state]}
+                tone={RUN_TONE[state]}
+                active={search.run === state}
+                onToggle={(next) => onSearchChange({run: next ? state : undefined})}
                 block
               />
             ))}
           </div>
+          {/* Only while filtered: the unfiltered `38 across 8 states` came off on
+              2026-09-29 — the three counts already add up to the fleet. */}
+          {filtered && <CardNote>{`Showing ${showing} of ${summary.total}`}</CardNote>}
         </SummaryCard>
 
-        <FilterCard
-          label="Due for service"
-          count={due.length}
-          unit={due.length === 1 ? 'genset' : 'gensets'}
-          detail={
-            due.length === 0
-              ? 'nothing booked in'
-              : `in ${dueStates} ${dueStates === 1 ? 'state' : 'states'}`
-          }
-          active={search.service === 'due'}
-          onToggle={(next) => onSearchChange({service: next ? 'due' : undefined})}
-        />
-
-        <SummaryCard label="Fuel on hand">
-          {/* No unit beside the figure — `62%` carries its own; the litres behind it
-              are the detail line, as the estate's solar card does with its kWh. */}
-          <Headline
-            value={`${Math.round(share * 100)}%`}
-            detail={`${Math.round(litres).toLocaleString('en-MY')} L of ${Math.round(capacity).toLocaleString('en-MY')} L`}
-          />
+        <SummaryCard label="Alarm">
+          <div className="flex flex-col gap-0.5">
+            {/* The Alarm dropdown's own options, counts and `?alarm=` — a set's worst
+                standing alarm, so the four add up to the fleet. It drew the fleet
+                status buckets (`Alarms raised`, `Low fuel`, `All OK`) until
+                2026-09-29, which no control above it could show once picked. */}
+            {GENSET_ALARM_FILTERS.map((key) => (
+              <CountChip
+                key={key}
+                label={ALARM_OPTION[key].label}
+                count={summary.byAlarm[key]}
+                tone={ALARM_OPTION[key].tone ?? 'neutral'}
+                active={search.alarm === key}
+                onToggle={(next) => onSearchChange({alarm: next ? key : undefined})}
+                block
+              />
+            ))}
+          </div>
         </SummaryCard>
       </SummaryCardRow>
 

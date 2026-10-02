@@ -71,8 +71,11 @@ const yardOffset = (gensetId: string): {lat: number; lon: number} => ({
 type Placement = {
   /** The yard the machine is standing at now, or `null` in the depot. */
   siteId: string | null;
-  /** The yard it was last on, which is where it physically is either way. */
-  lastSiteId: string | null;
+  /**
+   * The deployment it last stood on, which is where it physically is either way —
+   * the site's position, or the deployment's pin where somebody moved it.
+   */
+  last: Deployment | null;
 };
 
 /**
@@ -99,7 +102,7 @@ const placements = (
     // machine is standing today, so it is skipped entirely here.
     if (state === 'planned') continue;
 
-    const held = placement.get(membership.gensetId) ?? {siteId: null, lastSiteId: null};
+    const held = placement.get(membership.gensetId) ?? {siteId: null, last: null};
 
     if (state === 'active' && membership.collectedAt === null) {
       placement.set(membership.gensetId, {...held, siteId: deployment.siteId});
@@ -112,7 +115,7 @@ const placements = (
       lastStartedAt.set(membership.gensetId, deployment.startsAt);
       placement.set(membership.gensetId, {
         ...(placement.get(membership.gensetId) ?? held),
-        lastSiteId: deployment.siteId,
+        last: deployment,
       });
     }
   }
@@ -134,14 +137,27 @@ const applyPlacement = (now: number): Array<Genset> => {
   return GENSETS.map((genset) => {
     const placed = placement.get(genset.id);
     const siteId = placed?.siteId ?? null;
-    const standingAt = placed?.lastSiteId ?? genset.siteId;
+    const offset = yardOffset(genset.id);
+
+    const pin = placed?.last?.pin;
+    if (pin != null) {
+      return {
+        ...genset,
+        siteId,
+        locationLabel: pin.locationLabel,
+        address: pin.address,
+        latitude: pin.latitude + offset.lat,
+        longitude: pin.longitude + offset.lon,
+      };
+    }
+
+    const standingAt = placed?.last?.siteId ?? genset.siteId;
     const seed = standingAt === null ? undefined : seedById.get(standingAt);
 
     // No yard on the record at all: the seed's own position is the only thing known
     // about where this machine is, so it keeps it.
     if (seed === undefined) return {...genset, siteId};
 
-    const offset = yardOffset(genset.id);
     return {
       ...genset,
       siteId,

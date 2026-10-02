@@ -216,6 +216,11 @@ the whole shape, and it is a deliberate departure from the production model: Hel
 `DeploymentSession` is one posting per machine with its own window, which records the
 paperwork correctly and loses the job. Tristan's call, 2026-09-21.
 
+In practice **a job is one set, and two about one time in seven** — never three
+(2026-09-29). The fixtures follow that: five of the thirty-two occupied yards in
+`utility.ts` hold a pair, and `seed.ts` deals past and planned jobs one set at a time
+with a 15% chance of a second (`PAIR_SHARE`).
+
 The cost of it is worth stating, because it is the thing to revisit first: **a fourth
 set arriving in week three cannot join an existing job.** It needs a successor job,
 which splits one hire into two records. If that turns out to be how Express Mission
@@ -225,11 +230,11 @@ A membership carries the tank level at each of its own edges, and a `collectedAt
 pulled out early while the job runs on. The live level during an open posting is
 *derived* from telemetry rather than stored.
 
-**The lorry is the genset's, not the job's** (since 2026-09-29). Each set is bolted
-onto one lorry for life, so `Genset.lorryPlate` holds it and every job shows the same
-one. It used to be dealt afresh per membership, as a Sabah plate even on peninsular
-jobs, so one machine arrived on a different lorry every time. `fleet.ts` derives it in
-the brand's own plate style and never repeats a genset plate or another lorry's.
+**There is no separate lorry plate** (since 2026-09-29). A set is bolted to its
+lorry, so the genset's number plate is the lorry's plate, and one plate is shown.
+Until then each membership was dealt its own random lorry plate (a Sabah plate even
+on peninsular jobs), and for one commit each genset had a fixed second plate; both
+went as the same fact stated twice.
 
 #### Three states, and none of them is stored
 
@@ -1080,9 +1085,17 @@ so a machine with nine monitoring-unit rows does not turn a preview into the tab
 previewing. The panel, the column and the tab all read `gensetAlarmRows`, the one
 definition of a set's queue, so none of them can name an alarm the others do not have.
 
+**Every map has a locate button** (2026-10-01), above the zoom on the Gensets and
+Deployments maps and below it on the pin maps (`src/lib/locateControl.ts`). The
+browser asks for the location only when it is clicked. It flies to the person and
+draws a live blue dot that follows them, keeping the map on them until they pan away;
+a second click stops it. On a pin map, following the person moves the pin with them,
+and an ended deployment's locked map has no button.
+
 **The map draws state borders** at every zoom — neutral, never the brand colour, and
 weighted to stay findable at both ends: a hairline over empty sea, heavier with a pale
-casing under it once the basemap fills up with roads and buildings. They are drawn
+casing under it once the basemap fills up with roads and buildings, and drawn over
+those roads and buildings rather than under them (2026-10-01). They are drawn
 from the app's own shapes — the same ones the hover washes in — and the basemap's own
 state boundary is switched off, for reasons given further down. They are furniture —
 the same job the basemap's own coastline does — and they are there so the hover and
@@ -1106,6 +1119,10 @@ The fleet register's State dropdown narrows the list to one state; the hover ask
 other half of the question, how that state compares with the rest. This is not a filter — the dimmed fleet stays
 visible, because the question is how one state compares with the rest and hiding the
 rest would answer a different one.
+
+**The gensets and deployments maps open on the whole peninsula.** With no filter or search on, it
+frames Perlis to Johor rather than the fleet's own pins, which cut the north off. It
+holds that frame until the list is scrolled or a filter changes, then follows the list.
 
 **Clicking a state frames it.** The hover says how much is here; the click says show
 me. Click the basemap anywhere inside a state and the map fits the whole of that state
@@ -1150,8 +1167,18 @@ polygons disagree with the basemap's boundary by 130 m on average and 850 m at w
 closes. The shading spilled across the line.
 
 So one set of shapes does both, and the basemap's own state and country lines are
-hidden. What ours still has to line up against is the coastline the basemap draws,
-since a state's outline follows the coast for most of its length.
+hidden.
+
+**The coast is the basemap's own.** Our shapes were OSM in 2017 and the basemap is OSM
+today, so a coast drawn from ours cut across Penang's reclaimed land and ran off the
+Johor shore. The shapes are now today's OSM too (below), but the coast stays the
+basemap's, drawn at whatever detail the zoom calls for. The coast is traced instead off the sea in the tiles on screen, at
+whatever zoom is showing, and only Malaysia's shore is kept: Singapore's bank of the
+Johor Strait and the neighbours' islands stay unlined. The borders between states and
+the land borders still come from our shapes. Where one reaches the coast it runs on
+out to sea under the basemap's ocean, which trims it at the shore. The hover wash
+does the same: it is painted under the basemap's water and reaches a little past the
+shapes' coast, so no land the basemap draws goes unwashed.
 
 **Every edge is the same line** — a coast, an island, a border with Thailand, Brunei or
 Indonesia, and a border between two states. The coast used to be fainter, because a
@@ -1161,12 +1188,19 @@ weight the internal borders always had. Hiding the basemap's country lines takes
 country border in its tiles with them, so borders between two other countries are not
 drawn; every border of Malaysia is.
 
-Those shapes come from geoBoundaries' OSM extract, in the repo rather than fetched,
+Those shapes are OpenStreetMap as it stood on 2026-10-01 (until then, geoBoundaries'
+2017 extract of it): OSM's own state relations, cut to OSM's land polygons where a
+state's relation runs out to sea. They lie on the basemap's own state line, checked by
+drawing that line over ours at KL, the Bernam, Gemas, Seberang Perai and the
+Sabah–Sarawak border, and audited end to end: every border between two states and
+every land border has a line, no line runs over land with no border under it, every
+Malaysian shore is lined, and no other country's is. Islands no state relation
+reaches, such as Pulau Aur and Layang-Layang, go to the nearest state. They live in the repo rather than being fetched,
 for the reason the basemap is CARTO's: this thing has to come up on a fresh clone with
-nothing configured. Two copies — a 22 m one served out of `public/` for the borders and
-the wash, and a 440 m one in the bundle for the arithmetic — because simplification
-shows when you draw a shape and does not when you only ask which side of it something
-is on.
+nothing configured. A 22 m copy served out of `public/` for the wash, with the borders
+and the neighbours' outlines cut from the same build beside it, and a 440 m one in the
+bundle for the arithmetic, because simplification shows when you draw a shape and does
+not when you only ask which side of it something is on.
 
 One site still needs slack: a coastline is a generalisation, and a tower on reclaimed
 land can fall the wrong side of it, so a site within about five kilometres of a coast
@@ -1179,13 +1213,28 @@ closed a click is a dead end that reads as a broken control. The toggle therefor
 means "hide the preview until I next ask for one", and it never sits between the
 row-click and the preview it is supposed to produce.
 
-**The summary is four cards again**, in the shape of the telcoIQ Sites strip: `Gensets`
-(the total, `Showing N` when filtered, and how many states), `Status` (the three
-buckets as toggles), `Due for service` (a toggle for `?service=due`, with how many
-states those sets are in) and `Fuel on hand` (fleet diesel as a share of tank
-capacity, litres under it — where the estate has `Solar share`). It was one line
-from 2026-09-21 to save height above the register; it went back to cards on
-2026-09-28 on request. All four count the whole fleet.
+**The summary is two cards**, in the shape of the telcoIQ Sites strip: `Status`
+(running, idle and offline as `?run=` toggles, with `Showing N of 38` under
+them while a filter is on) and `Alarm` (the Alarm dropdown's four options, Critical to No alarms, as
+`?alarm=` toggles). A third, `Due for service` (a toggle for `?service=due`), came off
+on 2026-09-29; the filter still works from a link, as the estate strip's card sends one. The first two were `Gensets` and `Status` until 2026-09-29, and took the
+names of the table columns they count. A fourth card stood where the estate has `Solar
+share`: `Fuel on hand`, replaced on 2026-09-29 by `Today` (run hours and litres since
+midnight, and how many running sets started on an outage or a test), which came off the
+same day on request. It was one line from 2026-09-21 to save height above the register;
+it went back to cards on 2026-09-28 on request. Both count the whole fleet.
+
+**The table shows 20 rows a page** (2026-09-30), with `21–38 of 38` and numbered
+pages under it. The page is `?page=` in the URL, absent on page 1. A filter, search
+or sort change goes back to page 1, and a pin picked on the map turns the table to
+that set's page. The map and the phone-width cards still show the whole filtered
+list. The pager is hidden when everything fits on one page. The `/service` page's Due
+and History tables page the same way, sharing one `?page=`; switching tab goes back
+to page 1.
+
+The pager (`TablePager`, shared by all three) shows the row count on the left and,
+centred, first, previous, three page slots, next and last. The current page is always
+the middle slot and is a field: type a page and press Enter to jump there.
 
 **The cards above the table are counts that double as filters.** Showing a number an
 operator cannot act on is half a control, so each count is a toggle: click `Low
@@ -1195,7 +1244,7 @@ narrower question. Nothing there invents colour — a count carrying a verdict g
 the same token the badge two rows down uses.
 
 **The estate strip is not four groupings, and that is where the two screens part.**
-The fleet's four cards are four ways of slicing the fleet. The estate's four say what
+The fleet's two cards are two ways of slicing the fleet. The estate's four say what
 the estate *is* before offering to narrow it: how many sites, what needs doing to
 them (`Status`), what is `Due for service`, and how the hybrid programme is going
 (`Solar share`). The last two came down from the overview when it went, and they are
@@ -1312,16 +1361,26 @@ every narrowing — the search text, the four dropdowns, the summary strip's chi
 unexplained, and `Clear all` would clear only part of it. The chips use each control's
 own words, so a chip and the control that set it read the same.
 
+**Capacity is a fifth dropdown** (2026-09-29): one option per kVA rating the fleet
+has, read off the model name (`modelKva`, which the detail model's kW rating uses
+too), faceted like the rest, and a chip reading `1,000 kVA`. The table carries a
+sortable `Capacity` column in both views. To fit it beside the map the split went
+from roughly 45/55 to 60/40 in the list's favour, with the map floored at 440px so
+the preview panel still floats over a strip of basemap. With the column gone it went
+to 50/50 on 2026-09-30.
+
 **The deployments register copies these controls** (2026-09-29): plate search with
 spaces ignored, plus the job reference (`DEP-0076`); `State` and `Status` dropdowns,
-faceted the same way; the same chip row; and four cards in the gensets shape —
-`Deployments`, `Status` (the three states, each a toggle), `Gensets out` (with what is
-committed and a link to the depot count) and `Diesel burned` (with the typical closed
-job). The old `Customer` dropdown and `?customer=` went. A job's state is its yard's,
+faceted the same way; the same chip row; and three cards in the gensets shape —
+`Status` (the three states, each a toggle), `Deployments` and `Gensets out` (with what
+is committed and a link to the depot count). A fourth, `Diesel burned` with the typical
+closed job, came off on 2026-09-29. The old `Customer` dropdown and `?customer=` went. A job's state is its yard's,
 read off the site's coordinates with `stateNameAt`, and travels as `?location=` so one
 state reads the same on both pages. Its machines are shown by plate, falling back to the
-tag. The table uses the gensets table's equal gaps and keeps all seven columns (State added beside the reference); beside the
-map they do not fit, so there it scrolls sideways.
+tag. The table uses the gensets table's equal gaps. The full-width list keeps all seven
+columns (State added beside the reference); beside the map it keeps four —
+`Deployment`, `State`, `Status`, `Gensets` — and drops `Dates`, `Run hours` and `Fuel
+burned` (2026-09-29), which the preview panel carries.
 
 **Every set has a street address**, mock but plausible: a real town and postcode, an
 invented lot number (`Lot 31, Jalan Kuala Kangsar, 30010 Ipoh, Perak`). It belongs to
@@ -1372,6 +1431,103 @@ than assets**. A job is one site, one window and the machines that stood there �
 [Deployment](#deployment) for the model — and the screen answers the operations-room
 question: *what is out, where, since when, and what is booked next.*
 
+**The table shows 20 jobs a page** (2026-09-30), paged exactly as the gensets table
+is: `?page=`, back to page 1 on any filter, search or sort change, and a pin picked
+on the map turns to its job's page. The map, the timeline and the phone cards still
+show every job the filters leave.
+
+**`New deployment`, above the search at the top left, opens a dialog** (2026-09-30), the only way to
+create a deployment on screen. It is one form in four pages since 2026-10-01 (one
+column until then), with a step strip at the top — **Details · Customer · Location ·
+Team** — and one height for all of them, so the buttons stay put:
+
+- **Details**: Job type first, then Deployment ID, Start date (today by default) beside the optional Planned end
+  date, and Gensets.
+- **Customer** is who hired the gensets, and their site contacts. An ERQ or PRQ ID
+  typed on Details has already filled in TNB here.
+- **Location** is the address: a search box over a large map whose pin sits at the
+  centre. The map opens over Kuala Lumpur; moving it looks up the address at the pin,
+  a picked suggestion moves it, and its locate button puts the pin where the person is
+  standing. Whichever is done last sets the address. The map's bottom-left corner reads the
+  pin's latitude and longitude live as it moves, and Settings' map does the same. **Create now** books
+  it from here; **Next** goes on.
+  A site with no street address (a plantation, a quarry, a stretch of highway) is
+  placed by typing or pasting its coordinates into the same box (2026-10-01):
+  `3.1579, 101.7116`, `3.1579° N, 101.7116° E` or `3°09'28.4"N 101°42'41.8"E`,
+  latitude first. The one suggestion is the position, with the town it is near or else
+  its state; picked, the coordinates stand in for the address everywhere one is shown.
+  Coordinates outside Malaysia's states are refused. Settings' address box takes them
+  the same way.
+- **Team** is the optional rest: crew and a first note, then
+  **Create deployment**.
+- **Next works whatever is filled in** (2026-10-01), and any step in the strip can be
+  clicked, ahead or back. A page left with something missing gets a red **!** in the
+  strip, a finished one a tick. Only the Create buttons wait: they stay off until
+  every required field is in, and hovering one lists what is missing, page by page
+  ("Details: Add a customer."). **Back** keeps everything entered, and closing with
+  anything entered asks before discarding it.
+- **Job type and crew** (2026-10-01) appear only on an estate whose dataset has a
+  `work` vocabulary (`DeploymentWork` in `src/brands/types.ts`): today the utility
+  estate, which Express Mission runs. They follow Express Mission's genset-on report.
+  - The Deployment ID is the customer's ERQ or PRQ request number, so it starts
+    empty and is required. Two deployments cannot share an ID, on any estate.
+  - **Job type** is ERQ, PRQ or Standby, and required. ERQ and PRQ follow the ID:
+    typing `ERQ…` picks ERQ, and picking PRQ puts PRQ on the ID's digits. Standby is
+    standby cover on an ERQ or PRQ request, so it keeps the ID as it is.
+  - **ERQ and PRQ fill in TNB** as the customer, since TNB issues them (`clientId`
+    on the job type), and so does Standby on one of their numbers. A customer
+    somebody picked is never overwritten, and clearing the ID takes the filled-in one
+    back out. TNB is first in the utility estate's
+    customer list, written "Tenaga Nasional Berhad (TNB)" so the initials find it.
+  - **The register filters by job type** too: a Job type dropdown beside State and
+    Status, with faceted counts like theirs, a chip in the "Filtered by" row, and
+    `?job=erq|prq|standby` in the URL. An estate without job types has no dropdown.
+  - **Crew** is optional: rows of a role (Driver, Worker, Chargeman, Engine driver)
+    and a name picked from the estate's roster, or typed and added. Settings edits
+    both, and an ERQ/PRQ ID typed there sets the job type too.
+  - **Every ID is ERQ or PRQ and seven digits**, no separator (`referenceDigits`),
+    e.g. `ERQ0065692`. Typing is cleaned to capitals and digits; there are no IDs of
+    our own on this estate.
+  - **A checker under the ID box** (2026-10-01) ticks off the three rules as the ID is
+    typed — starts with ERQ or PRQ, then seven digits, not used by another
+    deployment — and where one fails says exactly what is wrong: "The 5th character is
+    the letter O, not the number 0", "It starts with “EQR”. Did you mean ERQ?", "There
+    are 8 digits; it needs 7. Remove 1." A rule still waiting on typing shows how far
+    along it is ("3 of 7 so far") and turns red once the box is left. Settings shows
+    the same checker while a new ID is typed (`referenceChecks` in `DeploymentWork.tsx`).
+  - **Seeded IDs** read like request numbers (`ERQ0046728`, `PRQ0304623`), scattered
+    because they are TNB's numbers (`seedReference` in
+    `deployment/data/particulars.ts`). The carrier estate keeps `DEP-0001`.
+  - **At most five seeded jobs are Standby** (`MAX_SEEDED_STANDBY`, 2026-10-01); the
+    rest are ERQ or PRQ, since standby cover is the exception. New deployments can be
+    Standby freely.
+  - Left out on purpose, because they happen after booking: lorry position, the
+    refuels and their drivers, and the diesel, hour-meter and kWh readings at on and
+    off. Lorry plate and kVA come from the genset picked.
+- **Dates** read and type as dd/mm/yyyy in every browser, here and in Settings
+  (`src/components/ui/date-input.tsx`). A plain `<input type="date">` draws the
+  operating system's format, so it read mm/dd/yyyy in a US-locale browser. The
+  calendar button opens the app's own month grid, in the site's colours: Monday
+  first, today in the brand colour, the picked day filled, days outside the allowed
+  range greyed, and Today and Clear at the foot.
+- **Required:** an address, a start date, a customer and at least one genset. Until
+  they are there, `Create deployment` is greyed out, and its tooltip lists what is
+  missing.
+- **The genset list** is searchable and allows several picks. It orders free sets
+  nearest the address first. A set already booked over the chosen dates is greyed out
+  with the deployment in its way.
+- **A start of today opens the deployment as Deployed** and moves its gensets at once.
+  A later date books them as Planned.
+- **Closing a form with anything typed asks** "Discard this deployment?" first.
+- **Create opens the new deployment's own page.** A street address with no site behind
+  it books through the nearest site, which gives it a region for the filters.
+
+**A job is shown by its street address, not a site code** (2026-09-29): the preview
+panel's `Address` row (the table leaves it out — `State` says where at a glance), the job's header, the Settings picker
+and the `Gensets out` card (`at 25 addresses`). The timeline bars are the exception —
+too short for a street, they show the town, with the full address on hover. The data
+still joins a job to a yard record underneath; only the site's name has gone.
+
 It shipped as a flat feed of postings, one row per machine, and was rebuilt to the
 registers' shape on 2026-09-21: a summary strip, a preview panel, view state in the
 URL, and the list/map/split switcher. It changed again the same day, and the second
@@ -1393,11 +1549,28 @@ three bars on three lanes, sharing one window, and clicking any of them selects 
 job.
 
 **The axis runs past today.** It stopped at `now` while a posting that had not happened
-was not in the data model; a planned job is, so the window runs to the last thing
-booked, `now` gets a rule down every lane, and a standing job quoted to a future date
+was not in the data model; a planned job is, so `now` gets a rule down every lane, and a standing job quoted to a future date
 carries a dashed tail from today to its agreed end. It is still **not a planner**:
 nothing drags, nothing schedules, and no bar can be moved, because dispatch is a lorry
 and a phone call and this screen is the paper trail those leave.
+
+**One month to a screen, scrolled sideways for the rest** (2026-09-30). A day is a
+thirtieth of the visible width, and the track runs from the earliest job in view to
+the last booked, never less than fifteen days either side of today. It opens with
+today in the middle; the date in the middle is held when the width changes, and a
+`Today` button in the corner scrolls back to it. The genset column and the date row
+stay put while the track scrolls. Until that day the whole record was squeezed into
+the container's width, which left today near the right edge and the fortnight that
+matters as a sliver. The lane names are the chart's first column, in primary text
+behind a solid rule, and carry the plate alone. The preview panel floats over the
+timeline as it does over the map, so the chart keeps its full width.
+
+**A job's dates read `Started on` / `Planned end`, and `Ended on` once it is over**
+(`Collected` until 2026-09-30, which read as a status and clashed with the
+per-machine `collected` note). Its length reads `Standing` while it is out,
+`Duration ran` once it has ended, and `Lorry wanted` before it starts. The preview
+panel adds `Time remaining` on a standing job with a planned end, named after the
+genset page's `Fuel remaining`, and `Past planned end by …` once that has passed.
 
 The timeline also ignores the table's ordering, deliberately — sorting lanes by fuel
 burned would put a machine's chain at a vertical position that means nothing against
@@ -1439,7 +1612,7 @@ here would have been a third pattern for one problem.
 | `Gensets` | which machines are on it — **and the only place they go on and come off** |
 | `Runs` | what those machines ran inside the window |
 | `Alarms` | what their controllers raised inside the window |
-| `Settings` | the reference, the yard, the dates, and the two acts that end it |
+| `Settings` | the ID, the address and pin, the dates, the customer and contacts, the notes, and the two acts that end it |
 
 **The home band states energy against fuel over the window**, with the ratio between
 them. That is *efficiency by deployment*, and it is the reason the model changed: it
@@ -1460,10 +1633,47 @@ clears it on the machine's tab and on the site's. Alarms in this prototype are a
 state rather than a log, so a job that closed last month has nothing to show, and the
 page says that rather than drawing an empty table that reads as a quiet fortnight.
 
-**Close and delete are different acts.** Closing ends a standing job now: the window
-closes, the machines leave the yard and none of them moves. Deleting is offered on a
-*planned* job only, because a job machines have actually stood on is a fact about the
-world and the app does not offer to unmake one.
+**Settings is four sections** (2026-09-30): `General`, `Customer`, `Notes` and
+`End deployment`.
+
+- **General** holds the `Deployment ID`, the `Address`, the `Start date` and the
+  `Planned end date`, with a street map beside them.
+  - The address is a search box that autocompletes as it is typed (`AddressField.tsx`): street addresses anywhere in Malaysia,
+    from three letters in. The register's sites are not offered. Street addresses come from
+    OpenStreetMap through Photon (`src/lib/geo/photon.ts`), a free public service,
+    which is fine for a prototype and needs replacing before real traffic.
+  - The pin stays at the centre of the map and the map moves under it, like a
+    ride-hailing pickup pin (2026-10-01). Panning is the only way to move it; zoom
+    keeps the centre, and the pin lifts while the map moves. It moves **this
+    deployment only**; the site it was booked at keeps its position. Once the map comes
+    to rest the address becomes the street address at the pin. On an ended deployment
+    the map is locked: no pan, no zoom.
+  - On a standing deployment, a new pin or site is a lorry: every genset on it moves
+    to the new position on the fleet map, the same as picking another site.
+  - The start date locks once the deployment has started.
+- **Customer** holds the company that hired the gensets and a list of site contacts,
+  each with a name, role, phone and email. A star marks one contact as primary.
+  "Customer" here is the hiring company, not the site's region or zone.
+- **Notes** is a log, newest first. Each note is signed with the logged-in user and a
+  time, and only its author can edit or delete it.
+- **End deployment** ends a standing deployment now, or deletes a planned one. Both ask
+  in a dialog first. Ending closes the window and the machines leave the yard; none of
+  them moves until somebody collects it. Deleting is for planned deployments only,
+  because one that machines have stood on is a fact about the world. On a completed
+  deployment the button is greyed out and its tooltip gives the end date.
+
+**A completed deployment's Settings are read-only**, notes included, because it is
+the record of what happened.
+
+**The overview page and the side panel carry a Customer card**: the customer, the
+primary contact with a tappable phone number and email, and the latest note, with a
+link to the rest in Settings.
+
+Every seeded deployment has an example customer and one to three contacts, and about a
+third carry one to three notes from the operations room (`data/particulars.ts`).
+
+**On-screen text says "deployment", never "job"** (2026-09-30). The code still says
+`job` in places.
 
 → `src/modules/deployment/components/detail/`
 

@@ -9,6 +9,7 @@ import {
   malaysiaStateName,
   stateClusterKey,
 } from './malaysiaStates';
+import {traceCoastline} from './coastline';
 
 /**
  * Hovering a state isolates it: the state lights up under the cursor, its name and
@@ -44,22 +45,25 @@ import {
  * say where the states are, and the hover says which one you are asking about. Two
  * different jobs, and the brand colour belongs to the second of them.
  *
- * ## One geometry, ours, for everything
+ * ## One survey, ours, for the borders and the wash
  *
- * The borders and the hovered state's wash are the same polygons, which is what makes
- * the wash sit exactly inside the border instead of spilling across it.
+ * The borders and the hovered state's wash are cut from the same extract, which is
+ * what makes the wash sit exactly inside the border instead of spilling across it.
  *
  * That is why the basemap's own boundary layer is switched off rather than restyled.
  * It was tried the other way, and it cannot be made to work: sampling Voyager's own
  * boundary tiles against these polygons **unsimplified** gives a median disagreement
  * of 130 m and a worst case of 850 m — two OpenStreetMap snapshots cut at different
- * times. No amount of detail closes that, so anything we shade or outline spills past
- * a border drawn from the basemap's copy. With the basemap's hidden there is one
- * border on screen and nothing for ours to disagree with.
+ * times. Since 2026-10-01 the shapes are OSM as it stands today and lie on the
+ * basemap's own line, but the basemap's stays hidden: its tiles carry no state
+ * identity to wash, and one border on screen leaves nothing for ours to disagree with.
  *
- * What ours still has to line up with is the *coastline* the basemap draws, since a
- * state's outline follows the coast for most of its length — which is what the drawn
- * copy's 22 m tolerance is for.
+ * The coast is the exception, and is the basemap's (2026-09-30): our extract was OSM in
+ * 2017, the basemap's sea is OSM today, and a coast drawn from ours cut across Penang's
+ * reclaimed land. Our shapes are now cut to today's land too, but the coast stays the
+ * basemap's, generalised afresh at every zoom. So the coast is traced off the basemap's own ocean (`coastline.ts`),
+ * and every border that reaches it is trimmed there by that same ocean — see
+ * `liftOcean`.
  *
  * ## Clicking a state frames it
  *
@@ -87,12 +91,6 @@ import {
 const SOURCE = 'malaysia-states';
 const BOUNDARY_URL = `${import.meta.env.BASE_URL}malaysia-states.geo.json`;
 
-/**
- * Who the shapes belong to. ODbL asks for it, and the basemap's own attribution
- * already names OpenStreetMap — this is the second row of the same credit.
- */
-const BOUNDARY_ATTRIBUTION =
-  '<a href="https://www.geoboundaries.org/" target="_blank" rel="noreferrer">geoBoundaries</a> (OpenStreetMap, ODbL)';
 
 /**
  * One point per state, for the label. Separate from the polygons because anything
@@ -106,12 +104,29 @@ const LABEL_POINT = new Map(
   ]),
 );
 
+/**
+ * The borders between states and Malaysia's land borders, each drawn once, cut from
+ * the same extract by `buildMalaysiaStates.mjs`. The coast is not in it: that is traced
+ * off the basemap's own sea (`coastline.ts`).
+ */
+const BORDERS_SOURCE = 'malaysia-state-borders';
+const BORDERS_URL = `${import.meta.env.BASE_URL}malaysia-state-borders.geo.json`;
+/** Malaysia's shore as the basemap draws it at the zoom on screen. */
+const COAST_SOURCE = 'malaysia-coast';
+/** Each state's coast with how far past it the wash may reach; see `buildMalaysiaStates.mjs`. */
+const SHORES_SOURCE = 'malaysia-state-shores';
+const SHORES_URL = `${import.meta.env.BASE_URL}malaysia-state-shores.geo.json`;
+
 const LAYER = {
   /** A pale band under every border, so the line reads over a busy basemap. */
   borderCasing: 'malaysia-states-border-casing',
   /** Every border, all the time. Not part of the hover. */
   border: 'malaysia-states-border',
+  coastCasing: 'malaysia-states-coast-casing',
+  coast: 'malaysia-states-coast',
   fill: 'malaysia-states-fill',
+  /** The wash's band out over land reclaimed since the polygons were surveyed. */
+  fillShore: 'malaysia-states-fill-shore',
 } as const;
 
 /**
@@ -121,7 +136,7 @@ const LAYER = {
  * reading. The label is the hover's too, but it is a DOM card rather than a layer —
  * see `buildLabelCard`.
  */
-const HOVER_LAYERS = [LAYER.fill] as const;
+const HOVER_LAYERS = [LAYER.fill, LAYER.fillShore] as const;
 
 /**
  * The hovered state's name and count, as a card filled with the brand colour.
@@ -191,11 +206,68 @@ const DIM = 0.18;
  */
 const FIT_DURATION = 600;
 
-/** What the two border layers are given for source, source-layer and filter. */
-type BorderSource = {
-  source: string;
-  'source-layer'?: string;
-  filter?: maplibregl.FilterSpecification;
+const OCEAN: maplibregl.FilterSpecification = ['==', ['get', 'class'], 'ocean'];
+const NOT_OCEAN: maplibregl.FilterSpecification = ['!=', ['get', 'class'], 'ocean'];
+
+/**
+ * Lifts the basemap's sea above the borders, leaving lakes and rivers where they were.
+ *
+ * A border that reaches the coast is carried a kilometre out to sea by the build, and
+ * the sea drawn over it is what cuts it off at the basemap's own shore. Only the ocean
+ * is lifted: the Bernam, the Golok and a dozen other rivers *are* borders, and a
+ * border drawn under its river would vanish for its whole length.
+ *
+ * The sea goes up past the roads and buildings, not just past the water, so the
+ * borders under it draw over them too (2026-10-01): left at the water's own height a
+ * border sank under every road it crossed, which in a town is most of its length. The
+ * bridges go up over the sea after it, or the Penang Bridge and the Second Link would
+ * vanish under the water they cross; on land that puts a bridge over a border, which
+ * is where a bridge is anyway.
+ *
+ * Voyager draws water as two fills, the water and a 1 px shadow; each is split into its
+ * ocean and the rest, so the sea looks exactly as it did. Found structurally, as fill
+ * layers over the `water` source layer, for the same reason `findBasemapBoundaries` is;
+ * the bridges by Voyager's `bridge_` ids, and the height as just over its buildings.
+ */
+const liftOcean = (map: maplibregl.Map) => {
+  const layers = map.getStyle().layers ?? [];
+  const sourceLayer = (layer: maplibregl.LayerSpecification) =>
+    (layer as {'source-layer'?: string})['source-layer'];
+  const water = layers.filter(
+    (layer) => layer.type === 'fill' && sourceLayer(layer) === 'water',
+  ) as Array<maplibregl.FillLayerSpecification>;
+  const last = water.at(-1);
+  if (last === undefined) return undefined;
+  const buildings = layers.filter((layer) => sourceLayer(layer) === 'building').at(-1);
+  const top = buildings ?? last;
+  const above = layers[layers.indexOf(top) + 1]?.id;
+  const bridges = buildings === undefined ? [] : layers.filter((layer) => layer.id.startsWith('bridge_'));
+  const afterBridges = bridges.map((layer) => layers[layers.indexOf(layer) + 1]?.id);
+
+  const copies = water.map((layer) => ({...layer, id: `malaysia-states-ocean-${layer.id}`, filter: OCEAN}));
+  for (const copy of copies) map.addLayer(copy, above);
+  for (const layer of water) map.setFilter(layer.id, NOT_OCEAN);
+  for (const bridge of bridges) map.moveLayer(bridge.id, above);
+
+  return {
+    /** Where the borders go: over lakes, rivers, roads and buildings, under the sea. */
+    below: (copies[0] as maplibregl.FillLayerSpecification).id,
+    /** Where the coast goes: on the sea, under the bridges and labels. */
+    above: bridges[0]?.id ?? above,
+    source: last.source,
+    restore: () => {
+      // Back to front, so each bridge's old neighbour is already home when it moves.
+      bridges.forEach((_, index) => {
+        const at = bridges.length - 1 - index;
+        const id = (bridges[at] as maplibregl.LayerSpecification).id;
+        if (map.getLayer(id) !== undefined) map.moveLayer(id, afterBridges[at]);
+      });
+      for (const copy of copies) if (map.getLayer(copy.id) !== undefined) map.removeLayer(copy.id);
+      for (const layer of water) {
+        if (map.getLayer(layer.id) !== undefined) map.setFilter(layer.id, layer.filter ?? null);
+      }
+    },
+  };
 };
 
 /**
@@ -283,7 +355,10 @@ export type StateHoverOptions = {
   clusterCircleLayerIds: Array<string>;
   /** The `symbol` layer drawing a bubble's count. */
   clusterCountLayerId: string;
-  /** The border and the hover wash go underneath this, so pins stay on top of them. */
+  /**
+   * The hover wash goes underneath this, so pins stay on top of it. The borders and the
+   * coast sit lower, with the basemap's sea (see `liftOcean`), unless it has none.
+   */
   beforeLayerId: string;
   /**
    * How many of the things currently drawn stand in this state.
@@ -350,31 +425,73 @@ export const attachStateHover = (
     map.addSource(SOURCE, {
       type: 'geojson',
       data: BOUNDARY_URL,
-      attribution: BOUNDARY_ATTRIBUTION,
     });
   }
 
+  const ground =
+    parseHex(map.getLayer('background') === undefined ? undefined : map.getPaintProperty('background', 'background-color')) ??
+    parseHex(lightToken.canvas) ?? [255, 255, 255];
+
   // — The hovered state, washed in.
   //
-  // Same polygons as the borders below, which is the point: the tint stops exactly
-  // where the line is, because they are the same geometry. Shading from one dataset
-  // inside a border drawn from another is what this arrangement exists to avoid.
+  // Cut from the same survey as the borders, so the tint stops where the line is.
+  //
+  // It is painted on the basemap's bare ground, under everything else, and as a solid
+  // colour: the tint the translucent wash used to reach, flattened onto the ground.
+  // That is what let it reach past the polygons' 2017 coast, and it still covers any
+  // land the basemap has that OSM lacked when the shapes were cut. A band along each
+  // state's shore carries it out over Penang's and Melaka's reclaimed land, the
+  // basemap's water above it cuts it off at today's shore, and a solid colour drawn
+  // twice where band and polygon overlap is still one colour. The basemap's parks and
+  // forests are translucent until zoom 15 and tint through; its roads and labels sit
+  // on top, untinted. A brand colour that is not plain hex keeps the old translucent
+  // wash over the top of the map, and no band.
+  const washColor = flatten(lightToken.brand, ground, 0.18);
+  const washIsSolid = parseHex(lightToken.brand) !== undefined;
+  const bareGround = (map.getStyle().layers ?? []).find((layer) => layer.type !== 'background')?.id;
   map.addLayer(
     {
       id: LAYER.fill,
       type: 'fill',
       source: SOURCE,
       filter: MATCHES_NOTHING,
-      paint: {
-        'fill-color': lightToken.brand,
-        // A tint, not a fill. The pins standing in the state are the thing to look
-        // at, and the label and the dimmed remainder are saying the same thing at the
-        // same time — this only has to make the area legible, not announce it.
-        'fill-opacity': 0.18,
-      },
+      // A tint, not a fill. The pins standing in the state are the thing to look at,
+      // and the label and the dimmed remainder are saying the same thing at the same
+      // time — this only has to make the area legible, not announce it.
+      paint: washIsSolid
+        ? {'fill-color': washColor, 'fill-antialias': false}
+        : {'fill-color': lightToken.brand, 'fill-opacity': 0.18},
     },
-    beforeLayerId,
+    washIsSolid ? bareGround : beforeLayerId,
   );
+  if (washIsSolid) {
+    if (map.getSource(SHORES_SOURCE) === undefined) {
+      map.addSource(SHORES_SOURCE, {type: 'geojson', data: SHORES_URL});
+    }
+    // Each run's `reach` in metres, as pixels: a 512 px world at zoom 0, at Malaysia's
+    // latitude, halving per zoom. Twice the reach wide, because the band is centred on
+    // the old coast and only its seaward half is new.
+    const metresPerPixelAtZoom0 = (40_075_016 * Math.cos((4 * Math.PI) / 180)) / 512;
+    const band = (zoom: number): ExpressionSpecification => [
+      '/',
+      ['*', 2, ['get', 'reach']],
+      metresPerPixelAtZoom0 / 2 ** zoom,
+    ];
+    map.addLayer(
+      {
+        id: LAYER.fillShore,
+        type: 'line',
+        source: SHORES_SOURCE,
+        filter: MATCHES_NOTHING,
+        layout: {'line-join': 'round', 'line-cap': 'round'},
+        paint: {
+          'line-color': washColor,
+          'line-width': ['interpolate', ['exponential', 2], ['zoom'], 0, band(0), 24, band(24)],
+        },
+      } as maplibregl.LayerSpecification,
+      bareGround,
+    );
+  }
 
   // — The borders themselves, drawn whether or not anything is hovered.
   //
@@ -392,32 +509,22 @@ export const attachStateHover = (
   // disagree with the basemap's boundary by 130 m on average and 850 m at worst. The
   // shading spilled across the line.
   //
-  // So both come from one set of shapes, ours, and the basemap's own state and
-  // country layers are switched off (see `findBasemapBoundaries`). That leaves one
-  // border on screen with a wash that fits it, and nothing for either to disagree with.
+  // So both come from one survey, ours, and the basemap's own state and country
+  // layers are switched off (see `findBasemapBoundaries`). That leaves one border on
+  // screen with a wash that fits it, and nothing for either to disagree with. The
+  // coast is the basemap's own sea edge, which nothing of ours can disagree with.
   //
   // ## Every edge is drawn alike
   //
   // A coast, a border with Thailand and a border between two states are the same line.
-  // They were not, and the reason is in the geometry rather than the style: this layer
-  // strokes every state's *outline*, so an edge two states share is stroked twice —
-  // once per polygon — and a coast or a land border with another country, which
-  // belongs to one state only, is stroked once. At a translucent opacity the shared
-  // edges came out at nearly double the darkness, and the coast read as a different,
-  // fainter kind of line beside them.
-  //
-  // So the line is drawn **opaque**, in the colour a doubled stroke used to reach over
-  // the basemap's land: `twice(alpha)` of the token, flattened onto Voyager's own
-  // background. An opaque stroke drawn twice is the same as one drawn once, so the
-  // weight the internal borders had is now the weight of every edge — coast, island
-  // and country border included. The casing gets the same treatment for the same
-  // reason. Flattened onto *land*, so over the sea the line is a touch different from
-  // a translucent one would be; the land is where the internal borders it has to match
-  // are drawn.
+  // They once were not: the layer stroked every state's *outline*, so an edge two
+  // states share was stroked twice and a coast once, and at a translucent opacity the
+  // coast read as a fainter kind of line. Each edge is now drawn once, from the build's
+  // border lines and the traced coast, but the colour is still the one a doubled
+  // stroke reached over the basemap's land: `twice(alpha)` of the token, flattened onto
+  // Voyager's own background, opaque. That keeps the weight the internal borders
+  // always had, and the casing gets the same treatment.
   const hiddenBasemapLayers = findBasemapBoundaries(map);
-  const ground =
-    parseHex(map.getLayer('background') === undefined ? undefined : map.getPaintProperty('background', 'background-color')) ??
-    parseHex(lightToken.canvas) ?? [255, 255, 255];
 
   /** A zoom ramp of solid colours: `color` at each stop's doubled opacity, on land. */
   const flatRamp = (color: string, stops: Array<[number, number]>): ExpressionSpecification =>
@@ -464,52 +571,58 @@ export const attachStateHover = (
     10,
   ];
 
-  /**
-   * Our own polygons, the same ones the wash above is drawn from. The basemap's
-   * boundaries are found only so they can be switched off below — never drawn from.
-   */
-  const borderSource: BorderSource = {source: SOURCE};
+  const casingPaint = {
+    // The ramp the casing had as a translucent band, doubled and flattened — see
+    // "Every edge is drawn alike" above.
+    'line-color': flatRamp(lightToken.canvas, [
+      [4, 0.35],
+      [8, 0.6],
+      [12, 0.8],
+    ]),
+    'line-width': CASING_WIDTH,
+  };
+  const linePaint = {
+    // What an internal border used to look like — `primary` at this ramp, drawn
+    // twice — as one solid colour, so every edge now draws it.
+    'line-color': flatRamp(lightToken.primary, [
+      [4, 0.3],
+      [8, 0.45],
+      [12, 0.6],
+      [16, 0.7],
+    ]),
+    'line-width': BORDER_WIDTH,
+  };
 
-  map.addLayer(
-    {
-      id: LAYER.borderCasing,
-      type: 'line',
-      ...borderSource,
-      layout: {'line-join': 'round'},
-      paint: {
-        // The ramp the casing had as a translucent band, doubled and flattened — see
-        // "Every edge is drawn alike" above.
-        'line-color': flatRamp(lightToken.canvas, [
-          [4, 0.35],
-          [8, 0.6],
-          [12, 0.8],
-        ]),
-        'line-width': CASING_WIDTH,
-      },
-    } as maplibregl.LayerSpecification,
-    beforeLayerId,
-  );
+  if (map.getSource(BORDERS_SOURCE) === undefined) {
+    map.addSource(BORDERS_SOURCE, {type: 'geojson', data: BORDERS_URL});
+  }
+  if (map.getSource(COAST_SOURCE) === undefined) {
+    map.addSource(COAST_SOURCE, {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
+  }
 
-  map.addLayer(
-    {
-      id: LAYER.border,
-      type: 'line',
-      ...borderSource,
-      layout: {'line-join': 'round'},
-      paint: {
-        // What an internal border used to look like — `primary` at this ramp, drawn
-        // twice — as one solid colour, so every edge now draws it.
-        'line-color': flatRamp(lightToken.primary, [
-          [4, 0.3],
-          [8, 0.45],
-          [12, 0.6],
-          [16, 0.7],
-        ]),
-        'line-width': BORDER_WIDTH,
-      },
-    } as maplibregl.LayerSpecification,
-    beforeLayerId,
-  );
+  // Borders under the sea, the coast on it; see `liftOcean`. A basemap with no water
+  // layer to lift gets its borders under the pins and no coast.
+  const ocean = liftOcean(map);
+  for (const [id, source, paint, before] of [
+    [LAYER.borderCasing, BORDERS_SOURCE, casingPaint, ocean?.below ?? beforeLayerId],
+    [LAYER.border, BORDERS_SOURCE, linePaint, ocean?.below ?? beforeLayerId],
+    [LAYER.coastCasing, COAST_SOURCE, casingPaint, ocean?.above ?? beforeLayerId],
+    [LAYER.coast, COAST_SOURCE, linePaint, ocean?.above ?? beforeLayerId],
+  ] as const) {
+    map.addLayer(
+      {id, type: 'line', source, layout: {'line-join': 'round'}, paint} as maplibregl.LayerSpecification,
+      before,
+    );
+  }
+  const stopCoast =
+    ocean === undefined
+      ? () => {}
+      : traceCoastline(map, {
+          sourceId: COAST_SOURCE,
+          basemapSource: ocean.source,
+          sourceLayer: 'water',
+          oceanFilter: OCEAN,
+        });
 
   // Two renderings of one border is the thing this was all to avoid, so the basemap's
   // own go quiet while ours are up. Restored on detach.
@@ -690,10 +803,14 @@ export const attachStateHover = (
       if (map.getLayer(id) !== undefined) map.setPaintProperty(id, 'line-opacity', opacity);
     }
     apply(undefined);
+    stopCoast();
     for (const layerId of Object.values(LAYER)) {
       if (map.getLayer(layerId) !== undefined) map.removeLayer(layerId);
     }
-    if (map.getSource(SOURCE) !== undefined) map.removeSource(SOURCE);
+    ocean?.restore();
+    for (const source of [SOURCE, BORDERS_SOURCE, COAST_SOURCE, SHORES_SOURCE]) {
+      if (map.getSource(source) !== undefined) map.removeSource(source);
+    }
   };
 
   return Object.assign(detach, {clusterOpacity});

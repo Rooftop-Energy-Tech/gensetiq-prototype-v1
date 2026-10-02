@@ -1,4 +1,4 @@
-import type {ExpressionSpecification} from 'maplibre-gl';
+import type {ExpressionSpecification, LngLatBoundsLike} from 'maplibre-gl';
 
 import collection from './malaysiaStates.geo.json';
 
@@ -18,14 +18,15 @@ import collection from './malaysiaStates.geo.json';
  * survey: CARTO renders OpenStreetMap, and Natural Earth disagrees with OSM by up
  * to a kilometre. Zoomed in, the app drew one Johor–Pahang border and the basemap
  * underneath drew another a few hundred metres off, which is worse than drawing
- * none. So the shapes now come from geoBoundaries `gbOpen` ADM1 for MYS — OSM under
- * ODbL 1.0, attributed on the source in `stateHover.ts`.
+ * none. So the shapes come from OSM: geoBoundaries' 2017 extract until 2026-10-01, and
+ * now OSM's own state relations cut to OSM's land polygons (`fetchOsmStates.py`),
+ * under ODbL 1.0 and credited by the basemap's own OpenStreetMap attribution.
  *
  * ## Nothing on screen is drawn from this
  *
  * What the reader sees — the borders, and the wash over a hovered state — is drawn
- * from `public/malaysia-states.geo.json`, the same extract at ~22 m, which MapLibre
- * fetches by URL (see `stateHover.ts`). This copy is arithmetic only: which state a
+ * from the same extract at ~22 m, served out of `public/` and fetched by URL (see
+ * `stateHover.ts`); the coast is the basemap's own (`coastline.ts`). This copy is arithmetic only: which state a
  * genset stands in, which state the cursor is in, and where each state's label is
  * anchored. ~440 m of slack cannot change any of those answers.
  *
@@ -34,7 +35,7 @@ import collection from './malaysiaStates.geo.json';
  * box, and this copy's own extent would be the wrong one to fit: it has shed every
  * island under ~6 km², which puts its east edge of Terengganu 22 km inland of Redang.
  *
- * Re-run `buildMalaysiaStates.mjs` against a newer geoBoundaries release to refresh.
+ * Re-run `fetchOsmStates.py`, then `buildMalaysiaStates.mjs`, to refresh.
  *
  * ## What the ids are
  *
@@ -363,3 +364,18 @@ export const MALAYSIA_STATE_CLUSTER_PROPERTIES: Record<string, ExpressionSpecifi
       ['+', ['case', ['==', ['get', 'stateId'], id], 1, 0]] as ExpressionSpecification,
     ]),
   );
+
+/**
+ * Peninsular Malaysia, Perlis to Johor — the view every map opens on (2026-09-29).
+ *
+ * A fleet's own bounds stop at its northernmost pin, which cut Perlis and most of
+ * Kedah off the top. Each register holds this frame on an unfiltered arrival until a
+ * filter or a scroll asks for the list's rows instead — see `holdFrame`.
+ */
+export const PENINSULA: LngLatBoundsLike = [
+  [99.6, 1.25],
+  [104.4, 6.75],
+];
+
+/** The padding `PENINSULA` opens with — tighter than a fit, it is the whole frame. */
+export const PENINSULA_PADDING = 24;

@@ -103,7 +103,9 @@ export const ControlPad = ({
   const reachable = runState !== 'OFFLINE';
 
   return (
-    <div className="grid h-[170px] w-[220px] shrink-0 grid-cols-2 gap-5">
+    // Modes first, then actions: MANUAL, AUTO, START, STOP, filled column by column,
+    // so the left column is the mode and the right the action.
+    <div className="grid h-[170px] w-full shrink-0 grid-flow-col grid-cols-2 grid-rows-2 gap-5 md:w-[220px]">
       <Tile
         icon={PointerIcon}
         label="MANUAL"
@@ -113,6 +115,16 @@ export const ControlPad = ({
         disabled={!reachable}
         hint={manual ? 'Under manual control' : 'Take manual control'}
         onClick={() => onModeChange('MANUAL')}
+      />
+      <Tile
+        icon={SettingsIcon}
+        label="AUTO"
+        tileClassName={manual ? 'bg-highlight' : 'bg-teal/16'}
+        iconClassName={manual ? 'text-primary' : 'text-teal'}
+        active={!manual}
+        disabled={!reachable}
+        hint={manual ? 'Hand control back to the controller' : 'Controller has control'}
+        onClick={() => onModeChange('AUTO')}
       />
       <Tile
         icon={PlayIcon}
@@ -128,16 +140,6 @@ export const ControlPad = ({
               ? 'Start command — not wired in this prototype'
               : 'Switch to MANUAL to start by hand'
         }
-      />
-      <Tile
-        icon={SettingsIcon}
-        label="AUTO"
-        tileClassName={manual ? 'bg-highlight' : 'bg-teal/16'}
-        iconClassName={manual ? 'text-primary' : 'text-teal'}
-        active={!manual}
-        disabled={!reachable}
-        hint={manual ? 'Hand control back to the controller' : 'Controller has control'}
-        onClick={() => onModeChange('AUTO')}
       />
       <Tile
         icon={SquareIcon}

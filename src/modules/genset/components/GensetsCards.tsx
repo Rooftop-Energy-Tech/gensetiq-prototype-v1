@@ -1,20 +1,20 @@
 import {Link} from '@tanstack/react-router';
 import {ChevronRightIcon, DropletIcon, MapPinIcon} from 'lucide-react';
 
+import {StaticAlarmBadge} from '@/components/global/AlarmCounts';
 import {Badge} from '@/components/ui/badge';
 import {fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
 import {fuelLevelTextClass} from './fuelLevelTone';
-import {CONDITION_META} from './detail/severityMeta';
-import {gensetDetail} from '../data/detail';
-import {gensetCondition} from '../data/fuelIntegrity';
+import {useFleetAlarmCounts} from '../data/alarmViews';
+import type {AlertSeverity} from '../types/alert.type';
 import {gensetLabel} from '../types/genset.type';
 import type {Genset} from '../types/genset.type';
 
 /**
  * The fleet at phone width: one card per unit.
  *
- * Not the table with columns dropped. The table's five columns are five *answers*,
+ * Not the table with columns dropped. The table's columns are *answers*,
  * and the two that would survive a 390px screen — name and run state — are the two
  * that say least on their own; "1,763L (72%)" and "Petaling Jaya" are why anybody
  * scrolls this list. A card keeps all five and spends vertical space, which a phone
@@ -25,15 +25,10 @@ import type {Genset} from '../types/genset.type';
  * nothing else would be the dead-end control the fleet screen's toggle rule exists
  * to avoid. So the card is a link, and the arrow says so.
  */
-const GensetCard = ({genset}: {genset: Genset}) => {
-  // The table's `Health` column, in badge form. Sourced the same way it is there —
-  // from the detail store, which derives it from the set's alerts — so a card cannot
-  // claim `Optimum` over a machine whose page shows two shutdown alarms.
-  const condition =
-    gensetDetail(genset.id) === undefined ? undefined : gensetCondition(genset.id);
-  const conditionMeta = condition === undefined ? undefined : CONDITION_META[condition];
-  const ConditionIcon = conditionMeta?.icon;
+/** A set the counts pass has not reached — the table's constant, for its reason. */
+const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
 
+const GensetCard = ({genset, counts}: {genset: Genset; counts: Record<AlertSeverity, number>}) => {
   return (
   <Link
     to="/gensets/$gensetId"
@@ -47,12 +42,11 @@ const GensetCard = ({genset}: {genset: Genset}) => {
 
       <div className="flex flex-wrap items-center gap-1.5">
         <RunStateBadge runState={genset.runState} />
-        {conditionMeta !== undefined && ConditionIcon !== undefined && (
-          <Badge variant="secondary">
-            <ConditionIcon className={conditionMeta.textClassName} aria-hidden="true" />
-            {conditionMeta.label}
-          </Badge>
-        )}
+        {/* The table's Alarm pill, where the card had shown the Optimum / Attention /
+            Critical verdict until 2026-09-29: the counts are what the table reads,
+            and the verdict was the one fact on the card it did not. Static, because
+            the whole card is already the link. */}
+        <StaticAlarmBadge counts={counts} />
         <Badge variant="secondary">
           <DropletIcon className="text-fuel" aria-hidden="true" />
           <span className={fuelLevelTextClass(genset.fuelLitres, genset.fuelCapacityLitres)}>
@@ -77,14 +71,20 @@ const GensetCard = ({genset}: {genset: Genset}) => {
   );
 };
 
-export const GensetsCards = ({gensets}: {gensets: Array<Genset>}) => (
-  <div className="h-full overflow-y-auto">
-    <ul aria-label="Fleet gensets" className="flex flex-col gap-2 pb-20">
-      {gensets.map((genset) => (
-        <li key={genset.id}>
-          <GensetCard genset={genset} />
-        </li>
-      ))}
-    </ul>
-  </div>
-);
+export const GensetsCards = ({gensets}: {gensets: Array<Genset>}) => {
+  // One counts pass for the list — the table's `useFleetAlarmCounts`, so a card and
+  // a row cannot disagree about a set.
+  const counts = useFleetAlarmCounts(gensets);
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <ul aria-label="Fleet gensets" className="flex flex-col gap-2 pb-20">
+        {gensets.map((genset) => (
+          <li key={genset.id}>
+            <GensetCard genset={genset} counts={counts[genset.id] ?? EMPTY_COUNTS} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};

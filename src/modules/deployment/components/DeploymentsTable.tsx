@@ -5,7 +5,7 @@ import {ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon} from 'lucide-react';
 
 import {Badge} from '@/components/ui/badge';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
-import {amount, dayMonth, duration, stampDate} from '@/lib/format';
+import {amount, duration, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {DeploymentRow} from '../data/feed';
 import type {DeploymentSort, DeploymentSortDirection} from '../types/view.type';
@@ -41,18 +41,23 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  * line under the window, where it already was.
  */
 const COLUMNS = [
-  {label: 'Deployment', sort: 'reference'},
+  {label: 'Deployment', sort: 'reference', beside: true},
   // Where the yard is, beside the job — the Gensets table's `State`, read off the
   // site's position (`stateNameAt`), so it agrees with the map and the State filter.
-  {label: 'State', sort: 'location'},
-  {label: 'Status', sort: undefined},
-  {label: 'Gensets', sort: 'genset'},
-  {label: 'Window', sort: 'started'},
-  {label: 'On load', sort: 'duration'},
-  {label: 'Fuel burned', sort: 'fuel'},
+  {label: 'State', sort: 'location', beside: true},
+  {label: 'Status', sort: undefined, beside: true},
+  {label: 'Gensets', sort: 'genset', beside: true},
+  // `beside: false` — off in the split view (2026-09-29), kept on the full-width
+  // list, as `GensetsTable` drops `Location`. Beside the map the row is read to find
+  // the job; its dates and what it cost are in the preview panel a click opens.
+  {label: 'Dates', sort: 'started', beside: false},
+  {label: 'Run hours', sort: 'duration', beside: false},
+  {label: 'Fuel burned', sort: 'fuel', beside: false},
 ] as const satisfies ReadonlyArray<{
   label: string;
   sort: DeploymentSort | undefined;
+  /** Kept in the split view. */
+  beside: boolean;
 }>;
 
 /**
@@ -62,10 +67,11 @@ const COLUMNS = [
  * share of what is left. All seven columns stay beside the map; where they outgrow the
  * space, the gaps close to the cells' padding and the table scrolls sideways.
  *
- * The two free-text lines — the yard under the reference, the plates under the count
- * — are capped, so one long site name cannot take every other gap's share.
+ * The plates under the count are capped, so one long list cannot take every other
+ * gap's share. The address is not in the table (2026-09-29) — it is in the preview
+ * panel a row click opens; the `State` column says where at a glance.
  */
-const CELL = 'w-px px-2.5 whitespace-nowrap';
+const CELL = 'w-px px-1.5 whitespace-nowrap';
 
 /** The stretch between two columns. Layout, so hidden from assistive tech. */
 const Gap = ({header = false}: {header?: boolean}) =>
@@ -76,7 +82,7 @@ const Gap = ({header = false}: {header?: boolean}) =>
   );
 
 /**
- * "12 Aug – ongoing" / "3 Aug – 14 Aug" / "from 2 Oct". The job's span, tersely.
+ * "12/08/2026 – ongoing" / "03/08/2026 – 14/08/2026" / "from 02/10/2026". The span.
  *
  * A planned job reads *from* its start rather than as a range, because the range is
  * the thing about it that has not happened: what a dispatcher needs off this row is
@@ -84,9 +90,9 @@ const Gap = ({header = false}: {header?: boolean}) =>
  */
 const windowLabel = (row: DeploymentRow): string => {
   const {startsAt, endsAt} = row.deployment;
-  if (row.state === 'planned') return `from ${dayMonth(startsAt)}`;
-  if (endsAt === null) return `${dayMonth(startsAt)} – ongoing`;
-  return `${dayMonth(startsAt)} – ${dayMonth(endsAt)}`;
+  if (row.state === 'planned') return `from ${stampDate(startsAt)}`;
+  if (endsAt === null) return `${stampDate(startsAt)} – ongoing`;
+  return `${stampDate(startsAt)} – ${stampDate(endsAt)}`;
 };
 
 /**
@@ -101,6 +107,8 @@ const windowDetail = (row: DeploymentRow, now: number): string => {
 
 type DeploymentsTableProps = {
   rows: Array<DeploymentRow>;
+  /** The table has the screen to itself. `false` beside the map, where three columns go. */
+  wide: boolean;
   /** One clock reading for the whole table — see `DeploymentPage`. */
   now: number;
   selectedId: string | undefined;
@@ -121,6 +129,7 @@ type DeploymentsTableProps = {
 
 export const DeploymentsTable = ({
   rows,
+  wide,
   now,
   selectedId,
   onSelect,
@@ -156,6 +165,8 @@ export const DeploymentsTable = ({
     onSelect(id);
   };
 
+  const columns = COLUMNS.filter((column) => wide || column.beside);
+
   return (
     <div ref={scrollRef} className="h-full overflow-auto">
       <table className="w-full border-separate border-spacing-0 text-sm">
@@ -165,7 +176,7 @@ export const DeploymentsTable = ({
         </caption>
         <thead>
           <tr>
-            {COLUMNS.map((column, index) => {
+            {columns.map((column, index) => {
               const active = column.sort !== undefined && column.sort === sort;
               const Icon = !active
                 ? ChevronsUpDownIcon
@@ -191,7 +202,13 @@ export const DeploymentsTable = ({
                           : 'descending'
                         : 'none'
                   }
-                  className={cn(CELL, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary')}
+                  className={cn(
+                    CELL,
+                    'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary',
+                    // The hover arrow sits in the next gap; the last column has none,
+                    // so it keeps room of its own — `GensetsTable`'s fix.
+                    index === columns.length - 1 && 'pr-6',
+                  )}
                 >
                   {column.sort === undefined ? (
                     column.label
@@ -258,11 +275,6 @@ export const DeploymentsTable = ({
                   >
                     {row.deployment.reference}
                   </Link>
-                  {/* The yard, as a caption under the reference. Not a link since
-                      the site pages went — see `DeploymentDetailPanel`. */}
-                  <span className="block max-w-[10rem] truncate text-xs text-tertiary" title={row.siteName}>
-                    {row.siteName}
-                  </span>
                 </td>
                 <Gap />
                 <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
@@ -298,7 +310,7 @@ export const DeploymentsTable = ({
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-64">
                       {row.members.length === 0
-                        ? 'No machines on this job yet'
+                        ? 'No machines on this deployment yet'
                         : row.members
                             .map(
                               (member) =>
@@ -307,58 +319,54 @@ export const DeploymentsTable = ({
                             .join(' · ')}
                     </TooltipContent>
                   </Tooltip>
-                  <span className="block max-w-[10rem] truncate text-xs text-tertiary">
+                  <span className="block max-w-[8rem] truncate text-xs text-tertiary">
                     {row.members.map((member) => member.plate).join(', ')}
                   </span>
                 </td>
 
-                <Gap />
-                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
-                  <span
-                    className="block truncate"
-                    title={`${stampDate(row.deployment.startsAt)}${
-                      row.deployment.endsAt === null
-                        ? ''
-                        : ` to ${stampDate(row.deployment.endsAt)}`
-                    }`}
-                  >
-                    {windowLabel(row)}
-                  </span>
-                  <span className="block truncate text-xs text-tertiary">
-                    {windowDetail(row, now)}
-                  </span>
-                </td>
-
-                {/* A planned job has nothing to report: no runs, no litres. A dash
-                    rather than `0 h`, which would read as a job that stood and did
-                    nothing. */}
-                <Gap />
-                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
-                  {row.state === 'planned' ? (
-                    <span className="text-tertiary">—</span>
-                  ) : (
-                    <>
+                {wide && (
+                  <>
+                    <Gap />
+                    <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
                       <span
                         className="block truncate"
-                        title={`${row.totals.starts} start${row.totals.starts === 1 ? '' : 's'} inside this deployment`}
+                        title={`${stampDate(row.deployment.startsAt)}${
+                          row.deployment.endsAt === null
+                            ? ''
+                            : ` to ${stampDate(row.deployment.endsAt)}`
+                        }`}
                       >
-                        {amount(row.totals.runtimeHours, 'hrs')}
+                        {windowLabel(row)}
                       </span>
                       <span className="block truncate text-xs text-tertiary">
-                        {row.totals.starts} start{row.totals.starts === 1 ? '' : 's'}
+                        {windowDetail(row, now)}
                       </span>
-                    </>
-                  )}
-                </td>
+                    </td>
 
-                <Gap />
-                <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
-                  {row.state === 'planned' ? (
-                    <span className="text-tertiary">—</span>
-                  ) : (
-                    amount(row.totals.fuelBurnedLitres, 'L')
-                  )}
-                </td>
+                    {/* A planned job has nothing to report: no runs, no litres. A dash
+                        rather than `0 h`, which would read as a job that stood and did
+                        nothing. */}
+                    <Gap />
+                    <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
+                      {row.state === 'planned' ? (
+                        <span className="text-tertiary">—</span>
+                      ) : (
+                        // Hours alone: the start count under it was taken off on
+                        // 2026-09-29 — a job is judged by how long it ran, not how often.
+                        amount(row.totals.runtimeHours, 'hrs')
+                      )}
+                    </td>
+
+                    <Gap />
+                    <td className={cn(CELL, 'h-13 border-b border-subtle py-2 text-primary')}>
+                      {row.state === 'planned' ? (
+                        <span className="text-tertiary">—</span>
+                      ) : (
+                        amount(row.totals.fuelBurnedLitres, 'L')
+                      )}
+                    </td>
+                  </>
+                )}
               </tr>
             );
           })}

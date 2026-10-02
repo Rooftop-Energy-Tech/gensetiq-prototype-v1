@@ -1,11 +1,18 @@
 import maplibregl from 'maplibre-gl';
-import type {GeoJSONSource, LngLatLike, MapMouseEvent} from 'maplibre-gl';
+import type {GeoJSONSource, MapMouseEvent} from 'maplibre-gl';
 import {useEffect, useRef} from 'react';
 
 import {attachClusterDonuts, clusterCount} from '@/lib/clusterDonut';
-import {MALAYSIA_STATE_CLUSTER_PROPERTIES, malaysiaStateAt} from '@/lib/geo/malaysiaStates';
+import {
+  MALAYSIA_STATE_CLUSTER_PROPERTIES,
+  PENINSULA,
+  PENINSULA_PADDING,
+  malaysiaStateAt,
+} from '@/lib/geo/malaysiaStates';
 import {attachStateHover} from '@/lib/geo/stateHover';
 import type {StateHoverHandle} from '@/lib/geo/stateHover';
+import {locateControl} from '@/lib/locateControl';
+import {pingImage} from '@/lib/mapPing';
 import {lightToken} from '@/styles/colors';
 import {RUN_STATE_META} from './runStateMeta';
 import {RUN_STATES, gensetLabel} from '../types/genset.type';
@@ -30,56 +37,6 @@ const LAYER = {
   pointPing: 'gensets-point-ping',
 } as const;
 
-/** One ping, as the badges' `run-ping` keyframes run it: 1s, done by 75%. */
-const PING_MS = 1000;
-
-/** The ring image's side in CSS pixels — room for a ring at twice a 9px pin. */
-const PING_SIZE = 48;
-
-/**
- * The ring under every single running pin — the map's form of `RunningPulse`.
- *
- * An animated style image rather than a paint property set each frame: rewriting
- * `circle-radius` 60 times a second makes MapLibre re-evaluate the style every
- * frame, which stuttered the whole page. Here one small canvas is redrawn per frame
- * and the GPU places it under each pin. Bubbles do not ping: a zoomed-out map would
- * be a wall of motion.
- *
- * Under `prefers-reduced-motion` the image is drawn once, empty, and never moves.
- */
-const pingImage = (map: maplibregl.Map, color: string): maplibregl.StyleImageInterface => {
-  const ratio = window.devicePixelRatio || 1;
-  const size = Math.round(PING_SIZE * ratio);
-  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let context: CanvasRenderingContext2D | null = null;
-  return {
-    width: size,
-    height: size,
-    data: new Uint8Array(size * size * 4),
-    onAdd() {
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      context = canvas.getContext('2d', {willReadFrequently: true});
-    },
-    render() {
-      if (context === null) return false;
-      const phase = still ? 1 : Math.min((performance.now() % PING_MS) / PING_MS / 0.75, 1);
-      // The badges' ease-out, grow and fade together.
-      const eased = 1 - (1 - phase) ** 3;
-      context.clearRect(0, 0, size, size);
-      context.beginPath();
-      context.arc(size / 2, size / 2, 9 * ratio * (1 + eased), 0, Math.PI * 2);
-      context.fillStyle = color;
-      context.globalAlpha = 0.6 * (1 - eased);
-      context.fill();
-      this.data = context.getImageData(0, 0, size, size).data as unknown as Uint8Array;
-      if (!still) map.triggerRepaint();
-      return true;
-    },
-  };
-};
-
 /**
  * The layers a click can land on — and, read in the negative, what makes a click
  * a click on the basemap. The cluster's count is not here: it is a symbol drawn
@@ -87,15 +44,6 @@ const pingImage = (map: maplibregl.Map, color: string): maplibregl.StyleImageInt
  */
 const INTERACTIVE_LAYERS = [LAYER.clusterHalo, LAYER.clusterCore, LAYER.point];
 
-/**
- * Malaysia, for the moment before any data has been fitted.
- *
- * Centred on the South China Sea rather than on either landmass, because the
- * estate spans both: a peninsular centre puts Kapit and Belaga off the right edge
- * on arrival, and a Bornean one loses the Klang Valley cluster the other way.
- */
-const INITIAL_CENTER: LngLatLike = [109.5, 3.8];
-const INITIAL_ZOOM = 5;
 
 const FIT_PADDING = {top: 56, right: 56, bottom: 56, left: 56};
 
@@ -266,8 +214,8 @@ export const GensetsMap = ({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
+      bounds: PENINSULA,
+      fitBoundsOptions: {padding: PENINSULA_PADDING},
       attributionControl: {compact: true},
     });
     mapRef.current = map;
@@ -280,6 +228,8 @@ export const GensetsMap = ({
     }
 
     map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'bottom-right');
+
+    map.addControl(locateControl(), 'bottom-right');
 
     // `style.load`, not `load`: MapLibre defers `load` until the style has
     // parsed *and* the map has painted a frame. A hidden or backgrounded tab
