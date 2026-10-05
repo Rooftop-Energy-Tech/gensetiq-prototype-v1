@@ -1971,10 +1971,13 @@ bottom:
   tab's chart, with the page's one date filter (24 hours, 7 days, 30 days, custom,
   opening on 30 days). It moves only the chart. The level is read every 15 minutes
   over two days or less and hourly past that, since the chart needs evenly spaced
-  samples. Drawn as a saw-tooth through the refills only (Jeff, 2026-10-05): one
-  straight slope down from each refill to the next, and a slope up during the
-  refill. The tank only falls while a genset is being filled, so every reading
-  drawn was a stair; between refills the line is now the rate, not the sensor;
+  samples. Past a week, drawn as a saw-tooth through the refills only (Jeff,
+  2026-10-05): one straight slope down from each refill to the next, and a slope
+  up during the refill. The tank only falls while a genset is being filled, so
+  every reading drawn was a stair; between refills the line is now the rate, not
+  the sensor. At a week or less (24 hours, 7 days, a short custom range) it is the
+  stair again, a drop at each genset fill, because the saw-tooth there merged a
+  week's fills into one slope that read as a single fill taking days;
 - *Tank refills* (*Deliveries into the depot* until 2026-10-05): each rise between two readings, since nothing but a
   supplier puts diesel into a bulk tank;
 - *Gensets fuelled* (*Genset fills supplied* until 2026-10-05), beside *Tank refills*; its count is of fills: every fill charged to this depot, the total, the latest
