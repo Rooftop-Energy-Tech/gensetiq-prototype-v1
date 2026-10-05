@@ -21,7 +21,7 @@ import {cn} from '@/lib/utils';
  * and a shared component cannot know a module's routes without every module
  * depending on it sideways — so the caller builds the link and passes it as `action`.
  *
- * As with `PlantMap`, the two existing panels are left alone: they carry rows and
+ * The two existing panels are left alone: they carry rows and
  * badges this knows nothing about, and rewriting two working previews is not the
  * price of standing up two new ones.
  */

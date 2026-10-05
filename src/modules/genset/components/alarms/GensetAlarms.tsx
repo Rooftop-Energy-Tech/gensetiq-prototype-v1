@@ -5,6 +5,7 @@ import type {AlarmView} from '../../types/alarmView.type';
 import {plantAlarmsWatched} from '../../data/assertedAlarms';
 import {gensetAlarmRows, standingGensetAlarms} from '../../data/alarmViews';
 import {useAlarmHandling} from '../../data/alarms';
+import {useServiceRecords} from '../../data/services';
 import type {Genset} from '../../types/genset.type';
 import {AlarmLists} from './AlarmLists';
 
@@ -62,6 +63,8 @@ export const GensetAlarms = ({genset}: {genset: Genset}) => {
   // Live, so a click on either button redraws this page — these tables, the home
   // page's alarm counts and the fleet's with it.
   const handling = useAlarmHandling();
+  // And the service log, for the service rows: they stand until the item is done.
+  useServiceRecords();
 
   const session = useSession();
   const by = session?.email ?? 'operator';
@@ -77,8 +80,9 @@ export const GensetAlarms = ({genset}: {genset: Genset}) => {
   const siteId = genset.siteId ?? '';
   const role = useSitePowerRole(siteId);
 
-  // The controller's bits, the monitoring unit's rows and the app's low-tank row —
-  // the definition the register's preview panel reads too. See `gensetAlarmRows`.
+  // The controller's bits, the monitoring unit's rows and the app's own rows (low
+  // tank, service falling due) — the definition the register's preview panel reads
+  // too. See `gensetAlarmRows`.
   const rows: Array<AlarmView> = gensetAlarmRows(genset, role, handling);
 
   const standing = standingGensetAlarms(rows);

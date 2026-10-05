@@ -5,9 +5,9 @@ import {useState} from 'react';
  *
  * The Fuel page drew a period control above every tab, and a depot's own page drew
  * another, until 2026-09-30, when both went to a fixed last month with no control
- * (Jeff: the pages show the current state — see `useFuelWindow`). The deliveries
- * table and the truck log kept one each, and on 2026-10-05 theirs became the genset
- * analysis tab's `RangePicker` — see `TablePeriod`. What is left here is the page's
+ * (Jeff: the pages show the current state — see `useFuelWindow`). The Fuel tables
+ * kept one each, and on 2026-10-05 theirs became the genset analysis tab's
+ * `RangePicker` — see `TablePeriod`. What is left here is the page's
  * own window.
  */
 

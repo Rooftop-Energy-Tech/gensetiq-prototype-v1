@@ -1,47 +1,29 @@
 import {DATASET} from '@/brands';
-import {malaysiaStateName, MALAYSIA_STATE_IDS} from '@/lib/geo/malaysiaStates';
 import {deployments, memberships, subscribeDeployments} from '@/modules/deployment/data/store';
 import {GENSETS} from '@/modules/genset/data/fleet';
-import {stateNameAt} from '@/modules/genset/data/gensetState';
 import {refuelsIn} from '@/modules/genset/data/history';
-import {DEPOTS, depotFor, depotState} from './depots';
-import {TRUCKS} from './trucks';
+import {depotFor} from './depots';
 
 /**
- * Every fill a genset took, and **how it was filled** — at a depot's yard, or by a
- * truck at its posting.
+ * Every fill a genset took, and **which depot supplied it**.
  *
  * ## The rule
  *
- * Jeff's, 2026-09-29. A genset standing in a depot's own state is brought in to
- * that depot and filled from the bulk tank; one standing anywhere else is filled
- * by the truck that covers that state. Decided per fill, by where the machine was
- * posted **at that instant** — the fleet moves between jobs, and a set filled at
- * the Klang yard in August can be taking a truck in Seremban in September.
+ * The depot nearest where the genset stood at the moment of the fill, by distance
+ * (`depotFor`). Every fill is charged to exactly one depot, whether the machine was
+ * filled in the yard or out at its posting — the fleet moves between jobs, so a set
+ * supplied by Klang in August can be supplied by Pasir Gudang in September.
  *
- * A machine between postings is in a yard by definition, so it fills at the depot
- * nearest where it is kept.
+ * Between postings a machine is where the seed keeps it, so the nearest depot to that.
  *
- * ## Where there are no trucks
+ * ## Why there is no route any more
  *
- * An estate with no trucks keeps the page's original rule exactly: every fill is a
- * yard fill, at the nearest depot to the machine. That is not a fallback for
- * missing data — it is what a customer without trucks does.
- *
- * ## Why the state comes from the coordinates, not the label
- *
- * The map's state outlines decide, through `stateNameAt` — the same test the
- * Gensets register's `State` column and the deployments register use (Jeff,
- * 2026-10-05). Until then the label's tail won here: `Kepong, Kuala Lumpur` sits a
- * few hundred metres inside Selangor's outline, and the label kept it on the Kuala
- * Lumpur truck. But the Gensets page already called that machine Selangor, so two
- * pages disagreed about one set's state. Now it is Selangor everywhere, and fills at
- * the Selangor depot like any other Selangor machine.
- *
- * `stateOfLabel` below is the old reading, kept but no longer called.
+ * Until 2026-10-05 each fill had a route: a *yard* fill at a depot, or a *truck* fill
+ * at the posting, with the truck that covered the posting's state (Jeff,
+ * 2026-09-29). Trucks were removed (Jeff, 2026-10-05). Whatever carries the fuel
+ * from depot to genset is now one pipe the app does not track, and the depot is
+ * reconciled against what arrived in the gensets it supplied — see `depotTank.ts`.
  */
-
-export type FillRoute = {kind: 'yard'; depotId: string} | {kind: 'truck'; truckId: string};
 
 export type GensetFill = {
   id: string;
@@ -51,21 +33,10 @@ export type GensetFill = {
   litres: number;
   /** Where the machine was posted at that instant, in words. */
   place: string;
-  /** The state that posting stands in, or `undefined` between postings. */
-  state: string | undefined;
   latitude: number;
   longitude: number;
-  route: FillRoute;
-};
-
-const STATE_NAMES = new Set(
-  MALAYSIA_STATE_IDS.map((id) => malaysiaStateName(id)).filter((name) => name !== undefined),
-);
-
-/** `Bangsar, Kuala Lumpur` → `Kuala Lumpur`; `Putrajaya` → `Putrajaya`. */
-export const stateOfLabel = (label: string): string | undefined => {
-  const tail = label.split(',').at(-1)?.trim() ?? '';
-  return STATE_NAMES.has(tail) ? tail : undefined;
+  /** The depot this fill is charged to: the nearest to where the genset stood. */
+  depotId: string;
 };
 
 type Posting = {
@@ -73,7 +44,6 @@ type Posting = {
   startMs: number;
   endMs: number;
   place: string;
-  state: string | undefined;
   latitude: number | undefined;
   longitude: number | undefined;
 };
@@ -100,10 +70,8 @@ const buildPostings = (): Map<string, Array<Posting>> => {
         return end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
       })(),
       place: deployment.locationLabel,
-      // The site's position, read against the state outlines as the Gensets
-      // register reads it. Not the deployment's label: a real job's is the PE's name
-      // (`PE Tmn Sementa Jaya`), which carries no state.
-      state: site === undefined ? undefined : stateNameAt(site.longitude, site.latitude),
+      // The site's position, not the deployment's label: a real job's is the PE's
+      // name (`PE Tmn Sementa Jaya`), which says nothing about where it is.
       latitude: site?.latitude,
       longitude: site?.longitude,
     };
@@ -114,38 +82,6 @@ const buildPostings = (): Map<string, Array<Posting>> => {
   }
 
   return byGenset;
-};
-
-const DEPOT_BY_STATE = new Map(DEPOTS.map((depot) => [depotState(depot), depot]));
-
-/**
- * `kept` is where the seed keeps the machine, and it picks the nearest yard exactly
- * as the page always has; `latitude`/`longitude` are where it stood for this fill.
- */
-const routeFor = (
-  state: string | undefined,
-  kept: {latitude: number; longitude: number},
-  latitude: number,
-  longitude: number,
-): FillRoute => {
-  const nearest = depotFor(kept.latitude, kept.longitude);
-
-  if (TRUCKS.length === 0) return {kind: 'yard', depotId: nearest.id};
-
-  // Between postings, or in a depot's own state: the machine comes to the yard.
-  if (state === undefined) return {kind: 'yard', depotId: nearest.id};
-  const home = DEPOT_BY_STATE.get(state);
-  if (home !== undefined) return {kind: 'yard', depotId: home.id};
-
-  // Anywhere else, a truck. The one whose area names this state; failing that, the
-  // truck based at the nearest yard — a state no area lists is still somewhere a
-  // truck has to drive to.
-  const closest = depotFor(latitude, longitude);
-  const covering =
-    TRUCKS.find((truck) => truck.areaStates.includes(state)) ??
-    TRUCKS.find((truck) => truck.homeDepotId === closest.id) ??
-    TRUCKS[0];
-  return {kind: 'truck', truckId: covering.id};
 };
 
 const buildFills = (): Array<GensetFill> => {
@@ -160,7 +96,6 @@ const buildFills = (): Array<GensetFill> => {
       const posting = own.find((p) => refuel.at >= p.startMs && refuel.at <= p.endMs);
       const latitude = posting?.latitude ?? genset.latitude;
       const longitude = posting?.longitude ?? genset.longitude;
-      const state = posting?.state;
 
       fills.push({
         id: `${genset.id}-${refuel.at}`,
@@ -168,10 +103,9 @@ const buildFills = (): Array<GensetFill> => {
         at: refuel.at,
         litres: refuel.litres,
         place: posting?.place ?? 'Between deployments',
-        state,
         latitude,
         longitude,
-        route: routeFor(state, genset, latitude, longitude),
+        depotId: depotFor(latitude, longitude).id,
       });
     }
   }
@@ -181,8 +115,8 @@ const buildFills = (): Array<GensetFill> => {
 
 let held: Array<GensetFill> | undefined;
 
-// Dealt again after any change to a deployment, since where a fill happened follows
-// the posting it fell in.
+// Dealt again after any change to a deployment, since where a fill happened — and so
+// which depot supplied it — follows the posting it fell in.
 subscribeDeployments(() => {
   held = undefined;
 });
@@ -193,10 +127,6 @@ export const allFills = (): ReadonlyArray<GensetFill> => {
   return held;
 };
 
-/** Fills at one depot's yard — the ones its bulk tank fell for directly. */
-export const yardFills = (depotId: string): ReadonlyArray<GensetFill> =>
-  allFills().filter((fill) => fill.route.kind === 'yard' && fill.route.depotId === depotId);
-
-/** Fills one truck made. */
-export const truckFills = (truckId: string): ReadonlyArray<GensetFill> =>
-  allFills().filter((fill) => fill.route.kind === 'truck' && fill.route.truckId === truckId);
+/** The fills one depot supplied — the fuel its bulk tank should have given up. */
+export const depotFills = (depotId: string): ReadonlyArray<GensetFill> =>
+  allFills().filter((fill) => fill.depotId === depotId);

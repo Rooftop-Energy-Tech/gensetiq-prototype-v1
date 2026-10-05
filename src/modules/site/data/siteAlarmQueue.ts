@@ -2,9 +2,9 @@ import {useMemo} from 'react';
 
 import {fleet, useFleet} from '@/modules/genset/data/deployment';
 import {assertedPlantAlarms} from '@/modules/genset/data/assertedAlarms';
-import {controllerAlarms} from '@/modules/genset/data/alarmViews';
-import {lowFuelAlarms} from '@/modules/genset/data/lowFuelAlarm';
+import {appAlarms, controllerAlarms} from '@/modules/genset/data/alarmViews';
 import {useAlarmHandling} from '@/modules/genset/data/alarms';
+import {useServiceRecords} from '@/modules/genset/data/services';
 import {ALERT_SEVERITIES, countBySeverity} from '@/modules/genset/types/alert.type';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 import {byUrgency, isStanding} from '@/modules/genset/types/alarmState.type';
@@ -21,7 +21,8 @@ import {gensetLabel} from '@/modules/genset/types/genset.type';
  *
  * ⚠️ The site's tabs are gone, and so are the battery and solar categories. Today the
  * union is the monitoring unit's `SITE` and `GENSET` rows, each set's controller
- * bits and the low-tank rows; the power role only decides where the AC rows file.
+ * bits and the app's own rows (low tank, service falling due); the power role only
+ * decides where the AC rows file.
  * The table below is from when there were four tabs.
  *
  * ## What this is the union of
@@ -116,9 +117,9 @@ const rowsFor = (
   for (const genset of fleet().filter((machine) => machine.siteId === siteId)) {
     rows.push(
       // The set's own queue as its Alarms tab has it: the controller's bits and the
-      // app's low-tank row, so a job's Alarms tab — which reads this queue — cannot
-      // miss a tank its machine's own page is flagging.
-      ...[...controllerAlarms(genset.id, handling), ...lowFuelAlarms(genset, handling)].map((row) => ({
+      // app's own rows, so a job's Alarms tab — which reads this queue — cannot miss
+      // a tank or a service its machine's own page is flagging.
+      ...[...controllerAlarms(genset.id, handling), ...appAlarms(genset, handling)].map((row) => ({
         ...row,
         asset: 'GENSET' as const,
         provenance: `${gensetLabel(genset)} · ${row.provenance}`,
@@ -139,6 +140,8 @@ export const useSiteAlarmQueue = (siteId: string, now: number): SiteAlarmQueue =
    * listing alarms for a machine that has left the yard.
    */
   const currentFleet = useFleet();
+  // Likewise the service log: logging a service has to drop its alarm from the queue.
+  const services = useServiceRecords();
   return useMemo(() => {
     const rows = rowsFor(siteId, role, handling);
 
@@ -160,7 +163,7 @@ export const useSiteAlarmQueue = (siteId: string, now: number): SiteAlarmQueue =
         ),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siteId, role, now, handling, currentFleet]);
+  }, [siteId, role, now, handling, currentFleet, services]);
 };
 
 /**
@@ -206,8 +209,10 @@ export const useEstateAlarmCounts = (
 ): Record<string, Record<AlertSeverity, number>> => {
   const handling = useAlarmHandling();
   const roles = useSitePowerRoles();
-  // See `useSiteAlarmQueue` for why the fleet is in the dependency list.
+  // See `useSiteAlarmQueue` for why the fleet and the service log are in the
+  // dependency list.
   const currentFleet = useFleet();
+  const services = useServiceRecords();
 
   return useMemo(
     () =>
@@ -219,7 +224,7 @@ export const useEstateAlarmCounts = (
         }),
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [roles, now, handling, currentFleet],
+    [roles, now, handling, currentFleet, services],
   );
 };
 

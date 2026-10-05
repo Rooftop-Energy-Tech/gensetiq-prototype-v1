@@ -114,10 +114,9 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
         </dl>
       </section>
 
-      <CustomerCard deployment={row.deployment} className="max-w-3xl" />
-
       <div className="border-t border-subtle" />
 
+      {/* The summary tiles above the customer (Jeff, 2026-10-05). */}
       {row.state === 'planned' ? (
         /* A commitment, and the one thing worth saying about it: nothing has moved.
            The sentence is here rather than in a tooltip because it is the single
@@ -169,6 +168,8 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
           }}
         />
       )}
+
+      <CustomerCard deployment={row.deployment} className="max-w-3xl" />
 
       <div className="border-t border-subtle" />
 

@@ -236,7 +236,7 @@ export const EXPORTS: ReadonlyArray<ExportSpec> = [
   {
     kind: 'deliveries',
     label: 'Genset fills',
-    blurb: 'Every genset fill inside the range, per machine — at a depot or from a fuel truck.',
+    blurb: 'Every genset fill inside the range, per machine, with where the machine stood.',
     build: deliveriesExport,
   },
 ];

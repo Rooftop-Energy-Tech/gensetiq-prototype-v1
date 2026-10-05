@@ -39,13 +39,16 @@ export const FuelBalanceCard = ({
         {figure(Math.round(fuelIn))}
         <span className="text-sm font-normal text-secondary"> L</span>
       </dd>
-      <dd className="truncate text-xs text-secondary">from suppliers</dd>
+      {/* The two notes name the depot page's cards for these litres, `Tank
+          refills` and `Gensets fuelled` (Jeff, 2026-10-05; `from suppliers` and
+          `to gensets` until then). */}
+      <dd className="truncate text-xs text-secondary">tank refills</dd>
       <dt className="text-sm font-medium text-severity-critical">Fuel Out</dt>
       <dd className="text-right text-lg leading-tight font-semibold text-primary tabular-nums">
         {figure(Math.round(fuelOut))}
         <span className="text-sm font-normal text-secondary"> L</span>
       </dd>
-      <dd className="truncate text-xs text-secondary">to mobile gensets and fuel trucks</dd>
+      <dd className="truncate text-xs text-secondary">gensets fuelled</dd>
       {/* What is in the tanks now, ruled off under the period's movement
             as a balance is (Jeff, 2026-10-01). The rule is its own element
             across every column: a border on each cell sat at two heights,

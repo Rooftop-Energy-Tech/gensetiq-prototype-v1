@@ -326,8 +326,8 @@ export const CountChip = ({
 type FilterCardProps = {
   label: string;
   /**
-   * The figure. A string for one already formatted — `2, 473 L` on the Fuel tabs'
-   * `Missing from trucks`, which leads with the amount, not a count.
+   * The figure. A string for one already formatted — `2, 473 L` — for a card that
+   * leads with an amount, not a count.
    */
   count: number | string;
   /** The word beside the figure — `gensets`. */
@@ -346,7 +346,7 @@ type FilterCardProps = {
 /**
  * A whole card that is one filter — a `CountChip` given a card's width.
  *
- * Used by the Service strip's buckets and the Fuel tabs' `Missing from trucks`. The
+ * Used by the Service strip's buckets. The
  * fleet strip's four readiness buckets were the first, and chose this over four
  * rows inside one card, and the trade is width for legibility: a bucket gets the headline figure the
  * `Fleet` card gets, plus the line of prose saying what it *means*, which as a chip

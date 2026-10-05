@@ -1,9 +1,9 @@
-import {Link, useNavigate} from '@tanstack/react-router';
+import {Link} from '@tanstack/react-router';
 import {useState} from 'react';
 import {ChevronLeftIcon, TriangleAlertIcon} from 'lucide-react';
 
 import {relativeTime, stampAt} from '@/lib/format';
-import {CardPill, SummaryCard, SummaryCardLabel, SummaryCardRow} from '@/components/global/SummaryCards';
+import {CardPill, SummaryCard, SummaryCardLabel} from '@/components/global/SummaryCards';
 import {cn} from '@/lib/utils';
 import {seededGenset} from '@/modules/genset/data/fleet';
 import {RangePicker} from '@/modules/genset/components/detail/analysis/RangePicker';
@@ -14,16 +14,13 @@ import type {AnalysisWindow} from '@/modules/genset/types/analysisView.type';
 import type {SeriesSlot} from '@/modules/genset/components/detail/analysis/seriesMeta';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 import type {ReadingSeries, Sample} from '@/modules/genset/types/series.type';
-import {DepotBreakdown} from './DepotTank';
 import {DepotTankGlyph} from './DepotTankGlyph';
 import {FuelBalanceCard} from './FuelBalanceCard';
 import {FuelNav} from './FuelNav';
 import {useFuelWindow} from './PeriodControl';
 import {depotCapacityLitres, depotSeries, reconcile, varianceSeverity} from './data/depotTank';
 import type {Depot, DepotSample} from './data/depotTank';
-import {yardFills} from './data/fills';
-import {depotTruckLoads} from './data/truckRuns';
-import {TRUCKS, truckById} from './data/trucks';
+import {depotFills} from './data/fills';
 import {amount, figure} from './format';
 
 /**
@@ -34,21 +31,20 @@ import {amount, figure} from './format';
  * works in — they come back to it, share its address, and read it at length —
  * rather than a row they glance at on the way past.
  *
- * Top to bottom (Jeff, 2026-10-01): the name and street address; three overview
- * cards, `Unlogged fuel`, `Fuel balance` and the `Tank`; the tank's level over the
- * period, full width, with its own range picker; then `Fuel breakdown` beside the supplier
- * deliveries in, and the gensets filled and trucks loaded — the two shares of
- * `Fuel Out`, in the breakdown's order, each totalling what its row says. The
- * whole page is the depot's side only: the truck list is the depot pump's litres,
- * not the trucks' own sensors.
+ * Top to bottom (Jeff, 2026-10-01): the name and street address; the `Tank`, two
+ * cards tall, beside `Fuel balance` stacked over `Missing in transit` (2026-10-05); `Fuel level`, the tank's level over the period, with its own range
+ * picker; then `Tank refills` and `Gensets fuelled`, side by side (2026-10-05). A
+ * `Fuel breakdown` card (`Fuel Out`, reached gensets, missing in transit) was
+ * removed the same day (Jeff): the overview cards say it. A `Fuel trucks loaded here` card sat
+ * beside them until the trucks were removed (Jeff, 2026-10-05).
  *
- * It keeps the Fuel rail, with this depot marked in the list under *Depot tanks*,
+ * It keeps the Fuel rail, with this depot's row lit in the list under *Depot tanks*,
  * so the reader can see which tab they came down from and step to any other yard
  * or tab. It reports on the last month, as the Fuel page does, with no period
  * control (Jeff, 2026-09-30) — see `useFuelWindow`.
  */
 
-/** Gensets listed before the rest are left to the Genset fills tab. */
+/** Gensets listed before the rest are left to the History tab. */
 const LIST_LIMIT = 10;
 
 const Card = ({
@@ -114,14 +110,23 @@ const HOUR = 3_600_000;
  *
  * The chart's crosshair assumes evenly spaced samples, and a depot's are not — a
  * supplier delivery is a sample of its own between two hourly readings. So the
- * level is read at a fixed step, as the newest reading at or before each one:
- * every 15 minutes over two days or less, so a 24-hour window is more than
- * twenty-four points, and hourly past that.
+ * level is read at a fixed step — every 15 minutes over two days or less, so a
+ * 24-hour window is more than twenty-four points, and hourly past that.
+ *
+ * ## A saw-tooth, not every reading (Jeff, 2026-10-05)
+ *
+ * Drawn through the refills only: one straight slope down from each refill to the
+ * next, and a slope up during the refill. The tank only falls while a genset is
+ * being filled, so every reading drawn was a stair — flat for hours, then a drop —
+ * and the reader wants the rate it runs down at, not each fill, which the
+ * `Gensets fuelled` card lists. Between refills the line is that rate, not the
+ * sensor: the crosshair there reads the trend. Until then it was the newest
+ * reading at or before each step.
  *
  * The axis runs from empty to full rather than fitting the readings. Fitted, a
  * week that moved 3% fills the chart top to bottom and reads as a crisis; against
- * the tank, it is the small slope it is, and a supplier delivery is the tall step
- * it really is.
+ * the tank, it is the small slope it is, and a refill is the steep climb it
+ * really is.
  */
 const LevelChart = ({series, capacity}: {series: ReadonlyArray<DepotSample>; capacity: number}) => {
   const [now] = useState(() => Date.now());
@@ -138,15 +143,31 @@ const LevelChart = ({series, capacity}: {series: ReadonlyArray<DepotSample>; cap
   const end = range.to;
   const step = end - from <= 2 * 24 * HOUR ? HOUR / 4 : HOUR;
 
+  // A saw-tooth (Jeff, 2026-10-05): the level only at the refills — the reading
+  // before each rise and the reading after it — plus the first and newest, with a
+  // straight line between. So the tank runs down on one slope from each refill to
+  // the next and climbs on another during the refill. Every reading drawn was a
+  // stair: flat for hours, then a genset fill's drop.
+  const knots = series.filter((sample, index) => {
+    if (index === 0 || index === series.length - 1) return true;
+    const rises = sample.litres > series[index - 1].litres;
+    const beforeRise = series[index + 1].litres > sample.litres;
+    return rises || beforeRise;
+  });
+  // Each step on the line between the knots either side; past the newest, held.
   const readings: Array<Sample> = [];
   let index = 0;
-  let held: number | null = null;
   for (let t = from; t <= end; t += step) {
-    while (index < series.length && series[index].t <= t) {
-      held = series[index].litres;
-      index += 1;
-    }
-    readings.push({t, value: held});
+    while (index < knots.length && knots[index].t <= t) index += 1;
+    const before = knots[index - 1];
+    const after = knots[index];
+    const value =
+      before === undefined
+        ? null
+        : after === undefined
+          ? before.litres
+          : before.litres + ((after.litres - before.litres) * (t - before.t)) / (after.t - before.t);
+    readings.push({t, value});
   }
   const level: ReadingSeries = {
     key: 'depot-level',
@@ -178,7 +199,7 @@ const LevelChart = ({series, capacity}: {series: ReadonlyArray<DepotSample>; cap
           showRuns={false}
         />
       </div>
-      {/* No frame of its own: the `Level` card around it is the frame. */}
+      {/* No frame of its own: the `Fuel level` card around it is the frame. */}
       <div className="flex min-h-[320px] flex-col">
         <TimeSeriesChart
           series={[level]}
@@ -202,7 +223,7 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
   const series = depotSeries(depot.id);
   const capacity = depotCapacityLitres(depot.id);
   const movement = reconcile(depot.id, from, to);
-  const verdict = varianceSeverity(movement.outLitres, movement.varianceLitres);
+  const verdict = varianceSeverity(movement.varianceLitres);
   const level = series.at(-1)?.litres ?? 0;
   const fraction = capacity > 0 ? level / capacity : 0;
   const reported = [...series].reverse().find((sample) => sample.t <= Date.now())?.t;
@@ -216,24 +237,10 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
     .filter((rise) => rise.litres > 0)
     .reverse();
 
-  const fills = yardFills(depot.id)
+  const fills = depotFills(depot.id)
     .filter((fill) => fill.at >= from && fill.at <= to)
     .sort((a, b) => b.at - a.at);
   const filledLitres = fills.reduce((sum, fill) => sum + fill.litres, 0);
-
-  // Loads grouped by truck: one line per tanker, not one per visit.
-  const loads = depotTruckLoads(depot.id).filter((load) => load.at >= from && load.at <= to);
-  const byTruck = [...new Set(loads.map((load) => load.truckId))].map((truckId) => {
-    const visits = loads.filter((load) => load.truckId === truckId);
-    return {
-      truckId,
-      plate: truckById(truckId)?.plate ?? truckId,
-      count: visits.length,
-      // The depot pump's figure, as `Fuel trucks` counts it: what the yard gave,
-      // not what the truck's own sensor saw arrive (Jeff, 2026-10-01).
-      litres: visits.reduce((sum, visit) => sum + (visit.soldLitres ?? visit.levelChange), 0),
-    };
-  });
 
   return (
     <>
@@ -242,15 +249,54 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
           <h1 className="text-xl font-semibold text-primary">{`${depot.name} depot`}</h1>
           <p className="text-sm text-secondary">{depot.address}</p>
         </div>
-        {/* No verdict badge here (Jeff, 2026-10-01): the `Unlogged fuel` card
+        {/* No verdict badge here (Jeff, 2026-10-01): the `Missing in transit` card
             under it carries the warning, and the badge said it a second time. */}
       </header>
 
-      {/* ## The Depots tab's two cards for one yard, and its tank (Jeff, 2026-10-01)
-          `Unlogged fuel`, the yard's `Fuel balance`, then the `Tank`. `Fuel in
-          stock` and its days left, and `Fuel out`, were cut: the tank card has
-          the level, and the balance card has what went out. */}
-      <SummaryCardRow cappedColumns={3}>
+      {/* ## The yard's tank, beside the Depots tab's two cards for it (Jeff, 2026-10-01)
+          The `Tank` on the left, two cards tall, with `Fuel balance` stacked over
+          `Missing in transit` beside it (Jeff, 2026-10-05; the three were one row,
+          tank first, until then). `Fuel in stock` and its days left, and `Fuel
+          out`, were cut: the tank card has the level, and the balance card has
+          what went out. Stacked below `sm`. The tank's column is 30% and the
+          stack's 70% (Jeff, 2026-10-05). */}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]">
+        {/* Two rows tall, so the drawing is drawn larger than it was in the row. */}
+        <SummaryCard label="Tank" className="sm:row-span-2">
+          {/* The litres under the drawing, not beside it (Jeff, 2026-10-05), so the
+              narrow column holds both. */}
+          <div className="flex flex-1 flex-col items-center justify-center gap-3">
+            <div className="relative w-48 max-w-full shrink-0">
+              <DepotTankGlyph fraction={fraction} className="block w-full" />
+              <span
+                aria-hidden="true"
+                className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-xl font-semibold text-primary tabular-nums"
+              >
+                {`${Math.round(fraction * 100)}%`}
+              </span>
+            </div>
+            <div className="flex min-w-0 flex-col items-center gap-1 text-center">
+              {/* No `Headline` figure: the percentage in the drawing is the headline,
+                  and these litres are its gloss. */}
+              <p className="text-lg font-semibold text-primary tabular-nums">
+                {`${amount(level, '')} / ${amount(capacity, '')}`}
+                <span className="text-sm font-normal text-secondary"> L</span>
+              </p>
+              {reported !== undefined && (
+                <p className="text-xs text-secondary" title={stampAt(new Date(reported).toISOString())}>
+                  {`Last updated: ${relativeTime(new Date(reported).toISOString())}`}
+                </p>
+              )}
+            </div>
+          </div>
+        </SummaryCard>
+        <FuelBalanceCard
+          fuelIn={movement.receivedLitres}
+          fuelOut={movement.outLitres}
+          balance={level}
+          balanceNote="left in the tank"
+          periodLabel={periodLabel}
+        />
         {/* ## A warning when there is one (Jeff, 2026-10-01)
             Grey like its neighbour, a red verdict read as one more figure. With a
             verdict the card takes its colour — tinted ground and border, the figure
@@ -259,22 +305,17 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
             card: four depots shouting on a good day would teach a reader to look
             past it. */}
         <SummaryCard
-          label="Unlogged fuel"
+          label="Missing in transit"
           pill={periodLabel}
           className={cn(
             verdict?.severity === 'CRITICAL' && 'border-severity-critical/40 bg-severity-critical/10',
-            verdict?.severity === 'WARNING' && 'border-severity-warning/40 bg-severity-warning/10',
           )}
         >
           <div className="min-w-0">
             <p
               className={cn(
                 'flex items-baseline gap-1.5 text-2xl leading-none font-semibold tabular-nums',
-                verdict?.severity === 'CRITICAL'
-                  ? 'text-severity-critical'
-                  : verdict?.severity === 'WARNING'
-                    ? 'text-severity-warning'
-                    : 'text-primary',
+                verdict?.severity === 'CRITICAL' ? 'text-severity-critical' : 'text-primary',
               )}
             >
               {verdict !== undefined && (
@@ -289,70 +330,25 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
               <p className="mt-1 text-xs text-secondary">{`${movement.variancePercent.toFixed(1)}% of Fuel Out`}</p>
             )}
             <p className={cn('text-xs', verdict === undefined ? 'text-secondary' : 'font-medium text-primary')}>
-              {verdict === undefined
-                ? 'within tolerance'
-                : verdict.kind === 'calibration'
-                  ? 'check the level sensor'
-                  : 'past the limit, check the pump log'}
+              {verdict === undefined ? 'within tolerance' : 'past the limit, trace it from depot to gensets'}
             </p>
           </div>
         </SummaryCard>
-        <FuelBalanceCard
-          fuelIn={movement.receivedLitres}
-          fuelOut={movement.outLitres}
-          balance={level}
-          balanceNote="left in the tank"
-          periodLabel={periodLabel}
-        />
-        {/* The tank, up in the overview row beside the figures it explains (Jeff,
-            2026-10-01), drawn smaller than it was as a card of its own; the level
-            chart takes the full width below. */}
-        <SummaryCard label="Tank">
-          <div className="flex items-center gap-4">
-            <div className="relative w-28 shrink-0">
-              <DepotTankGlyph fraction={fraction} className="block w-full" />
-              <span
-                aria-hidden="true"
-                className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-semibold text-primary tabular-nums"
-              >
-                {`${Math.round(fraction * 100)}%`}
-              </span>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              {/* No `Headline` figure: the percentage in the drawing is the headline,
-                  and these litres are its gloss, kept small to fit beside it. */}
-              <p className="text-sm font-semibold text-primary tabular-nums">
-                {`${amount(level, '')} / ${amount(capacity, '')}`}
-                <span className="font-normal text-secondary"> L</span>
-              </p>
-              {reported !== undefined && (
-                <p className="text-xs text-secondary" title={stampAt(new Date(reported).toISOString())}>
-                  {`Last updated: ${relativeTime(new Date(reported).toISOString())}`}
-                </p>
-              )}
-            </div>
-          </div>
-        </SummaryCard>
-      </SummaryCardRow>
+      </div>
 
-      {/* No pill: the chart has its own date filter, which the pill would contradict. */}
-      <Card title="Level">
+      {/* No pill: the chart has its own date filter, which the pill would contradict.
+          `Fuel level` since 2026-10-05 (Jeff); it was `Level`. */}
+      <Card title="Fuel level">
         <LevelChart series={series} capacity={capacity} />
       </Card>
 
-      {/* The breakdown beside what the supplier brought, then the gensets filled
-          and the trucks loaded, the breakdown's two shares in its order (Jeff,
-          2026-10-01). */}
+      {/* What the supplier brought beside the gensets this depot supplied (Jeff,
+          2026-10-01; side by side again since 2026-10-05). */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* `Fuel breakdown` (Jeff, 2026-10-01; it was `Reconciliation`, then `Where
-            the fuel went`): `Fuel Out` and the shares it went to. `Fuel In` is the
-            balance card's. */}
-        <Card title="Fuel breakdown" pill={periodLabel}>
-          <DepotBreakdown depot={depot} movement={movement} verdict={verdict} withFuelIn={false} />
-        </Card>
-        <Card title={`Deliveries into the depot · ${figure(supplies.length)}`} pill={periodLabel}>
+        {/* `Tank refills` since 2026-10-05 (Jeff); it was `Deliveries into the depot`. */}
+        <Card title={`Tank refills · ${figure(supplies.length)}`} pill={periodLabel}>
           {supplies.length === 0 ? (
-            <Empty>No delivery in this period.</Empty>
+            <Empty>No refill in this period.</Empty>
           ) : (
             <ol className="flex flex-col divide-y divide-subtle text-sm">
               {supplies.map((supply) => (
@@ -364,9 +360,16 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
             </ol>
           )}
         </Card>
-        <Card title={`Mobile gensets filled here · ${figure(fills.length)}`} pill={periodLabel}>
+        {/* Every fill charged to this depot, in the yard or out at a posting, at
+            the gensets' own sensors — what the depot cards count as reached gensets (Jeff,
+            2026-10-05; `Mobile gensets filled here` until then, yard fills only).
+            Where the set stood is under its name, since a fill is no longer
+            always at the yard. */}
+        {/* `Gensets fuelled` since 2026-10-05 (Jeff); it was `Genset fills supplied`.
+            The figure counts fills, not gensets. */}
+        <Card title={`Gensets fuelled · ${figure(fills.length)}`} pill={periodLabel}>
           {fills.length === 0 ? (
-            <Empty>No mobile genset filled in this period.</Empty>
+            <Empty>No genset fill in this period.</Empty>
           ) : (
             <>
               <p className="text-sm text-secondary tabular-nums">{`${amount(Math.round(filledLitres), 'L')} in all`}</p>
@@ -385,7 +388,9 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
                       <span className="text-right font-semibold text-primary tabular-nums">
                         {amount(Math.round(fill.litres), 'L')}
                       </span>
-                      <span className="text-xs text-tertiary">{stampAt(new Date(fill.at).toISOString())}</span>
+                      <span className="col-span-2 truncate text-xs text-tertiary">
+                        {`${stampAt(new Date(fill.at).toISOString())} · ${fill.place}`}
+                      </span>
                     </li>
                   );
                 })}
@@ -393,61 +398,27 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
               {fills.length > LIST_LIMIT && (
                 <Link
                   to="/fuel"
-                  search={{view: 'deliveries'}}
+                  // Opens History filtered to this yard (Jeff, 2026-10-05).
+                  search={{view: 'history', depot: depot.id}}
                   className="self-start text-sm font-medium text-secondary underline-offset-2 outline-none hover:text-primary hover:underline focus-visible:underline"
                 >
-                  {`See all ${figure(fills.length)} in Genset fills`}
+                  {`See all ${figure(fills.length)} in History`}
                 </Link>
               )}
             </>
           )}
         </Card>
-        {TRUCKS.length > 0 && (
-          <Card title={`Fuel trucks loaded here · ${figure(loads.length)}`} pill={periodLabel}>
-            {byTruck.length === 0 ? (
-              <Empty>No truck loaded in this period.</Empty>
-            ) : (
-              <ol className="flex flex-col divide-y divide-subtle text-sm">
-                {byTruck.map((truck) => (
-                  <li key={truck.truckId} className="flex justify-between gap-3 py-1.5">
-                    <Link
-                      to="/fuel"
-                      search={{view: 'trucks', truck: truck.truckId}}
-                      className="text-primary underline-offset-2 outline-none hover:underline focus-visible:underline"
-                    >
-                      {truck.plate}
-                      <span className="text-secondary">{` · ${figure(truck.count)} ${truck.count === 1 ? 'load' : 'loads'}`}</span>
-                    </Link>
-                    {/* `pumped`: the depot pump's figure, apart from the truck's own
-                        `Received from depot`, which is its tank's rise (2026-10-05). */}
-                    <span className="font-semibold text-primary tabular-nums">
-                      {amount(Math.round(truck.litres), 'L')}
-                      <span className="font-normal text-secondary"> pumped</span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Card>
-        )}
       </div>
     </>
   );
 };
 
 export const DepotPage = ({depot}: {depot: Depot}) => {
-  const navigate = useNavigate();
   const {from, to, periodLabel} = useFuelWindow();
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <FuelNav
-        value="depots"
-        depotId={depot.id}
-        onChange={(next) => void navigate({to: '/fuel', search: next === 'depots' ? {} : {view: next}})}
-        from={from}
-        to={to}
-      />
+      <FuelNav />
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-24 md:pb-4">
         {/* The way back on a phone, where there is no rail. Phone only (Jeff,

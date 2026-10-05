@@ -1,12 +1,10 @@
-import {DropletIcon, ScrollTextIcon, TruckIcon, WarehouseIcon} from 'lucide-react';
+import {HistoryIcon, WarehouseIcon} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
 import {cn} from '@/lib/utils';
 import {DEPOTS, reconcile, varianceSeverity} from './data/depotTank';
-import {missingIn} from './data/truckRuns';
-import {TRUCKS} from './data/trucks';
 import type {FuelView} from './index';
-import {amount, figure} from './format';
+import {figure} from './format';
 
 /**
  * The switch between the Fuel tabs, as cards rather than a small pill
@@ -15,50 +13,41 @@ import {amount, figure} from './format';
  * that half has anything wrong in the period, so the reader knows which to open.
  *
  * They are the switch on a phone only. From `md` up it is the rail in `FuelNav`,
- * which reads the same status lines.
+ * which names the tabs and nothing more: it read these status lines, as a dot and a
+ * tooltip, until it took the Service rail's look (Jeff, 2026-10-05).
  *
  * The status line follows the page's rule: it names a problem when there is one and
  * otherwise only counts what is there, with no all-clear.
  */
 
-export type Status = {
+type Status = {
   text: string;
   tone: 'critical' | 'warning' | undefined;
 };
 
-export const depotStatus = (from: number, to: number): Status => {
+const depotStatus = (from: number, to: number): Status => {
   const verdicts = DEPOTS.map((depot) => {
     const movement = reconcile(depot.id, from, to);
-    return varianceSeverity(movement.outLitres, movement.varianceLitres);
+    return varianceSeverity(movement.varianceLitres);
   });
-  const short = verdicts.filter((v) => v?.kind === 'shortfall').length;
-  const check = verdicts.filter((v) => v?.kind === 'calibration').length;
+  const short = verdicts.filter((v) => v !== undefined).length;
   const parts = [
     `${figure(DEPOTS.length)} ${DEPOTS.length === 1 ? 'depot' : 'depots'}`,
-    ...(short > 0 ? [`${figure(short)} with unlogged fuel`] : []),
-    ...(check > 0 ? [`${figure(check)} sensor ${check === 1 ? 'fault' : 'faults'}`] : []),
+    ...(short > 0 ? [`${figure(short)} with fuel missing in transit`] : []),
   ];
   return {
     text: parts.join(' · '),
-    tone: short > 0 ? 'critical' : check > 0 ? 'warning' : undefined,
+    tone: short > 0 ? 'critical' : undefined,
   };
-};
-
-export const truckStatus = (from: number, to: number): Status => {
-  const lost = missingIn(from, to).reduce((sum, missing) => sum + missing.litres, 0);
-  const count = `${figure(TRUCKS.length)} ${TRUCKS.length === 1 ? 'truck' : 'trucks'}`;
-  return lost > 0
-    ? {text: `${count} · ${amount(Math.round(lost), 'L')} missing`, tone: 'critical'}
-    : {text: count, tone: undefined};
 };
 
 /**
  * No verdict of its own: a fill is a fact, and the depot's gap is the depot
  * card's to say. So this only names the tab.
  */
-export const deliveriesStatus = (): Status => ({text: 'Gensets filled at a depot', tone: undefined});
+const deliveriesStatus = (): Status => ({text: 'Every fill, with its supplying depot', tone: undefined});
 
-export const DOT: Record<'critical' | 'warning', string> = {
+const DOT: Record<'critical' | 'warning', string> = {
   critical: 'bg-severity-critical',
   warning: 'bg-severity-warning',
 };
@@ -135,29 +124,11 @@ export const ViewSwitch = ({
       onSelect={() => onChange('depots')}
     />
     <Card
-      icon={DropletIcon}
-      title="Genset fills"
+      icon={HistoryIcon}
+      title="History"
       status={deliveriesStatus()}
-      selected={value === 'deliveries'}
-      onSelect={() => onChange('deliveries')}
+      selected={value === 'history'}
+      onSelect={() => onChange('history')}
     />
-    {TRUCKS.length > 0 && (
-      <Card
-        icon={TruckIcon}
-        title="Trucks"
-        status={truckStatus(from, to)}
-        selected={value === 'trucks'}
-        onSelect={() => onChange('trucks')}
-      />
-    )}
-    {TRUCKS.length > 0 && (
-      <Card
-        icon={ScrollTextIcon}
-        title="Truck log"
-        status={{text: 'Every load, stop and short load', tone: undefined}}
-        selected={value === 'truck-log'}
-        onSelect={() => onChange('truck-log')}
-      />
-    )}
   </div>
 );

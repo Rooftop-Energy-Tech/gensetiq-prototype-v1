@@ -37,8 +37,8 @@ declare module '@tanstack/react-router' {
     crumbParent?: {label: string; to: string} | ReadonlyArray<{label: string; to: string}>;
     /**
      * A last crumb after this route's own, read off its search params, for a page
-     * whose tabs are a query string rather than child routes — `/fuel?view=trucks`
-     * reads `Fuel / Trucks` (2026-09-30). Only the deepest labelled match's is used.
+     * whose tabs are a query string rather than child routes — `/fuel?view=history`
+     * reads `Fuel / History` (2026-09-30). Only the deepest labelled match's is used.
      */
     crumbTab?: (search: Record<string, unknown>) => string | undefined;
   }

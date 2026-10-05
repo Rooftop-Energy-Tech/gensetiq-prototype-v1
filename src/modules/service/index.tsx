@@ -11,7 +11,7 @@ import {
   SearchXIcon,
   XIcon,
 } from 'lucide-react';
-import type {KeyboardEvent, ReactNode} from 'react';
+import type {KeyboardEvent} from 'react';
 import {Fragment, useMemo, useRef} from 'react';
 
 import {DetailSidebar, DetailSidebarLabel} from '@/components/global/DetailSidebar';
@@ -28,17 +28,29 @@ import {useIsCompact} from '@/lib/useIsCompact';
 import {cn} from '@/lib/utils';
 import {useFleet} from '@/modules/genset/data/deployment';
 import {gensetStateName, stateNameFromSlug, stateSlug} from '@/modules/genset/data/gensetState';
-import {engineHoursOf, serviceSiteLabel, useServiceRecords} from '@/modules/genset/data/services';
+import {engineHoursOf, useServiceRecords} from '@/modules/genset/data/services';
 import {LogServiceDialog} from '@/modules/genset/components/service/LogServiceDialog';
 import {SERVICE_SEVERITY_META} from '@/modules/genset/components/service/serviceMeta';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 import type {Genset} from '@/modules/genset/types/genset.type';
 import type {ServiceCounter, ServiceRecord} from '@/modules/genset/types/service.type';
 import {searchGensets} from '@/modules/genset/utils/searchGensets';
-import {nextDue, recordStateName, sortFleetService, useFleetService} from './data/fleetService';
+import {nextDue, sortFleetService, sortServiceHistory, useFleetService} from './data/fleetService';
 import type {FleetServiceRow} from './data/fleetService';
-import {SERVICE_PAGE_SIZE, SERVICE_SORT_DEFAULT_DIRECTION, SERVICE_STANDINGS} from './types/view.type';
-import type {ServiceSearch, ServiceSort, ServiceSortDirection, ServiceStanding} from './types/view.type';
+import {
+  SERVICE_HISTORY_DEFAULT_SORT,
+  SERVICE_HISTORY_SORT_DEFAULT_DIRECTION,
+  SERVICE_PAGE_SIZE,
+  SERVICE_SORT_DEFAULT_DIRECTION,
+  SERVICE_STANDINGS,
+} from './types/view.type';
+import type {
+  ServiceHistorySort,
+  ServiceSearch,
+  ServiceSort,
+  ServiceSortDirection,
+  ServiceStanding,
+} from './types/view.type';
 
 /**
  * Service, fleet-wide: which sets are due, and every service on record.
@@ -51,10 +63,12 @@ import type {ServiceSearch, ServiceSort, ServiceSortDirection, ServiceStanding} 
  *
  * - **Due** is one row per set, worst first: overdue, due soon, never serviced, then
  *   in service, and within each the set furthest through its interval first.
- * - **History** is every logged service, newest first.
+ * - **History** is every logged service, newest first until a header is clicked —
+ *   its headers sort as the Due table's do (Jeff, 2026-10-05), on `?hsort=`/`?hdir=`.
  *
  * The cards count the whole fleet and are toggles (`?standing=`), like the gensets
- * register's; the search box and `State` narrow both tabs.
+ * register's. The search box narrows both tabs; `State` narrows Due only — it came off
+ * History on 2026-10-05 (Jeff), with the table's State column.
  */
 
 const STANDING_META: Record<ServiceStanding, {label: string; unit: string; detail: string; tone: ChipTone}> = {
@@ -76,20 +90,6 @@ const STANDING_DOT: Record<ServiceStanding, string> = {
   ok: 'bg-severity-ok',
   never: 'bg-tertiary',
 };
-
-const CELL = 'px-3 py-2 whitespace-nowrap';
-
-const Th = ({children, align}: {children: ReactNode; align?: 'right'}) => (
-  <th
-    scope="col"
-    className={cn(
-      'sticky top-0 z-[1] h-10 border-b border-subtle bg-canvas px-3 font-medium text-secondary',
-      align === 'right' ? 'text-right' : 'text-left',
-    )}
-  >
-    {children}
-  </th>
-);
 
 /** `463 / 500 h` with a bar under it, in the severity's colour once it matters. */
 const CounterCell = ({counter}: {counter: ServiceCounter | undefined}) => {
@@ -161,8 +161,11 @@ const DUE_COLUMNS = [
   {label: 'Last service', sort: 'last'},
 ] as const satisfies ReadonlyArray<{label: string; sort: ServiceSort}>;
 
-/** The registers' cell: held to its content, so the gaps share the spare width. See `GensetsTable`. */
-const DUE_CELL = 'w-px px-2 whitespace-nowrap';
+/**
+ * Both tables' cell, the registers': held to its content, so the gaps share the spare
+ * width. See `GensetsTable`.
+ */
+const CELL = 'w-px px-2 whitespace-nowrap';
 
 const Gap = ({header = false}: {header?: boolean}) =>
   header ? (
@@ -171,18 +174,22 @@ const Gap = ({header = false}: {header?: boolean}) =>
     <td aria-hidden="true" className="h-13 border-b border-subtle p-0" />
   );
 
-const SortHeader = ({
+/** A sortable header's button, for either table's keys. */
+const SortHeader = <K extends string,>({
   label,
   sort,
   active,
   direction,
   onSortChange,
+  align,
 }: {
   label: string;
-  sort: ServiceSort;
+  sort: K;
   active: boolean;
   direction: ServiceSortDirection;
-  onSortChange: (next: ServiceSort) => void;
+  onSortChange: (next: K) => void;
+  /** `right` sits the button at the cell's right edge, over a right-aligned figure. */
+  align?: 'right';
 }) => {
   const Icon = !active ? ChevronsUpDownIcon : direction === 'asc' ? ArrowUpIcon : ArrowDownIcon;
   return (
@@ -191,6 +198,7 @@ const SortHeader = ({
       onClick={() => onSortChange(sort)}
       className={cn(
         'group/sort relative -mx-1 flex cursor-pointer items-center gap-1 rounded-sm px-1 py-0.5',
+        align === 'right' && 'ml-auto w-fit',
         'transition-colors outline-none hover:text-primary',
         'focus-visible:ring-2 focus-visible:ring-outline',
         active && 'text-primary',
@@ -232,7 +240,7 @@ const DueTable = ({
     event.preventDefault();
     open(gensetId);
   };
-  const cell = cn(DUE_CELL, 'h-13 border-b border-subtle py-2');
+  const cell = cn(CELL, 'h-13 border-b border-subtle py-2');
 
   return (
     <table className="w-full border-separate border-spacing-0 text-sm">
@@ -251,7 +259,7 @@ const DueTable = ({
                   scope="col"
                   aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
                   className={cn(
-                    DUE_CELL,
+                    CELL,
                     'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary',
                   )}
                 >
@@ -268,7 +276,7 @@ const DueTable = ({
           })}
           {/* The hover arrow of the last sortable header sits in this gap. */}
           <Gap header />
-          <th scope="col" className={cn(DUE_CELL, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas')}>
+          <th scope="col" className={cn(CELL, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas')}>
             <span className="sr-only">Actions</span>
           </th>
         </tr>
@@ -311,7 +319,10 @@ const DueTable = ({
                 {due === undefined ? (
                   <span className="text-secondary">First service</span>
                 ) : (
-                  <span className={due.overdue ? 'text-severity-critical' : 'text-primary'}>{due.text}</span>
+                  <span className="flex flex-col">
+                    <span className={due.overdue ? 'text-severity-critical' : 'text-primary'}>{due.text}</span>
+                    <span className="text-xs text-secondary">{due.item}</span>
+                  </span>
                 )}
               </td>
               <Gap />
@@ -427,12 +438,13 @@ const DueCards = ({rows}: {rows: Array<FleetServiceRow>}) => (
             ) : (
               <span className={cn('font-medium tabular-nums', due.overdue ? 'text-severity-critical' : 'text-primary')}>
                 {due.text}
+                <span className="font-normal text-secondary">{` · ${due.item}`}</span>
               </span>
             )}
           </p>
           {status.kind === 'tracked' && (
             <div className="grid grid-cols-2 gap-3">
-              {[status.hours, status.calendar].map((counter) => (
+              {[status.hours, status.calendar].flatMap((counter) => (counter === undefined ? [] : [counter])).map((counter) => (
                 <div key={counter.kind} className="flex flex-col gap-1.5">
                   <span className="text-xs text-secondary">
                     {counter.kind === 'hours' ? 'Run hours' : 'Time'}{' '}
@@ -463,9 +475,12 @@ const DueCards = ({rows}: {rows: Array<FleetServiceRow>}) => (
 );
 
 /**
- * The History list at phone width: two lines a row instead of seven columns. The
- * plate and date lead; technician, site and hours follow; the report is a 44px
- * target on the right. State is left to the filter, where it already is.
+ * The History list at phone width: two lines a row instead of five columns. The
+ * plate and date lead; technician and hours follow; the report is a 44px target on
+ * the right. Where the service was done is not shown, as on the table (Jeff,
+ * 2026-10-05). The rows follow the table's sort (Jeff, 2026-10-05) — the phone has no
+ * headers to change it, but a sort picked on a desktop link carries over, as the Due
+ * cards follow the Due table's.
  */
 const HistoryRows = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<string, Genset>}) => (
   <ul aria-label="Service history" className="mb-20 flex flex-col overflow-hidden rounded-lg border border-subtle bg-element">
@@ -489,7 +504,7 @@ const HistoryRows = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<
               <span className="text-secondary">· {stampDate(record.performedAt)}</span>
             </span>
             <span className="truncate text-xs text-secondary">
-              {record.technicianName} · {serviceSiteLabel(record.siteId)} · {figure(record.engineHoursAtService)} h
+              {record.technicianName} · {figure(record.engineHoursAtService)} h
             </span>
           </div>
           {record.document.url === null ? (
@@ -514,57 +529,126 @@ const HistoryRows = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<
   </ul>
 );
 
-const HistoryTable = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<string, Genset>}) => (
-  <table className="w-full border-separate border-spacing-0 text-sm">
-    <thead>
-      <tr>
-        <Th>Date</Th>
-        <Th>Number plate</Th>
-        <Th>State</Th>
-        <Th>Location</Th>
-        <Th>Technician</Th>
-        <Th align="right">Run hours at service</Th>
-        <Th>Report</Th>
-      </tr>
-    </thead>
-    <tbody>
-      {records.map((record) => {
-        const genset = byId.get(record.gensetId);
-        return (
-          <tr key={record.id}>
-            <td className={cn(CELL, 'border-b border-subtle text-primary')}>{stampDate(record.performedAt)}</td>
-            <td className={cn(CELL, 'border-b border-subtle font-medium')}>
-              {genset === undefined ? (
-                record.gensetId
-              ) : (
-                <Link
-                  to="/gensets/$gensetId/service"
-                  params={{gensetId: genset.id}}
-                  className="text-primary underline-offset-4 hover:underline"
-                >
-                  {gensetLabel(genset)}
-                </Link>
-              )}
-            </td>
-            <td className={cn(CELL, 'border-b border-subtle text-primary')}>{recordStateName(record, genset) ?? '—'}</td>
-            <td className={cn(CELL, 'border-b border-subtle text-primary')}>{serviceSiteLabel(record.siteId)}</td>
-            <td className={cn(CELL, 'border-b border-subtle text-primary')}>{record.technicianName}</td>
-            <td className={cn(CELL, 'border-b border-subtle text-right text-primary tabular-nums')}>
-              {figure(record.engineHoursAtService)} h
-            </td>
-            <td className={cn(CELL, 'border-b border-subtle')}>
-              <ReportLink record={record} />
-            </td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-);
+/**
+ * The History table's columns. All but `Report` sort, as the Due table's do (Jeff,
+ * 2026-10-05); a link is not a value to order by, so it is drawn as plain text.
+ */
+const HISTORY_COLUMNS = [
+  {label: 'Number plate', sort: 'name'},
+  {label: 'Date', sort: 'date'},
+  {label: 'Technician', sort: 'technician'},
+  {label: 'Run hours at service', sort: 'hours', align: 'right'},
+] as const satisfies ReadonlyArray<{label: string; sort: ServiceHistorySort; align?: 'right'}>;
 
 /**
- * `GensetsActiveFilters`, over the service page: the search, the state and, on the
- * Due tab, the status. One removable chip each and `Clear all`, only while
+ * The History table: plate first, the way every fleet table leads with the machine.
+ * `State` and `Location` (the yard the set stood at that day, or *In depot*) came off
+ * on 2026-10-05 (Jeff): where a service was done is not what the list is read for,
+ * and the `State` filter left History with them.
+ *
+ * Laid out as the Due table and the registers are (Jeff, 2026-10-05): content-width
+ * cells with a `Gap` between each pair sharing the spare width, so the columns spread
+ * evenly instead of bunching. Its headers sort as the Due table's do.
+ */
+const HistoryTable = ({
+  records,
+  byId,
+  sort,
+  direction,
+  onSortChange,
+}: {
+  records: Array<ServiceRecord>;
+  byId: Map<string, Genset>;
+  sort: ServiceHistorySort;
+  direction: ServiceSortDirection;
+  onSortChange: (next: ServiceHistorySort) => void;
+}) => {
+  const cell = cn(CELL, 'h-13 border-b border-subtle py-2');
+  return (
+    <table className="w-full border-separate border-spacing-0 text-sm">
+      <caption className="sr-only">
+        Every logged service, with the genset, the date, the technician, its run hours at the time and its report
+      </caption>
+      <thead>
+        <tr>
+          {HISTORY_COLUMNS.map((column, index) => {
+            const active = column.sort === sort;
+            const align = 'align' in column ? column.align : undefined;
+            return (
+              <Fragment key={column.label}>
+                {index > 0 && <Gap header />}
+                <th
+                  scope="col"
+                  aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className={cn(
+                    CELL,
+                    'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas font-medium text-secondary',
+                    align === 'right' ? 'text-right' : 'text-left',
+                  )}
+                >
+                  <SortHeader
+                    label={column.label}
+                    sort={column.sort}
+                    active={active}
+                    direction={direction}
+                    onSortChange={onSortChange}
+                    align={align}
+                  />
+                </th>
+              </Fragment>
+            );
+          })}
+          {/* The hover arrow of the last sortable header sits in this gap. */}
+          <Gap header />
+          <th
+            scope="col"
+            className={cn(CELL, 'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas text-left font-medium text-secondary')}
+          >
+            Report
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {records.map((record) => {
+          const genset = byId.get(record.gensetId);
+          return (
+            <tr key={record.id}>
+              <td className={cn(cell, 'font-medium')}>
+                {genset === undefined ? (
+                  record.gensetId
+                ) : (
+                  <Link
+                    to="/gensets/$gensetId/service"
+                    params={{gensetId: genset.id}}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {gensetLabel(genset)}
+                  </Link>
+                )}
+              </td>
+              <Gap />
+              <td className={cn(cell, 'text-primary')}>{stampDate(record.performedAt)}</td>
+              <Gap />
+              <td className={cn(cell, 'text-primary')}>{record.technicianName}</td>
+              <Gap />
+              <td className={cn(cell, 'text-right text-primary tabular-nums')}>
+                {figure(record.engineHoursAtService)} h
+              </td>
+              <Gap />
+              <td className={cell}>
+                <ReportLink record={record} />
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+};
+
+/**
+ * `GensetsActiveFilters`, over the service page: the search and, on the Due tab, the
+ * state and the status. One removable chip each and `Clear all`, only while
  * something is on.
  */
 const ServiceActiveFilters = ({
@@ -576,7 +660,9 @@ const ServiceActiveFilters = ({
 }) => {
   const chips: Array<{key: string; label: string; clear: Partial<ServiceSearch>}> = [];
   if (search.q) chips.push({key: 'q', label: `“${search.q}”`, clear: {q: undefined}});
-  if (search.location !== undefined) {
+  // The state narrows the Due tab only (Jeff, 2026-10-05): a `?location=` left from
+  // Due is not applied to History, so History does not show it as a filter.
+  if (search.tab === 'due' && search.location !== undefined) {
     chips.push({
       key: 'location',
       label: stateNameFromSlug(search.location) ?? search.location,
@@ -635,7 +721,7 @@ export const ServicePage = ({
   search: ServiceSearch;
   onSearchChange: (next: Partial<ServiceSearch>) => void;
 }) => {
-  const {tab, q = '', location, standing, sort, dir, page} = search;
+  const {tab, q = '', location, standing, sort, dir, hsort, hdir, page} = search;
   // Every change but a page turn starts the table back on page 1.
   const update = (next: Partial<ServiceSearch>) => onSearchChange({...next, page: undefined});
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -643,6 +729,15 @@ export const ServicePage = ({
   const direction = dir ?? SERVICE_SORT_DEFAULT_DIRECTION[sort];
   const changeSort = (next: ServiceSort) =>
     update(next === sort ? {dir: direction === 'asc' ? 'desc' : 'asc'} : {sort: next, dir: undefined});
+  // The History table's own pair, on `hsort` / `hdir` and the same rule (Jeff, 2026-10-05).
+  const historySort = hsort ?? SERVICE_HISTORY_DEFAULT_SORT;
+  const historyDirection = hdir ?? SERVICE_HISTORY_SORT_DEFAULT_DIRECTION[historySort];
+  const changeHistorySort = (next: ServiceHistorySort) =>
+    update(
+      next === historySort
+        ? {hdir: historyDirection === 'asc' ? 'desc' : 'asc'}
+        : {hsort: next, hdir: undefined},
+    );
   const compact = useIsCompact();
   const fleet = useFleet();
   const rows = useFleetService(fleet);
@@ -670,30 +765,24 @@ export const ServicePage = ({
     sort,
     direction,
   );
-  const historyRows = records.filter((record) => {
-    const genset = byId.get(record.gensetId);
-    return (q === '' || matching.has(record.gensetId)) && inState(recordStateName(record, genset));
-  });
+  // The search only: History has no State filter (Jeff, 2026-10-05), so a
+  // `?location=` left in the URL from the Due tab does not narrow it.
+  const historyRows = sortServiceHistory(
+    records.filter((record) => q === '' || matching.has(record.gensetId)),
+    byId,
+    historySort,
+    historyDirection,
+  );
 
-  // The State options: states the fleet stands in, counted over the current tab
-  // under the other filters — the register's rule.
+  // The State options, for the Due tab (the only one with the filter): states the
+  // fleet stands in, counted under the other filters — the register's rule.
   const stateOptions = useMemo((): Array<FilterOption<string>> => {
     const names = new Set(fleet.map(gensetStateName).filter((name): name is string => name !== undefined));
     const tally = new Map<string, number>();
-    if (tab === 'due') {
-      for (const row of rows) {
-        if (!matching.has(row.genset.id) || (standing !== undefined && row.standing !== standing)) continue;
-        const name = gensetStateName(row.genset);
-        if (name !== undefined) tally.set(name, (tally.get(name) ?? 0) + 1);
-      }
-    } else {
-      for (const record of records) {
-        if (q !== '' && !matching.has(record.gensetId)) continue;
-        const name = recordStateName(record, byId.get(record.gensetId));
-        if (name === undefined) continue;
-        names.add(name);
-        tally.set(name, (tally.get(name) ?? 0) + 1);
-      }
+    for (const row of rows) {
+      if (!matching.has(row.genset.id) || (standing !== undefined && row.standing !== standing)) continue;
+      const name = gensetStateName(row.genset);
+      if (name !== undefined) tally.set(name, (tally.get(name) ?? 0) + 1);
     }
     const options = [...names]
       .sort((left, right) => left.localeCompare(right))
@@ -703,7 +792,7 @@ export const ServicePage = ({
       if (label !== undefined) options.push({key: location, label, count: 0});
     }
     return options;
-  }, [fleet, rows, records, matching, standing, tab, q, location, byId]);
+  }, [fleet, rows, matching, standing, location]);
 
   const shown = tab === 'due' ? dueRows.length : historyRows.length;
 
@@ -735,8 +824,8 @@ export const ServicePage = ({
     />
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
       {/* The Gensets and Deployments toolbars' layout: search first, the State filter
-          beside it, the Due/History switch hard right. On a phone the search has the
-          top row to itself and the filter and switch share the row under it. */}
+          beside it (Due only), the Due/History switch hard right. On a phone the search
+          has the top row to itself and the filter and switch share the row under it. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <InputGroup className="w-full basis-full md:flex-1 md:basis-0 md:max-w-[187px] md:min-w-[140px]">
           <InputGroupAddon>
@@ -750,13 +839,17 @@ export const ServicePage = ({
             aria-label="Search gensets"
           />
         </InputGroup>
-        <FilterSelect
-          label="State"
-          allLabel="All states"
-          options={stateOptions}
-          value={location}
-          onChange={(next) => update({location: next})}
-        />
+        {/* Due only (Jeff, 2026-10-05): History lost its State column, and the filter
+            went with it. */}
+        {tab === 'due' && (
+          <FilterSelect
+            label="State"
+            allLabel="All states"
+            options={stateOptions}
+            value={location}
+            onChange={(next) => update({location: next})}
+          />
+        )}
         {/* Beside State on the Due tab: the standing as a dropdown, the same filter
             the status cards below toggle. Phone-only until 2026-09-30, when the
             desktop toolbar got it too, as Gensets has its Status dropdown. */}
@@ -851,7 +944,13 @@ export const ServicePage = ({
         ) : compact ? (
           <HistoryRows records={historyRows} byId={byId} />
         ) : (
-          <HistoryTable records={pageSlice(historyRows)} byId={byId} />
+          <HistoryTable
+            records={pageSlice(historyRows)}
+            byId={byId}
+            sort={historySort}
+            direction={historyDirection}
+            onSortChange={changeHistorySort}
+          />
         )}
       </div>
       {!compact && shown > 0 && (

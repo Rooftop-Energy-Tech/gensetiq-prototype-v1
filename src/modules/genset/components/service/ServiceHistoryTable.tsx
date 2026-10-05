@@ -7,7 +7,7 @@ import {cn} from '@/lib/utils';
 import {serviceSiteLabel} from '../../data/services';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
-import type {ServiceRecord} from '../../types/service.type';
+import type {ServiceRecord, ServiceSchedule} from '../../types/service.type';
 
 const Th = ({children, align}: {children: ReactNode; align?: 'right'}) => (
   <th
@@ -38,7 +38,6 @@ const AttachmentCell = ({record}: {record: ServiceRecord}) => {
     return (
       <span
         className="inline-flex items-center gap-2 text-tertiary"
-        title="Attached in an earlier session. The file itself is not stored — this prototype keeps records but not documents."
       >
         <FileTextIcon className="size-3.5 shrink-0" aria-hidden="true" />
         <span className="truncate">{record.document.fileName}</span>
@@ -72,21 +71,32 @@ const AttachmentCell = ({record}: {record: ServiceRecord}) => {
  * makes a row copyable — a service is identified by machine and date, and a
  * screenshot of this table without the machine on it identifies nothing.
  */
+/**
+ * What a visit did, in words: `Full service` when it did every item, else the
+ * items by name. An item since removed from the schedule is left out.
+ */
+const workDone = (record: ServiceRecord, schedule: ServiceSchedule): string => {
+  if (record.itemIds === undefined) return 'Full service';
+  if (schedule.items.every((item) => record.itemIds?.includes(item.id))) return 'Full service';
+  const names = schedule.items.filter((item) => record.itemIds?.includes(item.id)).map((item) => item.name);
+  return names.length === 0 ? '—' : names.join(', ');
+};
+
 export const ServiceHistoryTable = ({
   genset,
   records,
+  schedule,
 }: {
   genset: Genset;
   records: Array<ServiceRecord>;
+  /** The schedule, to name the items a visit did. */
+  schedule: ServiceSchedule;
 }) => (
   <section aria-label="Service history" className="flex flex-col gap-3">
     <h2 className="text-base font-medium text-primary">Service history</h2>
 
     {records.length === 0 ? (
-      <p className="max-w-prose text-sm text-secondary">
-        No services have been recorded against this genset. Logging one sets the baseline both
-        counters measure from.
-      </p>
+      <p className="text-sm text-secondary">No services recorded.</p>
     ) : (
       <div className={cn('overflow-x-auto', REGISTER_FRAME)}>
         <table className={cn(REGISTER_TABLE, REGISTER_ROWS)}>
@@ -94,6 +104,7 @@ export const ServiceHistoryTable = ({
             <tr>
               <Th>Date</Th>
               <Th>Location</Th>
+              <Th>Work done</Th>
               <Th>Technician</Th>
               <Th>Genset</Th>
               <Th align="right">Run hours at service</Th>
@@ -111,6 +122,7 @@ export const ServiceHistoryTable = ({
                     A set that has since moved yards still shows where the work
                     was actually done. */}
                 <td className="px-3 py-2.5 text-secondary">{serviceSiteLabel(record.siteId)}</td>
+                <td className="max-w-[260px] px-3 py-2.5 text-primary">{workDone(record, schedule)}</td>
                 <td className="px-3 py-2.5 text-secondary">{record.technicianName}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap text-secondary">
                   {gensetName(genset)}

@@ -2,7 +2,7 @@ import {DATASET} from '@/brands';
 import type {DatasetId} from '@/brands';
 
 /**
- * The depots, on their own so the fill classifier and the depot tank can both read
+ * The depots, on their own so the fills (`fills.ts`) and the depot tank can both read
  * them without importing each other. `depotTank.ts` re-exports `DEPOTS` and `Depot`,
  * so nothing that imported them from there had to change.
  */
@@ -12,14 +12,15 @@ import type {DatasetId} from '@/brands';
  *
  * Placed where each estate's machines actually are. On Express Mission's, four: the
  * Klang valley holds thirteen of the thirty-eight, and Perak, Penang and Johor most
- * of the rest, and the machines out in states with no depot are the trucks'
- * (`trucks.ts`). The carrier's seven follow its towers into Sabah and Sarawak. A
+ * of the rest; a machine in a state with no depot is supplied by the nearest one
+ * (`fills.ts`). The carrier's seven follow its towers into Sabah and Sarawak. A
  * single national depot would be a fiction on an estate 700 km end to end —
- * nobody trucks diesel from Klang to Bayan Lepas — and it would also make the one
+ * nobody hauls diesel from Klang to Bayan Lepas — and it would also make the one
  * number on this page an average that no yard manager recognises.
  *
  * Their tanks are **not** the same size, because their catchments are not. Klang
- * fuels twenty-one machines and the others five or six, so a uniform 200,000 L gave
+ * issues about 100,000 L a month and the others 30,000 to 60,000 (2026-10-05), and
+ * when it fuelled twenty-one machines to their five or six a uniform 200,000 L gave
  * the three smaller yards five months of cover — tanks that never took a delivery in
  * the whole record and sat there draining. Each is sized from what it actually
  * issues; see `depotCapacityLitres`.
@@ -45,16 +46,15 @@ export type Depot = {
    * This yard's level sensor over-reads its falls, as a fraction.
    *
    * A float out of calibration does not lose fuel; it mis-measures the fuel that
-   * moves. So the tank really gives up the litres the pumps logged, and the
-   * instrument writes down slightly more — a small gap that grows with throughput,
-   * under the line where a gap reads as unlogged fuel. That is what `Sensor fault`
-   * exists to say.
+   * moves. So the tank really gives up the litres its gensets received, and the
+   * instrument writes down slightly more — a small gap that grows with throughput.
+   * It was planted for the `Sensor fault` verdict, removed 2026-10-05 (Jeff); past
+   * 100 L, as it is on Express Mission's month, it now flags as missing in transit
+   * like any other gap.
    *
    * It used to under-read, which made the gap negative; since the gap is held at
    * zero (2026-10-01) that showed as nothing, so it over-reads now (2026-10-05).
-   * Set on one Express Mission yard. The carrier's yards issue too little for the
-   * middle grade to exist there: under 20,000 L a month, 0.5% is under the 100 L
-   * floor.
+   * Set on one Express Mission yard.
    */
   sensorDriftFraction?: number;
   /**
@@ -78,17 +78,20 @@ const BUTTERWORTH: Depot = {id: 'butterworth', name: 'Butterworth', locationLabe
 const PASIR_GUDANG: Depot = {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', address: 'PLO 45, Jalan Pekeliling, Kawasan Perindustrian Pasir Gudang, 81700 Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914};
 
 /**
- * Each estate's yards. Per estate for the reason the trucks are (`trucks.ts`): one
- * shared list sent the carrier's Sabah and Sarawak towers to Pasir Gudang for every
- * fill, across the South China Sea. The carrier keeps the three peninsular yards its
- * towers there are nearest and adds four in Borneo, where most of its sets stand.
+ * Each estate's yards. Per estate because one shared list sent the carrier's Sabah
+ * and Sarawak towers to Pasir Gudang for every fill, across the South China Sea. The
+ * carrier keeps the three peninsular yards its towers there are nearest and adds
+ * four in Borneo, where most of its sets stand.
  */
 const DEPOTS_BY_DATASET: Record<DatasetId, ReadonlyArray<Depot>> = {
   utility: [
     KLANG,
     {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', address: 'Lot 7, Jalan Lahat, Kawasan Perindustrian Menglembu, 31450 Ipoh, Perak', latitude: 4.5975, longitude: 101.0901, stockFraction: 0.5},
     {...BUTTERWORTH, sensorDriftFraction: SENSOR_DRIFT},
-    {...PASIR_GUDANG, stockFraction: 0.24},
+    // Written down (Jeff, 2026-10-05): sized from its catchment once the trucks went,
+    // it came out at 60,000 L, and a tank that small issuing 8,000 L a week cannot be
+    // walked down to 24% without touching the reorder floor on the way.
+    {...PASIR_GUDANG, capacityLitres: 80_000, stockFraction: 0.24},
   ],
   carrier: [
     KLANG,
@@ -105,7 +108,7 @@ const DEPOTS_BY_DATASET: Record<DatasetId, ReadonlyArray<Depot>> = {
 export const DEPOTS: ReadonlyArray<Depot> = DEPOTS_BY_DATASET[DATASET.id];
 
 /**
- * Which depot serves a machine: the nearest one, by straight-line distance.
+ * Which depot supplies a machine: the nearest one, by straight-line distance.
  *
  * Distance on the raw coordinates rather than a great circle. Over 700 km of one
  * peninsula the two answers differ by a rounding, and the question here is only
@@ -128,13 +131,3 @@ export const depotFor = (latitude: number, longitude: number): Depot => {
 
   return nearest;
 };
-
-/**
- * The state a depot stands in, by name — `Selangor` for Klang.
- *
- * Read off the tail of its `locationLabel` rather than written down twice, because
- * the label is what a reader sees and the rule that uses this (a genset in a
- * depot's own state drives in to it) has to agree with what the card says.
- */
-export const depotState = (depot: Depot): string =>
-  depot.locationLabel.split(',').at(-1)?.trim() ?? depot.locationLabel;

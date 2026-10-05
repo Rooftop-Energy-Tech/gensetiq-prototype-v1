@@ -1,5 +1,5 @@
 import {cn} from '@/lib/utils';
-import {calendarDueDate, counterOvershoot} from '../../types/service.type';
+import {bindingCounter, calendarDueDate, counterOvershoot} from '../../types/service.type';
 import type {ServiceCounter, ServiceStatus} from '../../types/service.type';
 import {figure, stampDate} from '@/lib/format';
 import {COUNTER_META, SERVICE_SEVERITY_META} from './serviceMeta';
@@ -203,24 +203,15 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
         className="flex flex-col gap-2 rounded-lg border border-dashed border-default bg-element px-4 py-4"
       >
         <p className="text-base font-medium text-primary">No service recorded</p>
-        <p className="max-w-prose text-sm text-secondary">
-          Both counters measure from the last service, so neither can be read until one has
-          been logged. This genset is not overdue — it is unmeasured, which is a different
-          thing and worth not confusing on a screen somebody makes a call-out from.
-        </p>
-        <p className="text-sm text-secondary">
-          Schedule · every {figure(status.schedule.intervalHours)} h or{' '}
-          {status.schedule.intervalMonths} months, whichever comes first.
-        </p>
       </section>
     );
   }
 
   const meta = SERVICE_SEVERITY_META[status.severity];
   const Icon = meta.icon;
-  const bindingCounter = status.binding === 'hours' ? status.hours : status.calendar;
-  const overshoot = counterOvershoot(bindingCounter);
-  const dueDate = calendarDueDate(status.lastService, status.schedule);
+  const overshoot = counterOvershoot(bindingCounter(status));
+  const dueDate =
+    status.calendar === undefined ? undefined : calendarDueDate(status.lastService, status.calendar.interval);
 
   /**
    * The sentence under the glyph — **when there is one**.
@@ -242,11 +233,11 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
     status.severity === 'OVERDUE'
       ? status.binding === 'hours'
         ? `Overdue by ${figure(Math.round(overshoot))} h.`
-        : `Overdue by ${overshoot.toFixed(1)} months — due ${stampDate(dueDate.toISOString())}.`
+        : `Overdue by ${overshoot.toFixed(1)} months — due ${stampDate((dueDate ?? new Date()).toISOString())}.`
       : status.severity === 'DUE_SOON'
         ? status.binding === 'hours'
           ? `Due in ${figure(Math.round(-overshoot))} h.`
-          : `Due ${stampDate(dueDate.toISOString())}.`
+          : `Due ${stampDate((dueDate ?? new Date()).toISOString())}.`
         : undefined;
 
   return (
@@ -265,11 +256,18 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {verdict !== undefined && <p className="text-sm text-secondary">{verdict}</p>}
+        {/* The item the verdict is about — the most urgent on the schedule below
+            (2026-10-05). The rings are its counters; an item on one interval has one. */}
+        <p className="text-sm text-secondary">
+          <span className="font-medium text-primary">{status.item.name}</span>
+          {verdict === undefined ? ' · next due' : ` · ${verdict.charAt(0).toLowerCase()}${verdict.slice(1)}`}
+        </p>
 
         <div className="flex flex-wrap gap-x-6 gap-y-5">
-          <CounterDonut counter={status.hours} binding={status.binding === 'hours'} />
-          <CounterDonut counter={status.calendar} binding={status.binding === 'calendar'} />
+          {status.hours !== undefined && <CounterDonut counter={status.hours} binding={status.binding === 'hours'} />}
+          {status.calendar !== undefined && (
+            <CounterDonut counter={status.calendar} binding={status.binding === 'calendar'} />
+          )}
         </div>
       </div>
     </section>

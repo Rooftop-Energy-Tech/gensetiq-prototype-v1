@@ -12,7 +12,6 @@ import {
   varianceSeverity,
 } from './data/depotTank';
 import type {Depot, DepotReconciliation, VarianceVerdict} from './data/depotTank';
-import {TRUCKS} from './data/trucks';
 import {amount} from './format';
 
 /** The tank's percentage, centred on the vessel's body, not on the saddles too. */
@@ -21,14 +20,15 @@ const PERCENT = 'absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 t
 /**
  * A verdict's badge, in the strongest words that are true (Jeff, 2026-09-30).
  *
- * A shortfall is `252 L unlogged`: fuel left the tank and no fill or load in the
- * depot's log accounts for it, and the amount is in the badge so a reader knows how bad before
- * reading on. Anything else past the 100 L floor — too small to be a loss — is
- * `Sensor fault`, since the instruments are the first thing to doubt. They were `Fuel did not arrive` and `Check calibration` first, then
- * `252 L missing at depot` until 2026-10-01.
+ * A shortfall is `252 L missing in transit`: fuel left the tank and never arrived in
+ * a genset this depot supplied, and the amount is in the badge so a reader knows how
+ * bad before reading on. There was a second, `Sensor fault`, for a gap past the
+ * 100 L floor too small to be a loss, until 2026-10-05 (Jeff). They were
+ * `Fuel did not arrive` and `Check calibration` first, then `252 L missing at depot`
+ * until 2026-10-01, then `252 L unlogged` until 2026-10-05.
  */
-export const verdictLabel = (verdict: VarianceVerdict, varianceLitres: number): string =>
-  verdict.kind === 'shortfall' ? `${amount(Math.round(varianceLitres), 'L')} unlogged` : 'Sensor fault';
+export const verdictLabel = (varianceLitres: number): string =>
+  `${amount(Math.round(varianceLitres), 'L')} missing in transit`;
 
 /**
  * The yard's bulk tank, drawn as a genset's is.
@@ -72,9 +72,9 @@ export const DepotTank = ({
   // The page's window. `useMemo` is not worth it: `reconcile` walks a 60-day hourly
   // series once per card and the page draws four.
   const movement = reconcile(depot.id, from, to);
-  // Quiet under 100 L, `Sensor fault` past it, `252 L unlogged` for a shortfall past
-  // 0.5% of what was issued or past 1,000 L. See `varianceSeverity`.
-  const verdict = varianceSeverity(movement.outLitres, movement.varianceLitres);
+  // `252 L missing in transit` for a gap over 100 L; otherwise quiet. See
+  // `varianceSeverity`.
+  const verdict = varianceSeverity(movement.varianceLitres);
   const level = series.at(-1)?.litres ?? 0;
   // The level sensor's last report. A sample can carry a stamp half a step ahead
   // (the walk records a draw mid-hour), so the newest one not in the future.
@@ -123,7 +123,7 @@ export const DepotTank = ({
           {verdict !== undefined && (
             <Badge variant={verdictVariant(verdict.severity)}>
               <TriangleAlertIcon aria-hidden="true" />
-              {verdictLabel(verdict, movement.varianceLitres)}
+              {verdictLabel(movement.varianceLitres)}
             </Badge>
           )}
           <CardPill>{periodLabel}</CardPill>
@@ -132,7 +132,7 @@ export const DepotTank = ({
 
       {/* ## Stacked on a phone, side by side from `sm`
           The tank is a fixed 200px and the figures took what was left, which on a
-          390px screen is about ninety — narrower than `No fill or load logged`
+          390px screen is about ninety — narrower than `Missing in transit`
           itself, so every label broke over four lines and every value orphaned its
           `L` onto a second. Below `sm` the tank sits on top and the list runs the
           full width of the card. */}
@@ -154,11 +154,7 @@ export const DepotTank = ({
         </div>
 
         <div className="flex w-full min-w-0 flex-1 flex-col">
-          <DepotBreakdown
-            depot={depot}
-            movement={movement}
-            verdict={verdict}
-          />
+          <DepotBreakdown movement={movement} verdict={verdict} />
         </div>
       </div>
 
@@ -180,126 +176,92 @@ export const DepotTank = ({
  *
  * ## Every row, on every card
  *
- * `Fuel In`, `Fuel Out`, the shares `Fuel Out` went to, and `Unlogged fuel`, on
- * every card whether or not it has a verdict (Jeff, 2026-10-01). It was the gap row
- * alone on a quiet card, on the reasoning that four cards of six rows each was a
- * lot to read past; but a depot's month — what came in, what went out and to whom
- * — is worth reading on a quiet day too. A `Show breakdown` toggle was tried and
- * removed on 2026-09-30.
+ * `Fuel In`, `Fuel Out`, the share of `Fuel Out` that reached gensets, and `Missing
+ * in transit`, on every card whether or not it has a verdict (Jeff, 2026-10-01). It
+ * was the gap row alone on a quiet card, on the reasoning that four cards of six
+ * rows each was a lot to read past; but a depot's month — what came in, what went
+ * out and whether it arrived — is worth reading on a quiet day too. A `Show
+ * breakdown` toggle was tried and removed on 2026-09-30.
  */
 export const DepotBreakdown = ({
-  depot,
   movement,
   verdict,
   withFuelIn = true,
 }: {
-  depot: Depot;
   movement: DepotReconciliation;
   verdict: VarianceVerdict | undefined;
   /**
    * Draw the `Fuel In` row. Off on the depot's page, whose `Fuel balance` card
-   * already says it, so the breakdown there is `Fuel Out` and the shares it splits
-   * into.
+   * already says it, so the breakdown there is `Fuel Out` and where it went.
    */
   withFuelIn?: boolean;
-}) => {
-  const trucksHere = TRUCKS.filter((truck) => truck.homeDepotId === depot.id);
-  return (
-    // Rules under `Fuel In` and under the last share only (Jeff, 2026-10-01), so
-    // `Fuel Out` and the shares it splits into read as one block, between the
-    // depot's deliveries above and the verdict below.
-    <dl className="flex w-full min-w-0 flex-col">
-      {/* The two movements a level sensor can see, over the last 30 days.
-          Fuel In is every rise, Fuel Out is every fall, In first (Jeff,
-          2026-10-01), and they are kept apart
-          rather than netted: a 50,000 L delivery into the yard would otherwise
-          cancel a week of tankers going out and the tile would read as a quiet
-          month. Thirty days, the page's fixed window (`useFuelWindow`) — long
-          enough that every yard has taken at least one delivery in it. */}
-      {withFuelIn && (
-        <div className="flex items-baseline justify-between gap-4 border-b border-subtle py-1.5">
-          <dt className="shrink-0 text-sm font-medium text-secondary">Fuel In</dt>
-          <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
-            {movement.receivedLitres === 0 ? (
-              <span className="text-tertiary">No delivery</span>
-            ) : (
-              // Signed, as the depot page's `Deliveries into the depot` rows are:
-              // fuel in reads `+12, 670 L` wherever it is listed (2026-10-05).
-              `+${amount(movement.receivedLitres, 'L')}`
-            )}
-          </dd>
-        </div>
-      )}
-      <div className="flex items-baseline justify-between gap-4 py-1.5">
-        <dt className="shrink-0 text-sm font-medium text-secondary">Fuel Out</dt>
+}) => (
+  // Rules under `Fuel In` and under `Reached gensets` only (Jeff, 2026-10-01), so
+  // `Fuel Out` and the share under it read as one block, between the depot's
+  // deliveries above and the gap below.
+  <dl className="flex w-full min-w-0 flex-col">
+    {/* The two movements a level sensor can see, over the last 30 days.
+        Fuel In is every rise, Fuel Out is every fall, In first (Jeff,
+        2026-10-01), and they are kept apart
+        rather than netted: a 50,000 L delivery into the yard would otherwise
+        cancel a week of issues and the tile would read as a quiet
+        month. Thirty days, the page's fixed window (`useFuelWindow`) — long
+        enough that every yard has taken at least one delivery in it. */}
+    {withFuelIn && (
+      <div className="flex items-baseline justify-between gap-4 border-b border-subtle py-1.5">
+        <dt className="shrink-0 text-sm font-medium text-secondary">Fuel In</dt>
         <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
-          {amount(movement.outLitres, 'L')}
+          {movement.receivedLitres === 0 ? (
+            <span className="text-tertiary">No delivery</span>
+          ) : (
+            // Signed, as the depot page's `Tank refills` rows are:
+            // fuel in reads `+12, 670 L` wherever it is listed (2026-10-05).
+            `+${amount(movement.receivedLitres, 'L')}`
+          )}
         </dd>
       </div>
-      {/* ## Where the fuel went, from the depot's side only
-          Indented under `Fuel Out`, since they are where it went: what this
-          yard's pump log says it gave to mobile gensets filled here and to fuel
-          trucks loading here. Whether that fuel then arrived is the receiver's
-          story, not the depot's (Jeff, 2026-10-01): a truck's short load is on
-          the Truck log, under `Missing from trucks`. Whatever the log does not
-          account for is `Unlogged fuel`, the row below — it was a
-          `No fill or load logged` row too, the same figure twice. */}
-      <div
+    )}
+    <div className="flex items-baseline justify-between gap-4 py-1.5">
+      <dt className="shrink-0 text-sm font-medium text-secondary">Fuel Out</dt>
+      <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
+        {amount(movement.outLitres, 'L')}
+      </dd>
+    </div>
+    {/* ## The other end of the pipe (Jeff, 2026-10-05)
+        Indented under `Fuel Out`, since it is where that fuel should be: what
+        the gensets this depot supplied saw arrive in their own tanks. It was
+        `Mobile gensets` and `Fuel trucks` until then, the yard pump log's two
+        shares; the trucks were removed and the depot is now reconciled
+        against its gensets. */}
+    <div className="flex items-baseline justify-between gap-4 border-b border-subtle py-1.5">
+      <dt className="shrink-0 pl-3 text-sm font-medium text-secondary">Reached gensets</dt>
+      <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
+        {amount(movement.arrivedLitres, 'L')}
+      </dd>
+    </div>
+
+    {/* **Fuel that left the tank and never reached a genset** — the case worth
+        chasing (Jeff, 2026-10-05). It never reads below zero: the gensets
+        recording more than the tank fell, a sensor reading short, had its own
+        label (`Over-logged fuel`) and was set aside on 2026-10-01.
+
+        It was `Fuel Out − Fuel Arrived` first, the subtraction as its own
+        working; then `Fuel missing`, then `Missing at depot`, then `Unlogged
+        fuel` (2026-10-01) while the depot was checked against its own pump
+        log. `Missing in transit` since 2026-10-05. */}
+    <div className="flex items-baseline justify-between gap-4 py-1.5">
+      <dt className="text-sm font-medium text-secondary">Missing in transit</dt>
+      <dd
         className={cn(
-          'flex items-baseline justify-between gap-4 py-1.5',
-          TRUCKS.length === 0 && 'border-b border-subtle',
+          'shrink-0 text-right text-sm font-semibold whitespace-nowrap tabular-nums',
+          verdict?.severity === 'CRITICAL' ? 'text-severity-critical' : 'text-primary',
         )}
       >
-        <dt className="shrink-0 pl-3 text-sm font-medium text-secondary">Mobile gensets</dt>
-        <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
-          {amount(movement.outYardLitres, 'L')}
-        </dd>
-      </div>
-      {TRUCKS.length > 0 && (
-        <div className="flex items-baseline justify-between gap-4 border-b border-subtle py-1.5">
-          <dt className="shrink-0 pl-3 text-sm font-medium text-secondary">Fuel trucks</dt>
-          <dd className="text-right text-sm font-semibold whitespace-nowrap text-primary tabular-nums">
-            {trucksHere.length === 0 ? (
-              <span className="text-tertiary">No truck here</span>
-            ) : movement.outTruckLitres === 0 ? (
-              <span className="text-tertiary">No load</span>
-            ) : (
-              amount(movement.outTruckLitres, 'L')
-            )}
-          </dd>
-        </div>
-      )}
-
-      {/* The sign is the story, so it picks the label. **Positive is fuel that
-          left the tank with no fill or load logged** — the case worth chasing,
-          named for what the figure is, fuel the log does not hold (Jeff,
-          2026-10-01). It never reads below zero: the pumps logging more than
-          the tank fell, a sensor reading short, had its own label
-          (`Over-logged fuel`) and was set aside the same day.
-
-          It was `Fuel Out − Fuel Arrived` first, the subtraction as its own
-          working; that said how the figure was made and not what it meant. Then
-          `Fuel missing`, which the Trucks tab also says for fuel lost *after* a
-          truck drives off; then `Missing at depot`, which claimed more than the
-          depot's own records can show. `Unlogged fuel` since 2026-10-01. */}
-      <div className="flex items-baseline justify-between gap-4 py-1.5">
-        <dt className="text-sm font-medium text-secondary">Unlogged fuel</dt>
-        <dd
-          className={cn(
-            'shrink-0 text-right text-sm font-semibold whitespace-nowrap tabular-nums',
-            verdict?.severity === 'CRITICAL'
-              ? 'text-severity-critical'
-              : verdict?.severity === 'WARNING'
-                ? 'text-severity-warning'
-                : 'text-primary',
-          )}
-        >
-          {amount(movement.varianceLitres, 'L')}
-          {movement.variancePercent !== null && (
-            <span className="font-medium text-secondary">{` (${movement.variancePercent.toFixed(1)}%)`}</span>
-          )}
-        </dd>
-      </div>
-    </dl>
-  );
-};
+        {amount(movement.varianceLitres, 'L')}
+        {movement.variancePercent !== null && (
+          <span className="font-medium text-secondary">{` (${movement.variancePercent.toFixed(1)}%)`}</span>
+        )}
+      </dd>
+    </div>
+  </dl>
+);

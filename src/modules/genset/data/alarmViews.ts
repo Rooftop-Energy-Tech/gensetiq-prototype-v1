@@ -12,6 +12,8 @@ import type {AlarmView} from '../types/alarmView.type';
 import {standingAlarms, trackedAlarms, useAlarmHandling} from './alarms';
 import {assertedPlantAlarms, plantAlarmQueue} from './assertedAlarms';
 import {lowFuelAlarms} from './lowFuelAlarm';
+import {serviceAlarms} from './serviceAlarm';
+import {useServiceRecords} from './services';
 
 /**
  * A controller bit as a table row.
@@ -53,6 +55,18 @@ export const controllerAlarms = (
 ): Array<AlarmView> => trackedAlarms(gensetId, handling).map(controllerView);
 
 /**
+ * The rows the app raises on one set itself rather than any device asserting them:
+ * the low tank (`lowFuelAlarm`) and each service item falling due (`serviceAlarm`).
+ *
+ * One call so every queue below — and the site's, and the home strip's — takes both,
+ * and a third kind added here reaches all of them at once.
+ */
+export const appAlarms = (
+  genset: Genset,
+  handling: Record<string, AlarmHandling>,
+): Array<AlarmView> => [...lowFuelAlarms(genset, handling), ...serviceAlarms(genset.id, handling)];
+
+/**
  * Every set's standing count, by severity — one pass over the fleet.
  *
  * `useEstateAlarmCounts`' shape, over machines rather than yards, and for its
@@ -62,7 +76,8 @@ export const controllerAlarms = (
  *
  * **What it counts is what the set's own Alarms tab lists**, which is the whole
  * point of it existing: the controller's own bits *plus* the site monitoring unit's
- * rows filed against this set, *plus* the app's own low-tank row (`lowFuelAlarm`).
+ * rows filed against this set, *plus* the app's own rows (`appAlarms` — the low tank
+ * and the service items falling due).
  * `GensetHome` records what counting one of them
  * alone did — a strip reading `2` beside a tab listing `4` — and a register column
  * is the same promise made thirty times over.
@@ -76,6 +91,8 @@ export const useFleetAlarmCounts = (
 ): Record<string, Record<AlertSeverity, number>> => {
   const handling = useAlarmHandling();
   const roles = useSitePowerRoles();
+  // An input for the service rows: logging a service has to drop its alarm here.
+  const services = useServiceRecords();
 
   return useMemo(
     () =>
@@ -94,18 +111,19 @@ export const useFleetAlarmCounts = (
 
           return [
             genset.id,
-            countBySeverity([...controller, ...plant, ...lowFuelAlarms(genset, handling)]),
+            countBySeverity([...controller, ...plant, ...appAlarms(genset, handling)]),
           ];
         }),
       ),
-    [gensets, handling, roles],
+    // `services` is read through `appAlarms`, not passed in.
+    [gensets, handling, roles, services],
   );
 };
 
 /**
  * Every row one set carries — standing or cleared — from all three sources: its
  * controller's bits, the site monitoring unit's rows filed against it, and the app's
- * own low-tank row.
+ * own rows (the low tank, the service items falling due).
  *
  * **The one definition of a set's queue.** The Alarms tab lists it and the register's
  * preview panel summarises it, and both call this, so the panel cannot name an alarm
@@ -120,7 +138,7 @@ export const gensetAlarmRows = (
 ): Array<AlarmView> => [
   ...controllerAlarms(genset.id, handling),
   ...assertedPlantAlarms(genset.siteId ?? '', role, 'GENSET', handling),
-  ...lowFuelAlarms(genset, handling),
+  ...appAlarms(genset, handling),
 ];
 
 /** What is standing on one set, in the tab's own order: unclaimed first, then worst. */
@@ -135,9 +153,11 @@ export const standingGensetAlarms = (rows: Array<AlarmView>): Array<AlarmView> =
 export const useGensetStandingAlarms = (genset: Genset | undefined): Array<AlarmView> => {
   const handling = useAlarmHandling();
   const role = useSitePowerRole(genset?.siteId ?? '');
+  const services = useServiceRecords();
 
   return useMemo(
     () => (genset === undefined ? [] : standingGensetAlarms(gensetAlarmRows(genset, role, handling))),
-    [genset, role, handling],
+    // `services` for the service rows — see `useFleetAlarmCounts`.
+    [genset, role, handling, services],
   );
 };

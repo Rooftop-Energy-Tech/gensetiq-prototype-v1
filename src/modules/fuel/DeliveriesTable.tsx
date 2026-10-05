@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {ArrowUpRightIcon, DropletIcon} from 'lucide-react';
+import {ArrowUpRightIcon} from 'lucide-react';
 import {useRef, useState} from 'react';
 
 import {FilterSelect} from '@/components/global/FilterSelect';
@@ -26,10 +26,13 @@ import {allFills} from './data/fills';
 import {amount, figure} from './format';
 
 /**
- * The Genset fills tab (`Deliveries` until 2026-10-05; the URL keeps
- * `?view=deliveries`), with the controls the Gensets and Deployments registers have
- * (Jeff, 2026-09-29), built from the same pieces as the truck log — see
- * `RegisterTable` — so the two tables behave alike.
+ * The History tab (`?view=history`; `Deliveries`, then `Genset fills`, until
+ * 2026-10-05), with the controls the Gensets and Deployments registers have
+ * (Jeff, 2026-09-29), built from the shared pieces in `RegisterTable`.
+ *
+ * Every fill is listed, with the depot it was charged to — the nearest to where the
+ * genset stood (`data/fills.ts`). Until the trucks were removed (Jeff, 2026-10-05)
+ * it listed yard fills only, and a truck's fills were the Truck log's.
  *
  * ## An overview row, as every Fuel tab now opens on
  *
@@ -44,13 +47,12 @@ export type DeliveryRow = {
   at: number;
   litres: number;
   /**
-   * The yard this machine drew from, by id, and its name for the row. Carried on
-   * the row because it is what the list is filtered and sorted by.
+   * The depot this fill was charged to, by id, and its name for the row — `Klang
+   * depot`. Carried on the row because it is what the list is filtered and sorted
+   * by.
    */
   depotId: string;
   depotName: string;
-  /** `Klang depot, Selangor` — where the fill happened, since a yard fill is at the depot. */
-  depotLocation: string;
 };
 
 type Sort = 'name' | 'depot' | 'at' | 'litres';
@@ -70,7 +72,7 @@ const PAGE_SIZE = 20;
 
 const COLUMNS: ReadonlyArray<Column<Sort>> = [
   {label: 'Number plate', sort: 'name'},
-  {label: 'Depot', sort: 'depot', hide: 'hidden sm:table-cell'},
+  {label: 'Supplying depot', sort: 'depot', hide: 'hidden sm:table-cell'},
   {label: 'When', sort: 'at'},
   {label: 'Litres', sort: 'litres'},
 ];
@@ -79,11 +81,23 @@ const COLUMNS: ReadonlyArray<Column<Sort>> = [
  * `rows` is every delivery the record holds; the table cuts it to the page's period,
  * or its own — see `useTablePeriod`.
  */
-export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<DeliveryRow>; page: PageWindow}) => {
+export const DeliveriesTable = ({
+  rows,
+  page: pageWindow,
+  depotId,
+  onDepotChange: setDepotId,
+}: {
+  rows: ReadonlyArray<DeliveryRow>;
+  page: PageWindow;
+  /**
+   * `undefined` is every yard. A filter that defaults to one depot would hide most
+   * of the estate behind a control a reader has not touched yet. In the URL
+   * (`?depot=`, Jeff, 2026-10-05) so a depot page can open the tab filtered to it.
+   */
+  depotId: string | undefined;
+  onDepotChange: (next: string | undefined) => void;
+}) => {
   const [query, setQuery] = useState('');
-  // `undefined` is every yard. A filter that defaults to one depot would hide most
-  // of the estate behind a control a reader has not touched yet.
-  const [depotId, setDepotId] = useState<string | undefined>(undefined);
   const {sort, direction, change, order} = useSort<Sort>(NATURAL, 'at');
   // Local, as the filters are, not in the URL. Any filter or sort change goes back to page 1, since the old page number means
   // nothing in the new list.
@@ -114,7 +128,7 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
   // period" first, which over a month never fired: every low machine had had some
   // fill in it, just not enough. So the count is every low tank, as the Gensets
   // page's `Low fuel` filter counts, and the detail is how long the longest of
-  // them has gone since any fill, by yard or by truck.
+  // them has gone since any fill.
   const waiting = fleet().filter((genset) => fuelLevelKind(genset.fuelLitres, genset.fuelCapacityLitres) !== undefined);
   const lastFill = new Map<string, number>();
   for (const fill of allFills()) lastFill.set(fill.gensetId, Math.max(lastFill.get(fill.gensetId) ?? 0, fill.at));
@@ -175,12 +189,12 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
         </Link>
       </SummaryCardRow>
 
-      <h2 className="mt-2 text-base font-medium text-primary">Genset fills</h2>
+      <h2 className="mt-2 text-base font-medium text-primary">History</h2>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <SearchBox value={query} onChange={refilter(setQuery)} placeholder="Number plate" label="Search genset fills" />
-        {/* Each option counts the deliveries the search leaves, so with a plate
-            typed the dropdown says which depot filled it. */}
+        {/* Each option counts the fills the search leaves, so with a plate
+            typed the dropdown says which depot supplied it. */}
         <FilterSelect
           label="Depot"
           allLabel="All depots"
@@ -206,11 +220,11 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
         </EmptyTable>
       ) : (
         // No overflow on this wrapper: the page scrolls, not the table — the
-        // reason is in `FuelPage`. `Depot` drops below `sm` instead.
+        // reason is in `FuelPage`. `Supplying depot` drops below `sm` instead.
         <div className="rounded-md border border-subtle">
           <table className="w-full border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
-              Gensets filled at a depot, by number plate, with the depot, when and litres
+              Genset fills, by number plate, with the supplying depot, when and litres
             </caption>
             <SortHeader columns={COLUMNS} sort={sort} direction={direction} onSort={refilter(change)} />
             <tbody>
@@ -226,16 +240,12 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
                     </Link>
                   </td>
                   <Gap hide="hidden sm:table-cell" />
-                  <td className={cn(TD, 'hidden text-secondary sm:table-cell')}>{row.depotLocation}</td>
+                  <td className={cn(TD, 'hidden text-secondary sm:table-cell')}>{row.depotName}</td>
                   <Gap />
                   <td className={cn(TD, 'text-primary')}>{stampAt(new Date(row.at).toISOString())}</td>
                   <Gap />
-                  <td className={cn(TD, 'text-primary tabular-nums')}>
-                    <span className="inline-flex items-center gap-1.5">
-                      <DropletIcon className="size-3.5 text-fuel" aria-hidden="true" />
-                      {`${figure(row.litres)} L`}
-                    </span>
-                  </td>
+                  {/* Figures only: the droplet before each came off (Jeff, 2026-10-05). */}
+                  <td className={cn(TD, 'text-primary tabular-nums')}>{`${figure(row.litres)} L`}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,7 +1,13 @@
 import {useSyncExternalStore} from 'react';
 
-import {scheduleFor, serviceStatus} from '../types/service.type';
-import type {ServiceRecord, ServiceSchedule, ServiceStatus} from '../types/service.type';
+import {scheduleFor, serviceNotices, serviceStatus} from '../types/service.type';
+import type {
+  ServiceItem,
+  ServiceNotice,
+  ServiceRecord,
+  ServiceSchedule,
+  ServiceStatus,
+} from '../types/service.type';
 import {seededDeployments, seededMemberships} from '@/modules/deployment/data/seed';
 import {siteLabel} from '@/modules/site/data/siteSeed';
 import {GENSETS} from './fleet';
@@ -43,8 +49,13 @@ import {serviceProfile} from './serviceSeed';
 
 const STORAGE_KEY = 'gensetiq.services';
 
-/** Per-genset interval overrides, keyed by genset id. */
-const SCHEDULE_KEY = 'gensetiq.serviceSchedules';
+/**
+ * Per-genset schedules, keyed by genset id. A new key since the schedule became a
+ * list of items (2026-10-05): the old `gensetiq.serviceSchedules` held one pair of
+ * intervals, and is left unread rather than guessed into an item. `.v2` since the
+ * testing edits were set back to the defaults (Jeff, 2026-10-05).
+ */
+const SCHEDULE_KEY = 'gensetiq.serviceItems.v2';
 
 /**
  * One clock reading for the whole service layer, taken at module load.
@@ -168,7 +179,7 @@ const compose = (stored: Array<StoredRecord>): Array<ServiceRecord> =>
   );
 
 /**
- * The intervals, where a genset has been given its own.
+ * The schedule's items, where a genset has been given its own.
  *
  * Overrides only — a unit absent from this map uses `scheduleFor(model)`, which
  * is the same arrangement `deployment.ts` uses for placements and for the same
@@ -177,8 +188,8 @@ const compose = (stored: Array<StoredRecord>): Array<ServiceRecord> =>
  * whatever the last person typed.
  *
  * It matters more here than there, because the shipped defaults are a
- * placeholder. `250 h / 6 months` is standing in for an answer the operations
- * team has not given yet, so the fleet-wide value has to stay changeable in one
+ * placeholder. The six items in `DEFAULT_SCHEDULE` stand in for an answer the
+ * operations team has not given yet, so the fleet-wide list has to stay changeable in one
  * place while individual sets can already be corrected in the UI.
  */
 type ScheduleOverrides = Record<string, ServiceSchedule>;
@@ -252,11 +263,11 @@ export const useServiceStatus = (gensetId: string, now: number = NOW): ServiceSt
   const records = useServiceRecords();
   const history = records.filter((record) => record.gensetId === gensetId);
 
-  return serviceStatus(history[0], scheduleOf(gensetId), engineHoursOf(gensetId), now);
+  return serviceStatus(history, scheduleOf(gensetId), engineHoursOf(gensetId), now);
 };
 
 /**
- * This genset's intervals — its own if it has been given any, the model's
+ * This genset's items — its own if it has been given any, the model's
  * default otherwise.
  */
 export const scheduleOf = (gensetId: string): ServiceSchedule => {
@@ -267,22 +278,30 @@ export const scheduleOf = (gensetId: string): ServiceSchedule => {
   return scheduleFor(genset?.model ?? '');
 };
 
+/** An interval as stored: whole, at least 1, or absent. */
+const interval = (value: number | undefined): number | undefined =>
+  value === undefined || Number.isNaN(value) ? undefined : Math.max(1, Math.round(value));
+
 /**
- * Set this genset's intervals.
+ * Set this genset's items.
  *
- * Both are floored at 1. A zero interval means "due the instant it is serviced",
- * which is not a schedule anybody wants and which `severityOf` would have to
- * special-case anyway; refusing to store it is cheaper than teaching every
- * reader to expect it.
+ * Intervals are floored at 1. A zero interval means "due the instant it is
+ * serviced", which is not a schedule anybody wants and which `severityOf` would
+ * have to special-case anyway; refusing to store it is cheaper than teaching every
+ * reader to expect it. An item left with neither interval, or with no name, is
+ * dropped: it could never fall due.
  */
 export const setSchedule = (gensetId: string, schedule: ServiceSchedule) => {
-  const next: ScheduleOverrides = {
-    ...schedules,
-    [gensetId]: {
-      intervalHours: Math.max(1, Math.round(schedule.intervalHours)),
-      intervalMonths: Math.max(1, Math.round(schedule.intervalMonths)),
-    },
-  };
+  const items: Array<ServiceItem> = schedule.items
+    .map((item) => ({
+      id: item.id,
+      name: item.name.trim(),
+      intervalHours: interval(item.intervalHours),
+      intervalMonths: interval(item.intervalMonths),
+      remarks: item.remarks === undefined || item.remarks.trim() === '' ? undefined : item.remarks.trim(),
+    }))
+    .filter((item) => item.name !== '' && (item.intervalHours !== undefined || item.intervalMonths !== undefined));
+  const next: ScheduleOverrides = {...schedules, [gensetId]: {items}};
 
   try {
     localStorage.setItem(SCHEDULE_KEY, JSON.stringify(next));
@@ -302,6 +321,8 @@ export type ServiceInput = {
   /** The attached PDF, or `null` if the operator did not attach one. */
   file: File | null;
   notes?: string;
+  /** The schedule items done, by id. Always stated, so an item added later is not counted as done. */
+  itemIds: Array<string>;
 };
 
 /**
@@ -325,6 +346,7 @@ export const logService = (input: ServiceInput): ServiceRecord => {
     engineHoursAtService: input.engineHoursAtService,
     documentFileName: input.file?.name ?? 'No report attached',
     notes: input.notes === undefined || input.notes.trim() === '' ? undefined : input.notes.trim(),
+    itemIds: input.itemIds,
   };
 
   if (input.file !== null) attachments.set(id, URL.createObjectURL(input.file));
@@ -355,12 +377,21 @@ export const logService = (input: ServiceInput): ServiceRecord => {
  * gap in the record, and it belongs in whatever screen ends up owning that.
  */
 export const isDueForService = (gensetId: string, now: number = NOW): boolean => {
-  const status = serviceStatus(
-    gensetServices(gensetId)[0],
-    scheduleOf(gensetId),
-    engineHoursOf(gensetId),
-    now,
-  );
-
+  const status = serviceStatusOf(gensetId, now);
   return status.kind === 'tracked' && status.severity !== 'OK';
 };
+
+/** This genset's verdict as the store stands — `useServiceStatus` without the subscription. */
+export const serviceStatusOf = (gensetId: string, now: number = NOW): ServiceStatus =>
+  serviceStatus(gensetServices(gensetId), scheduleOf(gensetId), engineHoursOf(gensetId), now);
+
+/**
+ * This genset's service alarms, one per item overdue or due soon — see
+ * `ServiceNotice`.
+ *
+ * Reads the store, does not watch it, like `isDueForService`. A hook that caches
+ * alarm rows has to list `useServiceRecords()` among its inputs, or logging a
+ * service leaves the row standing until something else redraws the page.
+ */
+export const serviceNoticesOf = (gensetId: string, now: number = NOW): Array<ServiceNotice> =>
+  serviceNotices(gensetId, serviceStatusOf(gensetId, now), now);

@@ -11,7 +11,8 @@ import {ServiceScheduleCard} from './ServiceScheduleCard';
  * Three bands, in the order the questions get asked:
  *
  *  1. **Is it due, and on which counter.** Both counters, at the same size.
- *  2. **What is it measured against.** The two intervals, editable.
+ *  2. **What is it measured against.** The schedule's items and their intervals,
+ *     editable, each with when it is next due.
  *  3. **What has actually been done.** The log, and the documents behind it.
  *
  * Band 2 is a setting and nothing else. It briefly also carried the arithmetic
@@ -36,9 +37,14 @@ export const GensetService = ({genset}: {genset: Genset}) => {
 
       <ServiceDueHero status={status} />
 
-      <ServiceScheduleCard gensetId={genset.id} schedule={status.schedule} />
+      <ServiceScheduleCard
+        genset={genset}
+        currentEngineHours={engineHours}
+        schedule={status.schedule}
+        items={status.items}
+      />
 
-      <ServiceHistoryTable genset={genset} records={records} />
+      <ServiceHistoryTable genset={genset} records={records} schedule={status.schedule} />
     </div>
   );
 };

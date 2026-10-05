@@ -101,6 +101,7 @@ export const lowFuelAlarm = (
     // Acknowledgement carries; a clear does not — see the note at the top.
     handling: {...held, clearedAt: null, clearedBy: null},
     clearable: false,
+    endsWhen: 'Clears when refuelled',
   };
 };
 

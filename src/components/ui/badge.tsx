@@ -30,7 +30,7 @@ const badgeVariants = cva(
         /**
          * The verdict chips: a tint of the severity, its edge a little stronger, and
          * the words in the severity's own colour (2026-10-05) — the Fuel depot
-         * tile's `252 L unlogged` chip, made the one way a verdict is drawn. Pick by
+         * tile's `252 L missing in transit` chip, made the one way a verdict is drawn. Pick by
          * severity with `verdictVariant`. `neutral` is the achromatic version, as
          * `SEVERITY_META` draws a neutral alert: no hue, because a note is not a
          * problem.
