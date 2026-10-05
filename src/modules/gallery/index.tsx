@@ -34,7 +34,7 @@ import {TokensSection} from '@/modules/gallery/tokens';
  * It also does two things Storybook would need extra wiring for, because both are
  * build-level concerns here rather than component ones:
  *
- * - **The brand switcher.** Five brands recolour the whole app through the token
+ * - **The brand switcher.** The brands (two today) recolour the whole app through the token
  *   layer. On this page you can watch every component change at once, which is the
  *   fastest way to catch a hardcoded colour.
  * - **The token table.** `styles/colors.ts` is the real design system and had no
@@ -44,7 +44,7 @@ import {TokensSection} from '@/modules/gallery/tokens';
  * ## Dev only
  *
  * The route throws `notFound()` outside `vite dev` — see `routes/gallery.tsx`. The
- * four `dist-*` builds go in front of customers, and an internal bench reachable
+ * builds (`dist`, `dist-unbranded`) go in front of customers, and an internal bench reachable
  * at a guessable URL in one of those is a liability, not a feature.
  *
  * ## The dark switch

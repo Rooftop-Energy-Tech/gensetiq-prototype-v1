@@ -2,8 +2,9 @@ import {useMemo, useState} from 'react';
 import {DownloadIcon} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
+import {DateInput} from '@/components/ui/date-input';
 import {downloadText} from '@/lib/download';
-import {numericDate} from '@/lib/format';
+import {figure, numericDate} from '@/lib/format';
 import {seededGenset} from '@/modules/genset/data/fleet';
 import {historyStart} from '@/modules/genset/data/history';
 import {REAL_GENSET_ID} from '@/modules/deployment/data/realJobs';
@@ -53,8 +54,11 @@ export const ReportingPage = () => {
   // Half-open: the range runs to midnight the morning *after* the day picked, so a
   // range drawn to the 16th includes everything that happened on the 16th. The same
   // convention `runsCsv` holds, and the reason it prints the last instant rather
-  // than the boundary.
-  const range: ExportRange = {from: dayStart(from), to: dayStart(to) + DAY};
+  // than the boundary. Never past now, though (2026-10-05): a range drawn to today
+  // ran to tomorrow's midnight, and a set running now was billed for hours it has
+  // not run yet — hours the postings file and the Runs tab, which stop at now, did
+  // not have.
+  const range: ExportRange = {from: dayStart(from), to: Math.min(dayStart(to) + DAY, now)};
   const valid = range.to > range.from;
 
   const counts = useMemo(
@@ -81,25 +85,24 @@ export const ReportingPage = () => {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs text-secondary">
             From
-            <input
-              type="date"
+            {/* A cleared field keeps the last day: the range always has two ends. */}
+            <DateInput
               value={from}
               min={inputDay(historyStart())}
               max={to}
-              onChange={(event) => setFrom(event.target.value)}
-              className="rounded border border-subtle bg-canvas px-2 py-1.5 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-outline"
+              onChange={(value) => value !== '' && setFrom(value)}
+              className="w-40"
             />
           </label>
 
           <label className="flex flex-col gap-1 text-xs text-secondary">
             To
-            <input
-              type="date"
+            <DateInput
               value={to}
               min={from}
               max={inputDay(now)}
-              onChange={(event) => setTo(event.target.value)}
-              className="rounded border border-subtle bg-canvas px-2 py-1.5 text-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-outline"
+              onChange={(value) => value !== '' && setTo(value)}
+              className="w-40"
             />
           </label>
         </div>
@@ -133,7 +136,7 @@ export const ReportingPage = () => {
                       come back empty is worth knowing about before the file is
                       open in Excel. */}
                   <span className="text-xs text-tertiary tabular-nums">
-                    {rows.toLocaleString('en-MY')} {rows === 1 ? 'row' : 'rows'}
+                    {figure(rows)} {rows === 1 ? 'row' : 'rows'}
                   </span>
                   <Button
                     variant="secondary"

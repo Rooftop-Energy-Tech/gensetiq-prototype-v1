@@ -1,3 +1,5 @@
+import {figure} from '@/lib/format';
+
 /**
  * Servicing, and how a genset falls due for it.
  *
@@ -282,7 +284,7 @@ export type ServiceNotice = {
   severity: ServiceSeverity;
   /** Which counter is overdue — what the card names as the reason. */
   binding: ServiceCounterKind;
-  /** e.g. `Service overdue by 41 run hours`. */
+  /** e.g. `Service overdue by 41 h`. */
   message: string;
   /** Always the app. Printed where an alarm card prints its register and bit. */
   source: 'Service schedule';
@@ -317,14 +319,14 @@ export const serviceNotice = (
     binding: status.binding,
     message:
       status.binding === 'hours'
-        ? `Service overdue by ${Math.round(overshoot).toLocaleString('en-MY')} run hours`
+        ? `Service overdue by ${figure(Math.round(overshoot))} h`
         : `Service overdue by ${overshoot.toFixed(1)} months`,
     source: 'Service schedule',
   };
 };
 
 /**
- * "Due in 63 hrs", "Overdue by 41 hrs", "Not recorded" — service, in a strip tile.
+ * "Due in 63 h", "Overdue by 41 h", "Not recorded" — service, in a strip tile.
  *
  * The strip carries one figure per column and service has two counters, so this
  * reports the **binding** one: the counter that set the severity is the counter
@@ -343,8 +345,8 @@ export const serviceHeadline = (status: ServiceStatus): string => {
   const remaining = -overshoot;
 
   if (status.binding === 'hours') {
-    const hours = Math.round(Math.abs(overshoot)).toLocaleString('en-MY');
-    return overshoot >= 0 ? `Overdue by ${hours} hrs` : `Due in ${hours} hrs`;
+    const hours = figure(Math.round(Math.abs(overshoot)));
+    return overshoot >= 0 ? `Overdue by ${hours} h` : `Due in ${hours} h`;
   }
 
   return overshoot >= 0

@@ -60,7 +60,7 @@ export type Genset = {
    * is, and the model column is not always beside it.
    */
   tag: string;
-  /** e.g. `Cummins 1000 kVa`. */
+  /** e.g. `Cummins 1000 kVA`. */
   model: string;
   runState: RunState;
   /**
@@ -128,20 +128,11 @@ export type Genset = {
 };
 
 /**
- * `Genset | WPKL-0207` — the asset, then the site it stands at.
+ * `Genset | WVA 5385` — the number plate, else the tag (`gensetLabel`).
  *
- * It read `Genset | BRF9540` until 2026-09-14, naming the machine by its own tag.
- * The tag is a placeholder: this estate has no genset names recorded yet, and a
- * fixture tag is not one — so the name falls back to the fact the prototype can
- * actually answer for, which is where the set is. The bank, the array and the
- * cabinet already name their site, so this is the shape the other three use.
- *
- * ⚠️ **Five sites on this estate hold two sets, so five pairs of rows now carry the
- * same name.** That is the cost of the fallback and it is not a rendering fault:
- * the register still keys, selects and links by `genset.id`, so the rows are
- * distinct objects that happen to read alike. The tag has not gone anywhere — it is
- * still on the `Genset` record and still what the search box matches — so restoring
- * it, or appending it where a site holds a pair, is a change to this one line.
+ * It read `Genset | BRF9540` until 2026-09-14, then named the site the set stood at
+ * (`Genset | WPKL-0207`) — which gave two sets at one yard the same name. A mobile
+ * set's plate is what identifies it, so it reads the plate now; see `gensetLabel`.
  *
  * The model this used to carry is in the rail's info glyph, one row under the
  * serial. It is not what identifies a set, and the name's job here is to say *what
@@ -196,11 +187,11 @@ export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(ge
 export const gensetLabel = (genset: Genset): string => genset.plateNumber ?? genset.tag;
 
 /**
- * A model's rated capacity in kVA, read off its name (`Cummins 1000 kVa` → 1000) —
+ * A model's rated capacity in kVA, read off its name (`Cummins 1000 kVA` → 1000) —
  * the Capacity filter and column, and the rating the detail model derives kW from.
  * 500 where a name carries none, the fleet's middle size.
  */
-export const modelKva = (model: string): number => Number(model.match(/(\d+)\s*kVa/i)?.[1] ?? 500);
+export const modelKva = (model: string): number => Number(model.match(/(\d+)\s*kVA/i)?.[1] ?? 500);
 
 /** A set's rated capacity in kVA. See `modelKva`. */
 export const gensetKva = (genset: Genset): number => modelKva(genset.model);

@@ -10,7 +10,9 @@ import type {GensetCondition} from '../types/alert.type';
 import {SEVERITY_OF_FUEL_LEVEL, fuelLevelKind} from '../types/fuelLevel.type';
 import {seededGenset} from './fleet';
 import {gensetDetail} from './detail';
-import {standingAlarms} from './alarms';
+import {sitePowerRole} from '@/modules/site/data/siteConfig';
+import {alarmHandlingNow, standingAlarms} from './alarms';
+import {plantAlarmQueue} from './assertedAlarms';
 import {
   flowMeterAgeMinutes,
   flowMeterSilent,
@@ -60,9 +62,10 @@ const NOW = Date.now();
  * on that tank is doing.
  *
  * **`OFFLINE` is the test, not a staleness limit in minutes.** An earlier version
- * used a fifteen-minute cutoff and marked most of the fleet silent — `BRF9540`'s
+ * used a fifteen-minute cutoff and marked most of the fleet silent — `CUM-739893`'s
  * telemetry is fifty-seven minutes old in the seed and the design draws it as a
- * live, running machine. This app already has one concept for "the panel has
+ * live, running machine. Since 2026-10-05 the run state itself turns `OFFLINE` after
+ * an hour without a report (`fleet.ts`), so this test and that limit agree. This app already has one concept for "the panel has
  * stopped reporting" and `docs/how-it-works.md` is emphatic that it is the run
  * state; inventing a second, tighter one here would have produced two screens
  * disagreeing about whether the same genset was talking.
@@ -209,8 +212,8 @@ export const useFuelIntegrity = (gensetId: string, now: number = NOW): FuelInteg
  *
  * Split out from `gensetCondition` when the tank level became an alarm of its own.
  * One caller wants this narrower reading and only one: `fleetStatus.gensetStatus`,
- * whose four buckets already say the tank's story in two of them, and which would
- * drain both into `ALARM` if it asked the wide question. The note there is the full
+ * whose three buckets already say the tank's story in one of them, and which would
+ * drain it into `ALARM` if it asked the wide question. The note there is the full
  * argument.
  *
  * A leak counts here and a low tank does not, which looks arbitrary until you ask
@@ -237,7 +240,16 @@ export const machineCondition = (gensetId: string, now: number = NOW): GensetCon
    * reading at module load, which is what the analysis chart's threshold lines are
    * drawn from.
    */
-  const registers = conditionOf(standingAlarms(gensetId));
+  //
+  // With the site monitoring unit's rows filed against the set beside them, as its
+  // alarm count has them (`useFleetAlarmCounts`). Without them, three carrier sets
+  // carrying a standing `CRITICAL` site row read `All OK` under a red badge
+  // (2026-10-05).
+  const siteId = seededGenset(gensetId)?.siteId;
+  const plant = siteId
+    ? plantAlarmQueue(siteId, sitePowerRole(siteId), 'GENSET', alarmHandlingNow()).standing
+    : [];
+  const registers = conditionOf([...standingAlarms(gensetId), ...plant]);
 
   const state = fuelIntegrityOf(gensetId, now);
   if (state.kind === 'critical') return 'CRITICAL';
@@ -269,7 +281,7 @@ export const machineCondition = (gensetId: string, now: number = NOW): GensetCon
  * where the verdict picks it up.
  *
  * Worst wins across all three, which is what `CONDITION_ORDER` is for: a set with a
- * dry tank and a clean register map is `CRITICAL`, and one with a coolant warning
+ * dry tank and a clean register map is `ATTENTION` (a low tank is a warning), and one with a coolant warning
  * and a full tank still is `ATTENTION`.
  */
 export const gensetCondition = (gensetId: string, now: number = NOW): GensetCondition => {
@@ -295,8 +307,8 @@ export const gensetCondition = (gensetId: string, now: number = NOW): GensetCond
  * `sfcLitresPerKwh`); a tank giving up meaningfully more per kWh than the
  * model says that loading costs is fuel leaving without reaching the engine.
  *
- * `undefined` below the threshold, so a table can render the flag with one
- * truthiness check and a clean fleet shows nothing.
+ * `runTankSfc` returns these for every level-fitted run; the threshold that decides
+ * whether a run is flagged is applied by the table (`RunsPanel`).
  */
 export type RunSfcFigures = {
   /** kWh per litre the tank's own draw works out to. */

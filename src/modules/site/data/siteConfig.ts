@@ -87,7 +87,7 @@ export const useSitePowerRole = (siteId: string): SitePowerRole =>
  * Every site's effective role, live — what the summary cards count by.
  *
  * A whole map rather than `useSitePowerRole` in a loop, because the callers are
- * counting the *estate*: they need all twenty-five answers from one moment, and a
+ * counting the *estate*: they need every site's answer from one moment, and a
  * hook cannot be called per row anyway.
  *
  * Memoised against the override snapshot's identity so the object is stable between

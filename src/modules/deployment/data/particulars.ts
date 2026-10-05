@@ -95,7 +95,7 @@ const NOTE_BODIES = [
   'Fuel top-up scheduled every Tuesday and Friday.',
   'Access road is soft after rain. Use the north entrance.',
   'Site supervisor confirmed load of about 60% during the day shift.',
-  'Customer requested a noise barrier around the set. Arranged with the depot.',
+  'Customer requested a noise barrier around the genset. Arranged with the depot.',
   'Earth cable replaced on arrival; the old one was damaged in transit.',
   'Extension of two weeks under discussion with the customer.',
 ];
@@ -131,10 +131,6 @@ const notes = (deployment: DeploymentBooking): Array<DeploymentNote> => {
   });
 };
 
-/**
- * A job type and a full crew, one name per role, on an estate that has them. The
- * seeded references stay `DEP-…`: they predate the request numbers.
- */
 /**
  * How many seeded jobs may be standby (2026-10-01): standby cover is the exception at
  * Express Mission, and a third of the register on it read wrong.

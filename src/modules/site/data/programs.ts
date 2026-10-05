@@ -2,6 +2,8 @@ import {DATASET} from '@/brands';
 import type {BrandProgram, ProgramId} from '@/brands';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * The rollout programmes sites can be filed under — the active dataset's own.
  *
  * A twin of `customers.ts` in shape and a different thing entirely in meaning, and

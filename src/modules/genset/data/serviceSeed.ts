@@ -4,10 +4,9 @@ import {spread, spreadBetween} from './spread';
  * How long it has been since each unit was last serviced — as **elapsed
  * amounts**, not as dates and meter readings.
  *
- * ## Why this file has no imports
+ * ## Why this file imports almost nothing
  *
- * Same reason `site/data/siteSeed.ts` has none: it sits at the bottom of the
- * graph so two files above it can both read it without closing a loop.
+ * Only `./spread`, a leaf. It sits at the bottom of the graph so two files above it can both read it without closing a loop.
  * `detail.ts` needs the elapsed hours (it publishes the `hours-since-service`
  * reading) and `services.ts` needs them too (it builds the actual records, and
  * needs `detail.ts` for the hour meter). If the profiles lived in either one,
@@ -29,11 +28,15 @@ import {spread, spreadBetween} from './spread';
  * somewhere in the prototype — including the two that are the whole point of
  * having two counters:
  *
- *  - `kln3355` is **overdue on hours with its calendar clock barely started** —
- *    a set worked hard since a recent service.
- *  - `kjg9048` is **overdue on calendar having hardly turned** — a standby set
- *    that has sat for seven months. A single hours-based rule would call it
- *    fine, which is exactly the failure the calendar interval exists to catch.
+ *  - **overdue on hours with its calendar clock barely started** — a set worked
+ *    hard since a recent service;
+ *  - **overdue on calendar having hardly turned** — a standby set that has sat for
+ *    seven months. A single hours-based rule would call it fine, which is exactly
+ *    the failure the calendar interval exists to catch.
+ *
+ * ⚠️ The pins for those two (`kln3355`, `kjg9048`) and a few others name units from
+ * an earlier fleet that neither estate carries, so they match nothing today; see
+ * `cum-303952` below, the one pin that does.
  *
  * Everything else is spread off its id, so a reload redraws the same fleet.
  */

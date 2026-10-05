@@ -43,11 +43,10 @@ import {fuelAt, historyStart} from './history';
  * tanker is booked"), so its handling is read from the same store as every other
  * row, with any `cleared` stamp ignored.
  *
- * **It does not move the fleet buckets.** A set here still counts under `Low fuel`
- * in the strip above the register, not under `Alarms raised` — the same tank-blind
- * rule `gensetStatus` already keeps, for the reason it gives: otherwise every
- * `REFUEL` set would also be an `ALARM` set and the fuel tile would empty itself
- * into the red one.
+ * **It does not move the status buckets.** `gensetStatus` stays tank-blind on its
+ * alarm side, for the reason it gives, so a set here is `Low fuel`, not `Alarm`.
+ * It *does* count in the Gensets strip's `Alarm` card (`useFleetAlarmCounts`
+ * includes it), as a `Warning`.
  */
 
 /** The handling store's key: one machine's tank. */

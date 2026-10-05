@@ -31,6 +31,7 @@
   --color-brand-text: var(--brand-text);
   --color-teal: var(--teal);
   --color-indent: var(--indent);
+  --color-scrim: var(--scrim);
   --color-primary-button: var(--primary-button);
   --color-primary-button-text: var(--primary-button-text);
   --color-button-hover: var(--button-hover);
@@ -72,6 +73,7 @@
   --color-severity-critical: var(--severity-critical);
   --color-severity-warning: var(--severity-warning);
   --color-severity-ok: var(--severity-ok);
+  --color-severity-ok-tint: var(--severity-ok-tint);
 
   /* Misc */
   --color-scroll-bar: var(--scroll-bar);

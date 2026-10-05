@@ -18,6 +18,8 @@ import type {SiteSeed} from './siteSeed';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * Everything the site pages report, derived from the fleet standing on each site.
  *
  * Same rule as `genset/data/detail.ts`: **nothing is stated twice.** A site's own

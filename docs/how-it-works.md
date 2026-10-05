@@ -1,4 +1,4 @@
-# How telcoiq works
+# How gensetIQ works
 
 What the product is for, the concepts it is built on, and how the screens fit
 together. Read this before changing behaviour — most questions about "should it do
@@ -7,29 +7,31 @@ X" are answered by one of the rules below rather than by taste.
 For what is *implemented* versus mocked, and for how the brands and the build are
 wired, see the [README](../README.md).
 
+> **This file grew out of telcoIQ's.** Until 2026-09-22 the product also had site,
+> solar and battery screens, a hybrid energy model and a cabinet. They are gone; the
+> sections describing them were removed on 2026-10-05. Where a remaining paragraph
+> mentions a site page, it is history.
+
 ---
 
 ## The job
 
-A **site** is a piece of network infrastructure that has to stay up: a tower, a
-switching centre, a substation. It has a load, and something has to feed it. On
-this estate four things do, in combination — the grid, a diesel genset, a solar
-array, a battery bank — and which of them a site has is the single fact the whole
-app organises itself around.
+A **genset** is a diesel generator on a lorry. On Express Mission's estate it is
+**trucked to a yard for a job** — usually a substation (a *pencawang elektrik*) whose
+supply is being worked on — runs there for days or weeks, and is brought back. The
+job is a **deployment**.
 
-Someone has to know, across a few dozen of them:
+Someone has to know, across a few dozen machines:
 
-- which sites are **at risk** right now, and which of them needs a person sent;
-- what **carried the load** — grid, sun, storage or diesel — and what that cost;
-- how much diesel is left, and when a tanker has to be booked;
-- what each machine has been doing, and what is about to break.
+- what is **out**, where, and since when — and what each job cost in hours, energy
+  and litres;
+- which machines are **at risk** right now, and which need a person sent;
+- how much diesel is left, where it came from, and whether any went missing between
+  the depot, the fuel truck and the genset;
+- what each machine has been doing, and when it is next due for service.
 
-telcoiq answers those four questions. Everything in the app is one of them.
-
-The first two are the pair that separates this product from a genset monitor. A
-controller reports its own output and knows nothing about the array on the roof
-beside it, so "what carried the load" is a **site** question that no machine on the
-site can answer. That is why the site, not the genset, is the top of the model.
+gensetIQ answers those questions. The pages are Gensets, Deployments, Fuel, Service
+and Reporting.
 
 ---
 
@@ -38,27 +40,17 @@ site can answer. That is why the site, not the genset, is the top of the model.
 The product is one build, and the customer is **configuration**. `VITE_BRAND` picks
 it; `src/brands/` holds everything a brand may change.
 
-A brand owns *whose app this is* — the name on the door, the mark on the rail, four
+A brand owns *whose app this is* — the name on the door, the mark on the rail, three
 colours, and which estate the demo walks through. It does **not** own the product
-model. That line matters because it has already been crossed once: an earlier fork
-shipped a two-role power vocabulary (`STANDBY` / `PRIME`) and the estate that needed
-hybrid plant replaced it with four. Reviving the two-role version as "the utility
-way" would fork the model in config instead of in git, and every hybrid feature
-would be dark on that brand. So the utility dataset is **re-expressed in today's
-model** rather than restored. The vocabulary is the product's; which sites use which
-entry is the dataset's.
+model: the vocabulary is the product's; which sites use which entry is the dataset's.
 
 **Identity and dataset are separate axes.** A brand *names* a dataset rather than
-containing one, because datasets are the expensive half and the pairing is not
-one-to-one — the unbranded build shows the carrier estate under product colours,
-since what it is for is showing the product without a customer's name on it, not
-inventing a third estate.
+containing one. The unbranded build shows the carrier estate under product colours.
 
 | Brand | Estate | Sites | Sets |
 | --- | --- | --: | --: |
-| `celcomdigi` | carrier — a tower network | 25 | 30 |
-| `sesb` | utility — a distribution network | 25 | 37 |
-| `gensetiq` | carrier, under product colours | 25 | 30 |
+| `express-mission` (the default) | utility — pencawang in Peninsular Malaysia | 38 | 38 |
+| `gensetiq` | carrier — a tower network, under product colours | 25 | 30 |
 
 A build carries only the brands it is allowed to show: the registry is generated per
 build, so a customer's deployment has no other customer's name, mark or site names
@@ -68,26 +60,20 @@ list, so the gate and the bundle cannot drift apart.
 Two groupings come with an estate, and they are **different axes** rather than two
 names for one:
 
-- A **region** (a carrier's network regions, a utility's distribution zones) is
-  where the site *is*. Geography settles it and an operator gets no say. It is also
-  where `peakSunHours` lives, because the sun is a fact about the place and putting
-  it on each site would be twenty-five copies of six numbers waiting to disagree.
+- A **region** (a carrier's network regions; on Express Mission's estate, the
+  state) is where the site *is*. Geography settles it and an operator gets no say.
 - A **programme** is a line the operator draws for their own reasons — a funding
-  round, a conversion campaign. It is a grouping and *only* a grouping: no figure,
-  no diagram, no default, no behaviour derives from it.
+  round, a refurbishment campaign. It is a grouping and *only* a grouping: no figure,
+  no default, no behaviour derives from it.
 
-The two happen to line up on the carrier estate, where the programmes are
-state-scoped, and that coincidence is exactly why four sites are in **no**
-programme: without them a reader would reasonably conclude that programme is a
-second name for region and start expecting one to imply the other. Unassigned is a
-first-class answer, not a gap — sixteen of the utility estate's twenty-five
-substations are in no programme, because they are not *work*, they are the network.
+Unassigned is a first-class answer, not a gap — twenty-eight of Express Mission's
+thirty-eight sites are in no programme, because they are not *work*, they are the
+network.
 
 A region owns **sites**, and a genset takes its region from the site it stands at.
 An id seeded onto each machine would be a second copy of a fact the site already
 states, and detaching a set would leave a machine in the workshop still claiming a
-region. The consequence is deliberate: a set fitted nowhere has no region, and the
-summary cards count it under `Workshop` rather than inventing an owner.
+region. The consequence is deliberate: a set fitted nowhere has no region.
 
 → `src/brands/types.ts`, `src/brands/datasets/`, `src/modules/site/data/customers.ts`,
 `src/modules/site/data/programs.ts`
@@ -96,14 +82,14 @@ summary cards count it under `Workshop` rather than inventing an owner.
 
 ## The model
 
-Twenty-one concepts. They are small, and the constraints between them are what keep the
+The concepts below are small, and the constraints between them are what keep the
 screens honest.
 
 ### Site
 
-A **place with a load**, and the plant standing on it is a property of the site
-rather than the other way round. One or more sets, an array, a bank, one changeover,
-one thing being kept alive.
+A **place with a load**: a yard a genset can be sent to. One or more sets, one
+changeover, one thing being kept alive. There are no site screens now; sites are the
+data the deployments, gensets and alarms read.
 
 Whether this is the top of the model depends on the estate, and on this one it is
 not. Where a genset is bolted to a plinth beside the tower it feeds and nobody asks
@@ -122,7 +108,7 @@ Six things about a site are **givens** — statements somebody made about the pl
 which somebody can make differently: its name, what kind of asset it is, where the
 yard is, its region, its programme, and **how it is fed**. What the customer draws
 is a seventh, seeded and not editable, because it is a measurement. Everything else
-a site reports — installed capacity, fuel on site, condition, its hybrid plant — is
+a site reports — installed capacity, fuel on site, status — is
 **summed, ranked or derived, never stored**, so a site cannot disagree with the
 machines standing on it.
 
@@ -136,49 +122,29 @@ appear to stop using electricity.
 coverage site with identical plant are not equally covered by one working genset —
 one of them carries traffic for a whole state. It also sets the scale a reader
 should expect the load in: a macro base station is 4–6 kW and a switching centre is
-a few hundred, so "is 216 kW a lot here" has no answer without it.
+a few hundred, so "is 205 kW a lot here" has no answer without it.
 
 → `src/modules/site/types/site.type.ts`, `src/modules/site/data/siteSeed.ts`
 
 ### Power role
 
-**How the yard is fed** — the site's most load-bearing given, and the one that
-decides which circuit the site page draws:
+**How the yard is fed**:
 
-| Role | The bus carries | Battery | Array |
-| --- | --- | :-: | :-: |
-| `GRID_BACKUP` | a mains incomer, gensets behind it | — | — |
-| `DIESEL_PRIME` | gensets only, continuously | — | — |
-| `DIESEL_HYBRID` | a bank the genset charges in blocks | ✓ | — |
-| `SOLAR_HYBRID` | sun by day, bank by night, genset as backstop | ✓ | ✓ |
+| Role | The bus carries |
+| --- | --- |
+| `GRID_BACKUP` | a mains incomer, gensets behind it |
+| `DIESEL_PRIME` | gensets only, continuously |
 
-`DIESEL_HYBRID` is the conversion this estate is in the middle of: rather than
-idling all day at the 4 kW a tower draws, the same machine runs in blocks near its
-efficient loading to recharge a bank. Fewer engine hours, less diesel, same supply.
-`SOLAR_HYBRID` adds the array and keeps the genset — that is the point, it is a
-hybrid and not an off-grid site.
+There were four, with `DIESEL_HYBRID` and `SOLAR_HYBRID`, until the hybrid plant was
+removed; those sites are `DIESEL_PRIME` now.
 
-**It is a display choice, and only a display choice.** It selects a layout — which
-sources the single-line diagram draws onto the bus — and nothing else depends on it.
-`isolatorStateOf`, the changeover, `defaultDutyId` and every control pad behave
-identically under all four.
+**It decides two things.** Whether the site has a mains supply (`hasMains`), and
+where a monitoring unit's nine per-phase AC alarms file: under `Site` where there is
+an incomer, under `Genset` where the generator is the only AC source. Nothing about
+the gensets' own behaviour depends on it.
 
-That boundary is deliberate rather than a shortcut. A control that redrew a diagram
-*and* quietly changed which sets could take load would be two operations wearing one
-label, and the second would be a command this prototype has no business issuing. One
-visible consequence of holding the line: a set's history is the **machine's**, so at
-a site declared `SOLAR_HYBRID` a run may still read "Engine started on utility
-outage". The role redraws the yard; it does not rewrite what the controllers did.
-
-Three predicates read it, and they exist so the question is asked in the reader's
-words rather than as an equality: `hasMains`, `hasBattery`, `hasSolar`. Three of the
-four roles have no incomer, and the day a grid-tied hybrid joins the list `hasMains`
-is the only line that changes.
-
-Changing a site's role is one of the things its [Settings section](#the-sites-other-sections)
-does, and the choice lives in `localStorage` because there is no backend to put it
-in. Every site's default is its dataset's, so a fresh browser renders the estate as
-seeded.
+The role is the dataset's. It could be changed on a site's Settings tab, held in
+`localStorage`, while there were site pages; the stored overrides are still read.
 
 ### Genset
 
@@ -191,6 +157,10 @@ reporting** — we do not know what the engine is doing, which is a worse positi
 than knowing it is stopped, and it is why an offline unit carries the comms alarm
 and no other: a panel that isn't talking cannot also be telling you its oil
 pressure.
+
+A genset whose controller has been silent for **over an hour** reads `OFFLINE`,
+whatever the seed says it was last doing (`OFFLINE_AFTER_MINUTES` in `fleet.ts`,
+2026-10-05). Before that, `BRF9540` read `Idle` five days after its last message.
 
 There is deliberately **no separate "online" flag**. The app carried one until it
 was removed, and it never held anything the run state didn't: it was derived as
@@ -217,9 +187,13 @@ the whole shape, and it is a deliberate departure from the production model: Hel
 paperwork correctly and loses the job. Tristan's call, 2026-09-21.
 
 In practice **a job is one set, and two about one time in seven** — never three
-(2026-09-29). The fixtures follow that: five of the thirty-two occupied yards in
+(2026-09-29). The fixtures follow that: six of the thirty-one occupied yards in
 `utility.ts` hold a pair, and `seed.ts` deals past and planned jobs one set at a time
 with a 15% chance of a second (`PAIR_SHARE`).
+
+`BRF9540`'s eight measured postings (`realJobs.ts`) go in first, and only on the
+estate that has the machine (2026-10-05). The carrier estate has no `BRF9540`, and
+until then listed its eight jobs anyway, at yards that estate does not have.
 
 The cost of it is worth stating, because it is the thing to revisit first: **a fourth
 set arriving in week three cannot join an existing job.** It needs a successor job,
@@ -313,130 +287,6 @@ while a genset carried a single `siteId` with no time dimension.
 → `src/modules/deployment/types/deployment.type.ts`,
 `src/modules/deployment/data/{seed,store}.ts`,
 `src/modules/genset/data/deployment.ts`
-
-### Hybrid plant
-
-The array and the bank at a site, **and what the last thirty days did with them**.
-
-This is the concept the genset module cannot supply. A controller reports its own
-output; nothing in it can say what fraction of a site's month came off a roof. So
-the plant is a site-level model, and it exists to answer *what carried the load*.
-
-**Everything in it is derived from four givens:** the site's load, its power role,
-its region's peak sun hours, and the genset's own fuel curve. Nothing about the
-plant is seeded separately, and that is deliberate rather than economical — a seeded
-PV size and a seeded solar share can disagree, and the first thing a reader does
-with a hybrid dashboard is check whether the second follows from the first.
-
-So the chain runs one way only, and every figure on a hybrid site's page is a link
-in it:
-
-```
-load → daily energy → array size → generation → what the genset still owes → litres
-```
-
-**The fuel arithmetic reuses the genset's own curve.** `sfcLitresPerKwh` is the
-module-wide statement that a diesel burns worse the lighter it is loaded, and it is
-what the run log, the tank ladder and the current-run card all cost their fuel with.
-Reading it here too — at the loading a genset actually holds, rather than at a flat
-litres-per-kilowatt-hour — is what keeps the litres this module reports and the burn
-rate a genset's own page shows from drifting apart. A second constant here would
-have made the estate's headline figure the one number that reconciles against
-nothing.
-
-**There is no counterfactual.** The chain used to run one link further, into what
-the same site would have burned on diesel alone and what that was worth in ringgit.
-That comparison has been taken out and will come back as its own thing; what is left
-is a measurement of what happened, with nothing under it claiming a saving.
-
-**The seam, stated rather than hidden.** This is a *site* model and the run log is a
-*machine* model, and the two are not reconciled. `history.ts` deals every genset a
-run log from a hash of its id — it knows nothing about arrays or banks — so a
-solar-hybrid site's genset has a history in which it ran like any other machine,
-while the thirty-day figures here say it barely ran at all. Reconciling them means
-the run log becoming a function of the site's configuration, which is the right
-shape and a larger change than this white label. **Until then the rule is that the
-two never appear on one screen:** the site pages and the energy figures read this
-module, the run log and the tank chart read `history.ts`, and no figure is derived
-from both.
-
-→ `src/modules/site/data/hybrid.ts`
-
-### Solar system
-
-**Everything PV at one site, taken together — and the only level this module has.**
-
-There was a level below it, and it was an inverter: a box with a serial, a comms
-link, a control pad and a page of its own. It is gone, because these are telco
-sites. A tower runs a −48 V DC bus and its loads are DC, so the array feeds the bus
-directly; there is no AC stage anywhere on the site for an inverter to make, and a
-page describing one was describing a box that is not in the cabinet.
-
-What went with it is worth stating plainly, because it is a real loss and not a
-tidy-up: per-box state, so a plant is now reporting or silent as a whole rather than
-four-fifths visible; the per-box control pad; and the insulation-resistance rule,
-which was an inverter's own earth-leakage interlock and so had nothing left to
-measure it.
-
-**Strings survive the boxes.** A string is modules in series, a physical run on the
-roof, and it is a fact about the array whatever it terminates in — which is why
-`string-out` is still a health rule and still the most useful thing this module
-says.
-
-A system reports one of three states, and the parallel with a genset is exact on
-purpose: `GENERATING` is `RUNNING`, `IDLE` is `IDLE`, `OFFLINE` is a plant that has
-stopped talking. An operator who has learned the fleet screen's state column has
-already learned this one.
-
-Two states were drafted and cut, and both for the same reason:
-
-- **`CURTAILED`.** An off-grid system does spill, and `hybrid.ts` caps generation at
-  what the site can absorb and says so — but that cap acts on a *thirty-day total*
-  and nothing in the model resolves spill to a moment. A state the page could show
-  but not derive is the worst kind of lie: the one where the header disagrees with
-  the chart under it.
-- **`FAULT`.** A system with a string down is still generating, at three-quarters of
-  what it should. Folding that into the state would either hide it — `GENERATING`,
-  as though nothing were wrong — or overstate it, `FAULT` on a plant making most of
-  its number. It belongs in the alarm queue, as the derived `Strings offline` row,
-  where it can carry the date it started
-  and the energy it has cost since.
-
-→ `src/modules/solar/types/system.type.ts`
-
-### Battery bank
-
-**The storage at a site, taken together** — the same unit argument the solar system
-makes. Nobody says "we have four hundred and twelve battery modules"; they say
-"SBH-1495 has sixteen hours of autonomy". The bank is what is specified, quoted,
-commissioned and what fails; a module is a part inside it, and a register with a row
-per module would be a stores list rather than an estate. There is one BMS, one
-converter and one state of charge, so the bank is the leaf and `modules` is a count
-rather than a list of things with identities.
-
-**Nothing about a bank is seeded.** `hybridPlant` sizes it from the site's load and
-the autonomy its configuration is specified at, and `hybridState` says where its
-charge stands. That is what stops the diagram's `88% charged`, the site page's device
-row and the bank's own page from being three numbers that can disagree.
-
-A bank carries **two percentages**, and they are never printed side by side because
-the second reads as a version of the first:
-
-| | |
-| --- | --- |
-| **State of charge** | where the level sits in the tank right now |
-| **State of health** | how big the tank has become after some years of cycling |
-
-A bank can read `100%` charged and `81%` healthy at the same time and both are true.
-The specified capacity is **not** discounted by health — the pair is what makes fade
-visible instead of it quietly shrinking every other figure on the page.
-
-The same doubling applies to autonomy: the **specification** assumes a full, healthy
-bank, and **hours left** is what is actually there from here. Both are on the page,
-because the gap between them is the bank's condition stated in the only unit an
-operator acts on.
-
-→ `src/modules/battery/types/bank.type.ts`, `src/modules/site/data/hybrid.ts`
 
 ### Mains supply
 
@@ -824,7 +674,7 @@ occupied is a tile reading `0` for the life of the product. A tank is fuelled or
 low, and low is a tanker booking.
 
 **The line is read three ways, and is written once.** It is the fleet's `REFUEL`
-bucket in the estate strip, it is the reserve line the refuel runway counts down to on
+bucket in the Gensets strip, it is the reserve line the refuel runway counts down to on
 the genset's own page, and it is the alarm in the alerts section. One number, so a tank
 cannot be low on the strip and fine on its own page.
 
@@ -861,8 +711,9 @@ it is not; the row says `Clears when refuelled` where the button would be. It ca
 handling store as every other row.
 
 **The fleet buckets read a tank-blind verdict, and that is the one place they must.**
-`gensetStatus` asks `machineCondition` — the register map and the leak, and nothing
-about the tank — because it already tests the tank itself, in `REFUEL`. Asking the wide
+`gensetStatus` asks `machineCondition` — the register map, the site monitoring unit's
+rows filed against the set (since 2026-10-05, as its alarm count has them), and the
+leak, and nothing about the tank — because it already tests the tank itself, in `REFUEL`. Asking the wide
 `gensetCondition` there would say the same fact twice: every `REFUEL` set would test
 true for `ALARM`, `ALARM` outranks `REFUEL`, and the fuel bucket those tiles exist to
 show would drain into the red one entirely.
@@ -970,98 +821,67 @@ one that would change something is enabled — you cannot start a running set.
 
 ## The screens
 
-Two or three destinations in the app rail, and Settings pinned to the foot.
-**Gensets** leads and is the app's landing screen — the plant register, which on a
-fleet whose machines move is the thing every question starts from. **Deployment**
-follows it: what is out, where, and since when.
+Five destinations in the app rail, and Settings pinned to the foot. **Gensets** leads
+and is the app's landing screen — the plant register, which on a fleet whose machines
+move is the thing every question starts from. **Deployments** follows it: what is
+out, where, and since when. Then **Fuel**, **Service** and **Reporting**.
 
-**Sites** is the third only where the estate has one worth offering. A *stationary*
-estate keeps it — a set bolted to a plinth beside the tower it feeds makes the site
-a real subject, and the register is where a reader starts. A **mobile** estate drops
-it: a yard there is where a machine was sent, not a thing anyone opens the app to
-ask about, and `/deployments` answers that question properly. Express Mission's
-build is mobile and shows two; the unbranded `gensetiq` build walks the carrier
-tower estate and shows three.
-
-`DATASET.plant` decides it, so the fact sits with the estate rather than in a
-customer's config — see `PlantKind` in `src/brands/types.ts` for why that line is
-drawn there. The **routes** are untouched either way: `/sites` and `/sites/$siteId`
-still resolve on a mobile build, and a breadcrumb into one still reads. What is
-withheld is the door, not the room. The rail's own doc comment argues the order at
-length.
+**Sites** was a destination too, and on a mobile estate it was dropped: a yard there
+is where a machine was sent, not a thing anyone opens the app to ask about, and
+`/deployments` answers that question properly. The site pages were removed on
+2026-09-22. The rail's own doc comment (`Sidebar.tsx`) argues the order.
 
 ```
 /                    → /gensets
 
 /gensets?view=split ─┐
-/gensets?view=list ──┼─ the tag ─→ /gensets/<id>                        Genset
+/gensets?view=list ──┼─ the plate ─→ /gensets/<id>                      Genset
 /gensets?view=map  ──┘  or panel →   ├── /analysis
-                                     ├── /runs
-                                     ├── /deployments
+                                     ├── /runs          (labelled Deployments)
                                      ├── /service
                                      ├── /alarms
-                                     ├── /equipment
-                                     └── /settings
+                                     ├── /equipment     placeholder
+                                     └── /settings      placeholder
 
 /deployments?view=split ─┐
 /deployments?view=list ──┼─ the reference ─→ /deployments/<id>   Deployment
-/deployments?view=map  ──┤   the site ──────→ /sites/<id>             ├── /gensets
-/deployments?view=gantt ─┘   or panel →                               ├── /runs
-                                                                      ├── /alarms
-                                                                      └── /settings
+/deployments?view=map  ──┤   or panel →                           ├── /gensets
+/deployments?view=gantt ─┘                                        ├── /runs
+                                                                  ├── /alarms
+                                                                  └── /settings
+/deployment          → /deployments
 
-/sites?view=split ──┐
-/sites?view=list  ──┼─ the site's name ─→ /sites/<id>                    Site
-/sites?view=map   ──┘   or the panel's →     ├── /alarms
-                                             ├── /deployments
-                                             ├── /settings
-                                             └── /runs · /contract   still resolve;
-                                                                     nothing links
+/fuel                                Depots (depot tanks)
+/fuel?view=deliveries                Genset fills
+/fuel?view=trucks[&truck=<id>]       Trucks and map     (estates with trucks)
+/fuel?view=truck-log                 Truck log          (estates with trucks)
+/fuel/depots/<id>                    one depot's own page
 
-/settings            which customer this build is
+/service?tab=due|history             the fleet's service standing, and every visit
+/reporting                           three CSV exports
+/settings                            which brand this build is (where it carries several)
+/gallery                             the component bench, dev only
 ```
 
 Sections in the rails that are **not drawn** carry a labelled placeholder saying
-what they will hold rather than a dead link: a genset's `Devices`, a site's
-`Alarms` and `Contract`, a system's `Service` / `Alarms` / `Settings`, and every
-section under a battery bank. A destination that states its subject is how the shape
-of a screen gets agreed before a table is drawn for it.
+what they will hold rather than a dead link: a genset's `Equipment` and `Settings`.
+A destination that states its subject is how the shape of a screen gets agreed
+before a table is drawn for it.
 
 ### Where the overview went
 
-There used to be a `/overview` in the first slot of the rail, and it is worth saying
-what it was and why it is not there, because the question it answered has not gone
-anywhere.
-
-It existed because the two list screens answered the wrong question first: a network
-power team arriving in the morning is asking *is every site up*, *is the hybrid
-programme working*, and *where are they* — and a list makes them read twenty-five
-rows to find that out. It was those questions as three bands plus a directory:
-readiness (the [three buckets](#fleet-status) plus a service tile), energy (thirty
-days of what carried the load), a map, and a row of region links.
-
-**The estate screen already answers all four**, which is what made the destination
-redundant rather than merely small. Its card strip is the same tallies over the rows
-they are counting: `Status` is the three buckets, the toolbar's grouping dropdown is
-the region directory, and the map is the one that has always sat beside the list. Two
-figures were genuinely only on the overview — **service due** and **solar share** —
-and they came down with it, into two cards on that strip. See
-[the estate register](#the-registers-list-map-and-split).
-
-One rule of the overview's is worth keeping wherever these figures live: **every
-number is a link into the screen that shows its working**, including the empty ones.
-Clicking `Low fuel 0` and landing on an empty list is a complete answer, where a
-dead tile makes the reader wonder whether it is broken.
-
-→ `src/modules/site/data/estateSummary.ts`,
-`src/modules/site/components/SitesSummaryCards.tsx`,
-`src/modules/site/components/SitesToolbar.tsx`
+There used to be a `/overview` in the first slot of the rail, and later an estate
+register with a card strip that absorbed it. Both are gone. One rule of the
+overview's is worth keeping wherever its figures live: **every number is a link into
+the screen that shows its working**, including the empty ones. Clicking a `0` and
+landing on an empty list is a complete answer, where a dead tile makes the reader
+wonder whether it is broken.
 
 ### The registers: list, map and split
 
-`/gensets` and `/sites` are the same screen over different objects, and `/solar` and
-`/battery` are the flat half of it. All four are **registers**: a row per thing, a
-search box, and nothing that grows unboundedly with the estate.
+`/gensets` and `/deployments` are the same screen over different objects (and
+`/sites`, `/solar` and `/battery` were too). Each is a **register**: a row per thing,
+a search box, and nothing that grows unboundedly with the estate.
 
 **`split` is the default, and the other two views are exceptions to it.** The screen
 used to be one or the other, and reading it meant switching: find the row, switch to
@@ -1217,9 +1037,8 @@ row-click and the preview it is supposed to produce.
 (running, idle and offline as `?run=` toggles, with `Showing N of 38` under
 them while a filter is on) and `Alarm` (the Alarm dropdown's four options, Critical to No alarms, as
 `?alarm=` toggles). A third, `Due for service` (a toggle for `?service=due`), came off
-on 2026-09-29; the filter still works from a link, as the estate strip's card sends one. The first two were `Gensets` and `Status` until 2026-09-29, and took the
-names of the table columns they count. A fourth card stood where the estate has `Solar
-share`: `Fuel on hand`, replaced on 2026-09-29 by `Today` (run hours and litres since
+on 2026-09-29; the filter still works from a link. The first two were `Gensets` and `Status` until 2026-09-29, and took the
+names of the table columns they count. A fourth card stood here: `Fuel on hand`, replaced on 2026-09-29 by `Today` (run hours and litres since
 midnight, and how many running sets started on an outage or a test), which came off the
 same day on request. It was one line from 2026-09-21 to save height above the register;
 it went back to cards on 2026-09-28 on request. Both count the whole fleet.
@@ -1237,40 +1056,14 @@ centred, first, previous, three page slots, next and last. The current page is a
 the middle slot and is a field: type a page and press Enter to jump there.
 
 **The cards above the table are counts that double as filters.** Showing a number an
-operator cannot act on is half a control, so each count is a toggle: click `Low
-fuel` and the list and the map both narrow. The counts themselves do not move when
+operator cannot act on is half a control, so each count is a toggle: click
+`Critical` and the list and the map both narrow. The counts themselves do not move when
 you do, so the strip stays a picture of the whole fleet while the list answers a
 narrower question. Nothing there invents colour — a count carrying a verdict gets
 the same token the badge two rows down uses.
 
-**The estate strip is not four groupings, and that is where the two screens part.**
-The fleet's two cards are two ways of slicing the fleet. The estate's four say what
-the estate *is* before offering to narrow it: how many sites, what needs doing to
-them (`Status`), what is `Due for service`, and how the hybrid programme is going
-(`Solar share`). The last two came down from the overview when it went, and they are
-the only figures in the app that state either.
-
-Those two are drawn as **anchors, not chip cards**, because a count that narrows this
-list and a count that leads to another screen must not look like the same control.
-Each is a link over its whole card with the arrow every other way-out here carries —
-service to the fleet register already filtered to `due`, solar to the array register.
-
-**Three of the estate's filters are dropdowns in its toolbar**, not cards: supply,
-region and programme. They are *attributes* — a reader either wants one of them or
-does not — and the counts beside them are context rather than an answer, so they do
-not earn a card's width. Three that did cost a card's width each left the strip on
-two rows. `Status` stayed a card because its **distribution is the information**:
-thirteen alarms beside nine clear is a fact you read at a glance, and a dropdown
-would put the estate's readiness behind a click.
-
-That also puts search, filtering and view in one line and one order — narrow by text,
-narrow by attribute, choose the shape — where two of the three used to be a card row
-apart. The fleet register keeps all four of its groupings as cards; it has no
-`Status`-shaped exception to make and no figures to carry.
-
 The filters are the questions each register gets asked. The fleet's: where the set is,
-what needs doing to it, and whether it is due for service — the last being where the
-estate strip's `Due for service` card lands. Its toolbar adds one dropdown per column a reader
+what needs doing to it, and whether it is due for service. Its toolbar adds one dropdown per column a reader
 scans for trouble — **Status** (`?run=`, the run state), **Alarm** (`?alarm=`, the set's
 worst standing severity or `No alarms`) and **Fuel level** (`?fuel=`, below the reserve
 line or not). Each files a set in exactly one option. **A dropdown's counts follow the
@@ -1281,8 +1074,7 @@ own count, so its options still show what switching to each would give; an optio
 count is exactly the rows picking it will show. Options never drop out — a zero stays,
 greyed. The summary strip does not follow them (see above). The alarm filter reads the
 same pass the `Alarm` column draws, and the fuel filter the line the red figure and the
-`Low fuel` alarm use. They combine with each other, with the chips and with search. The
-estate's: whose site, which programme, how it is fed.
+`Low fuel` alarm use. They combine with each other, with the chips and with search.
 
 **The fleet's first filter is the Malaysian state, by position** (`?location=selangor`)
 — the State column's answer, listing only the states a set stands in. It was the
@@ -1290,55 +1082,30 @@ dataset's own filing list until 2026-09-28: `Wilayah Persekutuan` for Kuala Lump
 Putrajaya together on one estate, network regions on the other, and a `Workshop`
 option for sets filed nowhere. A set in the workshop is still standing in a state, so
 it is counted there, and the filter can no longer disagree with the column beside it.
-The deployments register keeps the dataset's list; its rows are jobs, and a job is
-filed by the customer that booked it.
+The deployments register's State filter reads the yard's position the same way.
 
 **The fleet had a `Duty` filter — what it feeds — and it was taken out on 2026-09-28.**
 Duty is the yard's power role, read off whichever site a set is standing on this week,
 so on a fleet whose plant moves it describes the posting rather than the machine: the
 same set changes duty every time a lorry moves it. How a yard is fed is a question
-about the site, and the estate register is where it is asked.
+about the site.
 
 The whole view state lives in the URL, so any state is linkable and Back steps
 through it:
 
 ```
-/gensets?view=map&q=sabah&id=brf9540&panel=true
+/gensets?view=map&q=selangor&id=brf9540&panel=true
 /gensets?status=REFUEL&view=list
-/sites?view=split&program=jendela-swk
 ```
 
-**Assets name themselves by their site, and the prefix is no longer uniform.** A bank
-reads `SBH-1495`, an array `Solar | SWK-0559`, a set `WPKL-0207` on its register and
-`Genset | WPKL-0207` on its own page. The four shared one shape — asset, then code —
-until 2026-09-14, when the battery's prefix came off: every place the name is drawn
-already says `Battery` louder than the word did — the rail item is lit, the breadcrumb
-reads `Battery ▸ …`, the register's column is headed `Bank` — and on the register it
-cost the column its left third.
-
-**The genset took half of that, and the split is the point.** Its register drops the
-prefix — the column is headed `Number plate`, the page `Gensets`, and thirty rows of
-`Genset | …` under it is the header read once per row — and all three of the
-register's renderings drop it together, because the table, the phone cards and the
-preview panel are one screen. Its **detail page keeps it**: a set, a bank, an array
-and a cabinet standing at one site all take that site's name, so `SBH-1336` alone
-would title four different pages identically, and the rail a reader is sitting in
-lists all four. `gensetName` and `gensetSiteName` are the two, one line each, and the
-note on the second is where the line is drawn. The battery does not make that split —
-it is bare everywhere — so the two assets read differently on their own pages, which
-is the open end of this.
-
-⚠️ **A set is named by its site, which five sites cannot answer uniquely.** The genset
-tag — `BRF9540` — is fixture data rather than a recorded name, so the label falls back
-to where the machine stands. Five sites on this estate hold two sets, so five pairs of
-rows read alike. The rows are still distinct objects, keyed and linked by `genset.id`,
-and the tag is still what the search box matches; `gensetName` is one line and carries
-the note.
+**A genset is named by its number plate** — `Genset | WVA 5385` on its own page, the
+plate alone on the register (`gensetName`, `gensetLabel`). It was named by the site it
+stood at until the fleet became a mobile one; two sets at one yard then read alike,
+and a set's plate is what identifies it.
 
 **The fleet list drops two columns beside the map.** `Location` and `Last updated`
 are drawn on the full-width list and dropped on the split view, where both truncated
-to the half that carries no meaning — `Bangsar S…`, `1 hour …`. The solar register
-drops `Capacity` and the estate list drops `Fuel on site` the same way.
+to the half that carries no meaning — `Bangsar S…`, `1 hour …`.
 
 **`State` stays on both.** It sits beside the plate — which machine, and where — and it
 is short enough to survive the narrow column where `Location` is not. It is read off
@@ -1581,9 +1348,9 @@ screen doing nothing.
 what is happening, so the headline is two figures — machines out, and yards occupied —
 which are not the same number when two sets stand at one substation, with a third
 clause for machines *committed* to a job that has not started. The three chips are the
-three states a job can be in, and they filter all four views together. Typical job
-length and the diesel the record burned sit beside them because they are the two
-figures nobody can read off the list.
+three states a job can be in, and they filter all four views together. The strip is
+three cards: `Status` (the three chips), `Deployments` and `Gensets out`. Typical job
+length and the record's diesel sat beside them once and came off.
 
 **Closed jobs are drawn on the map as well as standing ones.** A map of only what is
 out would be smaller and cleaner, and it could not answer "have we had a set at Kapit
@@ -1593,7 +1360,8 @@ on the job, which is the sites map's own channel and the question this map is as
 next.
 
 **The columns are the job's facts.** `Deployment` (the reference over the yard),
-`Status`, `Gensets`, `Window`, `On load`, `Fuel burned`. `Lorry` left the table with
+`State`, `Status`, `Gensets`, `Dates`, `Run hours`, `Fuel burned`. `Run hours` sorts
+by time standing on the job, not by engine hours. `Lorry` left the table with
 the model: a plate belongs to a machine and a job may have three of them, so it is
 searchable and it sits against each machine on the job's own page.
 
@@ -1679,217 +1447,104 @@ third carry one to three notes from the operations room (`data/particulars.ts`).
 
 ### One thing's rail
 
-Every detail page — a site, a genset, a system, a bank — sits beside a 240px rail
-scoped to that one thing. It replaced a tab strip across the top of the page, and
-the reason is worth recording because it is not about width.
+Every detail page — a genset, a deployment — and the Service and Fuel sections sit
+beside a 240px rail scoped to that one thing. It replaced a tab strip across the top of
+the page, and the reason is worth recording because it is not about width: the strip
+had run out of **levels**. A site's sections were five tabs, and the plant standing on
+that site was reachable only by scrolling to the bottom of its home page. A vertical
+rail answers *change section* and *go somewhere under this* with one list, because a
+list can nest and a strip cannot. (The site rail nested `Asset ▸ Genset / Solar /
+Battery`; it went with the site pages. The Fuel rail nests each depot under *Depot
+tanks*.)
 
-The strip had run out of **levels**. A site's sections were five tabs; the plant
-standing on that site was reachable only by scrolling to the bottom of the home page
-and clicking a name. So the two things an operator does here — *change section* and
-*go to a machine* — were answered by two completely different gestures at opposite
-ends of the page. A vertical rail answers both with one list, because a list can nest
-and a strip cannot: `Asset ▸ Genset / Solar / Battery` is a section of the same nav
-that holds `Site` and `Alarms`.
-
-**The rail only offers plant the yard actually has.** Drawing all three rows
-everywhere would put a `Solar` link on a diesel-prime site with no array — a door
-onto a page that can only say "nothing fitted". `Genset` goes to the **lead** set,
-which is the one turning or the sickest if none is; the rest of the yard is reachable
-from the home page's device row. A rail that listed four engines would be an
-inventory, which is what `/gensets` is for.
-
-The two rails differ only in their header and their items, and share one component so
-the geometry is stated once. A site's header is a **switcher** — the design puts a
-`ChevronsUpDown` on it, and it is the gesture the page was missing: moving between two
-sites used to mean going back to `/sites`, finding the row and clicking it, three steps
-to compare two yards during an incident. Its list is alarm-ordered, the same ranking the
-sites list uses, because a separately alphabetised menu would be a second opinion about
-the estate and the first thing anyone would notice is that the two disagreed. It does
-not draw the counts themselves: the menu is a way *to* a site, and thirteen alarm pills
-stacked in a 224px popover would be a worse copy of the screen the menu exists to save a
-trip to. A machine's header is a **back card** to the site it stands at.
-
-Two consequences of the move are load-bearing:
-
-- **Two of a site's five old tabs did not survive it.** `Runs` and `Contract` keep
-  their routes, so a bookmark on either still works, but the design draws four rows
-  and they are not among them, so nothing links to them. Each is one entry in
-  `navEntries` if they are wanted back.
-- **The header's info tooltip went, and nothing was lost.** It carried Load, Supply,
-  genset count, installed capacity and fuel on site; the first three are now a band
-  on the page itself and the rest are in the metric strip and the device rows. A
-  hover that restated visible figures was the weakest part of the old header.
+The rails differ only in their header and their items, and share one component so the
+geometry is stated once. A deployment's header is a **switcher**, alarm-ordered like
+the register, so moving between two jobs during an incident is one step rather than
+three. A genset's header names the machine.
 
 → `src/components/global/DetailSidebar.tsx`
 
-### The four home pages, and the bands they share
+### The home pages, and the bands they share
 
-A site, a genset, a solar system and a battery bank each open on the **same bands in
-the same order**, and that is the design decision the whole detail half of the app
-rests on. An operator moving between a tower's genset, its array and its bank finds
-the same things in the same places, and the pages differ only in what they are
-*about*. Three pages that each invented their own shape was the thing this design set
-out to fix.
+A genset and a deployment each open on a **strip, then bands**, and the bands keep
+one rule: the figures that move first, what the thing *is* last. (The site, solar
+and battery pages kept the same bands until they were removed.)
 
-| | Band | Shared component |
-| --- | --- | --- |
-| 1 | **The strip** — the two or three figures that move, then the alarm counts | `MetricStrip` |
-| 2 | **What it is doing now** — the dials, the gauge, or the circuit | — |
-| 3 | **The chart** — one metric, a day stepper, a period control | `TrendPanel` |
-| 4 | **The details** — what the thing *is*, nameplates only | `DetailBand` |
+**The strip** (`MetricStrip`) is the two or three figures that move, then the alarm
+counts in a fixed last column — so a reader moving between pages knows where to look
+before reading the labels. It is equal shares rather than content-width columns,
+because a strip whose columns move between pages stops being a reference line.
 
-Pages carry **four or five** of those, and the variation is the model's rather than
-the page's: a genset splits band 2 in two, because its live dials and its run totals
-are the same subject read at two speeds. Nothing is dropped for want of room, and
-every missing band has a rail section of its own saying what it will hold.
+**The details band** (`DetailBand`) is the facts that do not move: nameplates and
+identity. It splits into two columns off a **container query** rather than a
+breakpoint — these bands sit inside two rails that take 480px between them, so a
+`md:` split would fire where the band is still narrow. The split is column-wise, so
+the two-column version is the one-column version cut in half.
 
-**There was a fifth band: *what is wrong* — the rules, and the numbers behind them.**
-A genset carried it and so did a solar system; a site and a bank never did. It is on
-each asset's **`Alarms` section** now, above the standing and cleared tables, and the
-move is the same argument the site page made when it took its device stack off the
-foot of the page. A band that restates the strip's alarm counts nine hundred pixels
-below them is a second answer to a question the top of the page has already answered,
-and a reader who wants the detail wants the log beside it — the row that says whether
-anybody has acknowledged the thing the card is describing. The strip's alarm pill is
-the one click from here to there, and it always was.
+**What is wrong** is on each thing's **`Alarms` section**, not on its home page. A
+band restating the strip's alarm counts lower down is a second answer to a question
+the top of the page has already answered, and a reader who wants the detail wants the
+log beside it. The strip's alarm pill is the one click from here to there.
 
-**Every band is full width, because only one thing on these pages has a natural
-width.** The diagram is a fixed canvas, the figures are short, the chart wants
-everything it can get. An earlier arrangement put a summary beside the diagram and
-the devices in a row of cards, and it left two ragged holes down the right at any
-site with fewer than three devices — which is seventeen of the twenty-five. Bands
-never have a leftover column to fill, so device count changes the page's *height* and
-nothing else.
+**A page only offers what is fitted.** A figure for something the machine does not
+have is absent, not zero: `0 kWh` reads as plant that made nothing rather than plant
+that is not there.
 
-**The strip's third column is always the alarms**, and that is the one column every
-page can fill: generation exists at a system, fuel at a genset, charge at a bank, and
-none of them anywhere else. Pinning alarms to a fixed column is what lets a reader
-moving between the three know where to look before reading the labels. It is equal
-thirds rather than content-width columns for the same reason — a strip whose columns
-move between pages stops being a reference line, which is most of what a strip is for.
-
-**The details band is the facts that do not move.** The strip carries what changes and
-a reader checks it to decide whether anything needs doing today; these are nameplates
-and identity, and their job is to tell you what you have just been looking at. Mixing
-them would put two rates of change in one line. It splits into two columns off a
-**container query** rather than a breakpoint: these bands sit inside two rails that
-take 480px between them, so a `md:` split would fire at 768px where the band is 288px
-wide. The split is column-wise — the left column is the first half of the list — so
-the two-column version is the one-column version cut in half rather than a different
-reading order.
-
-**A page only offers what is fitted.** A yard with no array has no `Solar generation`
-option in its chart picker rather than one that draws a flat zero; a grid-backed site
-with no set has no fuel figure in its strip. Printing `0 kWh` under `Generation today`
-at a site with no panel on it reads as an array that made nothing rather than as a
-site that has none.
-
-→ `src/components/global/MetricStrip.tsx`, `src/components/global/DetailBand.tsx`,
-`src/modules/site/components/TrendPanel.tsx`
+→ `src/components/global/MetricStrip.tsx`, `src/components/global/DetailBand.tsx`
 
 ### The genset home page
 
-Where a click into a machine lands. **Five bands, and the order is the order the
+Where a click into a machine lands. **Four bands, and the order is the order the
 questions get asked.**
 
-**Band 1 — the strip: fuel level, fuel remaining, service.** Two diesel and one
-service, and the pairing is the point: the tank says how much is there, the runway
-says when that stops being true, and the service counter says whether the same trip
-has a second job on it. A lorry to an interior site is a day and a four-figure sum,
-so the questions this strip answers are the ones that fill it. All three survive a
-stopped engine, which is what a summary has to do — the tank is the tank whether or
-not the engine is turning, and a set sitting idle is exactly the one whose service is
-quietly going overdue.
+**Band 1 — the strip: fuel level, fuel remaining, service, then the alarm counts.**
+Two diesel and one service, and the pairing is the point: the tank says how much is
+there, the runway says when that stops being true, and the service counter says
+whether the same trip has a second job on it. All three survive a stopped engine —
+the tank is the tank whether or not the engine is turning, and a set sitting idle is
+exactly the one whose service is quietly going overdue.
 
-The design's `Generation today` is deliberately **not** here. It lives in band 4,
-where a day stepper and a period control put it beside yesterday and the week. On its
-own in a strip it invited a share-of-site reading this page cannot honestly give: an
-engine's output may go into a battery and come back out tomorrow, so what fraction of
-*today* it carried is a question about the site's day, not the machine's.
+The design's `Generation today` is deliberately **not** here; output over time is the
+[Analysis section](#the-analysis-section)'s. On its own in a strip it invited a
+share-of-site reading this page cannot honestly give.
 
-**Band 2 — the live dials, and the controls that act on the circuit they read.** Five
-gauges — frequency, active power, oil pressure, coolant temperature, charge alternator
-voltage — plus the three line voltages and three phase currents as bar groups, and the
-control pad on the right.
+**Band 2 — the run, and the controls that act on it.** The control pad (`ControlPad`)
+and the current run (`CurrentRunCard`): this run, and everything since midnight, so the
+band reads at three horizons — what one start did, what the day's starts did together,
+and how much tank is left beside them. The load is present *only* while the engine
+turns; "0 kW" would read as a genset running into an open breaker.
 
-Frequency sits there rather than engine speed, and they are one measurement: on a
-four-pole 50 Hz set 1500 rpm *is* 50 Hz, as the `Speed & frequency` tag says, and of the
-pair frequency is the one the load actually sees. Every face is scaled to put the healthy
-value near mid-scale and keep the alarm limits on the dial — a reading whose working band
-occupies a fifth of its scale is a reading whose drift is invisible, and drift is the whole
-diagnostic value of a live dial.
+**Band 3 — the tank, and the readings.** Three cards:
 
-The pad is on the right, which reverses what this band used to do. The readings are
-what the band is *about* and what a reader scans; the pad is a thing you reach for
-having decided something, and a control column between the page's edge and its own
-subject was making the dials start a third of the way in.
+- **The tank** (`FuelColumn`): level, tank capacity, burn rate and `Refuel by`. The
+  runway counts down to a **30% reserve**, not to empty — a set that runs dry picks up
+  air and needs bleeding before it will restart. `hours to 30%` and `Refuel by` are
+  the same quantity in two units, so they cannot disagree. A **stopped** set shows
+  `—` for the rate and the date: a date would claim the tank is draining while the
+  engine sits idle.
+- **`Generator conditions`**: while running, five marks as tiles — frequency, active
+  power, oil pressure, coolant temperature, battery voltage — each coloured by any
+  alarm standing on it; and always, the two hour counters, **Run hours** and **On
+  deployment**. The counters are not live readings, so they stay on an idle set
+  (since 2026-10-05; for a while the whole card was running-only).
+- **`Generator output`** (running only): the output lines, then the three line
+  voltages and three phase currents as bar groups. The bars are drawn from zero and
+  grouped by quantity because the point is the **comparison** — an imbalance across
+  phases shows up as three bars of different lengths before anybody reads a number.
 
-The phase bars are drawn from zero and grouped by quantity because the point is the
-**comparison** — an imbalance across phases is a real fault (a dropped conductor, an
-unbalanced load) and it shows up as three bars of different lengths before anybody
-reads a number.
+**When the engine stops**, `StandbyPanel` takes the output card's place. It is not a
+placeholder: the readings that survive a shutdown are the pre-start ones — battery
+voltage, coolant temperature, fuel — and they are what the pad's question, *start
+it?*, turns on.
 
-**When the engine stops, the dials are replaced rather than emptied.** `StandbyPanel`
-takes their place beside the pad, and it is not a placeholder: the readings that
-survive a shutdown are the pre-start ones — battery voltage, coolant temperature,
-fuel — and they are what the pad's question, *start it?*, actually turns on. A row of
-dials pinned at zero says less than one line of text saying the engine is stopped, and
-it invites the reader to wonder whether the page is broken.
+**Band 4 — what the machine is.** The `DetailBand`: which machine this is, what it is,
+what size it is — the rows a person needs to order a part, brief a technician or find
+it in a yard. Rating is among them because it is the denominator of every load figure
+above. Last, because nothing in it changes between one visit and the next.
 
-**Band 3 — the run, the day, and the tank.** The run card carries two columns — this
-run, and everything since midnight — so the band reads at three horizons without
-gaining a third card: what one start did, what the day's starts did together, and how
-many more starts are left in the tank beside them.
-
-The load badge is present *only* while the engine turns. A stopped genset has no load,
-and "0 kW" would read as a genset running into an open breaker — a real and quite
-different problem.
-
-The fuel runway counts down to a **30% reserve**, not to empty. Empty is not a number
-anybody plans against: a set that runs its tank dry picks up air in the fuel system
-and needs bleeding before it will restart. `hours to 30%` and `Refuel by` are the same
-quantity in two units — litres-above-reserve ÷ burn rate — one for a shift and one for
-a schedule, so they cannot disagree.
-
-A **stopped** set states its runway differently, and has to. The same arithmetic is
-still the runtime it would get if you started it, but a *date* would claim the tank is
-draining while the engine sits idle. So a stopped set shows runtime and no date, and
-labels its rate as the one from its last run.
-
-**Band 4 — what this engine has put out over time.** The shared `TrendPanel`, held to
-one metric: diesel output. An undeployed set has no chart at all rather than a flat
-line — it has made nothing today because it is not wired to anything, and a plot of
-that would be claiming a measurement.
-
-**Band 5 — what the machine is.** The `DetailBand` all four detail pages share, and
-identity is deliberately all it holds: which machine this is, what it is, what size it
-is — the rows a person needs to order a part, brief a technician or find it in a yard.
-Rating is among them because it is also the denominator of every load figure in the
-bands above.
-
-Under the chart rather than over it, which is the order all four detail pages keep:
-nothing in this band changes between one visit and the next, so it is what a reader
-consults having already read the live bands. It used to sit between the fuel panel and
-the runtime trend, wedging a block of nameplates between two bands read together.
-
-The frame puts the *site's* `Supply` and `Installed capacity` here, which is the site
-page's band copied across. A genset page stating how the yard is fed would be the
-machine answering a question about the yard, and the rail's back card is one click from
-the page that does answer it.
-
-**There was a sixth band: what is wrong** — the condition verdict, the filter chips
-and the alert cards. It is on the [`Alarms` section](#the-gensets-remaining-sections)
-now, over the two tables, and the reasoning is in
-[the shared bands](#the-four-home-pages-and-the-bands-they-share). The page ends on
-its details band.
-
-**Where the activity feed went.** Nowhere; it is gone, as it is from a system's page.
-It closed the page as a band below the alerts — a list of things that had already
-happened, with a text field for adding another — and it was the page's only
-backwards-looking band,
-which is why it was last and why nothing above it moves now that it has gone.
-Everything it showed is owned by a section of its own: runs on `Runs`, services on
-`Service`, and deliveries on the tank chart.
+**Where the activity feed went.** Nowhere; it is gone. Everything it showed is owned
+by a section of its own: runs and jobs on `Deployments`, services on `Service`, and
+fills on the tank chart.
 
 ### The analysis section
 
@@ -2051,7 +1706,6 @@ section: the range in the link is the range in the file.
 ```
 /gensets/brf9540/runs?window=all
 /gensets/brf9540/runs?from=2026-07-01&to=2026-07-31
-/sites/wpkl-0207/runs?window=7d
 ```
 
 **Not here, deliberately:** start and stop cause (no source for it yet — the
@@ -2161,469 +1815,47 @@ different definition on every row. If they ever move, they move for the estate.
 and ATS fitted, and the service schedule. It is named `Devices` in the rail and
 `equipment` in the route.
 
-### The site home page
-
-Four bands, and this is the page the shared grammar was drawn against.
-
-**Band 1 — the strip.** `Supply`, the plant figures, `Site draw`, `Alarm`. Supply
-leads because what is feeding the yard is the fact every other figure on the page is
-conditional on, and it is the one column every site can fill — including a site being
-fed by nothing. Site draw closes the readings: the only figure about *the tower*
-rather than about the plant standing beside it, and where the DC bus reading hangs,
-as `4 kW (53.4 V · 75 A)`.
-
-**The plant figures are drawn, not chosen.** The design names `Generation today` and
-`Fuel level` and the strip now carries both, which it did not until 2026-09-14 — it
-picked one of them. What has not changed is the rule underneath: neither figure
-exists everywhere. A diesel-prime yard has no array to have generated anything, and a
-grid-backed site with no set fitted has no tank, so each is drawn only where the plant
-behind it is fitted. A site with neither runs three columns, and falls back to
-`Battery left` where a bank is the only thing standing.
-
-So the strip is **three columns wide to five**, against a fixed three everywhere
-else. That is the cost of the design's pair and it is paid on this page only: the
-asset strips — a system's, a bank's, a cabinet's, a set's — still run two readings and
-the pill.
-
-**The alarm pill closes the strip** rather than holding the third column. It was
-pinned third so a reader moving site → solar → battery would find it in one place;
-that rule held while every strip had two readings and stopped holding when this one
-grew to four. Last is the rule that survives a strip growing. On the asset strips
-nothing moved, because with two readings last *is* third.
-
-**Band 2 — the circuit, and the device it is pointing at.** The single-line diagram on
-the left, and beside it one card: the detail of whichever piece of plant the reader has
-clicked in the drawing. The diagram is still the only part of the page that is not a
-card — it sits on the canvas, so it reads as the page's own subject rather than as
-another panel — and it is still the one thing here that is a fact about the *yard*
-rather than about a machine in it.
-
-It is also the page's **navigation**. Clicking a `GENSET` box puts that set's card in
-the right-hand column and the box takes a ring to say which one is showing; clicking the
-drawing's **background** puts the selection down again and the column returns to the
-site's own figures, which is the state the page opens in. `MAINS` and `LOAD` are not
-clickable, because neither is a device on this estate's books and neither has a card
-behind it.
-
-**The drawing was removed and is back.** It came out when the telco plant did — the
-argument was that a circuit of an incomer, a bus and a set is a DC-plant picture, and
-that the isometric plant scene answered the same question better by drawing the compound.
-Then the scene came out too, because a mast and a row of equipment cabinets draw a *telco
-site* and this product posts a genset to a yard. What was left in this band was a row of
-pill buttons — `Site`, then one per set — which is an honest control that draws nothing.
-The schematic is the projection that survives the change of product: an incomer, an
-isolator, a set and a load is the electrical truth about a compound whatever the compound
-is for. Tristan's call, 2026-09-21. It is back stripped to what this product has —
-mains where the role has one, one row per set, the load — and the pills are gone with the
-`Site` pill's job handed to the background click.
-
-The cards were band 5 — a stack of full-width rows at the foot of the page — and the
-move is the same argument the details' move made, one page further on. The stack was a
-second mention of what the diagram had already drawn, 900px below it with a chart in
-between: the page said "this genset is carrying the site" at the top and "here is that
-genset" at the bottom, and nothing joined the two but the reader's memory. Clicking the
-box is that join.
-
-It also fixed what band 5 could not. A stack has to choose how many rows it is willing
-to be, so it showed the **lead set** and carried a footnote counting the ones it was
-leaving out. A picker has no such limit: the drawing already draws every set, so every
-set is now selectable, and a four-set yard has four boxes with four cards behind them
-rather than one card and a footnote.
-
-Below `xl` the band folds into a column — the drawing, then its card. This page carries
-the global rail *and* the site's own nav, so its content column is about 380px narrower
-than the viewport: 901px at `xl`, which divides into 398 for the drawing — a fixed canvas,
-so its track is sized to it exactly — and the rest for its card. One step down it is
-645px, which puts the card under the 18rem where its badges start wrapping one to a line,
-and there is no honest way to split that.
-
-**Band 3 — the details.** What the site *is*, in the shared `DetailBand`: its name,
-where it stands, its region, its programme, how it is fed and what is installed. Every
-row is a field the Settings section edits, in the order that section presents them —
-including the site's own name, which looks redundant under its own header and is not: a
-reader who has just renamed a site should see the new name land somewhere that isn't
-chrome.
-
-A `Load` row naming what the installation is *for* — `Macro base station` — stood at
-the foot of the band until 2026-09-14. It was the one row the design did not draw, and
-it was the site's **kind**: fixed for the life of the site, the same at most of the
-estate, and already the second line of the site's own row on the list that opened this
-page. It is out, and the band is back to the fields Settings edits.
-
-They sat beside the diagram until the design moved them underneath it, and the move is
-right. The strip carries the figures that change and a reader checks those to decide
-whether anything needs doing today; these do not move, and their job is to tell you what
-you have just been looking at.
-
-**Band 4 — diagnostics.** *"A quick preview of what is going on at the site through
-graphs"*: one full-size chart with a metric picker and a period control, over the
-metrics this particular yard can answer for — load, genset output, battery, solar
-generation. Four stacked charts would push three below the fold and make the band a
-report rather than a preview; four small ones would each be too short to read a shape
-off, which is the only reason to draw a curve at all.
-
-#### What the diagram draws
-
-Every source, its switch, the bus they share, and the load at the end of it. Every node
-is captioned in two lines — what it is, and what it is putting into the bus — and every
-node that is a **device** carries the alarm pill under those two.
-
-**The pill is what makes the drawing say where the trouble is** (Tristan, 2026-09-14).
-The band already answered *what is feeding this yard*; it could not answer *which of
-these boxes has something wrong with it* without a reader clicking each one in turn. Every
-set's box now carries `Critical · Warning · Neutral` in the app's own pill, in the same
-position on each, so the column of them reads down like a column in a table. The mains and
-the load carry none: an incomer is a supply rather than a machine on this estate's books,
-and nothing reports on a load.
-
-Each set takes the union its own page takes — the controller's bits plus the monitoring
-unit's `GENSET` rows — so a box and the device card it opens beside the drawing cannot
-report different numbers. Two sets in one yard therefore both carry that yard's AC rows;
-at a site with no incomer that AC is each engine's own output, so this is right rather
-than double-counted.
-
-**The pill is a link** to that device's Alarms tab, and **double-clicking the box opens
-the device's own page** — the gesture a reader already expects from a box in a diagram. A
-single click still puts the device in the card beside the drawing. That is why a node is a
-`div` with the button role rather than a `<button>`: a button may not contain an anchor,
-and the browser closes it at the `<a>` if you try. Enter and Space still select; the
-double-click is mouse-only, and the card it opens carries the same link.
-
-Pills are drawn on **every** device node, a quiet one included, so their absence never
-becomes the signal — and a severity with nothing standing draws a dash rather than a `0`.
-The settings page, which renders this same drawing twice as a preview of a power role,
-passes no counts at all and gets the tighter geometry back: the pitch and the bottom
-margin both open up by one pill's height only when there are pills to put there.
-
-Only a connected, energised source gets a **kW figure**; the rest get a word
-(`off-load`, `stopped`, `unavailable`, `failed`), because `0 kW` is a
-*measurement*, and claiming to have measured zero at a machine that is unreachable is a
-stronger statement than the page is entitled to make. The load's caption is the site's
-draw, stated where the power actually arrives — and on a grid-backed site with the grid
-up, that draw is the **incomer's** figure, not a genset's.
-
-**Which sources appear is the [power role](#power-role).** A `GRID_BACKUP` site draws a
-mains source above its gensets, on its own contactor. The frame has no such node — it
-draws gensets only, which quietly makes every site look like it has nothing else
-feeding it — and a page about *backup* power that never shows what is being backed up is
-missing its subject. It is a row like any other, and that is the argument for one column
-rather than a second: a bus is a bus, so every source is a row, and every measurement
-above applies to each unchanged. Three sources at a grid-backed site with two sets is the
-same drawing as one source at a diesel-prime site with one — taller, and not otherwise
-different.
-
-The order down the column is the order the site uses its sources in: **grid, then
-gensets.** Reading it downwards is reading the control strategy.
-
-Conductors are painted **dead runs first, then live ones**. Not cosmetic: every source
-elbows onto the bus riser and runs along it to the tap, so with three or more sources
-those segments overlap. In document order a dead genset could paint a grey stub over
-the live mains riser above it, leaving a conductor that appears to go dead halfway to
-the load. Ordering by state makes that unrepresentable.
-
-An isolator carries two independent facts, and separating them is the whole point:
-
-- **closed / open** — is this set *connected* to the site bus;
-- **live / dead** — is it pushing power through it.
-
-A set can be closed onto a dead bus, and that is the normal state of a healthy standby
-installation: breaker made up, engine off, waiting. It is what lets the controller pick
-up a mains failure in ten seconds instead of after somebody drives out. The impossible
-combination is open *and* live, and `isolatorStateOf()` is the one place that is
-guaranteed:
-
-| Duty? | Run state | Isolator | Why |
-| --- | --- | --- | --- |
-| duty | `RUNNING` | closed, live | this is the set feeding the load |
-| duty | `IDLE` | closed, dead | standby — made up and waiting |
-| duty | `OFFLINE` | open, dead | we cannot hear from it, so it must be drawn as *not* contributing |
-| not duty | anything | open, dead | isolated by the changeover; off-load even if turning |
-
-That `OFFLINE` row is a safety decision, not a display one. Assuming a silent machine is
-carrying load is the single error on this page that could get somebody hurt.
-
-The **mains contactor** does not appear in that table because it does not obey it — it
-has no closed-and-dead position at all. See [Mains supply](#mains-supply).
-
-Flow along a live conductor is animated, and it is switched off under
-`prefers-reduced-motion` — the conductor is already teal, glowing and terminated in
-filled dots, so the motion is the one cue nothing else duplicates.
-
-**The diagram does not reflow, it scales.** Its conductors land on the boxes at measured
-coordinates, so a reflow leaves a wire ending in mid-air. It measures the box it is
-handed and shrinks the whole canvas as one piece, so every coordinate survives and the
-only casualty is type size. Scrolling was the earlier answer and it was worse: the load
-node, the thing the whole drawing points at, started off screen.
-
-#### What is no longer on this page
-
-**The changeover control.** It was the diagram band's third column, and this page now
-*reports* the duty set rather than offering to change it: transferring a site's load is
-an operation, and operations belong on the machine's own page beside the interlocks that
-make them safe. The diagram still draws every isolator's true position, and
-`summary.defaultDutyId` is still the set carrying the load or the one that would if the
-grid dropped now.
-
-**One row per genset, each with its own control pad.** That was the old band 2 and it is
-now the device stack, which shows the lead set and a way to the rest. The rows'
-components were the genset's own — the same `CurrentRunCard` and `ControlPad` the machine
-page uses — and that principle survives the move: a control pad that behaved differently
-depending on which page you pressed it from would be the worst kind of divergence to
-ship, because the rules about when `START` is live are safety rules.
-
-### The site's other sections
-
-**`Settings` configures the four things a site *is*** — what it is called and where, how
-it is fed, what stands on it, and what measures it.
-
-**Identity and placement** first, as six editable fields: name, placename, latitude,
-longitude, region, programme. They are first because they are what a reader arrives to
-fix — a pin in the wrong district or a site filed under the wrong rollout is a data
-correction, and it is the errand that brings somebody to this section. The rule is
-**givens, not readings**: what the site draws, what stands in the yard and what the tanks
-hold are not here, because they are measurements and the fleet's own membership, and a
-form that let a reader type a load figure would be inventing an instrument reading.
-
-The two pickers apply on change and the three text fields do not. A `<select>` has no
-half-finished state, so committing on change is exactly as honest as the radios below
-it. A text field does — `5.` and `-` are both real keystrokes on the way to a real
-coordinate, and committing per keystroke would put the pin at 5°N and then at 0°N while
-somebody types 5.9804. So those commit on blur or Enter, revert on Escape, and say so.
-
-**Power configuration** second, on its own and with room to explain itself. It is a given
-like the six above it and unlike them in one way that matters: the others change what the
-page *says* and this one changes what it **draws**. Each of the four options states both
-what it asserts about the yard and what it changes on the page, because a control on a
-page called Settings will otherwise be read as reconfiguring plant.
-
-**Gensets installed** lists the site's machines with a Detach on each, and a picker to
-attach more. The picker offers the **depot** first, then sets at other yards labelled
-`Move from Hosp-006` — because restricting it to the depot would make every transfer a
-two-step errand across two pages, while naming the source site makes it impossible to
-take a set off another yard without reading that you are doing it. It states the physical
-consequence too — *"Attaching moves the set to Kota Bharu, Kelantan"* — since
-[deploying moves the machine](#deployment) and a picker that hid that would be concealing
-the biggest thing it does.
-
-Under all three is a **live preview**: the site's own diagram at the selected role and
-current membership. Attach a set and it appears in the drawing. The choices above are
-about a picture, so the picture is the argument for them.
-
-Everything applies on click, with **no Save button**. There is no backend to save to; a
-Save button would imply a round-trip, a server-side record and a rollback that do not
-exist. The honest version is a control that visibly takes effect and a line of text saying
-it went into this browser only. Overrides are stored as a **patch over the seed**, so a
-site nobody has touched *is* its dataset's, Reset is a delete rather than a copy of
-twenty-five defaults, and clearing site data restores the estate.
-
-A site with **no gensets** is reachable, and the roles answer it differently. A grid-backed
-yard still draws `MAINS → LOAD` — on the grid, no plant installed, which is true and worth
-seeing. A diesel-prime yard has no incomer and no machines, so there is nothing to draw and
-the page says so; the alternative is a load box with a conductor arriving from nowhere.
-
-**`Runs` is built** — the genset module's own panel, not a site-flavoured copy. The rules
-that make it trustworthy are the same rules at both levels, and a second implementation of
-them is a second set to keep in step. What differs is a lane per set on the strip and an
-asset column in the table, which are the same fact: a site's log has more than one machine
-in it. See [the runs section](#the-runs-section). Nothing in the rail links to it — see
-[the rail](#one-things-rail) — so it is reachable by URL and by bookmark only.
-
-Two things are true only of the site version.
-
-**Its energy figure is what the sets *produced*, not what the site *received*.** Only one
-set is connected to the bus at a time, so a second set turning while isolated is off-load
-and delivered nothing to the load. Summing both is right for "what did this plant do" and
-wrong for "what did the customer get". The page cannot resolve that — it does not know,
-historically, which set was duty — so it says which of the two it is reporting rather than
-picking one silently, and the caveat travels into the CSV, where it matters more for having
-no surrounding page to infer it from.
-
-**It lists the runs of the sets standing here *now*.** A run is a fact about a machine and
-a machine's site can change, so a set that arrived last week brings its whole history with
-it, including runs it performed in another yard. The record that fixes this exists — see
-[Deployment](#deployment) — and **a per-job run log is built**, on the job's own Runs
-section; what has not changed is this page, which still pools whatever is standing here
-today. Pointing it at the yard's jobs instead is the next step and needs nothing above
-`SiteSummary` to change.
-
-**`Alarms`** is in the rail and not drawn: every active threshold across this site's
-gensets, pooled into one list. **`Contract`** is drawn in no frame at all and is the one
-section a genset has no counterpart for — the clearest signal in the design that a site is
-a **commercial** object as well as an electrical one: a genset has runs and alarms, but only
-a site has an SLA.
-
-### The solar register, and a system's pages
-
-`/solar` is a row per [system](#solar-system), the way `/gensets` is a row per
-machine: system, state, output, capacity, alarms. It was a scaffold of six empty tabs
-before it was a table, and the six moved down onto a system, which is the shape
-`/gensets` has always had.
-
-There was a sixth column, `Strings`, carrying a count with `N dark` under it, and a
-fourth summary card totalling the dark ones across the estate. Both went on
-2026-09-14, and the preview panel's `Strings` row — `3 of 29 dark` — went with them.
-A string is a wiring detail of one array: this register's job is to say *which system
-needs someone*, and a dark string is not `OPTIMUM`, so the system is inside
-`Attention` on the strip either way. The count is still on the system's own page, box
-by box, where a reader who has decided to look at one array can act on it.
-
-**The last column is `Alarm`, and it was `Health`.** Same slot, different question:
-the verdict is this app's summary over the rows, and the counts are the rows. The
-estate list moved first, for the reasons `SitesTable` gives, and the two registers
-are meant to read alike. The cell is a **link** to that system's Alarms tab, and the
-counts come off `solarAlarmQueue` — the array's two sources reconciled — rather than
-off `systemHealth`'s derived rules alone, which would read `1` beside a tab listing
-`2`. The panel beside the map draws the same cell, for the same reason it draws the
-table's state badge: a row and its own preview saying two things about one array is
-how they come to disagree.
-
-⚠️ **The register is still *ordered* by the verdict**, which ranks the derived rules
-only. So two rows can sit in an order their own pills contradict — a system with
-three criticals off the monitoring unit below one with a single derived critical.
-That is the fault `useEstateAlarmCounts` and `alarmRank` fixed on the estate list and
-it is not fixed here yet; `alarmRank` over `SolarRow.counts` is the shape the answer
-wants.
-
-**A system's home page is four bands**, the shared grammar over an array: the strip
-(capacity, generated today, alarms); what it is putting out now, broken out a junction
-box at a time, with a `Dark` badge beside the total when the sun is down; the details;
-and the chart. *What is wrong* was a fifth and is now the first thing on the array's
-own `Alarms` section — see
-[the shared bands](#the-four-home-pages-and-the-bands-they-share).
-
-**Nothing on that page is a verdict.** Every figure is a measurement or a nameplate,
-and the page does not hold either up against a target — there is no design figure
-anywhere in this app to hold them against. A design benchmark was built and taken
-out again; what is left compares the system against **itself**, which is the only
-comparison the model can support: the chart's day view carries the array's own
-recent normal, and the derived string rule fires on a step in its own series.
-
-**Three health rules, and every one is checkable on the page it appears on.** That
-page is the `Alarms` section, where each rule is a row marked `Derived` beside the
-device's own registers, naming the rule that fired. A
-genset's alerts are a register map's bits, so the app can print the coordinates and a
-reader can go and check. A PV system has no such map, so each rule here had to earn
-its place a different way — by being derivable from something else drawn on the same
-page:
-
-| Rule | What it says | Checkable against |
-| --- | --- | --- |
-| `system-offline` | the plant has stopped reporting | the readings below it |
-| `string-out` | output stepped down on a date and stayed down | the month the chart steps down |
-| `soiling-due` | four months since the last wash | the last wash in the readings |
-
-Two rules went with the inverters, and the losses are the interesting half.
-`inverter-offline` was a box silent while its neighbours were not — there are no
-boxes, so a silence is now the whole plant's. `insulation-low` was an inverter's own
-earth-leakage interlock, and with no inverter there is nothing on the site that
-measures it. **A rule this app cannot derive is a rule it must not print.**
-
-`string-out` needs a **step** behind it. A system can be quietly mediocre for its
-whole life — a shallow roof, a shaded corner, an optimistic build — and that is not a
-fault anybody can go and clear. What *is* a fault is output that dropped on a date and
-stayed down, so the rule fires only where there is a step, and the alert carries the
-month, because that is the half of it that sends somebody up a ladder rather than
-into an argument.
-
-The `Analysis` section is generation over a chosen window, as bars, with the window in
-the query string so "look at the July dip" is a link. It was two charts — bars, and
-the same series added up beside them — and the second was an integral of the bars
-drawn next to the bars once there was no design figure to hold the series against.
-**Attribution stops at *when*:** the placeholder this replaced promised a shortfall
-pinned to a cause, and the model cannot separate a soiled array from a shaded one.
-
-`Devices` holds the array — the glass, the strings, and how many of them are dark.
-`Alarms` carries both sources' rows in one table — the derived rules and, where a
-monitoring unit is fitted, its four `PV N Array Fault` registers. `Service` and
-`Settings` are named and not drawn.
-
-### The battery register, and a bank's pages
-
-`/battery` is a row per [bank](#battery-bank): bank, charge, flow, autonomy, alarm,
-configuration. It was the same six-tab scaffold `/solar` was, and its own note said what
-the fix would be; this table is that, column for column.
-
-**The fifth column is `Alarm`, and it was `Health`** — the last of the four registers to
-make that swap, on 2026-09-14, so `/battery` now answers *what is wrong here* in the same
-place and the same shape as `/sites`, `/gensets` and `/solar`. Health is the one reading
-in this table that cannot change between two visits: state of health moves over years,
-so the column handed back the same numbers every morning, which is why it was already
-kept out of the sort. It has not left the screen — it is a row in the preview panel
-beside the list, and the strip still counts the estate's banks under 85%. The counts come
-off `plantAlarmQueue`, the same call the bank's own strip and its Alarms tab make.
-
-⚠️ **A bank with no monitoring unit and a bank whose unit is reporting nothing draw the
-same empty pill**, and this column cannot tell them apart — only the bank's own Alarms
-tab says which, and the pill links to it. `plantAlarmsWatched` is the predicate if the
-column should ever say so itself.
-
-**The sort is still runtime, not the queue**, which is where the other three registers
-rank from. Most of this estate's banks have nothing watching them, so an alarm sort would
-rank a handful of rows and leave the rest tied on nothing; hours left is a reading every
-bank has. The day the units are fitted more widely, `alarmRank` is the shape the answer
-wants.
-
-**A bank's home page is four bands**, not five: the strip, one dial for where the charge
-stands, the details, and the chart.
-
-⚠️ **The paragraph that stood here said "nothing in this app raises a battery alarm"** —
-no cell imbalance, no over-temperature, no low-charge rule, no BMS fault — and that the
-strip's zeros therefore meant *no rule has ever been written*. That was true when it was
-written and is not any more: a site with a **monitoring unit** on its DC plant has
-twenty-eight of that unit's registers pointed at the battery, and the bank's `Alarms` tab
-lists the ones it is asserting. The strip and now the register both read that queue. What
-survives of the old rule is the part that was always the point — a count here must never
-be invented — and the shape the answer takes is in `battery_.$bankId.alarms.tsx`:
-*nothing standing* where a unit is watching, *nothing watching* where none is.
-
-The gauge is **charge, not power**. A system's dial is generation because what an array
-is *doing* is the question; a bank's is state of charge because what a bank is
-*holding* is — an operator deciding whether to send a genset out tonight needs the
-level, and the direction and rate are the caption under it. Charge is also the one
-reading with a natural full scale, where a converter's throughput has only a nameplate.
-
-Every section under a bank is a placeholder. That is the same way `/solar` was stood up
-before it had a register: a destination that says what it will hold is how the shape of
-a screen gets agreed before a table is drawn for it.
-
 ### The fuel page
 
 `/fuel` is four tabs, picked from a rail on the left, all over the same window: the
 last 30 days, rolling, so it ends now and never resets on the 1st; every label
 says *last 30 days* (Jeff, 2026-10-01), not *1 month*, which read as the calendar's. There is no period control at the top (Jeff, 2026-09-30: the page shows
 the current state); it had a 1 day / 7 days / 1 month / custom one until then. The
-Deliveries and Truck log tables keep their own. A depot's own page has none either.
+Genset fills and Truck log tables each have their own picker, the genset analysis
+tab's `RangePicker` — 24 hours / 7 days / 30 days / custom (2026-10-05) — and so does
+the Level chart on a depot's own page. Each card's corner pill names the period it covers.
 **Depots** has each yard's bulk tank reconciled against what it issued.
-**Deliveries** has every genset filled at a yard. **Trucks** has the fuel that
+**Genset fills** (`?view=deliveries`; *Deliveries* until 2026-10-05, renamed because
+"delivery" now means supplier fuel into a depot) has every genset filled at a depot. **Trucks** has the fuel that
 reached a machine by road, and **Truck log** (`?view=truck-log`) every load, stop
 and loss, a tab of its own since 2026-09-30 rather than a table under the truck
-register, as Deliveries is beside Depot tanks. An estate with no trucks gets
-Depots and Deliveries only.
+register, as Genset fills is beside Depot tanks. An estate with no trucks gets
+Depots and Genset fills only.
 
-**Numbers on the Fuel pages are written with a comma and a space**, *164, 158 L*
-(Jeff, 2026-10-01). Every figure in `modules/fuel` goes through `modules/fuel/format.ts`
-(`figure` and `amount`), so the separator is set in one place; the rest of the app
-keeps the plain comma. Summary card titles are semibold in the text colour, app-wide,
+**Numbers are written with a comma and a space**, *164, 158 L* (Jeff, 2026-10-01 on
+the Fuel pages; app-wide since 2026-10-05), with a true minus, *−1, 234 L*. Every
+figure on screen goes through `lib/format.ts` (`figure` and `amount`), so the
+separator is set in one place. CSV exports keep plain numbers. Summary card titles are semibold in the text colour, app-wide,
 so they read as headings.
 
 **The Trucks tab is laid out and sized as the Gensets page is** (Jeff,
 2026-09-30): a toolbar (number-plate search, a *Fuel depot* filter (named *Home depot* until
 2026-10-01), list / split /
-map), the filter chips, four summary cards, then the truck register beside the map,
+map), the filter chips, two summary cards, then the truck register beside the map,
 with the selected truck's panel floating over the map's right edge. The panel shows
 only while a truck is selected (Jeff, 2026-09-30): clicking a row or a pin opens it,
 and its × or a click on the basemap closes it. It had a show / hide toggle in the
 toolbar and an empty *Select a truck* state until then. It is kept short (Jeff, 2026-09-30):
-the tank line (*3,200 of 8,000 L · 40%*), where the truck is and who has it, one red
-line when fuel went missing (*2 losses · 488 L missing*), *This period* (depot
-loads, stops, delivered), and *View in Truck log ›*, which opens the Truck log tab
+the tank line (*3, 200 of 10, 000 L · 32%*), where the truck is and who has it, one red
+line when fuel went missing (*2 short loads · 488 L missing*), *This period*
+(received from depot, stops, delivered), and *View in Truck log ›*, which opens the Truck log tab
 searched to that truck (`?view=truck-log&truck=<id>`). The truck's standing facts
 (drivers, the states it covers, its instruments), a card per loss and its own copy
 of the log were taken out. The cards are
 *Missing from trucks* (a toggle that narrows the register to the trucks that lost
 fuel, as the fleet's *Due for service* does), and *Fuel on board*; a *Trucks* count
 (the register counts them) and *Delivered by truck* (a share nobody acted on) were
-cut on 2026-10-01. Beside the map the register drops *Fuel depot* and *Where*, as the
+cut on 2026-10-01. Beside the map the register drops *Depot* and *Location*, as the
 fleet table drops *Location*. The truck log is its own tab now; it followed below,
 narrowed to whatever trucks the register's filters left, until 2026-09-30. Every truck mark on the map is fuel violet, the colour the genset tanks are drawn in
 (Jeff, 2026-09-30): a truck's dot, and a cluster of trucks, which is a violet bubble
@@ -2657,6 +1889,33 @@ machine was posted at that moment:
   east coast, Butterworth takes Kedah and Perlis.
 - **Between postings**: the genset is at a yard, so it fills at the nearest depot.
 
+The postings are the deployments as they stand, edits included (2026-10-05). Create,
+move, end or delete a job and the fills it covers move with it, on the Fuel pages
+and in the Reporting files. Both used to read the seeded record and ignore edits.
+
+**Each estate has its own depots** (2026-10-05). Express Mission's four are Klang,
+Ipoh, Butterworth and Pasir Gudang. The carrier estate runs no trucks, so every
+genset drives to its nearest yard. Its seven are Klang, Butterworth and Pasir
+Gudang for its peninsular towers, plus Kota Kinabalu, Sandakan, Bintulu and
+Kuching. Before that both estates shared Express Mission's four, and about twenty
+Sabah and Sarawak towers were listed as filled at Pasir Gudang.
+
+**What the seed puts in each depot's gap.** Each yard has a slow loss every hour
+and one larger drop nobody logged, both sized to what the yard issues (2026-10-05).
+They were flat litres before, so a small carrier yard lost half its month to the
+one drop. Butterworth, on Express Mission, takes no drop. Instead its level sensor
+over-reads every fall by 0.1%, a gap just past the 100 L floor and under the
+unlogged line, so it reads *Sensor fault*. The sensor used to under-read, which
+made the gap negative, and since the gap is never shown below zero, that example
+had vanished. The carrier estate has no *Sensor fault* case. Its yards issue under
+20,000 L a month, and at that size 0.5% is already below the 100 L floor.
+
+The depot's newest reading is taken at the same moment as the genset history's
+(2026-10-05). It used to sit half an hour later. Each page then left that last hour
+out of *Fuel Out*, *Mobile gensets* and *Fuel trucks* but still showed it in the
+level. So *Balance* was not the opening level plus *In* minus *Out*, and a yard's
+*Gensets filled here* came out higher than its *Mobile gensets* row.
+
 The state comes from the site's label, not the map polygon. `Kepong, Kuala Lumpur`
 sits just inside Selangor's outline.
 
@@ -2677,12 +1936,11 @@ many trucks, entries or fills) were cut, since a table beside them counts them t
 
 **The Depots tab's cards** (Jeff, 2026-10-01): *Needs attention* and *Fuel
 balance*. *Needs attention* lists each yard with a verdict, worst first, in the
-tile's own words (*Klang · 1,250 L unlogged*, *Butterworth · Sensor
+tile's own words (*Klang · 1, 826 L unlogged*, *Butterworth · Sensor
 fault*), each a link to that yard's page, and reads *None* when every yard balances.
-*Fuel in and out* is all four tanks together: *In*, in green, what suppliers put in,
-and *Out*, in red, what left for gensets and trucks, coloured as each tile's rows
-are; then, ruled off under them, *Balance*, what is in all four tanks now and how
-full that is. The period is said once per card, as a *last 30 days* pill in its
+*Fuel balance* is every depot's tank together: *Fuel In*, what suppliers put in,
+and *Fuel Out*, what left for mobile gensets and fuel trucks; then, ruled off under
+them, *Balance*, what is in the tanks now and how full that is. The period is said once per card, as a *last 30 days* pill in its
 top-right corner, not in the title or on each line. *Needs attention* replaced two cards the same day, *Fuel unaccounted for* and
 *Sensor faults*: they counted yards without naming them, so the reader still scanned
 the tiles to find which, and their filters hid one or two of four tiles already on
@@ -2691,7 +1949,7 @@ day too; *Days of stock* gave the yard running dry first, but took no account of
 supplier deliveries still to come.
 
 **The depot card tells the depot's side only** (Jeff, 2026-10-01). The gap is *Unlogged fuel*,
-badged *1, 270 L unlogged* (Jeff, 2026-10-01; it was *Missing at depot*): the figure is fuel
+badged *1, 826 L unlogged* (Jeff, 2026-10-01; it was *Missing at depot*): the figure is fuel
 the log does not hold, and *missing* claimed more than that. It never reads below zero: the
 opposite case, the pumps logging more than the tank fell, had its own label (*Over-logged
 fuel*, once *Extra fuel recorded*) and was set aside the same day as not needed for now, so it
@@ -2733,8 +1991,8 @@ fault*. Fuel lost after a truck drives off is the Trucks tab's, and says so:
 *Missing from trucks* on its summary card and filter chip, *Missing from truck* in
 a truck's panel. Both once read *Fuel missing*, which let the two stages pass for
 one figure; before that the depot's were *Fuel Out − Fuel Arrived*, *Fuel did not
-arrive* and *Check calibration*. The rail's status line reads `4 depots · 1
-missing fuel · 1 sensor fault`.
+arrive* and *Check calibration*. The rail's status line reads `4 depots · 2
+with unlogged fuel · 1 sensor fault`.
 
 **Clicking a depot opens its own page**, `/fuel/depots/<id>` (Jeff, 2026-09-30).
 The whole card is the target. Its name reads as a link, *KLANG DEPOT ›*, and is
@@ -2778,9 +2036,9 @@ only and says each figure once:
   *Mobile gensets*, *Fuel trucks* and *Unlogged fuel*; *Fuel In* is the balance card's;
 - *Deliveries into the depot*: each rise between two readings, since nothing but a
   supplier puts diesel into a bulk tank;
-- *Gensets filled here*: the total, the latest ten, and a link to the Deliveries tab when
-  there are more;
-- *Trucks loaded here*, one line per truck with its loads and litres, each linking to that
+- *Mobile gensets filled here*: the total, the latest ten, and a link to the Genset fills
+  tab when there are more;
+- *Fuel trucks loaded here*, at the depot pump's litres (*pumped*), one line per truck with its loads and litres, each linking to that
   truck on the Trucks tab (only where the estate runs trucks). The litres are the depot
   pump's, as *Fuel trucks* counts them, not the trucks' own sensors.
 
@@ -2788,8 +2046,9 @@ The lists follow the breakdown, In then Out: deliveries in beside *Fuel breakdow
 then gensets and trucks, each totalling what its row says. Every card that covers the
 period wears the *last 30 days* pill in its corner, not in its title.
 
-**Two depots run down.** Pasir Gudang stands at 24% and Ipoh at 50% (Jeff,
-2026-09-30), so the page shows a low tank and a half one. Their supplier brings
+**Two depots run down.** On Express Mission's estate Pasir Gudang stands at 24% and
+Ipoh at 50% (Jeff, 2026-09-30), so the page shows a low tank and a half one. (The
+carrier's depots have no such setting; they sit high.) Their supplier brings
 less than the yard issues each round, and the stock runs down week by week, which
 is why their *Fuel In* is far below their *Fuel Out*. The level is set by
 `stockFraction` in `data/depots.ts`, and it stays above the 18% reorder floor. The loss figures are unchanged, since
@@ -2800,20 +2059,6 @@ and it changes hands at its home yard: each run from one home load to the next i
 the next driver's. Every event records who was driving, so a loss and a log row name the
 driver at the time, not the truck's first name. The truck log gives it a column
 of its own, beside the truck, headed *Operator*. The drawer lists both drivers and who has the truck now.
-
-**One truck filter, at the top.** *All trucks* or one plate. It narrows every
-section under it: fuel missing, the truck list and its by-truck total, the map
-(that truck and the yard it loads from), and the log. A plate with fuel missing in
-the period carries a red dot. It is the app's filter dropdown (`FilterSelect`,
-as on the Gensets page), and so is the Depots tab's delivery filter; each row
-counts its log entries in the period. The filter is not in the URL; `?truck=` is the open
-drawer, a separate thing.
-
-**Fuel missing, first.** A verdict (*3 trucks lost 710 L in this period*), then one
-row per loss, biggest first: the way it went, the truck, where and when, the two
-readings that disagree, and the litres. Nothing missing reports nothing: the
-section, the drawer's missing section and the missing cells are left out, not
-filled with an all-clear.
 
 **Three ways fuel goes missing.** Each truck has a tank level sensor, a nozzle
 meter and GPS. The genset's own level rise is a fourth reading, and each load has
@@ -2828,24 +2073,11 @@ a fifth: the depot's pump meter.
 Gaps under 10% are instrument noise and are not shown as missing anywhere.
 
 Every loss is titled `<where it came out> out vs <where it went> in`, and its
-figures read `Out 1,806 L · In 1,556 L`, rather than naming the instruments
+figures read `Out 1, 806 L · In 1, 556 L`, rather than naming the instruments
 (Jeff, 2026-09-29). Out carries an amber ↗ and In a green ↙; neither is red,
 which stays for the missing litres.
 
-**The truck list.** One compact row per truck: plate and drivers, area, tank level,
-where it is now, litres delivered, and litres missing. The caption says how much
-came by truck and its share of every fill. On a phone the row keeps plate, drivers,
-where, tank % and litres missing.
-
-**A truck's panel.** Clicking a row, a truck's pin, or its name on a loss opens a
-drawer from the right and puts the truck in the URL as `?truck=bpx-4521`, so a link
-or a refresh reopens it and Back closes it. The page's map and log stay whole
-behind it. Top to bottom: tank and where it is; its fuel missing; period totals
-(depot loads, stops and gensets served, delivered, missing); the
-truck's fixed facts (drivers, home depot, states covered, tank size, instruments);
-and its own log, newest first.
-
-**The Deliveries tab's cards** (Jeff, 2026-10-01): *Litres delivered* over the
+**The Genset fills tab's cards** (Jeff, 2026-10-01): *Litres filled* over the
 table's period, with the fills and gensets under it, and *Waiting for fuel*: the
 gensets below their reserve line now, with the longest any of them has gone since
 a fill. *Waiting for fuel* is a link to the Gensets page filtered to low fuel, which
@@ -2884,14 +2116,13 @@ headers that sort, and a count on the right. A new header opens the way a reader
 means it (names A to Z, newest and biggest first); clicking the one showing flips
 it. Both open newest first. The deliveries filter by *Depot*; the truck log by
 *Operator* and *Activity* (loaded at depot, filled a genset, level fell with
-the meter idle), inside the page's truck filter.
+the meter idle).
 
-Both tables have their own period control, the page's own drawn again in each
-toolbar: 1 day, 7 days, 1 month and Custom, with the same date pair (Jeff,
-2026-09-30). Until it is touched it shows the page's month, so on arrival each table
-lists what the figures above it add up. Touched, it narrows
-that table alone and leaves a *Delivered …* or *Logged …* chip that puts it back;
-the cards keep the page's month. → `src/modules/fuel/TablePeriod.tsx`
+Both tables have their own period picker, the genset analysis tab's `RangePicker`:
+24 hours, 7 days, 30 days and Custom (2026-10-05; it was 1 day / 7 days / 1 month /
+Custom from 2026-09-30). It opens on 30 days, so on arrival each table lists what the
+figures above it add up. Changed, it narrows that table and its cards, whose pill
+names the new period, and leaves a chip that puts it back to 30 days. → `src/modules/fuel/TablePeriod.tsx`
 
 Both run twenty rows a page under `TablePager`, the registers' pager (Jeff,
 2026-09-30). Any search, filter or sort goes back to page 1, and turning a
@@ -2906,19 +2137,19 @@ the 240px column a genset's sections use, headed *Fuel* (Jeff, 2026-09-29).
 *Depots* and *Trucks* head it as plain labels that never switch the page and no
 longer fold (Jeff, 2026-09-30; they were dropdowns with a chevron for a while). The
 links under them are always shown and are what switch the page: *Depot tanks* and
-*Deliveries* under Depots, *Trucks and map* and *Truck log* under Trucks. Under
+*Genset fills* under Depots, *Trucks and map* and *Truck log* under Trucks. Under
 *Depot tanks*, one smaller link per depot opens that depot's own page, with a dot
 when its card has a verdict. A chevron at the right of the *Depot tanks* row folds
 that list away and back; the row itself still opens the tab. The link
 for the tab showing is highlighted. *Truck log* scrolled to a section of the Trucks
 tab until it became a tab of its own (2026-09-30). A heading with a problem in the period carries a red (or
-amber) dot, and its status line (`4 depots · 1 missing fuel · 1 sensor fault`) is the
-heading's tooltip. Deliveries was a table under the depot tanks until 2026-09-30,
+amber) dot, and its status line (`4 depots · 2 with unlogged fuel · 1 sensor fault`) is the
+heading's tooltip. Genset fills (then *Deliveries*) was a table under the depot tanks until 2026-09-30,
 when it became a tab of its own (`?view=deliveries`). An estate with no trucks
 shows the Depots group only.
 
 The top bar names the tab too (Jeff, 2026-09-30): `Fuel / Depots`, `Fuel /
-Deliveries`, `Fuel / Trucks`, with *Fuel* a link back to the first tab. The tab is a
+Genset fills`, `Fuel / Trucks`, with *Fuel* a link back to the first tab. The tab is a
 query string rather than a child route, so the route supplies it through
 `staticData.crumbTab`, read off the URL — see `TopNav`.
 
@@ -2935,7 +2166,7 @@ and a combined page of both halves was tried and dropped: they are different job
 
 One section, and it switches which customer this build is.
 
-The picker exists because the alternative was restarting the dev server. Three brands
+The picker exists because the alternative was restarting the dev server. Two brands
 share one build, and the thing a designer actually does with that is compare them: is
 the rail dark enough behind this mark, does the amber still read on that blue, does the
 estate's own vocabulary make the summary cards scan. That is a two-second loop with a
@@ -2948,9 +2179,9 @@ names a dataset, and the estate is built once at startup.
 
 ### Phone width
 
-The **two registers with maps** and the **detail home pages** lay out for a phone. They are the same routes at a narrower window rather than a parallel set of
-mobile ones, so a link works wherever it is opened and the designed desktop frames are
-untouched.
+The **four phone destinations** — Gensets, Deployments, Fuel and Service — and the
+genset home page lay out for a phone. They are the same routes at a narrower window
+rather than a parallel set of mobile ones, so a link works wherever it is opened.
 
 The line is Tailwind's `md`, 768px. Almost every decision either side of it is a CSS
 class; the two that cannot be are in `lib/useIsCompact.ts`, where the *tree* differs
@@ -2958,66 +2189,43 @@ rather than its layout — a table swapped for cards (rendering both and hiding 
 put every row's links in the accessibility tree twice), and the map's panel inset, which
 is a number.
 
-**The nav becomes a floating bottom bar with three destinations** — Sites, Solar,
-Gensets. Each is a **register**, which is the one shape that reads at 390px, and the point
-of a limited bar is that everything it offers works:
+**The nav becomes a floating bottom bar with four destinations** — Gensets,
+Deployments, Fuel and Service. Reporting and Settings are desktop-only: the point of a
+limited bar is that everything it offers works. The routes themselves still resolve if
+a URL is typed or followed from a desktop link; what is withheld is *navigation to*
+them.
 
-- **Battery** is a judgement rather than a rule: five items is where a bar of this width
-  starts squeezing labels, and of the five registers storage is the one whose page nobody
-  opens standing at the foot of a tower. It is one tap away through the site.
+**A detail page's rail has no phone form at all.** A phone sent to `/gensets/brf9540`
+gets the page but not its seven sections. That is acceptable for a page you arrive at
+from a list you tapped; it would not be acceptable as a destination the bar offered
+directly.
 
-The routes themselves are untouched and still resolve if a URL is typed or followed from a
-desktop link. What is withheld is *navigation to* them, which is the honest version of
-"not built yet".
+**The registers withhold their maps and the list becomes the whole screen.** A 375px
+basemap of Malaysia puts Kangar and Johor Bahru within a thumb's width of each other,
+so panning and pinching become the only way to read it.
 
-**A detail page's rail has no phone form at all.** A phone sent to `/solar/kdh-0431` gets
-the page but not its six sections. That is acceptable for a page you arrive at from a list
-you tapped; it would not be acceptable as a destination the bar offered directly, which is
-most of why the bar offers registers only.
+**The summary strip folds; the filters do not.** Stacked two-up the strip is several
+rows deep before the list starts, so it folds and the list takes the height back. The
+filter dropdowns are in the toolbar above it and stay put at every width.
 
-**The registers withhold their maps and the list becomes the whole screen.** Not a
-shrunken map: a 375px basemap of Malaysia puts Kapit and Ipoh within a thumb's width of
-each other, so panning and pinching become the only way to read it. The cards and the
-counts are what a phone is good for here.
+**The registers become cards, and the whole card navigates.** Not the table with
+columns dropped: the columns that survive 390px are the ones that say least on their
+own. There is no preview panel at this width to select into, so a card that
+highlighted itself and did nothing else would be a dead end.
 
-**The estate strip folds; its filters do not.** Stacked two-up the strip is four rows
-deep before the list starts, so it folds and the list takes the height back — and the
-button says `Show summary` rather than `Show filters`, because that is what it hides.
-The three filter dropdowns are in the toolbar above it and stay put at every width,
-which is the other half of why the fold can be called a summary at all.
+**The genset home page needed no rewrite, because its reading order is already
+vertical.** Each band's row breaks into a column. The control pad is four **tap
+targets**, and a control shrunk below a thumb is worse than no reflow at all, so it
+keeps its size.
 
-**The registers become cards, and the whole card navigates.** Not the table with columns
-dropped: the columns that survive 390px are the ones that say least on their own, and the
-fuel figure and the placename are why anybody scrolls. There is no preview panel at this
-width to select into, so the table's select-versus-navigate split has nothing to be a split
-between — and a card that highlighted itself and did nothing else would be the dead-end
-control the panel toggle rule exists to avoid.
+One trap is worth knowing before editing any of it. Where the desktop layout is a
+wrapping row holding a fixed item beside a shrinkable one, **`flex-wrap` is the wrong
+instruction at phone width**: both items "fit" on one line once the shrinkable one may
+shrink, and the result is a squeezed column with its contents spilling under the fixed
+one. Those rows are `flex-col md:flex-row md:flex-wrap` instead.
 
-**The home pages needed no rewrite, because their reading order is already vertical.** The
-bands are asked in sequence and the rules between them carry that, so a phone gets the same
-page in the same order with each band's row broken into a column. Every child keeps its
-designed size — the gauges are 153px, the phase bars 322px, the control pad 220px, all of
-which fit a 390px screen. Nothing in the genset's dial band needs to shrink or scroll
-sideways: the pad in particular is four **tap targets**, and a control shrunk below a thumb
-is worse than no reflow at all.
-
-The one exception is the **site diagram**, and it is the only fixed-geometry drawing left
-on any of these pages. It does not reflow — its conductors land on the boxes at measured
-coordinates — so it **scales**: it measures the box it is handed and shrinks the canvas as
-one piece, every coordinate surviving, and the only casualty is type size (0.9 at 390px, a
-9.5px caption). Scrolling was the earlier answer for it and it was worse — the load node,
-the thing the whole drawing points at, started off screen. A second drawing on the genset
-page used to scroll sideways beside the control pad; it is gone, and band 2 there is now
-five gauges, a bar group and a pad, all of which fit 390px as drawn.
-
-One trap is worth knowing before editing any of it. Where the desktop layout is a wrapping
-row holding a fixed item beside a shrinkable one, **`flex-wrap` is the wrong instruction at
-phone width**: both items "fit" on one line once the shrinkable one may shrink, and the
-result is a squeezed column with its contents spilling under the fixed one — a 100px run
-card under a 220px control pad. Those rows are `flex-col md:flex-row md:flex-wrap` instead.
-
-`MobileNav` is a *floating* pill rather than a docked bar, so every scrolling page carries
-`pb-24` below `md` or its last row finishes behind it.
+`MobileNav` is a *floating* pill rather than a docked bar, so every scrolling page
+carries `pb-24` below `md` or its last row finishes behind it.
 
 ---
 
@@ -3026,113 +2234,78 @@ card under a 220px control pad. Those rows are `flex-col md:flex-row md:flex-wra
 ```
 src/brands/                  whose app this is, and which estate
 ├── types.ts                 the line between identity and the product model — read first
-├── catalog/                 one file per customer: name, marks, four colours, a dataset
+├── manifest.ts              the brand list and each tab's title — Node only
+├── catalog/                 one file per brand: name, marks, three colours, a dataset
 ├── datasets/                carrier.ts, utility.ts — sites, sets, regions, programmes
-├── identity.ts, dataset.ts  the two generated registries, split so colours load alone
+├── identity.ts, dataset.ts  the registries, split so colours load alone
 └── selection.ts, active.ts  which brand this session is showing
+
+src/lib/format.ts            every figure on screen (`figure`, `amount`) and every date
 
 src/components/global/
 ├── Sidebar.tsx              the app rail — five destinations
-├── MobileNav.tsx            the floating bar, three registers
-├── DetailSidebar.tsx        one thing's rail: 240px, nesting, shared by all four
-├── MetricStrip.tsx          band 1 on every detail page
-├── DetailBand.tsx           the details band on every detail page
-├── SummaryCards.tsx         the card strip above both registers
-├── FilterSelect.tsx         one filter as a toolbar dropdown — the estate's three
+├── MobileNav.tsx            the floating bar, four destinations
+├── DetailSidebar.tsx        one thing's rail: 240px, shared by gensets, deployments,
+│                            Service and Fuel
+├── MetricStrip.tsx          the strip on a home page
+├── DetailBand.tsx           the details band on the genset home page
+├── SummaryCards.tsx         the card strip above the registers, and `CardPill`
+├── registerTable.ts         the register table's shared classes
+├── FilterSelect.tsx         one filter as a toolbar dropdown
 └── ComingSoon.tsx           a section that says what it will hold
 
-
 src/modules/genset/
-├── types/
-│   ├── genset.type.ts       Genset, run state
-│   ├── run.type.ts          GensetRun — one start to one stop
-│   ├── telemetry.type.ts    Reading, GaugeReading, PhaseGroup, ControlMode
-│   ├── alert.type.ts        GensetAlert, GensetTag, condition
-│   ├── alarmState.type.ts   acknowledged and cleared — two axes, not one status
-│   ├── service.type.ts      the two counters, and the document a service produced
-│   ├── fuelIntegrity.type.ts the two fuel instruments, and the leak arithmetic
-│   ├── fuelLevel.type.ts    the reserve line
-│   ├── series.type.ts       Sample, ReadingSeries — a reading over time
-│   ├── view.type.ts         the fleet register's URL state — views and filters
-│   ├── analysisView.type.ts the analysis section's URL state
-│   └── runsView.type.ts     the runs section's URL state, window rules and totals
+├── types/                   Genset and run state, runs, readings, alerts, alarm handling,
+│                            service, fuel integrity, the reserve line, series, and the
+│                            URL state of the register, the analysis and the runs
 ├── data/
-│   ├── fleet.ts             the dataset's machines — the givens
+│   ├── fleet.ts             the dataset's machines — the givens; offline after an hour
 │   ├── deployment.ts        where each set is, DERIVED from its active job
 │   ├── spread.ts            the one hash every mock number is seeded from
 │   ├── detail.ts            everything derived from a given, incl. `ALERT_RULES`
-│   ├── history.ts           the run log and the reading series, built backwards
-│   ├── alarms.ts            the standing/cleared store, and who touched what
+│   ├── history.ts           the run log, refuels and reading series, built backwards
+│   ├── alarms.ts, alarmViews.ts, assertedAlarms.ts, lowFuelAlarm.ts
+│   │                        the standing/cleared store, and every alarm source
 │   ├── services.ts          the service log; serviceSeed.ts is its givens
 │   ├── fleetStatus.ts       the three buckets, worst-wins and exhaustive
-│   ├── fleetSummary.ts      the register cards' tallies
-│   ├── fuelInstruments.ts   which sets carry what, and the leak alarm's defaults
-│   ├── fuelIntegrity.ts     the reconciliation, and the condition it can move
+│   ├── fuelInstruments.ts, fuelIntegrity.ts   the instruments and the leak check
 │   └── runsCsv.ts           the run log as a file somebody bills against
-└── components/
-    ├── …                    the register, incl. GensetsCards for phone width
-    ├── detail/              the five bands, and StandbyPanel for a stopped set
-    │   └── analysis/        the analysis section: picker, range, calendar, chart
-    ├── runs/                strip, totals, log, posting picker — shared with sites
-    ├── alarms/              the standing and cleared tables
-    └── service/             the two counters, the schedule, the log, the dialog
-
-src/modules/site/
-├── types/
-│   ├── site.type.ts         Site, the four power roles, mains supply, switch states
-│   ├── device.type.ts       which device band 2 is showing — a genset, the array, the bank
-│   └── view.type.ts         the estate register's URL state
-├── data/
-│   ├── siteSeed.ts          the dataset's sites, with overrides applied
-│   ├── siteOverrides.ts     what a reader has changed — a patch, nothing more
-│   ├── sites.ts             everything else, summed from the sets standing there
-│   ├── hybrid.ts            the array, the bank, and thirty days of what carried
-│   ├── estateSummary.ts     the estate strip's tallies and per-site verdict
-│   ├── siteTrend.ts         which metrics a yard can chart, and the series
-│   ├── siteRuns.ts          every set's runs, merged into one time-ordered log
-│   ├── customers.ts         the estate's regions, and their peak sun hours
-│   ├── programs.ts          the rollout groupings — a grouping and only that
-│   └── siteConfig.ts        the power role, per site, in localStorage
-└── components/
-    ├── SitesToolbar…/Table/Cards/Map   the register; the toolbar holds three filters
-    ├── SitesSummaryCards.tsx   four cards: two counts, two links out
-    ├── SiteDetailPanel.tsx  the preview beside the list and over the map
-    ├── SiteDetailShell.tsx  the rail, and which plant this yard has
-    ├── SiteSwitcher.tsx     the rail's header — alarm-ordered, like the list
-    ├── SiteHome.tsx         the four bands
-    ├── SiteMetricStrip.tsx  band 1 — the two figures this site can answer for
-    ├── SiteCircuit.tsx      band 2 — the drawing, its picker, and which is picked
-    ├── SiteDiagram.tsx      the circuit itself, and every source on the bus
-    ├── SiteDevicePanel/SiteDeviceCard   the card beside it — one device at a time
-    ├── SiteDetails.tsx      band 3 — the rows the Settings section edits
-    ├── SiteDiagnostics.tsx  band 4 — which metrics this yard offers
-    ├── TrendPanel.tsx       the chart itself, shared with solar and battery
-    ├── SiteRuns.tsx         the genset panel, over every set here
-    ├── SiteSettings.tsx     identity, power, gensets, and the preview
-    ├── settings/SiteIdentityPanel.tsx   six editable givens
-    ├── SiteDeployments.tsx  every job this yard has held, newest first
-    └── SiteGensets.tsx      what stands here, under which job, and a way to start one
+└── components/              the register; detail/ (the home bands, analysis/);
+                             runs/ (the Deployments section); alarms/; service/
 
 src/modules/deployment/
-├── types/
-│   ├── deployment.type.ts   Deployment, DeploymentMembership, the three states
-│   └── view.type.ts         the register's URL state — four views, three chips
+├── types/                   Deployment, DeploymentMembership, the three states; URL state
 ├── data/
 │   ├── seed.ts              the record, dealt per yard; and what a window cost
-│   ├── store.ts             the jobs, the write path, and the overlap rule
+│   ├── realJobs.ts          BRF9540's measured jobs, runs and refuels
+│   ├── store.ts             the jobs as edited, the write path, and the overlap rule
 │   ├── feed.ts              one job joined to its machines — every view's row
 │   └── detail.ts            one job, live, for its own pages
-└── components/
-    ├── Deployments…         the register: toolbar, strip, table, cards, map, Gantt
-    ├── stateMeta.ts         one description of a state, for the six places drawing it
-    └── detail/              the job's five sections, and the rail's switcher
+└── components/              the register (toolbar, strip, table, cards, map, Gantt),
+                             the new-deployment dialog, and detail/ — the job's sections
 
+src/modules/fuel/
+├── data/
+│   ├── depots.ts            each estate's depots
+│   ├── depotTank.ts         each depot's level walk, and `reconcile` / `varianceSeverity`
+│   ├── fills.ts             every genset fill, and whether a depot or a truck gave it
+│   ├── trucks.ts            each estate's fuel trucks
+│   └── truckRuns.ts         each truck's loads, stops and short loads
+└── …                        the tabs (index.tsx, FuelNav, ViewSwitch), the depot page,
+                             the Genset fills table, the trucks view and the truck log
+
+src/modules/service/         the fleet's service standing and history
+src/modules/reporting/       the three CSV exports
 src/modules/settings/        the brand picker
+src/modules/site/            the site data the rest reads: seeds and overrides, regions,
+                             power roles, monitoring units and plant alarms; the site
+                             screens and several data files are unused and kept
 ```
 
 ### The rules that hold the graph together
 
-**`data/siteSeed.ts` has no imports**, and that is structural rather than tidiness.
+**`data/siteSeed.ts` imports almost nothing** (the brands, its overrides and types),
+and that is structural rather than tidiness.
 `sites.ts` needs it and so does `genset/data/deployment.ts` — which needs to know where a
 yard is, so a job going active can move its machines there — and `sites.ts` reads the fleet,
 which reads placement, which reads the deployment record. Leaving the seed inside
@@ -3176,10 +2349,10 @@ chart to plan a tanker.
 
 **`data/sites.ts` follows the same rule one level up.** Only a site's *givens* are seeded.
 Membership comes from the gensets naming their site; its draw, capacity and fuel are
-summed from them; its plant is sized by `hybrid.ts` from its load and its role. There is
+summed from them. (`sites.ts` is unused since the site pages went; the rule is kept.) There is
 no stored site figure to drift — and since 2026-09-14 no site *verdict* either: what is
 wrong with a yard is the alarm queue, counted in `siteAlarmQueue.ts`, not a roll-up
 stored on the summary.
 
-**`data/hybrid.ts` is the one place two models meet, and they are not reconciled.** See
-[Hybrid plant](#hybrid-plant) for the seam and the rule that keeps it off the screen.
+**`data/hybrid.ts`, where the hybrid energy model met the run log, is gone** with the
+solar and battery plant.

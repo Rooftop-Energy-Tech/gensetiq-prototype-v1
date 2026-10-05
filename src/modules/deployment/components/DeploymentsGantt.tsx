@@ -84,9 +84,7 @@ type Lane = {
  * Group the filtered rows into lanes, machines that are out first.
  *
  * Ordered by state and then by most recent job, which is the same ranking the
- * register leads with — a reader switching from the table to the axis should find the
- * rows in the order they left them, however the table's own header sort has since
- * rearranged them. The table's ordering deliberately does **not** reach this view:
+ * register opens on. The table's header sort deliberately does **not** reach this view:
  * sorting lanes by fuel burned would put a machine's chain at a vertical position
  * that means nothing on a time axis.
  */
@@ -363,7 +361,7 @@ export const DeploymentsGantt = ({rows, selectedId, onSelect, now}: DeploymentsG
                   }`,
                   row.state === 'planned'
                     ? 'Planned · nothing has moved yet'
-                    : `${duration(row.elapsedMs)} · ${amount(row.totals.runtimeHours, 'hrs')} run · ${amount(row.totals.fuelBurnedLitres, 'L')}`,
+                    : `${duration(row.elapsedMs)} · ${amount(row.totals.runtimeHours, 'h')} run · ${amount(row.totals.fuelBurnedLitres, 'L')}`,
                   member.collected ? 'Collected early' : undefined,
                 ]
                   .filter((line) => line !== undefined)

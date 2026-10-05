@@ -18,6 +18,8 @@ import {siteStatus} from '../data/estateSummary';
 import type {SiteSummary} from '../data/sites';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * The sites map — the fleet map's twin, one level up.
  *
  * Everything structural here is `GensetsMap`'s and deliberately so: same CARTO

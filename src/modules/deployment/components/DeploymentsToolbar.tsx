@@ -35,13 +35,13 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  */
 
 /**
- * The four orderings, worded as the *answer* rather than the field — the registers'
+ * The orderings, worded as the *answer* rather than the field — the registers'
  * rule, because a reader choosing a sort is choosing what they want at the top.
  */
 const DEPLOYMENT_SORT_OPTIONS: ReadonlyArray<SortOption<DeploymentSort>> = [
   {key: 'started', label: 'Sent out', detail: 'Most recently dispatched first'},
-  {key: 'duration', label: 'Time standing', detail: 'Longest posting first'},
-  {key: 'fuel', label: 'Fuel burned', detail: 'Thirstiest posting first'},
+  {key: 'duration', label: 'Time standing', detail: 'Longest deployment first'},
+  {key: 'fuel', label: 'Fuel burned', detail: 'Thirstiest deployment first'},
   {key: 'genset', label: 'Genset', detail: 'By number plate, A to Z'},
   {key: 'location', label: 'State', detail: 'By state, A to Z'},
 ];

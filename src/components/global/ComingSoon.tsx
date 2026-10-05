@@ -1,10 +1,10 @@
 import type {LucideIcon} from 'lucide-react';
 
 /**
- * Placeholder for the three sidebar destinations the Figma file names but does
- * not design. They exist as real routes so the nav isn't a set of dead buttons —
- * a reviewer clicking "Sites" should land somewhere that says what it will be,
- * not nowhere.
+ * Placeholder for destinations that exist but are not designed yet — Settings and a
+ * genset's Settings and Equipment tabs. They are real routes so the nav isn't a set
+ * of dead buttons: a reviewer clicking one lands somewhere that says what it will
+ * be, not nowhere.
  */
 export const ComingSoon = ({
   title,

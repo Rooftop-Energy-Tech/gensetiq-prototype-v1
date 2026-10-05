@@ -94,9 +94,9 @@ export const analysisSearchSchema = z.object({
   /**
    * A run id, which overrides `window` when set.
    *
-   * The three range selectors are alternative answers to one question, so they
-   * are held as separate fields with a stated precedence rather than one union.
-   * Each control clears the other two when used, so the contradiction is not
+   * The four range selectors (preset, run, deployment, custom) are alternative
+   * answers to one question, so they are held as separate fields with a stated
+   * precedence rather than one union. Each control clears the others when used, so the contradiction is not
    * normally reachable — but these params are meant to be hand-edited, and
    * `analysisRange()` is the single place a link carrying all three gets
    * resolved. Keeping `window` around underneath is what lets "back to the last
@@ -159,7 +159,7 @@ export const toggleKey = (search: AnalysisSearch, key: string): AnalysisSearch =
   return {...search, keys: next.join(',')};
 };
 
-/** What the chart draws across, and which of the three selectors decided it. */
+/** What the chart draws across, and which of the four selectors decided it. */
 export type AnalysisRange = {
   from: number;
   to: number;
@@ -169,9 +169,9 @@ export type AnalysisRange = {
 };
 
 /**
- * Resolve the window, run and custom-range params into one span.
+ * Resolve the window, run, deployment and custom-range params into one span.
  *
- * Precedence is run, then custom, then preset. It only matters for a URL that
+ * Precedence is run, then deployment, then custom, then preset. It only matters for a URL that
  * carries more than one — the controls clear each other — but it has to be
  * stated somewhere, and one function that always returns a drawable span is
  * cheaper to trust than three components agreeing not to conflict.

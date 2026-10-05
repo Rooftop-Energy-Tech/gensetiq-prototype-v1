@@ -1,5 +1,12 @@
 # SMU02C alarms: what went in, why, and what comes out
 
+> **This is the firmware's record, not the app's.** It describes the gateway's poll
+> table: 58 alarms in four categories. The gensetIQ prototype ships 21 of them as
+> plant-alarm rows — 12 `Site` and 9 per-phase AC rows filed under `Genset` where a
+> site has no incomer — because the battery and solar rows went with those modules.
+> See `src/modules/site/data/plantAlarms.ts`. Kept here as the reasoning behind each
+> row.
+
 **Firmware 0.3.43, `hw-v2-MQTT-EXT1-TELCOIQ-HUAWEI-SMU02C`, 2026-09-07.**
 **Not built, not committed, not flashed** — `dyna-gw-001` still runs 0.3.21.
 

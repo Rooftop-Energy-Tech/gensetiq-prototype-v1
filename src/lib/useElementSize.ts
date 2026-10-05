@@ -18,15 +18,14 @@ import type {RefObject} from 'react';
  * `ResizeObserver` is specified to deliver an initial callback when you observe an
  * element, and in a browser it does. It is not, however, something to *depend* on:
  * an environment that throttles or never delivers that first callback leaves every
- * caller stuck on `{0, 0}` forever — which for the plant scene means a drawing that
- * silently never scales, and for the analysis chart one that never draws. The
+ * caller stuck on `{0, 0}` forever — which for the analysis chart means one that
+ * never draws (and for the plant scene, since removed, meant one that never scaled). The
  * in-app preview browser this prototype is reviewed in behaves exactly that way.
  *
  * So the element is measured directly the moment the ref attaches, and the observer
  * is only what keeps that measurement current. The measure runs in a layout effect
  * rather than a passive one so it lands **before paint** — measuring after paint
- * would show one frame at the wrong size, which on the site diagram is a visible
- * flash of the unscaled canvas.
+ * would show one frame at the wrong size, a visible flash on a chart.
  */
 export const useElementSize = (
   ref: RefObject<HTMLElement | null>,

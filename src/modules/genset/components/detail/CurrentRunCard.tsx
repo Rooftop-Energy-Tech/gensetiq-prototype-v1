@@ -67,8 +67,8 @@ const Stamp = ({iso, className}: {iso: string; className?: string}) => (
  * left, so the card spent most of its life saying `5 hours`, `15 kWh`, `7 L`
  * twice.
  *
- * The day has a home already. Band 5's chart answers *how much today* with a day
- * stepper and a period control beside it — against yesterday, against the week —
+ * The day has a home already. The Analysis tab answers *how much today* with a
+ * range picker beside it — against yesterday, against the week —
  * which is the comparison that makes a day's figure worth reading at all. A card
  * about one start does not need to answer it a second time, worse.
  *

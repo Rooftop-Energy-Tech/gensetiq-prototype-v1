@@ -1,7 +1,7 @@
 import {GENSETS} from '@/modules/genset/data/fleet';
 import {gensetRuns, refuelsIn} from '@/modules/genset/data/history';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
-import {seededDeployments, seededMemberships} from '@/modules/deployment/data/seed';
+import {deployments, memberships} from '@/modules/deployment/data/store';
 import {gensetTotalsIn} from '@/modules/deployment/data/seed';
 
 /**
@@ -80,7 +80,8 @@ const runsExport = ({from, to}: ExportRange) => {
   for (const genset of GENSETS) {
     for (const run of [...gensetRuns(genset.id)].reverse()) {
       const startMs = new Date(run.startedAt).getTime();
-      const endMs = run.endedAt === null ? to : new Date(run.endedAt).getTime();
+      // A run still going has run until now, whatever the range's end says.
+      const endMs = run.endedAt === null ? Math.min(to, Date.now()) : new Date(run.endedAt).getTime();
       if (endMs < from || startMs > to) continue;
 
       const clippedMs = Math.min(endMs, to) - Math.max(startMs, from);
@@ -110,7 +111,7 @@ const runsExport = ({from, to}: ExportRange) => {
 
 const postingsExport = ({from, to}: ExportRange) => {
   const now = Date.now();
-  const deployments = new Map(seededDeployments().map((d) => [d.id, d]));
+  const byId = new Map(deployments().map((d) => [d.id, d]));
   const out = [
     line(
       'Reference',
@@ -128,12 +129,14 @@ const postingsExport = ({from, to}: ExportRange) => {
   ];
   let rows = 0;
 
-  for (const member of seededMemberships()) {
-    const deployment = deployments.get(member.deploymentId);
+  for (const member of memberships()) {
+    const deployment = byId.get(member.deploymentId);
     if (deployment === undefined) continue;
 
     const startMs = new Date(deployment.startsAt).getTime();
-    const endMs = deployment.endsAt === null ? now : new Date(deployment.endsAt).getTime();
+    // The set's own end: a machine collected early left the job then.
+    const end = member.collectedAt ?? deployment.endsAt;
+    const endMs = end === null ? now : new Date(end).getTime();
     if (endMs < from || startMs > to) continue;
 
     const genset = GENSETS.find((g) => g.id === member.gensetId);
@@ -153,7 +156,7 @@ const postingsExport = ({from, to}: ExportRange) => {
         // blank: an empty cell in a file reads as data loss.
         deployment.locationLabel,
         stamp(startMs),
-        deployment.endsAt === null ? 'open' : stamp(endMs),
+        end === null ? 'open' : stamp(endMs),
         ((endMs - startMs) / 86_400_000).toFixed(1),
         totals.runtimeHours.toFixed(2),
         Math.round(totals.energyKwh),
@@ -177,25 +180,26 @@ const postingsExport = ({from, to}: ExportRange) => {
  * reason — see `deliveryLocation` there.
  */
 const placeAt = (gensetId: string, at: number): string => {
-  const deployments = new Map(seededDeployments().map((d) => [d.id, d]));
+  const byId = new Map(deployments().map((d) => [d.id, d]));
 
-  for (const member of seededMemberships()) {
+  for (const member of memberships()) {
     if (member.gensetId !== gensetId) continue;
-    const deployment = deployments.get(member.deploymentId);
+    const deployment = byId.get(member.deploymentId);
     if (deployment === undefined) continue;
 
     const startMs = new Date(deployment.startsAt).getTime();
-    const endMs = deployment.endsAt === null ? Number.POSITIVE_INFINITY : new Date(deployment.endsAt).getTime();
+    const end = member.collectedAt ?? deployment.endsAt;
+    const endMs = end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
     if (at >= startMs && at <= endMs) return deployment.locationLabel;
   }
 
   // A top-up between jobs is a real thing and not a gap in the record, so it says so
   // rather than falling back to a yard the machine was not at.
-  return 'Between postings';
+  return 'Between deployments';
 };
 
 const deliveriesExport = ({from, to}: ExportRange) => {
-  const out = [line('Genset', 'Asset tag', 'Delivered at', 'Litres', 'Location')];
+  const out = [line('Genset', 'Asset tag', 'Filled at', 'Litres', 'Location')];
   let rows = 0;
 
   for (const genset of GENSETS) {
@@ -225,20 +229,26 @@ export const EXPORTS: ReadonlyArray<ExportSpec> = [
   },
   {
     kind: 'postings',
-    label: 'Postings',
-    blurb: 'Deployments overlapping the range — yard, days, run hours and the tank at each edge.',
+    label: 'Deployments',
+    blurb: 'Deployments overlapping the range — location, days, run hours and the tank at each edge.',
     build: postingsExport,
   },
   {
     kind: 'deliveries',
-    label: 'Deliveries',
-    blurb: 'Fuel that went into a tank inside the range, per machine.',
+    label: 'Genset fills',
+    blurb: 'Every genset fill inside the range, per machine — at a depot or from a fuel truck.',
     build: deliveriesExport,
   },
 ];
 
 /** `gensetiq-runs-2026-06-01-to-2026-09-21.csv`. */
 export const exportFilename = (kind: ExportKind, {from, to}: ExportRange): string => {
-  const day = (at: number) => new Date(at).toISOString().slice(0, 10);
+  // Local dates, as the pickers show them: the UTC date reads yesterday's before 8am
+  // in Malaysia, and the range now ends at the moment of download.
+  const day = (at: number) => {
+    const t = new Date(at);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+  };
   return `gensetiq-${kind}-${day(from)}-to-${day(to)}.csv`;
 };

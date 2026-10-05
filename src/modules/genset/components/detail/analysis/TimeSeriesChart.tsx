@@ -1,7 +1,7 @@
 import {useMemo, useRef, useState} from 'react';
 
 import {ChartTooltip} from '@/components/global/ChartTooltip';
-import {amount, clockTime, tickDate} from '@/lib/format';
+import {amount, clockTime, figure, tickDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {GensetRun} from '../../../types/run.type';
@@ -19,7 +19,7 @@ const PAD_TOP = 24;
 const PAD_BOTTOM = 30;
 const TICK_ROWS = 5;
 
-/** Wide enough for `Starter battery voltage` — the longest label in the set. */
+/** Wide enough for `Charge alternator voltage` — the longest plottable label. */
 const READOUT_WIDTH = 228;
 
 type Scale = {
@@ -115,9 +115,9 @@ export const TimeSeriesChart = ({
    */
   slots?: ReadonlyArray<SeriesSlot>;
   /**
-   * How a figure is written, on the ticks and in the readout. The app's
-   * `toLocaleString` by default; the Fuel pages pass their own, which spaces the
-   * thousands (`150, 000`).
+   * How a figure is written, on the ticks and in the readout. The app's `figure`
+   * by default, which spaces the thousands (`150, 000`); a page passes its own only
+   * to change the rounding.
    */
   formatValue?: (value: number, decimals: number) => string;
 }) => {
@@ -254,10 +254,7 @@ export const TimeSeriesChart = ({
                       fill="currentColor"
                     >
                       {formatValue === undefined
-                        ? tick.toLocaleString('en-MY', {
-                            minimumFractionDigits: scales[index].decimals,
-                            maximumFractionDigits: scales[index].decimals,
-                          })
+                        ? figure(tick, scales[index].decimals)
                         : formatValue(tick, scales[index].decimals)}
                     </text>
                   );

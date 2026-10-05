@@ -42,7 +42,7 @@ export const Route = createFileRoute('/_authenticated/gensets_/$gensetId')({
     if (genset === undefined || detail === undefined) throw notFound();
 
     // `crumb` is read off loader data by <TopNav />: the breadcrumb has to say
-    // `BRF9540 | Cummins 1000 kVa`, and `staticData` cannot hold a value that
+    // `BRF9540 | Cummins 1000 kVA`, and `staticData` cannot hold a value that
     // depends on the params.
     return {genset, crumb: gensetName(genset)};
   },

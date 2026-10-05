@@ -1,7 +1,8 @@
 import type {ReactNode} from 'react';
 import {BellIcon} from 'lucide-react';
 
-import {Badge} from '@/components/ui/badge';
+import {REGISTER_FRAME, REGISTER_ROWS, REGISTER_TABLE, REGISTER_TH} from '@/components/global/registerTable';
+import {Badge, verdictVariant} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {CATEGORY_META} from '@/modules/site/components/categoryMeta';
 import {PART_META} from '@/modules/site/components/partMeta';
@@ -47,7 +48,7 @@ import {STANDING_META} from './standingMeta';
  */
 
 const Th = ({children}: {children: ReactNode}) => (
-  <th scope="col" className="px-3 py-2 text-left font-medium">
+  <th scope="col" className={cn(REGISTER_TH, 'px-3 text-left')}>
     {children}
   </th>
 );
@@ -140,7 +141,7 @@ const SubjectCell = ({alarm}: {alarm: AlarmView}) => {
 
     return (
       <td className="px-3 py-2.5">
-        <Badge variant="element" className="border-subtle whitespace-nowrap text-secondary">
+        <Badge variant="element" className="whitespace-nowrap text-secondary">
           <PartIcon className="text-tertiary" aria-hidden="true" />
           {part.label}
         </Badge>
@@ -154,7 +155,7 @@ const SubjectCell = ({alarm}: {alarm: AlarmView}) => {
 
   return (
     <td className="px-3 py-2.5">
-      <Badge variant="element" className="border-subtle whitespace-nowrap text-secondary">
+      <Badge variant="element" className="whitespace-nowrap text-secondary">
         <Icon className="text-tertiary" aria-hidden="true" />
         {meta.label}
       </Badge>
@@ -170,8 +171,8 @@ const SubjectCell = ({alarm}: {alarm: AlarmView}) => {
 };
 
 /**
- * The asserting device's protection class, in the severity's colour. Same pairing
- * as `AlertCard`.
+ * The asserting device's protection class, as the severity's tinted verdict chip —
+ * the `Badge` variant every verdict in the app wears (2026-10-05).
  *
  * The word is the device's and the colour is ours, and the pair is the point. Deep
  * Sea says `Shutdown Alarm`; Huawei says `Major alarm`. Both are translated to one
@@ -181,8 +182,8 @@ const SubjectCell = ({alarm}: {alarm: AlarmView}) => {
  * device actually made.
  */
 const ClassBadge = ({alarm}: {alarm: AlarmView}) => (
-  <Badge variant="element" className="border-subtle whitespace-nowrap">
-    <BellIcon className={SEVERITY_META[alarm.severity].textClassName} aria-hidden="true" />
+  <Badge variant={verdictVariant(alarm.severity)} className="whitespace-nowrap">
+    <BellIcon aria-hidden="true" />
     {alarm.className}
   </Badge>
 );
@@ -227,7 +228,7 @@ const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
   const StandingIcon = meta.icon;
 
   return (
-    <tr className="border-b border-subtle last:border-b-0">
+    <tr>
       <td className="px-3 py-2.5">
         <AlarmIdentity alarm={alarm} />
       </td>
@@ -295,7 +296,7 @@ const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
 
 /** One alarm somebody has finished with, and the way back if they were wrong. */
 const ClearedRow = ({alarm}: {alarm: AlarmView}) => (
-  <tr className="border-b border-subtle last:border-b-0">
+  <tr>
     <td className="px-3 py-2.5">
       <AlarmIdentity alarm={alarm} />
     </td>
@@ -426,7 +427,7 @@ export const AlarmLists = ({
               key={severity}
               variant="element"
               size="md"
-              className={cn('border-subtle', counts[severity] === 0 && 'opacity-50')}
+              className={cn(counts[severity] === 0 && 'opacity-50')}
             >
               <BellIcon className={meta.textClassName} aria-hidden="true" />
               <span className="text-secondary">{label}</span>
@@ -446,7 +447,7 @@ export const AlarmLists = ({
             variant="element"
             size="md"
             className={cn(
-              'cursor-pointer border-subtle transition-colors hover:bg-highlight',
+              'cursor-pointer transition-colors hover:bg-highlight',
               isOn && 'border-default bg-highlight',
               counts[severity] === 0 && !isOn && 'opacity-50',
             )}
@@ -503,10 +504,10 @@ export const AlarmLists = ({
             cleared for whoever cleared it.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-default">
-            <table className="w-full text-sm">
+          <div className={cn('overflow-x-auto', REGISTER_FRAME)}>
+            <table className={cn(REGISTER_TABLE, REGISTER_ROWS)}>
               <thead>
-                <tr className="border-b border-subtle text-xs text-secondary">
+                <tr>
                   <Th>Alarm</Th>
                   {named && <Th>{subjectHeading}</Th>}
                   <Th>Class</Th>
@@ -533,10 +534,10 @@ export const AlarmLists = ({
             Nothing has been cleared on {subject} yet.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-default">
-            <table className="w-full text-sm">
+          <div className={cn('overflow-x-auto', REGISTER_FRAME)}>
+            <table className={cn(REGISTER_TABLE, REGISTER_ROWS)}>
               <thead>
-                <tr className="border-b border-subtle text-xs text-secondary">
+                <tr>
                   <Th>Alarm</Th>
                   {named && <Th>{subjectHeading}</Th>}
                   <Th>Class</Th>

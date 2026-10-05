@@ -18,25 +18,25 @@ import type {Genset} from '../types/genset.type';
 type GensetsTableProps = {
   gensets: Array<Genset>;
   /**
-   * The table has the screen to itself — `SolarTable`'s `wide`, for its reasons.
+   * The table has the screen to itself (the removed `SolarTable` had the same flag).
    * `false` beside the map, where `Location` and `Last updated` come out.
    */
   wide: boolean;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
+  sort: GensetSort;
+  direction: GensetSortDirection;
+  /**
+   * A header was clicked. The page decides what that means — a new key takes its own
+   * natural direction, the key already showing flips — so the registers cannot
+   * answer the same click differently.
+   */
+  onSortChange: (next: GensetSort) => void;
   /**
    * The scroll container, handed up so the split view can watch which rows are on
    * screen — see `useVisibleRowIds`. Optional, because the list-only view has no
    * map to drive and nothing to observe with.
    */
-  sort: GensetSort;
-  direction: GensetSortDirection;
-  /**
-   * A header was clicked. The page decides what that means — a new key takes its own
-   * natural direction, the key already showing flips — so the two registers cannot
-   * answer the same click differently. See `changeSort` in the sites page.
-   */
-  onSortChange: (next: GensetSort) => void;
   scrollRef?: RefObject<HTMLDivElement | null>;
   /**
    * Called just before this table scrolls itself, so the page can tell a scroll it
@@ -60,7 +60,7 @@ type GensetsTableProps = {
  * also carry the row rule and the selection tint across the gap.
  *
  * Three arrangements came first. Percentages weighted towards the plate, from when a
- * plate cell carried `BRF9540 | Cummins 1000 kVa`, left uneven gaps. Equal
+ * plate cell carried `BRF9540 | Cummins 1000 kVA`, left uneven gaps. Equal
  * percentages broke the text: at a fifth of the split view `Negeri Sembilan`
  * truncated, and at a seventh of the full list more than half the `Location` cells
  * did. Content-width columns with all the slack in one last column made the gaps
@@ -87,7 +87,7 @@ const Gap = ({header = false}: {header?: boolean}) =>
     <td aria-hidden="true" className="h-13 border-b border-subtle p-0" />
   );
 
-/** A set the counts pass has not reached — `SitesTable`'s constant, for its reason. */
+/** A set the counts pass has not reached: no alarms, rather than a gap in the row. */
 const EMPTY_COUNTS: Record<AlertSeverity, number> = {CRITICAL: 0, WARNING: 0, NEUTRAL: 0};
 
 const COLUMNS = [
@@ -101,7 +101,7 @@ const COLUMNS = [
   // `Alarm` sits next to run state because the two together are the row's verdict:
   // what the machine is doing, and what is standing against it. It read `Health` —
   // the `GensetCondition` verdict — until 2026-09-14 and now draws the counts, for
-  // the reasons `SitesTable` and `SolarTable` give: the verdict is this app's
+  // the reasons the removed site and solar registers gave: the verdict is this app's
   // summary over the rows, and a register is read to find work, so it shows the
   // rows. The pill is a link to the set's own Alarms tab.
   {label: 'Status', beside: true, sort: 'state'},
@@ -204,7 +204,7 @@ export const GensetsTable = ({
                 <th
                   scope="col"
                   // `none` on the sortable-but-inactive ones and omitted entirely on
-                  // the three that cannot sort. That distinction is the point: `none`
+                  // the two that cannot sort. That distinction is the point: `none`
                   // announces "this is a control you have not used", and putting it on
                   // `Location` would offer a screen-reader user a header that does
                   // nothing when clicked.
@@ -270,12 +270,6 @@ export const GensetsTable = ({
         <tbody>
           {gensets.map((genset) => {
             const selected = genset.id === selectedId;
-            // A set with no detail entry has no alerts to judge, so it gets no
-            // verdict rather than a green one it hasn't earned.
-            //
-            // `gensetCondition` rather than `detail.condition`: the latter is the
-            // register map's verdict alone, and a set losing fuel carries an alarm
-            // no register map has a bit for.
             return (
               <tr
                 key={genset.id}
@@ -319,8 +313,7 @@ export const GensetsTable = ({
                 <td className={cn(CELL, 'h-13 border-b border-subtle py-2')}>
                   {/* ⚠️ `stopPropagation` on this span and **not** the cell: on the
                       cell it makes the whole column dead to the row's select, since
-                      a cell is mostly padding and only the pill navigates. Same
-                      wiring as `SitesTable` and `SolarTable`. */}
+                      a cell is mostly padding and only the pill navigates. */}
                   <span className="inline-flex" onClick={(event) => event.stopPropagation()}>
                     <AlarmBadge
                       counts={counts[genset.id] ?? EMPTY_COUNTS}

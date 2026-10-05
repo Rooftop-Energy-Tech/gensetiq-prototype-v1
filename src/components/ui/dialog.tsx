@@ -40,7 +40,7 @@ function DialogContent({className, children, ...props}: React.ComponentProps<typ
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
         data-slot="dialog-overlay"
-        className="fixed inset-0 z-50 bg-black/50"
+        className="fixed inset-0 z-50 bg-scrim"
       />
       <DialogPrimitive.Content
         ref={setContainer}

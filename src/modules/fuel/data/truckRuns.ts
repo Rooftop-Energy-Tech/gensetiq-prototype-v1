@@ -1,3 +1,4 @@
+import {subscribeDeployments} from '@/modules/deployment/data/store';
 import {historyStart} from '@/modules/genset/data/history';
 import {spreadBetween} from '@/modules/genset/data/spread';
 import {DEPOTS} from './depots';
@@ -26,8 +27,8 @@ import type {RefuelTruck} from './trucks';
  *
  *  - **The nozzle meter** — what the truck says it pumped into this machine.
  *  - **The truck's level fall** — what actually left the truck's tank.
- *  - **The genset's level rise** — what arrived. This is the fleet's own record,
- *    the same figure the depot tab's delivery list shows.
+ *  - **The genset's level rise** — what arrived. This is the fleet's own record
+ *    (`fills.ts`); truck stops are in the Truck log, not the Genset fills tab.
  *
  * A load has one more: **what the depot's pump meter says it gave**.
  *
@@ -234,6 +235,9 @@ const buildEvents = (truck: RefuelTruck): Array<TruckEvent> => {
 };
 
 const eventsByTruck = new Map<string, Array<TruckEvent>>();
+
+// A truck's stops are the fills routed to it, which follow the deployments.
+subscribeDeployments(() => eventsByTruck.clear());
 
 /** One truck's record, oldest first. Dealt on first access. */
 export const truckEvents = (truckId: string): ReadonlyArray<TruckEvent> => {

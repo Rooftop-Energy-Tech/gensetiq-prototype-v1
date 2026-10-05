@@ -81,7 +81,7 @@ export const StandbyPanel = ({
 
         <p className="min-w-0 pt-1.5 text-sm text-secondary">
           {offline
-            ? `Genset not reporting — last message ${relativeTime(genset.lastUpdated, now)}.`
+            ? `Genset not reporting — last updated ${relativeTime(genset.lastUpdated, now)}.`
             : 'Genset not running, no live data available.'}
         </p>
       </div>

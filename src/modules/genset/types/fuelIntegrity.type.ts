@@ -1,3 +1,5 @@
+import {figure} from '@/lib/format';
+
 /**
  * Fuel that left the tank without passing the injectors.
  *
@@ -376,7 +378,7 @@ export const fuelLeakNotice = (
   return {
     gensetId,
     kind: state.kind,
-    message: `${litres.toLocaleString('en-MY')} L unaccounted for over ${round(
+    message: `${figure(litres)} L unaccounted for over ${round(
       figures.coveredHours,
     )} hours — ${rate} L/hr ${SPAN_PROSE[figures.span]}`,
     source: 'Fuel reconciliation',

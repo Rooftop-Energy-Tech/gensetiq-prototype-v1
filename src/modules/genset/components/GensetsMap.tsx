@@ -54,8 +54,8 @@ type GensetsMapProps = {
   /**
    * Clearing the selection — a click that landed on the basemap and nothing else.
    *
-   * Optional: a map whose selection isn't its own to clear (the overview's, which
-   * hands a pin click straight to another route) simply doesn't pass one.
+   * Optional: a map whose selection isn't its own to clear — one that hands a pin
+   * click straight to another route — simply doesn't pass one.
    */
   onDeselect?: () => void;
   /**

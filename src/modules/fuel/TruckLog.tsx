@@ -20,7 +20,7 @@ import {amount, figure} from './format';
 
 /**
  * Every load and every stop in the period, newest first, with the same controls as
- * the Depots tab's deliveries (Jeff, 2026-09-29) — see `RegisterTable`.
+ * the Genset fills tab (Jeff, 2026-09-29) — see `RegisterTable`.
  *
  * Each row puts the readings that are checked against each other side by side:
  * what was recorded (the nozzle meter at a stop, the depot pump at a load), the
@@ -183,12 +183,13 @@ export const TruckLog = ({
               : `${litres(losses.reduce((sum, row) => sum + (row.missing ?? 0), 0))} missing`
           }
           tone={losses.length > 0 ? 'critical' : 'neutral'}
+          pill={period.label}
           active={missingOnly}
           onToggle={refilter(setMissingOnly)}
         />
       </SummaryCardRow>
 
-      <h2 className="mt-2 text-sm font-medium text-primary">Truck log</h2>
+      <h2 className="mt-2 text-base font-medium text-primary">Truck log</h2>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <SearchBox

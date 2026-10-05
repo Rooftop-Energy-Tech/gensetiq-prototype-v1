@@ -31,12 +31,10 @@ import {RangeCalendar} from './RangeCalendar';
  * are the same choice at different resolutions — a custom range is just a window
  * whose ends you named yourself.
  *
- * *Deployment* is the fourth thing the annotation names and the one selector that
- * is missing. A deployment is a period a genset was installed somewhere, and this
- * app's model has no such concept — a `Genset` carries one `siteId` with no
- * history, so there is nothing to select. Building a picker over a relationship
- * the data cannot express would produce a control that looked authoritative and
- * filtered nothing.
+ * *Deployment* is the fourth thing the annotation names. It is not in this control:
+ * `DeploymentPicker` sits beside it on the Analysis tab, since the deployment
+ * record arrived after this was written. The depot level chart and the Fuel tables
+ * use this control on its own, with `showRuns` off.
  */
 export const RangePicker = ({
   window,
@@ -146,7 +144,7 @@ export const RangePicker = ({
               variant="element"
               size="md"
               className={cn(
-                'cursor-pointer border-subtle transition-colors hover:bg-highlight',
+                'cursor-pointer transition-colors hover:bg-highlight',
                 selectedRun !== undefined && 'bg-highlight',
               )}
             >

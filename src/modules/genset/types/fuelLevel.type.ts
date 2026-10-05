@@ -158,14 +158,6 @@ export const fuelLevelKind = (
   );
 
 /**
- * The notice for a tank below its reserve line, or `undefined` for a fuelled one.
- *
- * The message leads with the percentage because that is what the rule compared,
- * and follows it with the litres because that is what somebody ordering a delivery
- * needs. Both, rather than either: a percentage alone cannot be turned into a
- * tanker booking, and a litre figure alone cannot be checked against the line.
- */
-/**
  * The tank's scheduling figures, as the fuel panel and the strip each need them.
  *
  * Both read the same three numbers — how much is in there, where the reserve line
@@ -234,6 +226,14 @@ export const fuelRemainingHeadline = (
   return running ? `${span} · ${stampDate(fuel.refuelBy)}` : `${span} of runtime`;
 };
 
+/**
+ * The notice for a tank below its reserve line, or `undefined` for a fuelled one.
+ *
+ * The message leads with the percentage because that is what the rule compared,
+ * and follows it with the litres because that is what somebody ordering a delivery
+ * needs. Both, rather than either: a percentage alone cannot be turned into a
+ * tanker booking, and a litre figure alone cannot be checked against the line.
+ */
 export const fuelLevelNotice = (genset: Genset): FuelLevelNotice | undefined => {
   const kind = fuelLevelKind(genset.fuelLitres, genset.fuelCapacityLitres);
   if (kind === undefined) return undefined;

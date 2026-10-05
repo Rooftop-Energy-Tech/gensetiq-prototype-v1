@@ -12,6 +12,8 @@ import {LeakBadge} from './LeakBadge';
 import {MetricRow} from './MetricRow';
 
 /**
+ * Unused since `FuelCard` replaced it on the home page; kept on purpose.
+ *
  * The fuel half of the top row.
  *
  * Structured to answer the two questions in the order they get asked: *how much
@@ -46,7 +48,7 @@ export const FuelPanel = ({
     // squeezing. The run half beside this one already has a 560px floor; with none
     // of its own this panel simply took whatever was left, and once the section
     // rail claimed 240px of the window that was around 380px — enough to render
-    // but not enough for `Max capacity` and `Metered rate`, which truncated to
+    // but not enough for `Tank capacity` and `Metered rate`, which truncated to
     // `Ma…` and `E…` beside intact figures. Below `md` the floor is dropped: at
     // 390px it is unsatisfiable and would push the page into a sideways scroll.
     <div className="flex min-w-0 flex-1 items-center gap-5 p-3 md:min-w-[420px] md:gap-8">
@@ -73,7 +75,7 @@ export const FuelPanel = ({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <MetricRow label="Max capacity" value={amount(fuel.maxLitres, 'L')} />
+        <MetricRow label="Tank capacity" value={amount(fuel.maxLitres, 'L')} />
         {/* Metered or estimated, said out loud. Without a flow meter this figure is
             computed from the electrical load — a good estimate, and not a
             measurement — and the difference is the whole premise of the alarm

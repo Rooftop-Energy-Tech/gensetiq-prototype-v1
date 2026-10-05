@@ -2,13 +2,14 @@ import {ChevronDownIcon, ChevronUpIcon, SlidersHorizontalIcon} from 'lucide-reac
 import {Children} from 'react';
 import type {CSSProperties, ReactNode} from 'react';
 
+import {figure} from '@/lib/format';
 import {cn} from '@/lib/utils';
 
 /**
- * The card strip above the fleet and estate lists.
+ * The card strip above the registers.
  *
- * Shared between `/gensets` and `/sites` rather than written twice, unlike the two
- * toolbars: a toolbar's controls differ in what they *do*, but these cards are one
+ * Shared by `/gensets`, `/deployments`, `/service` and the Fuel tabs rather than
+ * written once each, unlike their toolbars: a toolbar's controls differ in what they *do*, but these cards are one
  * shape — a label, a set of counts, and a way to filter by one of them — over two
  * sets of numbers. The thing that differs is entirely in the data, which is what
  * makes a shared component the smaller of the two options here.
@@ -16,15 +17,14 @@ import {cn} from '@/lib/utils';
  * ## The chips are filters, and that is an addition
  *
  * The ask was for cards that show the counts. Showing a number an operator cannot
- * act on is half a control, so each count doubles as a toggle: click "Low fuel"
- * and the list and the map both narrow to those rows. The numbers themselves do not
+ * act on is half a control, so each count doubles as a toggle: click "Critical" on
+ * the Gensets page and the list and the map both narrow to those rows. The numbers themselves do not
  * move when you do — see `fleetSummary` for why — so the strip stays a picture of
  * the whole fleet while the list below it answers a narrower question.
  *
  * Nothing here invents colour of its own. A count that carries a verdict is given
  * the same token the badge in the table uses, passed in by the caller as `tone`, so
- * a red "Alarms raised" here and a red `Critical` badge two rows down are the same
- * red.
+ * a red "Critical" here and a red `Critical` badge two rows down are the same red.
  */
 
 type SummaryCardRowProps = {
@@ -36,9 +36,8 @@ type SummaryCardRowProps = {
    * How many leading cards are the narrow kind — see `CAPPED_COLUMNS`.
    *
    * A prop because "narrow" is a fact about a *card*, not about its index, and the
-   * two screens no longer agree: the fleet is one narrow headline followed by four
-   * `FilterCard`s that share the rest of the row, and the estate's four are all
-   * narrow now that its three attribute filters have become toolbar dropdowns.
+   * screens do not agree: the Gensets strip holds its two chip cards narrow, while a
+   * Fuel tab caps its row at two so each card takes half.
    */
   cappedColumns?: number;
 };
@@ -52,7 +51,7 @@ type SummaryCardRowProps = {
  * `FilterCard` where it is a bucket's figure and the sentence under it.
  *
  * Three is the default because that is what the estate strip's leading cards were.
- * The fleet strip passes `1` — see `GensetsSummaryCards`.
+ * The Gensets strip passes `2` — see `GensetsSummaryCards`.
  */
 const CAPPED_COLUMNS = 3;
 
@@ -60,15 +59,13 @@ const CAPPED_COLUMNS = 3;
  * The `xl` column template for however many cards the caller passed.
  *
  * Derived from the child count rather than taken as a prop, because the count is
- * **not fixed**: the sites strip's `By programme` card is withheld on an estate
- * whose dataset declares no programmes, so it renders four cards or five. A prop
+ * **not fixed**: a strip can withhold a card on an estate that has nothing for it
+ * (the old sites strip's `By programme` card was the first). A prop
  * would make every caller restate that condition, and the day a sixth card lands
  * the template and the children would disagree — which is exactly the bug this
  * replaces. A four-card row gets the identical template it always had.
  *
- * Five cards is the ceiling a row of this kind comfortably holds at 1440px — see
- * `SitesSummaryCards`, which is four because its attribute filters moved out to the
- * toolbar.
+ * Five cards is the ceiling a row of this kind comfortably holds at 1440px.
  */
 const columnTemplate = (count: number, cap: number): string => {
   const capped = Math.min(cap, count);
@@ -195,16 +192,19 @@ export const CardPill = ({children}: {children: ReactNode}) => (
 /**
  * A card's heading, as its own export so a linked card's label reads identically.
  *
- * `<h2>` in both, because the two are the same rank on the page whatever element
- * carries the box around them.
+ * `<h2>` by default, because a summary card and a linked one are the same rank on
+ * the page whatever element carries the box around them. `as="h3"` for a card that
+ * sits under a section heading of its own — the genset home page's tiles — so the
+ * look is shared without flattening the outline.
  */
-export const SummaryCardLabel = ({children}: {children: ReactNode}) => (
+export const SummaryCardLabel = ({children, as: Heading = 'h2'}: {children: ReactNode; as?: 'h2' | 'h3'}) => (
   // In the text colour and semibold, a step up from the figure's grey, so the title
   // reads as the card's heading rather than a caption (Jeff, 2026-10-01). Shared, so
-  // every summary card in the app takes it — the Service page's too.
-  <h2 className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold tracking-wide text-primary uppercase">
+  // every card title in the app takes it — the Service page's, the Fuel depot's and
+  // the genset home page's tiles too (2026-10-05).
+  <Heading className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold tracking-wide text-primary uppercase">
     {children}
-  </h2>
+  </Heading>
 );
 
 type HeadlineProps = {
@@ -231,7 +231,7 @@ export const Headline = ({value, unit, detail}: HeadlineProps) => (
   <div className="min-w-0">
     <p className="flex items-baseline gap-1.5">
       <span className="text-2xl leading-none font-semibold text-primary tabular-nums">
-        {value}
+        {typeof value === 'number' ? figure(value) : value}
       </span>
       {unit !== undefined && <span className="truncate text-sm text-secondary">{unit}</span>}
     </p>
@@ -319,15 +319,15 @@ export const CountChip = ({
       <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[tone])} aria-hidden="true" />
       <span className={cn('truncate', active ? 'text-primary' : 'text-secondary')}>{label}</span>
     </span>
-    <span className="shrink-0 font-medium text-primary tabular-nums">{count}</span>
+    <span className="shrink-0 font-medium text-primary tabular-nums">{figure(count)}</span>
   </button>
 );
 
 type FilterCardProps = {
   label: string;
   /**
-   * The figure. A string for one already formatted — `2,473` litres on the Fuel
-   * page's `Fuel unaccounted for`, which leads with the amount, not a count.
+   * The figure. A string for one already formatted — `2, 473 L` on the Fuel tabs'
+   * `Missing from trucks`, which leads with the amount, not a count.
    */
   count: number | string;
   /** The word beside the figure — `gensets`. */
@@ -339,13 +339,16 @@ type FilterCardProps = {
   active: boolean;
   /** Toggle it. Called with the *next* state, so a second click clears. */
   onToggle: (next: boolean) => void;
+  /** The window the figure covers — `SummaryCard`'s `pill`, for the same reason. */
+  pill?: string;
 };
 
 /**
  * A whole card that is one filter — a `CountChip` given a card's width.
  *
- * The fleet strip's four readiness buckets are this rather than four rows inside one
- * card, and the trade is width for legibility: a bucket gets the headline figure the
+ * Used by the Service strip's buckets and the Fuel tabs' `Missing from trucks`. The
+ * fleet strip's four readiness buckets were the first, and chose this over four
+ * rows inside one card, and the trade is width for legibility: a bucket gets the headline figure the
  * `Fleet` card gets, plus the line of prose saying what it *means*, which as a chip
  * was a `title` attribute nobody hovers. Four of them across the strip also read as
  * a scale left to right — cover first, nothing-to-do last — which a stack of four
@@ -368,6 +371,7 @@ export const FilterCard = ({
   tone = 'neutral',
   active,
   onToggle,
+  pill,
 }: FilterCardProps) => (
   <button
     type="button"
@@ -380,12 +384,17 @@ export const FilterCard = ({
       active && 'border-strong bg-highlight hover:bg-highlight',
     )}
   >
-    <SummaryCardLabel>
-      <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[tone])} aria-hidden="true" />
-      <span className="truncate">{label}</span>
-    </SummaryCardLabel>
+    <div className="flex min-w-0 items-start justify-between gap-2">
+      <SummaryCardLabel>
+        <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[tone])} aria-hidden="true" />
+        <span className="truncate">{label}</span>
+      </SummaryCardLabel>
+      {pill !== undefined && <CardPill>{pill}</CardPill>}
+    </div>
     <p className="flex items-baseline gap-1.5">
-      <span className="text-2xl leading-none font-semibold text-primary tabular-nums">{count}</span>
+      <span className="text-2xl leading-none font-semibold text-primary tabular-nums">
+        {typeof count === 'number' ? figure(count) : count}
+      </span>
       <span className="truncate text-sm text-secondary">{unit}</span>
     </p>
     {/* Wraps rather than truncating, unlike `Headline`'s detail line: this sentence is
@@ -425,10 +434,9 @@ type SummaryCollapseButtonProps = {
   /**
    * What the strip *is*, for the button's own label — `Show filters`.
    *
-   * A prop because the two screens' strips are no longer the same kind of thing. The
-   * fleet's four cards are all filters. The estate's are a summary: one of its four
-   * still filters, but two of them are links out and calling the fold "filters"
-   * would name the smaller half of what it hides.
+   * A prop because the strips are not the same kind of thing. Some are all filters;
+   * the Gensets strip passes `summary`, since calling its fold "filters" would name
+   * only part of what it hides.
    */
   noun?: string;
 };
@@ -442,7 +450,7 @@ type SummaryCollapseButtonProps = {
  * takes the height back.
  *
  * `md:hidden`, because above the breakpoint there is nothing to solve: the strip is
- * one row of four and the table under it already has the room it needs.
+ * one row and the table under it already has the room it needs.
  *
  * Placed *below* the cards, which is the unusual half of this. A disclosure control
  * normally leads its content, but what is being folded sits at the top of the page

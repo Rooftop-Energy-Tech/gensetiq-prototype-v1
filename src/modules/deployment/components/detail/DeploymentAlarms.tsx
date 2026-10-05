@@ -29,8 +29,8 @@ import type {DeploymentRow} from '../../data/feed';
  * reads as a quiet fortnight.
  *
  * A monitoring-unit register is keyed on the **site** rather than on a machine, so
- * those rows are the yard's rather than this job's and are left out here. The site's
- * own Alarms tab is where they belong, and it is a click away up the rail.
+ * those rows are the yard's rather than this job's and are left out here. They show
+ * on each machine's own Alarms tab instead; the site's tab that held them is gone.
  */
 export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) => {
   const queue = useSiteAlarmQueue(row.deployment.siteId, now);
@@ -54,8 +54,8 @@ export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) 
 
   if (row.state === 'planned') {
     return (
-      <div className="flex flex-col gap-2 overflow-y-auto px-6 py-7">
-        <h2 className="text-sm font-medium text-primary">Alarms</h2>
+      <div className="flex flex-col gap-2 overflow-y-auto px-4 pt-4 pb-6">
+        <h2 className="text-base font-medium text-primary">Alarms</h2>
         <p className="max-w-2xl text-sm text-secondary">
           This deployment starts on {stampDate(row.deployment.startsAt)}. Nothing can be asserting
           against a deployment whose machines have not arrived.
@@ -65,9 +65,9 @@ export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) 
   }
 
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto px-6 py-7">
+    <div className="flex flex-col gap-4 overflow-y-auto px-4 pt-4 pb-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-sm font-medium text-primary">
+        <h2 className="text-base font-medium text-primary">
           Alarms
           <span className="font-normal text-secondary">
             {' · '}

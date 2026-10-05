@@ -6,13 +6,15 @@ import {hasMains} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 
 /**
- * The alarms the site's monitoring unit is set to poll — all fifty-eight of them.
+ * The alarms the app files from the site's monitoring unit — twenty-one: twelve
+ * about the site and nine per-phase AC rows. The firmware polls fifty-eight; the
+ * solar and battery rows went with those modules.
  *
  * Transcribed from `esp32/docs/smu02c-alarms-chosen.md` at firmware 0.3.43, which
  * is the reasoning behind each choice. **Nothing here is invented**, in exactly the
  * sense `genset/types/alert.type.ts` means it: every row is a register on a device,
  * with the class the register map gives it and the corroboration argument the doc
- * makes for it. A plausible fifty-ninth alarm is not allowed in this file.
+ * makes for it. A plausible extra alarm is not allowed in this file.
  *
  * ## Why the catalogue reports nothing
  *
@@ -20,27 +22,26 @@ import type {SitePowerRole} from '../types/site.type';
  * 0.3.43, which is unbuilt, uncommitted and unflashed. There is therefore no
  * assertion to show, no `raisedAt` to stamp and nothing to acknowledge — and rather
  * than deal a handful of fake assertions so the page looks like an alarm list, the
- * four tabs report what the unit *watches*.
+ * tables report what the unit *watches*.
  *
  * That is not a smaller thing than it sounds. The register map's own warning is
- * that a `0` is ambiguous three ways and fourteen of these rows have nothing that
+ * that a `0` is ambiguous three ways and thirteen of these rows have nothing that
  * could contradict one, so **a screen showing most of the table quiet and a handful
  * red would be asserting a clean bill of health nobody can support.** A catalogue
  * that says which rows could be believed if they did fire is the honest version of
  * this page until a gateway has answered.
  *
- * ## Why one device feeds four tabs
+ * ## Why one device feeds two categories
  *
  * The category on each row is a **routing decision, not a device boundary**. There
- * is one box on the cabinet wall and it watches the whole −48 V plant; the four
- * buckets exist so a row lands in front of whoever fixes that thing. The counts are
- * lopsided on purpose — twenty-eight battery rows against nine solar — because that
- * is what the SMU02C actually instruments.
+ * is one box on the cabinet wall and it watches the whole −48 V plant; the two
+ * categories, `SITE` and `GENSET`, exist so a row lands in front of whoever fixes
+ * that thing. There were four, with battery and solar, until those modules went.
  *
  * ## The one category that depends on the site
  *
  * The nine per-phase AC rows. Huawei calls them mains alarms because the SMU
- * assumes a utility; **SBH-1336 is `SOLAR_HYBRID`, which in this model means no
+ * assumes a utility; **SBH-1336 is `DIESEL_PRIME`, which in this model means no
  * incomer**, so the generator is the only AC source and a phase failure is a
  * dropped phase on the set. They are filed under Genset for that reason and for no
  * other, and `categoryFor` below re-files them the moment a reader flips the site to
@@ -114,7 +115,7 @@ const AC_SPECS: ReadonlyArray<AlarmSpec> = [
     huawei: 'MI',
     checkability: 'ONE_WAY',
     threshold: '> 280 V (default)',
-    meaning: `Phase L${phase} voltage above its window. With no incomer here, this is the set's own regulator rather than the mains.`,
+    meaning: `Phase L${phase} voltage above its window. With no incomer here, this is the genset's own regulator rather than the mains.`,
     corroboration: `Threshold 0x2106, factory default 280 V, settable 60–300 V — not in the poll set, so the line shown is the default rather than this plant's setting. Per-phase voltage 0x100${5 + phase} is not polled either, so nothing can contradict a quiet row.`,
   })),
   ...PHASES.map((phase): AlarmSpec => ({
@@ -125,7 +126,7 @@ const AC_SPECS: ReadonlyArray<AlarmSpec> = [
     huawei: 'MI',
     checkability: 'ONE_WAY',
     threshold: '< 180 V (default)',
-    meaning: `Phase L${phase} voltage below its window — the set under load.`,
+    meaning: `Phase L${phase} voltage below its window — the genset under load.`,
     corroboration: `Threshold 0x2107, factory default 180 V, settable 60–300 V — not in the poll set, so the line shown is the default rather than this plant's setting. Per-phase voltage 0x100${5 + phase} is not polled either, so nothing can contradict a quiet row.`,
   })),
   ...PHASES.map((phase): AlarmSpec => ({
@@ -375,7 +376,8 @@ assertSiteRowsHaveParts();
  * `0x51` block the AC incomer — so the physical grouping comes out of the sort for
  * free.
  *
- * Returns `[]` for a site with no unit, which is twenty-four of the twenty-five.
+ * Returns `[]` for a site with no unit: twenty-one of the carrier's twenty-five, and
+ * every site on Express Mission's estate.
  */
 export const plantAlarms = (
   siteId: string,

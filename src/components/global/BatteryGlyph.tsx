@@ -1,6 +1,8 @@
 import {cn} from '@/lib/utils';
 
 /**
+ * Used by the gallery only; kept on purpose.
+ *
  * The battery the design draws beside a state of charge: an outline, a bar that
  * scales, and a terminal nub.
  *

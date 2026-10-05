@@ -9,6 +9,8 @@ import {cn} from '@/lib/utils';
 import type {FilterOption} from '@/components/global/FilterSelect';
 
 /**
+ * Unused since the solar and battery registers went; kept on purpose.
+ *
  * Search, the region filter, and how the plant is shown — the toolbar over the
  * solar and battery registers.
  *

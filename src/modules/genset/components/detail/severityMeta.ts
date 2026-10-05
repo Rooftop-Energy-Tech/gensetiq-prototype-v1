@@ -76,7 +76,7 @@ export const SEVERITY_META: Record<
     label: 'Critical',
     textClassName: 'text-severity-critical',
     standingClassName: 'bg-severity-critical text-white',
-    edgeClassName: 'border-severity-critical/60',
+    edgeClassName: 'border-severity-critical/40',
     tintClassName: 'bg-severity-critical/10',
     // The SVG pair, for the analysis chart's threshold lines. Tailwind resolves
     // `stroke-*` and `fill-*` from the same token as `text-*`, so an alarm line
@@ -88,7 +88,7 @@ export const SEVERITY_META: Record<
     label: 'Warning',
     textClassName: 'text-severity-warning',
     standingClassName: 'bg-severity-warning text-white',
-    edgeClassName: 'border-severity-warning/60',
+    edgeClassName: 'border-severity-warning/40',
     tintClassName: 'bg-severity-warning/10',
     strokeClassName: 'stroke-severity-warning',
     fillClassName: 'fill-severity-warning',

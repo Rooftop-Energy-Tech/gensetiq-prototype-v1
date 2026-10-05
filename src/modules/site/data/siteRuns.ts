@@ -4,6 +4,8 @@ import type {GensetRun} from '@/modules/genset/types/run.type';
 import type {SiteGenset} from './sites';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * A site's run log: every set standing here, merged into one time-ordered list.
  *
  * ## Why this lives in the site module

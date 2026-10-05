@@ -1,6 +1,6 @@
 import {useMemo} from 'react';
 
-import {numericDate} from '@/lib/format';
+import {figure, numericDate} from '@/lib/format';
 import {malaysiaStateAt, malaysiaStateName} from '@/lib/geo/malaysiaStates';
 import {gensetStateName} from '@/modules/genset/data/gensetState';
 import {engineHoursOf, scheduleOf, useServiceRecords} from '@/modules/genset/data/services';
@@ -108,9 +108,10 @@ export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} 
 
   if (nearer.kind === 'hours') {
     const left = Math.round(nearer.interval - nearer.elapsed);
-    // Spelled out (2026-09-30): `run h` read as a unit code.
-    const hours = (count: number) =>
-      `${count.toLocaleString('en-MY')} running ${count === 1 ? 'hour' : 'hours'}`;
+    // `63 h`, the app's one unit for run hours (2026-10-05). It was spelled out as
+    // `running hours` from 2026-09-30, when `run h` read as a unit code; the column
+    // is headed `Run hours` now, so the bare unit has its noun beside it.
+    const hours = (count: number) => `${figure(count)} h`;
     return left <= 0
       ? {text: `${hours(Math.abs(left))} over`, overdue: true}
       : {text: `In ${hours(left)}`, overdue: false};
@@ -126,6 +127,8 @@ export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} 
 
 /** The state a service was done in — its site's, not where the set is today. */
 export const recordStateName = (record: ServiceRecord, genset: Genset | undefined): string | undefined => {
+  // Done in the depot: no yard, so no state — not the state the set is in today.
+  if (record.siteId === '') return undefined;
   const site = siteSeed(record.siteId);
   if (site !== undefined) {
     const id = malaysiaStateAt(site.longitude, site.latitude);

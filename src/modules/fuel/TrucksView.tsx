@@ -123,15 +123,15 @@ const COMPARE: Record<Sort, (a: Row, b: Row) => number> = {
 };
 
 /**
- * Beside the map the register is narrow, so `Fuel depot` and `Where` come out, as
+ * Beside the map the register is narrow, so `Depot` and `Location` come out, as
  * `Location` and `Last updated` do on the fleet table. The panel says both.
  */
 const columns = (wide: boolean): ReadonlyArray<Column<Sort>> => [
   {label: 'Number plate', sort: 'plate'},
   {label: 'Operator', sort: 'operator'},
-  ...(wide ? [{label: 'Fuel depot', sort: 'depot' as const}] : []),
+  ...(wide ? [{label: 'Depot', sort: 'depot' as const}] : []),
   {label: 'Tank', sort: 'tank'},
-  ...(wide ? [{label: 'Where', sort: undefined}] : []),
+  ...(wide ? [{label: 'Location', sort: undefined}] : []),
   {label: 'Delivered', sort: 'delivered', align: 'right'},
   {label: 'Missing', sort: 'missing', align: 'right'},
 ];
@@ -139,11 +139,14 @@ const columns = (wide: boolean): ReadonlyArray<Column<Sort>> => [
 export const TrucksView = ({
   from,
   to,
+  periodLabel,
   truckId,
   onTruckChange,
 }: {
   from: number;
   to: number;
+  /** `last 30 days` — the pill on the period's card. */
+  periodLabel: string;
   truckId: string | undefined;
   onTruckChange: (next: string | undefined) => void;
 }) => {
@@ -225,7 +228,7 @@ export const TrucksView = ({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <SearchBox value={query} onChange={setQuery} placeholder="Number plate" label="Search trucks" />
           <FilterSelect
-            label="Fuel depot"
+            label="Depot"
             allLabel="All depots"
             value={depotId}
             onChange={setDepotId}
@@ -243,7 +246,7 @@ export const TrucksView = ({
                   <TabsTrigger
                     value="list"
                     className="flex-1"
-                    aria-label="List view"
+                    aria-label="List"
                     tabIndex={view === 'list' ? 0 : -1}
                   >
                     <MenuIcon aria-hidden="true" />
@@ -251,12 +254,12 @@ export const TrucksView = ({
                   <TabsTrigger
                     value="split"
                     className="flex-1"
-                    aria-label="List and map"
+                    aria-label="List + map"
                     tabIndex={view === 'split' ? 0 : -1}
                   >
                     <ColumnsIcon aria-hidden="true" />
                   </TabsTrigger>
-                  <TabsTrigger value="map" className="flex-1" aria-label="Map view" tabIndex={view === 'map' ? 0 : -1}>
+                  <TabsTrigger value="map" className="flex-1" aria-label="Map" tabIndex={view === 'map' ? 0 : -1}>
                     <GlobeIcon aria-hidden="true" />
                   </TabsTrigger>
                 </TabsList>
@@ -269,6 +272,7 @@ export const TrucksView = ({
 
         <TruckCards
           all={all}
+          periodLabel={periodLabel}
           missingOnly={missingOnly}
           onMissingOnlyChange={setMissingOnly}
         />
@@ -315,7 +319,7 @@ export const TrucksView = ({
                 }}
                 onDeselect={() => onTruckChange(undefined)}
                 panelInset={selected === undefined ? 0 : PANEL_WIDTH + PANEL_INSET}
-                label="Refuel truck locations map"
+                label="Fuel truck locations map"
                 countNoun={{one: 'truck', many: 'trucks'}}
                 // Every truck mark in fuel violet, clusters too (Jeff, 2026-09-30).
                 clusterFill={{color: lightToken.fuel, text: lightToken.canvas}}
@@ -357,10 +361,12 @@ export const TrucksView = ({
  */
 const TruckCards = ({
   all,
+  periodLabel,
   missingOnly,
   onMissingOnlyChange,
 }: {
   all: ReadonlyArray<Row>;
+  periodLabel: string;
   missingOnly: boolean;
   onMissingOnlyChange: (next: boolean) => void;
 }) => {
@@ -379,8 +385,9 @@ const TruckCards = ({
         label="Missing from trucks"
         count={losing.length}
         unit={losing.length === 1 ? 'truck' : 'trucks'}
-        detail={lost > 0 ? `${amount(Math.round(lost), 'L')} this period` : 'none this period'}
+        detail={lost > 0 ? `${amount(Math.round(lost), 'L')} missing` : 'none missing'}
         tone={losing.length > 0 ? 'critical' : 'neutral'}
+        pill={periodLabel}
         active={missingOnly}
         onToggle={onMissingOnlyChange}
       />
@@ -414,7 +421,7 @@ const TruckTable = ({
   onSelect: (truckId: string) => void;
 }) => (
   <table className="w-full border-separate border-spacing-0 text-sm">
-    <caption className="sr-only">Refuel trucks, with operator, tank, deliveries and fuel missing this period</caption>
+    <caption className="sr-only">Fuel trucks, with operator, tank, deliveries and fuel missing this period</caption>
     <SortHeader columns={columns(wide)} sort={sort} direction={direction} onSort={onSort} />
     <tbody>
       {rows.map((row) => {

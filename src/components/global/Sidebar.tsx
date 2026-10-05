@@ -31,18 +31,10 @@ import {BRAND} from '@/brands';
  * and since when" is the next question after "what do we have" — and for the EM
  * proof of concept it is the question the product is being judged on.
  *
- * **Sites** is now the estate's call rather than a fixed last place, and it is the
- * one thing about this rail that moves. A stationary estate keeps it: a site there
- * is a permanent installation, its genset is bolted to a plinth beside it, and the
- * register is a real destination. A **mobile** estate drops it, because a yard on a
- * fleet that moves is somewhere plant was sent rather than a thing anyone asks
- * about — and what the register used to be asked, `/deployments` now answers
- * properly.
- *
- * `DATASET.plant` decides, so the fact lives with the estate that has it rather
- * than in a brand's config; see `PlantKind` for why that line is drawn there. The
- * **route** is untouched on both — `/sites/$siteId` still resolves, and the
- * breadcrumb into one still reads. This drops a destination, not a feature.
+ * **Sites** was here, and on a mobile estate it was dropped: a yard on a fleet that
+ * moves is somewhere plant was sent rather than a thing anyone asks about, and what
+ * the register used to be asked, `/deployments` now answers properly. The site pages
+ * themselves were removed on 2026-09-22 (see `TopNav`), so no estate offers it now.
  *
  * **Report** and **Overview** were destinations here and have both gone, for the
  * same reason one level apart: each restated figures a register already states.
@@ -62,24 +54,24 @@ import {BRAND} from '@/brands';
  */
 const NAV_ITEMS: Array<NavItem> = [
   // First, and the app's landing screen: the plant register, which is the whole of
-  // what this product puts anywhere. A row is one machine, and the six tabs below
+  // what this product puts anywhere. A row is one machine, and the seven tabs below
   // it are the same shape every detail page in the app has.
   {label: 'Gensets', icon: BoomBoxIcon, link: '/gensets'},
   // The dispatch feed: what is out, where, and since when. Fleet-wide like the
   // register above it, and next to it because it is the question you ask as soon as
   // you know what the fleet is.
   {label: 'Deployments', icon: TruckIcon, link: '/deployments'},
-  // Diesel, in the two halves an operations room asks about: the tanks, worst first,
-  // and the orders booked against them. Under the dispatch feed because a delivery
-  // is dispatch too — the tanker rather than the lorry — and because who needs fuel
-  // is a question you ask about machines you already know are out.
+  // Diesel, in the two halves an operations room asks about: the depot tanks and the
+  // fuel trucks, with every fill and load. Under the dispatch feed because a fill is
+  // dispatch too — the tanker rather than the lorry — and because who needs fuel is
+  // a question you ask about machines you already know are out.
   {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
   // Which machines are due for a visit, and every visit on record — the genset's own
   // Service tab, fleet-wide, so a workshop can plan a week without opening each set.
   {label: 'Service', icon: WrenchIcon, link: '/service'},
   // The way out of the app. Not a fourth set of charts — every figure it exports is
   // already drawn on a screen above it — but the files those screens cannot hand
-  // anybody: an invoice is settled in a spreadsheet. Last of the fleet-wide four,
+  // anybody: an invoice is settled in a spreadsheet. Last of the fleet-wide five,
   // because it is where a reader goes once they know what they want.
   {label: 'Reporting', icon: FileDownIcon, link: '/reporting'},
 ];
@@ -154,10 +146,10 @@ export const Sidebar = () => {
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              // The brand blue, not the product's teal. On a navy rail the teal
-              // avatar was the one mark on screen belonging to neither the
-              // customer nor the estate, and a green disc under a blue-and-yellow
-              // mark reads as something the page forgot to style.
+              // The brand colour, not the product's teal. On the brand's dark rail a
+              // teal avatar was the one mark on screen belonging to neither the
+              // customer nor the estate, and read as something the page forgot to
+              // style.
               className="size-8 rounded-full bg-brand p-0 text-sm font-normal text-brand-text hover:bg-brand"
               onClick={handleSignOut}
               aria-label={`Sign out ${session?.email ?? ''}`.trim()}

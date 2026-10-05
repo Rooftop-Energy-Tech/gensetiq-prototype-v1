@@ -22,8 +22,9 @@ export const DEPLOYMENT_PAGE_SIZE = 20;
  * ranking — active jobs first, then what is committed, then the record, newest at
  * the top of each.
  *
- * Five, because five is what the columns can answer for: which job it is, when it
- * went out, how long it has stood, what it burned, and which machines are on it.
+ * Six, because six is what the columns can answer for: which job it is, where it
+ * is, when it went out, how long it has stood, what it burned, and which machines
+ * are on it.
  */
 export const DEPLOYMENT_SORTS = ['started', 'duration', 'fuel', 'genset', 'reference', 'location'] as const;
 
@@ -51,7 +52,7 @@ export const DEPLOYMENT_SORT_DEFAULT_DIRECTION: Record<DeploymentSort, Deploymen
 };
 
 /**
- * The `/deployment` URL carries the whole view state — which view, what is typed in
+ * The `/deployments` URL carries the whole view state — which view, what is typed in
  * search, which posting is selected, whether the preview panel is open.
  *
  * The registers' schema, over postings rather than sites, and `.catch()`-guarded for
@@ -100,7 +101,7 @@ export type DeploymentSearch = z.infer<typeof deploymentSearchSchema>;
 /**
  * A complete `DeploymentSearch` for typed navigation — `siteSearch()`'s job on this
  * screen, and see it for why the defaults live in one place rather than at every
- * `navigate({to: '/deployment'})`.
+ * `navigate({to: '/deployments'})`.
  */
 export const deploymentSearch = (
   overrides: Partial<DeploymentSearch> = {},

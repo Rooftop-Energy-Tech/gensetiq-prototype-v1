@@ -16,6 +16,8 @@ import type {SiteSeed} from '../data/siteSeed';
 import {SiteTrendChart} from './SiteTrendChart';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * `OVERVIEW` is not a `SiteTrendMetric` and is deliberately kept out of that union.
  *
  * A metric is one quantity in one unit, and every function in `siteTrend.ts` is

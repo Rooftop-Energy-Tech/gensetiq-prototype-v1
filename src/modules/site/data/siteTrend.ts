@@ -1,10 +1,12 @@
-import {tickDate} from '@/lib/format';
+import {clockTime, figure, monthShort, tickDate} from '@/lib/format';
 import {runTotalsIn} from '@/modules/genset/data/history';
 
 import {loadShape} from './load';
 import type {SiteSeed} from './siteSeed';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * The series behind the site page's diagnostics band — one quantity, over one
  * window, for one site.
  *
@@ -235,9 +237,8 @@ const startOfDay = (at: number): number => {
   return new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
 };
 
-/** `07:30`, from hours-since-midnight. */
-const clockLabel = (hour: number): string =>
-  `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 === 0 ? '00' : '30'}`;
+/** `7:30`, from hours-since-midnight — `clockTime`'s unpadded hour, as every clock in the app. */
+const clockLabel = (hour: number): string => clockTime(new Date(2000, 0, 1, Math.floor(hour), (hour % 1) * 60).getTime());
 
 /**
  * Engine hours across `[from, to)`, summed over this site's sets.
@@ -315,15 +316,13 @@ export const siteTrendMetrics = (gensetCount: number): Array<SiteTrendMetric> =>
     metric === 'GENSET' ? gensetCount > 0 : true,
   );
 
-const NUMBER = new Intl.NumberFormat('en-MY', {maximumFractionDigits: 0});
-
 /**
- * An hours figure for a readout — `6.2 h` while a tenth means something, `1,284 h`
+ * An hours figure for a readout — `6.2 h` while a tenth means something, `1, 284 h`
  * once it does not. A hundred hours is roughly where a reader stops thinking in
  * starts and shifts and starts thinking in service intervals.
  */
 const hoursLabel = (hours: number): string =>
-  hours < 100 ? `${Math.round(hours * 10) / 10} h` : `${NUMBER.format(Math.round(hours))} h`;
+  hours < 100 ? `${Math.round(hours * 10) / 10} h` : `${figure(Math.round(hours))} h`;
 
 /** The series, for one metric over one window. */
 export const siteTrend = (
@@ -388,7 +387,7 @@ const dayTrend = (
     shape: 'curve',
     unit: 'kW',
     caption: 'Power through the day, half-hourly',
-    total: {label: 'Peak', value: `${Math.round(peak * 10) / 10} kW`},
+    total: {label: 'Peak', value: `${figure(Math.round(peak * 10) / 10)} kW`},
   };
 };
 
@@ -472,9 +471,9 @@ const gensetDayTrend = (gensetIds: Array<string>, dayAt: number, now: number): S
     unit: 'L',
     caption:
       gensetIds.length > 1
-        ? 'Fuel consumption in each hour, across the sets here'
-        : 'Fuel consumption in each hour of the day',
-    total: {label: 'Total', value: `${NUMBER.format(Math.round(litres))} L`},
+        ? 'Fuel burned in each hour, across the gensets here'
+        : 'Fuel burned in each hour of the day',
+    total: {label: 'Total', value: `${figure(Math.round(litres))} L`},
     extra: {
       label: 'Total genset runtime',
       value: hoursLabel(gensetHoursIn(gensetIds, start, start + 86_400_000, now)),
@@ -535,12 +534,12 @@ const periodTrend = (
     unit: metric === 'GENSET' ? 'L' : 'kWh',
     caption:
       metric === 'GENSET'
-        ? `Fuel consumption per ${grain}${extent}`
+        ? `Fuel burned per ${grain}${extent}`
         : `Energy per ${grain}${extent}`,
     total:
       metric === 'GENSET'
-        ? {label: 'Total', value: `${NUMBER.format(Math.round(sum))} L`}
-        : {label: 'Total', value: `${NUMBER.format(Math.round(sum))} kWh`},
+        ? {label: 'Total', value: `${figure(Math.round(sum))} L`}
+        : {label: 'Total', value: `${figure(Math.round(sum))} kWh`},
     extra:
       metric === 'GENSET' && spine.length > 0
         ? {
@@ -579,7 +578,7 @@ const clockSpine = (
     spine.push({
       from: cursor.getTime(),
       to: next.getTime(),
-      label: cursor.toLocaleDateString('en-MY', {month: 'short'}),
+      label: monthShort(cursor.getTime()),
     });
   }
   return spine;

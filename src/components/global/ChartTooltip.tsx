@@ -71,7 +71,7 @@ export const ChartTooltip = ({
   x: number;
   /** The container's own width, in the same pixels. */
   frameWidth: number;
-  /** The instant or bucket being reported — `07:30`, `Sept`. */
+  /** The instant or bucket being reported — `7:30`, `Sep`. */
   title: string;
   rows: ReadonlyArray<ChartTooltipRow>;
   /** A closing line under the rows, for a caveat the figures need. */

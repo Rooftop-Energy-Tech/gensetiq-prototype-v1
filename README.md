@@ -1,465 +1,145 @@
-# telcoIQ — prototype
+# gensetIQ — prototype
 
-A clickable prototype of **telcoIQ**, the telco-power product line, built from the
-[RooftopIQ V2 Figma](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2463-6889)
-— login, the gensets map and list ("Section 1"), the
-[genset home page](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2560-1834),
-and the
-[site page](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2478-7187).
+A clickable prototype of **gensetIQ**, Rooftop Energy's genset fleet monitoring
+product, built from the
+[RooftopIQ V2 Figma](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2463-6889).
+It is a thinking tool for product and design: every figure is mock data, and
+nothing here ships.
 
-## Brands: one build, five customers
+The estate it walks is a **mobile fleet**: gensets trucked to a yard for a job and
+brought back. The pages are the fleet (Gensets), the jobs (Deployments), diesel
+(Fuel: depot tanks, genset fills and fuel trucks), Service, and Reporting (CSV
+exports).
 
-The brand is **configuration, not a branch**. `VITE_BRAND` picks it, and each one
-runs on its own port so you can have them open side by side:
+**[docs/how-it-works.md](docs/how-it-works.md) explains what the product is for
+and the concepts it is built on** — genset, deployment, run, reading, alarm, fuel
+reconciliation and the rest — and the rules between them. Read that before
+changing behaviour; this file covers what is built and what is faked.
+
+There is no backend. The fleet is mock data and "logging in" writes a flag to
+localStorage — see [Caveats](#caveats). Any email and password gets you in.
+
+## Running it
 
 ```bash
-bun run dev             # REDTONE      :3400  (the default)
-bun run dev:sesb        # SESB         :3401
-bun run dev:unbranded   # gensetIQ     :3402
-bun run dev:celcomdigi  # CelcomDigi   :3403
-bun run dev:telcoiq     # telcoIQ      :3404
+git clone git@github.com:Rooftop-Energy-Tech/gensetiq-prototype-v1.git
+cd gensetiq-prototype-v1
+bun install
+bun run dev             # http://localhost:3400 — Express Mission, the default
+bun run dev:unbranded   # http://localhost:3402 — gensetIQ, unbranded
 ```
 
-| Brand | Estate | Rail | Tab |
-| --- | --- | --- | --- |
-| `redtone` | carrier — 25 towers, 29 sets | REDTONE near-black `#070707` | REDTONE Site Power |
-| `celcomdigi` | carrier — 25 towers, 29 sets | CelcomDigi navy `#001871` | CelcomDigi Site Power |
-| `sesb` | utility — 25 substations, 37 sets | SESB blue `#0F4586` | SESB Genset Monitoring |
-| `gensetiq` | carrier | design-system near-black | gensetIQ |
-| `telcoiq` | carrier | IQ near-black `#040710`, blue `#0369FF` | telcoIQ |
+| Script | What it does |
+| --- | --- |
+| `bun run dev` | dev server on :3400, brand `express-mission` |
+| `bun run dev:unbranded` | dev server on :3402, brand `gensetiq` |
+| `bun run build` | typecheck, then the `express-mission` build into `dist/` |
+| `bun run build:unbranded` | typecheck, then the `gensetiq` build into `dist-unbranded/` |
+| `bun run preview` | serve the last build on :3400 |
+| `bun run typecheck` | `tsc --noEmit` |
+
+There is no lint or test script. Needs [Bun](https://bun.sh); the lockfile is
+`bun.lock`, so npm/pnpm will resolve different versions.
+
+Port 3400: the other prototypes hold :3000, :3100, :3200 and :3300, and every one
+pins `strictPort`, so they all run side by side.
+
+## Brands: one build, two estates
+
+The brand is **configuration, not a branch**. `VITE_BRAND` picks it; unset, it is
+`express-mission` (`FALLBACK_BRAND` in `vite.config.ts`).
+
+| Brand | Dataset | Estate | Rail | Tab |
+| --- | --- | --- | --- | --- |
+| `express-mission` | `utility` | 38 pencawang in Peninsular Malaysia, 38 gensets | `#0A2723` | Express Mission Genset Monitoring |
+| `gensetiq` | `carrier` | 25 telco sites (Borneo and the peninsula), 30 gensets | `#040710` | gensetIQ |
 
 Everything a brand may change is in **`src/brands/`**, and
 [`src/brands/types.ts`](src/brands/types.ts) is the file to read first — it states
-the line between *whose app this is* (name, marks, four colours, which estate) and
-*what the product is* (everything else). Adding a customer is a file in
-`src/brands/catalog/`, an entry in `manifest.ts`, and no branch.
+the line between *whose app this is* (name, marks, three colours, which estate)
+and *what the product is* (everything else). Adding a customer is a file in
+`src/brands/catalog/`, a dataset in `src/brands/datasets/`, and an entry in
+`manifest.ts`.
 
-Settings carries a **brand picker** wherever more than one brand is in the build,
-so comparing them is a click rather than a dev-server restart. Switching reloads
-the page: a brand names a dataset, and the estate is built once at startup.
+Settings carries a **brand picker** wherever more than one brand is in the build.
+Switching reloads the page: a brand names a dataset, and the estate is built once
+at startup.
 
 ### A build only contains the brands it may show
 
-The registry is **generated per build** by the `brands` plugin in `vite.config.ts`,
-which emits static imports for those brands alone:
+The registry is **generated per build** by the `brands` plugin in
+`vite.config.ts`, which emits static imports for those brands alone:
 
 | Build | Carries | Picker |
 | --- | --- | --- |
-| dev | all five | yes |
-| production, `gensetiq` | all five | yes |
+| dev | both | yes |
+| production, `gensetiq` (unbranded) | both | yes |
 | production, a customer's brand | that brand only | no |
 
 This is the difference between hiding a control and not shipping the data. A
-customer's deployment has no other customer's name, mark, logo asset or
-twenty-five site names anywhere in it — not behind a flag, absent. The Settings
-picker keys off `INCLUDED_BRAND_IDS.length > 1`, so what is shown and what is
-shipped cannot drift apart.
-
-Verify it on any build:
-
-```bash
-npm run build && grep -rl "Sabah Electricity" dist/assets/*.js   # expect no matches
-```
-
-### How this used to work, and why it doesn't now
-
-`feat/fleet-cards-split-map`, `feat/sesb-demo` and `feat/celcomdigi-demo` are one
-straight line of history, and two of those forks happened for no reason but a
-different customer's colours and a different customer's sites. The costs compounded:
-
-- every feature built after a fork existed only on that fork, so the **unbranded
-  product was the one configuration nobody could show** — it had to be
-  reconstructed for this refactor;
-- `main` went stale, so each new branch started from someone's demo rather than
-  from the product, and the branch names stopped describing their contents;
-- the SESB estate was **stranded three months behind**: no hybrid plant, no solar
-  generation series, no energy screen.
-
-A branch is for work in progress. A brand is a thing that permanently exists and
-has to keep working after the next feature lands — which makes it config.
-
-### The SESB brand is not the SESB branch restored
-
-Worth knowing before you show it. `feat/sesb-demo` had a two-entry power vocabulary
-(`STANDBY` / `PRIME`) and a `/deployments` register for hire sets on the move. The
-current product replaced the first with four configurations and removed the second.
-
-So the `sesb` brand is **SESB's places and machines under today's product**, not a
-rebuild of their old demo. The mapping is in
-[`src/brands/datasets/utility.ts`](src/brands/datasets/utility.ts): `STANDBY`
-became `GRID_BACKUP` unchanged, and the five rural mini-grids — all `PRIME`, all
-running trucked diesel — were given three solar hybrids, one diesel hybrid, and one
-left on diesel prime so a conversion still has something to be compared against.
-**Those five roles are a plausible estate, not a recorded one.** Don't quote them
-back to SESB as their plan.
-
-### The estate the default brand carries
-
-CelcomDigi is a **permanent estate**. Twenty-five base stations across Malaysia,
-each with a genset bolted to a plinth beside the tower it feeds, commissioned
-years ago and going nowhere. That differs from the mobile-fleet build the app
-started as, and the difference works through the whole app:
-
-| | Mobile fleet (as built) | CelcomDigi (now) |
-| --- | --- | --- |
-| Rail leads with | Gensets, then Deployment | **Sites**, and it both counts and lists the estate |
-| A genset's postings | a chain, four sites in sixty days | **one installation**, still open |
-| `/deployments` register | the jobs, four views | **gone**, see `Sidebar.tsx` |
-| The estate summary's second question | the dispatch position | **energy** — solar's share of what carried the load |
-| Site load | 40–740 kW substations | **3–205 kW**, mostly 4–6 kW towers |
-| Genset plant | 250–1,250 kVA | **15–60 kVA**, two 500/1,000 kVA at the switching centres |
-| Site configurations | standby, prime | **grid-backed, diesel prime, diesel hybrid, solar hybrid** |
-
-### The four configurations
-
-`SitePowerRole` in `site/types/site.type.ts` holds all four, and everything
-downstream reads the three predicates beside it rather than comparing to a
-string. The single-line diagram treats an array and a battery as **rows on the
-bus like any other source**, so a solar hybrid with two sets is the same drawing
-as a diesel-prime site with one, taller.
-
-### The hybrid model
-
-**`site/data/hybrid.ts`** is physics. Load → daily energy → array size →
-generation → what the genset still owes → litres. Every link derives from the one
-before it, and the fuel arithmetic reuses `sfcLitresPerKwh`, the same curve the
-run log and the tank ladder cost their fuel with.
-
-The report's **Overall** tab is that model as a table: what carried the load at
-each off-grid site, how long its engine ran, and what it burned.
-
-> **Removed, and coming back later.** There was a second module,
-> `site/data/economics.ts`, that priced all of this — delivered diesel by region,
-> capex, saving a year, payback, ROI, and a quotation for every site still on
-> diesel — along with the counterfactual underneath it: the litres each site
-> *would* have burned running on diesel alone. All of it has been taken out. What
-> is left measures what happened and makes no claim about what it was worth.
-
-Solar is reported as **what it generated**, and nothing else. `SolarYieldChart`
-draws one series of bars — a bucket, and what the array made in it. Nothing is
-drawn behind them and no figure on any solar screen states a comparison: this app
-measures and does not judge.
-
-> **Taken out, deliberately.** Every design-comparison feature the solar section
-> used to carry — a second series on the charts, a cumulative shortfall view, a
-> per-card deviation chart, a health rule, a register column and the energy
-> model's own target fields. If something like it is wanted later it arrives as
-> its own thing, on top of a measurement that stands up without it. Nothing left
-> in the code or in this document assumes it.
-
-The same generation is readable at three levels and all three read `hybrid.ts`,
-so they cannot disagree: **one array** on its site's own page, where somebody sent
-to look at a site finds it without knowing the rest exists; **the same array** on
-its own page at `/solar/<id>`; and **its history** on that page's analysis tab.
-One rule survives from the version that did compare: the **running bucket is
-excluded** from every total and drawn hatched, since a month eleven days old has
-made eleven days of energy and stands beside eleven whole ones.
-
-### Two charts, two questions
-
-`SolarTodayChart` is the intraday power curve: what the arrays are putting out
-right now, against the array's **own recent normal**. That baseline answers "has
-this thing changed", which is the only comparison a half-hourly curve can carry
-honestly and the only one this app makes anywhere. The line stops at now rather
-than running to zero across the afternoon.
-
-`SolarYieldChart` is the period, per bucket — one bar, one series, no second
-thing behind it. The bucket still running is hatched and counts towards nothing.
-
-Fixing the intraday curve turned up a real inconsistency. The diagram's live
-`SOLAR` node was `pvKwp × performanceRatio × shape`, a different model from the
-one every other figure uses, and it disagreed by a factor of two and a half: a
-29 kWp array read 22 kW on the diagram while the energy model had it making 70 kWh
-across the whole day, which is a peak near 14. The curve is now the day's energy
-spread over the day's shape, and the node reads off it, so the diagram, the daily
-bar and the month's total are three readings of one quantity. A flat 0.55 standing
-in for "today is partly done" went the same way: today's bar is the shape
-integrated to now.
-
-### The chart's period
-
-`7D · 30D · 12M · Custom`, on the portfolio chart and on each site's own, taken
-from the Raeo investor dashboard's `RangeTabs`: Custom is a tab rather than a
-button beside the tabs, because the options are alternatives and belong in one
-control. The strip is this app's own segmented track and the calendar behind
-Custom is the analysis tab's `RangeCalendar`, so a reader who has set a window on
-a genset already knows how to set one here.
-
-**Every range draws the same thing**, at the grain `SOLAR_RANGE_GRAIN` gives it:
-days below about ten weeks, months above. Nothing appears or disappears as the
-reader moves between them, which is what lets the control be a plain segmented
-track with no explanatory caption under it.
-
-The daily series is derived from the monthly one rather than dealt beside it —
-each day is a weight, normalised so the days sum back to their month's total to
-within a kilowatt-hour of rounding. That is what lets a reader switch from 12M to
-30D and still be looking at the figure on the tile above.
-
-An array's own analysis tab keeps the window in the URL, so "look at the July
-dip" is a link. The site page keeps it in local state: it
-is one band on a page reached from a dozen places, and putting a chart control in
-that page's address would make every link to a site carry a setting the sender
-never chose.
-
-### Nothing on either screen grows with the estate
-
-This demo has four arrays and the carrier has thousands of sites, so both screens
-are built to draw the same at either end. That ruled out the first version of the
-solar band, which was one chart per array in a grid: at four it is a page, at
-forty a wall of thumbnails nobody compares, at four hundred it does not render.
-What is there instead is fixed by construction — the tiles are five, the
-portfolio chart is one whatever it sums — and the array list has **two views**,
-cards with a chart each and a table, opening in whichever suits the count with
-the choice always available. Cards page in blocks of twelve; both views search.
-
-The chart earns its place over a column of totals by saying *when*. An array
-that has been flat all year is one thing; one that ran at a level until March and
-has been a fifth below it since is a **step** — a fault with a date on it, and
-somebody can go and look at what happened that month. Most solar sites on both
-estates carry one, and `solarStep` is what the rest of the app reads: the count of
-dark strings is computed from the depth of the step, the `Strings offline` row dates its
-string alert from the month, and the analysis tab names it in the hand-off line.
-One event, three readings of it.
-
-A step has to be worth a tenth of the output before it counts as one. Weather here
-runs ±7% month to month, so a shallower drop is inside the noise, and without that
-threshold every array on the estate acquires a fault with an address — which is
-what happened the first time this was rewired off the seed instead of off a
-comparison.
-
-`sfcLitresPerKwh` changed on this branch, and it is the one change that reaches
-back into the shared product. It was a straight line, with the full-load figure
-worsened by 0.4% of itself per point of load given up, and it is now the standard
-two-term fuel model, `litres/kWh = b + a / loadFraction`, with a no-load floor of
-a fifth of the full-load rate. The old line was flat enough that a set idling at
-15% looked only a quarter worse than a properly loaded one; it is roughly twice as
-bad. That region is where this estate lives, and every argument for putting a
-battery beside a 20 kVA genset carrying a 4 kW tower rests on it.
-
-### The three reports, one destination
-
-`Energy` and `Solar report` were two rail items and are now two tabs of
-`/report`, alongside a third that did not exist. They were split apart on a real
-argument — one page carrying two headline figures that move for unrelated reasons
-is the reliable way to make a reader distrust both — and that argument is about
-**one screen**, which the tab strip still honours. What it never justified was two
-destinations. The rail is a list of places and both were the same place.
-
-The consolidation also retires a qualifier. `Solar report` had to carry one
-because a rail item reading `Solar` beside `Battery` and `Gensets` reads as the
-plant register — which, now that `/solar` has a page per system under it, it
-emphatically is. Inside a section where every tab is a report there is nothing to
-disambiguate, so the tabs are **Overall**, **Solar** and **Genset** and the
-register keeps the short name it always wanted.
-
-Only the report's own files moved under `modules/report/`. `SolarRangeTabs`,
-`data/series.ts` and `range.type.ts` stayed in `modules/solar/`, because the
-register's own analysis tab and the site page read them too — they are shared
-charting infrastructure rather than part of the report.
-
-The tile the three tabs share is `report/components/ReportTile.tsx`. It was
-written twice before the move; two near-identical copies is what a shared
-component costs, but three, on tabs a reader moves between in one sitting, is a
-drift the reader would see.
-
-#### The Genset tab, and its two decisions
-
-The estate reported on its plant twice and its engines nowhere: `Overall` counts
-what the sites burned and `Solar` holds the arrays to their design, so the
-gensets appeared only as a litre column inside somebody else's argument.
-Everything a fleet is read *down* — hours, fuel rate at the loading actually
-held, unaccounted litres, what is falling due — was legible one machine at a
-time.
-
-**Part load is priced, not just reported.** A set's fuel rate is a property of how
-hard it is worked rather than of the machine, and `sfcLitresPerKwh` is steep in
-exactly the region this estate lives in. So the fleet's litres are quoted against
-what the same kilowatt-hours would have cost with every engine near 80% of
-nameplate — where these sets are specified to sit, and not 100%, which leaves no
-headroom for the step load a tower's rectifiers present and is therefore a figure
-nobody designs to. The difference is the largest lever on the page and it does not
-announce itself in a litre total.
-
-**Unaccounted diesel is a rate, not a window total,** and it is the one figure on
-the page not measured over the thirty days in the heading. The reconciliation
-works a **day** at a time (`FUEL_INTEGRITY.windowHours`), and carrying a standing
-loss across a month claims more diesel than the tank holds — a 20 kVA set losing
-six litres an hour comes to over four thousand litres against a tank curve that
-records no such deliveries. Two screens disagreeing about the same diesel is the
-one failure this data layer exists to prevent, so the report quotes the rate and
-lets the reader multiply it. For the same reason gains are reported beside losses
-rather than netted against them — one tank filling itself on paper must not cancel
-another being drained — and a set whose flow meter has gone silent reads "—"
-instead of a clean bill of health nobody issued.
-
-### The seam, stated
-
-`history.ts` deals every genset a run log from a hash of its id and knows nothing
-about arrays or banks, so a solar-hybrid site's genset has a history in which it
-ran like any other machine while the energy screen says it barely ran at all. The
-two models are **not** reconciled, and the rule until they are is that they never
-appear on one screen: the report's **Overall** and **Solar** tabs and the site
-pages read `hybrid.ts`, while its **Genset** tab, the run log and the tank chart
-read `history.ts`. Three reports sharing a section does not weaken that — a tab
-strip is a set of screens, not one screen in three bands.
-
-### The site page's top band
-
-Three columns: the figures, the circuit, and **the live quantity that decides
-whether somebody acts today** — the intraday curve where there is an array, the
-tanks where there is not. That third column is why the band exists in this shape.
-It used to hold two columns and most of a desktop screen of nothing, and the
-previous answer was to widen the gaps until the emptiness looked deliberate.
-
-The diagram says what is connected to the bus and the curve says what is coming
-down it, which is one question asked twice, so they share a band. The period
-charts sit below it: a different question, and one nobody asks before they have
-looked at the picture.
-
-### Brand
-
-**Four colours** are the customer's, and every other token in `styles/colors.ts` is
-the design system's, shared by every brand: `brand` (the login CTA and primary
-button), `brand-text` (what stays legible on it), `sidebar` (the rail), and
-optionally `battery`. Each is declared per brand in
-[`src/brands/identity.ts`](src/brands/identity.ts) with the variable name the
-customer's own stylesheet uses, so the next person can check a value rather than
-re-eyedrop it. `colors.ts` reads them through `BRAND.theme` and keeps a `divergent`
-note on each, so the Figma drift check still reports them as intended overrides.
-
-A customer does **not** get their own `bg-canvas`, and does not get to make chart
-marks invisible: CelcomDigi's `#FFE000` measures 1.2:1 on the surface every chart
-draws on, so `solar` is a deep amber that clears 3:1 and the brand yellow keeps
-every job it was actually good at. The one hard constraint on adding a brand is
-that its `sidebar` must be dark enough to carry white foregrounds — the rail does
-not follow the app's light/dark polarity, because it carries the customer's mark.
-
-The tab is the one place a brand appears outside React, so the title, description
-and favicon live in [`src/brands/manifest.ts`](src/brands/manifest.ts) — a
-Node-only module that nothing in `src/` imports. The plugin reads it to fill
-`index.html`, and inlines the included brands' entries as literals into the
-generated registry, so the map that names every customer never reaches the client.
-`main.tsx` then reconciles the document to the running brand, because a build-time
-title cannot know about a Settings choice made later.
-
-An unknown `VITE_BRAND` is a **hard error at build time**, not a fallback — the
-build produces no output at all, so it cannot be deployed by mistake. The failure
-mode of a quiet default is one customer's branding over another customer's estate
-in a live meeting. Each dataset is also checked on load
-(`assertDatasetIntegrity`) — a genset standing at a site id that doesn't exist used
-to be a compile error and is now a thrown one, because the per-brand `CustomerId`
-union was exactly what stopped two estates coexisting in one build.
-
-**[docs/how-it-works.md](docs/how-it-works.md) explains what the product is for
-and the concepts it is built on** — genset, site, run, reading, alert, tag, control
-mode, fuel reconciliation and the rest — and the rules between them. Read that before changing behaviour;
-this file covers what is built and what is faked.
-
-There is no backend. The fleet is mock data and "logging in" writes a flag to
-localStorage — see [Caveats](#caveats).
-
-```bash
-git clone git@github.com:Rooftop-Energy-Tech/telcoiq-design.git
-cd telcoiq-design
-bun install
-bun run dev          # http://localhost:3400 — REDTONE, the default brand
-bun run dev:telcoiq  # http://localhost:3404 — telcoIQ
-```
-
-Needs [Bun](https://bun.sh) (`curl -fsSL https://bun.sh/install | bash`); the
-lockfile is `bun.lock`, so npm/pnpm will resolve different versions.
-
-Port 3400, not 3000: this repo was forked from `gensetiq-frontend`, which keeps
-:3100, and `rooftopiq-frontend-v3`, the mobile prototype and the tagging
-prototype hold :3000, :3200 and :3300. Every one of them pins `strictPort`, so
-each prototype owns a hundred and they all run side by side.
-
-Any email and password gets you in.
-
-### The rail drops Sites on a mobile estate
-
-**`DATASET.plant` decides whether the rail offers Sites**, and it is the only thing
-about the rail that an estate changes.
-
-A `'stationary'` estate keeps it. A set there is bolted to a plinth beside the thing
-it feeds, the site is a subject in its own right, and the register is a place a
-reader starts from. The carrier tower estate — what the unbranded `gensetiq` build
-walks — is one, so that build shows three destinations.
-
-A `'mobile'` estate drops it. A yard on a fleet that moves is where a machine was
-sent rather than something anyone opens the app to ask about, and the question the
-register used to be asked — what is out, where, and since when — is the one
-`/deployments` now answers properly. Express Mission is a vendor whose sets are
-trucked to an injection point for a job and brought back, so its build shows two.
-
-**The routes stay on both.** `/sites`, `/sites/<id>` and the breadcrumb into one all
-still resolve on a mobile build; a link from elsewhere is not broken. What a mobile
-estate withholds is the *door*, not the room — which is the only reason this is
-allowed to be configuration at all. A brand cannot state it: `PlantKind` in
-[`src/brands/types.ts`](src/brands/types.ts) explains why the fact belongs to the
-estate rather than to whoever is paying for the build.
+customer's build has no other customer's name, mark or site names in it — not
+behind a flag, absent.
+
+One known gap: `deployment/data/realJobs.ts` (BRF9540's measured jobs, with Express
+Mission's real yard names) is imported directly rather than through a dataset, so it
+is in every bundle. Since 2026-10-05 its jobs are only *shown* on the estate that has
+the machine.
+
+### Brand colours and the tab
+
+**Three colours** are the customer's — `brand` (the login CTA and primary button),
+`brand-text` (what stays legible on it) and `sidebar` (the rail) — declared per
+brand in `src/brands/catalog/*.ts`. Every other token in `styles/colors.ts` is the
+design system's, shared by every brand. The one hard constraint on a brand is that
+its `sidebar` must be dark enough to carry white foregrounds.
+
+The tab's title, description and favicon live in
+[`src/brands/manifest.ts`](src/brands/manifest.ts), a Node-only module the plugin
+reads to fill `index.html`. An unknown `VITE_BRAND` is a **hard error at build
+time**, so a mistyped brand cannot be deployed. Each dataset is also checked on
+load (`assertDatasetIntegrity`).
 
 ## The component gallery
 
-**`/gallery`** — every shared component, every state, one page. Dev only: the
-route 404s in the `dist-*` builds, which are the ones that go in front of
-customers.
+**`/gallery`** — every shared component, every state, one page. Dev only: the route
+404s in both builds.
 
 ```bash
-bun run dev:telcoiq   # then http://localhost:3404/gallery
+bun run dev   # then http://localhost:3400/gallery
 ```
 
-It covers the two shared tiers — the eight Radix primitives in
-`src/components/ui`, and the shared pieces in `src/components/global` — plus a
-full table of the colour palette. The ~140 page-shaped components under
-`src/modules/*` are deliberately **not** in it: every one of them already renders
-against real fixture data at its own URL in the table below, which is a better
-bench than anything the gallery could stage.
+It covers the two shared tiers — the primitives in `src/components/ui`, and the
+shared pieces in `src/components/global` — plus a full table of the colour palette.
+Page-shaped components under `src/modules/*` are not in it: each already renders
+against fixture data at its own URL.
 
-What the running app cannot show you is **every state at once**, and that is what
-the gallery is for: a battery glyph at five charge levels, an alarm pill at all
-three severities, a filter card active and inactive, a button in seven variants.
+What the running app cannot show you is **every state at once**: an alarm pill at
+all three severities, a filter card active and inactive, a button in every variant.
 
-Two things on it are not component benches at all, and are the reason it beats a
-Storybook here:
-
-- **The brand switcher**, top right. Five brands recolour the whole app through
-  the token layer; on this page you watch every component change at once, which
-  is the fastest way to find a hardcoded colour.
-- **The token table**, at the foot. `src/styles/colors.ts` is the real design
-  system — brands recolour through it, `figmaMap()` maps it onto Figma variables,
-  and an org skill diffs it against the live file — and it had no viewer. Every
-  token is drawn light-over-dark with its Figma variable beside it, over a
-  checkerboard so the translucent ones read as translucent.
-
-There is also a **dark switch**. `main.tsx` ships this build light-only and never
-adds the `dark` class, but `colors.ts` carries a complete dark palette and
-`colorThemeCss()` already emits the `.dark` block. The switch adds the class, so
-a palette that has never been exercised can at least be looked at.
+- **The brand switcher**, top right, recolours the whole page through the token
+  layer — the fastest way to find a hardcoded colour.
+- **The token table**, at the foot, draws every token in `styles/colors.ts`
+  light-over-dark with its Figma variable beside it.
+- **A dark switch** adds the `dark` class. The app ships light-only, but
+  `colors.ts` carries a complete dark palette.
 
 The variant lists are tied to each component's `cva` union by a
-`Record<Variant, true>`, so adding a variant to `button.tsx` fails
-`bun run typecheck` until the gallery lists it. A bench that has quietly fallen
-behind the code is worse than no bench, because a reader trusts it.
+`Record<Variant, true>`, so adding a variant fails `bun run typecheck` until the
+gallery lists it.
 
 ## What's built
 
 | Screen | Route | Notes |
 | --- | --- | --- |
 | Login | `/login` | Wordmark, email + password, teal CTA. Matches the Figma frame. |
-| Gensets — list | `/gensets?view=list` | 24 units, sortable by attention (faults first): name, the Malaysian state it stands in, run state, alarm counts, fuel level, and — on the full-width list only — location and telemetry age. `sort=location` orders by state. 20 rows a page, `page=2` onward. |
+| Gensets — list | `/gensets?view=list` | 30 gensets on the carrier estate and 38 on Express Mission's, sortable by attention (faults first): name, the Malaysian state it stands in, run state, alarm counts, fuel level, and — on the full-width list only — location and last updated. `sort=location` orders by state. 20 rows a page, `page=2` onward. |
 | Gensets — map | `/gensets?view=map` | Real MapLibre map with live clustering. |
-| Genset home | `/gensets/<id>` | The genset's own page: tank + runway + service, controls + live gauges, this run beside today, what it is, alerts. All 24 units have one. |
+| Genset home | `/gensets/<id>` | The genset's own page, in four bands: the strip (tank, runway, service, alarm counts); the controls and the current run; the tank, `Generator conditions` (the marks while running, the two hour counters always) and `Generator output` (running only); then what the machine is. Every genset has one. |
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
-| Genset runs | `/gensets/<id>/runs` | The run log: a timeline strip, totals for the chosen window, the list, and a CSV export. Not a Figma frame — see [below](#the-runs-tab-is-not-in-the-design). |
-| Alarms / Equipment / Settings | `/gensets/<id>/alarms`, … | Named in the design's tab strip but not drawn — labelled placeholders so the strip isn't dead. Settings says what would belong on it: the [fuel leakage alarm](#fuel-leakage-is-not-in-the-design)'s switch and threshold, tags, notification routing. |
-| Sites — list | `/sites?view=list` | 17 sites, worst standing alarm first, with the alarm pill as a column. **Reachable but not in the rail on a mobile estate** — see [below](#the-rail-drops-sites-on-a-mobile-estate). Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
-| Sites — map | `/sites?view=map` | One pin per yard, coloured by the site's status bucket and sized by how many sets stand there. Not a Figma frame — see [below](#the-sites-screens-are-not-in-the-design). |
-| Site home | `/sites/<id>` | Matches the Figma frame: the site's single-line diagram, then one row per genset with its run and its controls. All 17 sites have one. |
-| Site settings | `/sites/<id>/settings` | How the site is fed, which gensets stand on it and under which job, and a way to start one. Not a Figma frame; see [power role](#the-power-role-is-not-in-the-design). |
-| Site deployments | `/sites/<id>/deployments` | Every job this yard has held, newest first — the answer to "have we had a set here before". Not a Figma frame. |
-| Site runs | `/sites/<id>/runs` | The same log across every set standing here — one strip lane and one table column per machine. |
-| Alarms / Contract | `/sites/<id>/contract`, … | Named in the design's tab strip but not drawn — same treatment. |
+| Genset deployments | `/gensets/<id>/runs` | Labelled *Deployments* in the rail: the jobs the set has stood on, the runs inside them on a timeline, totals for the chosen window, the list, and a CSV export. The path stays `/runs` so old links work. Not a Figma frame — see [below](#the-runs-tab-is-not-in-the-design). |
+| Genset service | `/gensets/<id>/service` | When the set is next due on hours and on calendar, its service history, and **Log service**. Not a Figma frame. |
+| Genset alarms | `/gensets/<id>/alarms` | Every alarm the set carries — its controller's, the site monitoring unit's rows filed against it, and the low-tank row — in a standing table with a cleared log under it. |
+| Equipment / Settings | `/gensets/<id>/equipment`, `/gensets/<id>/settings` | Named in the design's rail but not drawn — labelled placeholders (`ComingSoon`) so the rail isn't dead. |
 | Deployments — list | `/deployments?view=list` | The register: a row per **job**, the ones standing first, six columns with the headers as the ordering control. 20 jobs a page, `page=2` onward. Not a Figma frame. |
 | Deployments — map | `/deployments?view=map` | One pin per job, green standing, brand-tinted booked, grey closed, sized by how much plant is on it. Not a Figma frame. |
 | Deployments — timeline | `/deployments?view=gantt` | One lane per machine, one bar per job it is on, on a week-ticked one-month axis with today in the middle. The only view that draws depot time — see [how-it-works](docs/how-it-works.md#the-deployments-register). |
@@ -469,22 +149,15 @@ behind the code is worse than no bench, because a reader trusts it.
 | Deployment runs | `/deployments/<id>/runs` | The runs of its machines inside the window. No range picker: the window is the job. |
 | Deployment alarms | `/deployments/<id>/alarms` | The site's own queue, filtered to this job's machines and window. |
 | Deployment settings | `/deployments/<id>/settings` | The ID, the address with a pin you move by moving the map, the dates, the customer and site contacts, a notes log, and End or Delete (a planned deployment only). Read-only once completed. |
-| Service — fleet | `/service` | Every genset's service standing in one list, worst first: status, next due, run hours and months against the interval, last service with its report, and **Log service** on each row (the genset Service tab's own dialog). Cards for Overdue / Due soon / In service filter it (a never-serviced set still lists, with its own status); `WXQ 4562` / `SA 4562 D` is seeded overdue so the state has an example, and since 2026-09-30 each estate has two more overdue and five more due soon (`serviceSeed.ts`); search, `State` and a `Status` dropdown (the cards' filter, as a menu) narrow it, with a `Filtered by:` chip row and `Clear all` under the toolbar while any is on. A **History** tab lists every logged service, newest first. From tablet width up, `Due` and `History` are rows in a second rail on the left (a genset page's `DetailSidebar`); the phone keeps the switch in the toolbar. Both tables show 20 rows a page (`page=2` onward). On the phone bottom nav. At phone width the Due list is a card per genset (status, next due, both interval bars, last service, full-width Log service) and History is two-line rows; both end clear of the floating nav. Not a Figma frame. |
-| Fuel — depots | `/fuel` | Each depot's bulk tank checked against what it issued over the last month; no period control at the top of `/fuel`. Opens on two summary cards: *Needs attention*, naming each depot with a verdict and linking to its page, and *Fuel balance*: all depots' supplier deliveries in and issues out for the month, and what is left in them now. Where the estate runs trucks, the depot card splits its fall into *mobile gensets* and *fuel trucks*, from the depot's own pump log; *Unlogged fuel* is the fuel the log does not account for. Whether a load reached the truck is the Truck log's to say. Every card shows its full breakdown; clicking a card opens the depot's own page. Not a Figma frame — see [how-it-works](docs/how-it-works.md#the-fuel-page). |
-| Fuel — one depot | `/fuel/depots/<id>` | One yard, from the depot's side only: name and street address; three overview cards (unlogged fuel, the yard's fuel balance in, out and left, and the tank); its level over the period; *Fuel breakdown* (fuel out and its shares) beside supplier deliveries; then gensets filled and trucks loaded there, at the depot pump's litres. Keeps the Fuel rail; crumb *Fuel / Depots / Klang depot*. The last month, with no period control. Not a Figma frame. |
-| Fuel — deliveries | `/fuel?view=deliveries` | Every genset filled at a yard in the period, under two overview cards (litres delivered, and gensets waiting for fuel, which links to the Gensets page filtered to low fuel), searchable, filterable by depot and by its own 1 day / 7 days / 1 month / custom period, and sortable by any column, as the Gensets register is, twenty rows a page under the registers' pager. Truck fills are the Trucks tab's, not listed here. A tab of its own since 2026-09-30, no longer under the depot tanks. |
-| Fuel — truck log | `/fuel?view=truck-log` | **Express Mission only.** Every truck's loads, stops and losses, newest first, under one overview card (*Missing from trucks*, which filters the table), with its own 1 day / 7 days / 1 month / custom period, twenty rows a page under the registers' pager. A tab of its own since 2026-09-30, no longer under the truck register. |
+| Service — fleet | `/service` | Every genset's service standing in one list, worst first: status, next due, run hours and months against the interval, last service with its report, and **Log service** on each row (the genset Service tab's own dialog). Cards for Overdue / Due soon / In service filter it (a never-serviced set still lists, with its own status); `WXQ 4562` / `SA 4562 D` is seeded overdue so the state has an example, and since 2026-09-30 each estate has two more overdue and five more due soon (`serviceSeed.ts`); search, `State` and a `Status` dropdown (the cards' filter, as a menu) narrow it, with a `Filtered by:` chip row and `Clear all` under the toolbar while any is on. A **History** tab lists every logged service, newest first. Each one names the yard the genset stood at on that day, or *In depot* between postings, not the yard it is at now. From tablet width up, `Due` and `History` are rows in a second rail on the left (a genset page's `DetailSidebar`); the phone keeps the switch in the toolbar. Both tables show 20 rows a page (`page=2` onward). On the phone bottom nav. At phone width the Due list is a card per genset (status, next due, both interval bars, last service, full-width Log service) and History is two-line rows; both end clear of the floating nav. Not a Figma frame. |
+| Fuel — depots | `/fuel` | Each depot's bulk tank checked against what it issued over the last 30 days; no period control at the top of `/fuel`. Each estate has its own depots: Express Mission's four in the peninsula, and the carrier's seven, four of them in Sabah and Sarawak. Opens on two summary cards: *Needs attention*, naming each depot with a verdict and linking to its page, and *Fuel balance*: all depots' supplier deliveries in and issues out for the 30 days, and what is left in them now. Where the estate runs trucks, the depot card splits its fall into *mobile gensets* and *fuel trucks*, from the depot's own pump log; *Unlogged fuel* is the fuel the log does not account for. Whether a load reached the truck is the Truck log's to say. Every card shows its full breakdown; clicking a card opens the depot's own page. Not a Figma frame — see [how-it-works](docs/how-it-works.md#the-fuel-page). |
+| Fuel — one depot | `/fuel/depots/<id>` | One yard, from the depot's side only: name and street address; three overview cards (unlogged fuel, the yard's fuel balance in, out and left, and the tank); its level over time, full width, with its own 24 hours / 7 days / 30 days / custom picker; *Fuel breakdown* (fuel out and its shares) beside supplier deliveries; then gensets filled and trucks loaded there, at the depot pump's litres. Keeps the Fuel rail; crumb *Fuel / Depots / Klang depot*. The cards cover the last 30 days; the page has no period control of its own. Not a Figma frame. |
+| Fuel — genset fills | `/fuel?view=deliveries` | Labelled *Genset fills*: every genset filled at a depot in the period, under two overview cards (litres filled, and gensets waiting for fuel, which links to the Gensets page filtered to low fuel), searchable, filterable by depot, with its own 24 hours / 7 days / 30 days / custom picker, and sortable by any column, twenty rows a page. Truck fills are the Trucks tab's, not listed here. The URL keeps `?view=deliveries`. |
+| Fuel — truck log | `/fuel?view=truck-log` | **Express Mission only.** Every truck's loads, stops and short loads, newest first, under one overview card (*Missing from trucks*, which filters the table), with its own 24 hours / 7 days / 30 days / custom picker, twenty rows a page under the registers' pager. A tab of its own since 2026-09-30, no longer under the truck register. |
 | Fuel — trucks | `/fuel?view=trucks` · `&truck=<id>` | **Express Mission only** (the `utility` estate); absent, not empty, elsewhere. Laid out and sized as the Gensets page is: toolbar with list / split / map, two summary cards (*Missing from trucks*, which filters, and *Fuel on board*), the truck register beside the map, and the selected truck's panel over it only while a truck is selected. `truck` selects that truck into the panel (a drawer on a phone): tank, one fuel-missing line, period totals and a link to the Truck log searched to it (`?view=truck-log&truck=<id>`). Not a Figma frame. |
 | `/deployment` | → `/deployments` | The singular path redirects, so links in decks and docs keep working. |
-| Report — Overall | `/report` | What carried the load at every off-grid site over thirty days, how long its engine ran, and what it burned. Not a Figma frame — added on this branch, see [above](#this-branch-the-celcomdigi-white-label). |
-| Report — Solar | `/report/solar` | The portfolio's generation, and every array in it as cards or a table. Not a Figma frame — same. |
-| Report — Genset | `/report/genset` | The engines over the same thirty days: hours, what each set burns per kilowatt-hour at the loading it holds, what part load costs the fleet in litres, diesel unaccounted for, and what is falling due. Not a Figma frame — same. |
-| Solar — register | `/solar` | A row per **solar system**, the way `/gensets` is a row per machine: state, output, capacity and its alarm counts. Worst first. |
-| System home | `/solar/<id>` | The system's own page in the four bands: the strip, what the array is putting out now a junction box at a time, generation over time, and what the system is. Every solar site has one. |
-| System analysis | `/solar/<id>/analysis` | Generation over a chosen window, a bar per bucket, with the window in the URL. |
-| System devices | `/solar/<id>/equipment` | The array: its capacity, its modules and their rating, how many strings it is wired in and how many of those are dark. A description, not a list — see [below](#a-row-is-a-system-and-there-is-nothing-under-it). |
-| System alarms | `/solar/<id>/alarms` | Every alarm the array carries, from both sources, in one standing table with a cleared log under it. |
-| System service / settings | `/solar/<id>/service`, … | The tabs in the strip that are not drawn yet — labelled placeholders, same treatment as a genset's. |
+| Reporting | `/reporting` | Three CSV exports over a date range: runs, deployments and genset fills. The range ends now at the latest. Not a Figma frame. |
+| Settings | `/settings` | The brand picker where the build carries more than one brand; a `ComingSoon` placeholder otherwise. |
 
 Getting from the fleet into a genset: click its **name** in the list, or the `→`
 in the preview panel's header. Clicking a row or a map pin still only *selects*
@@ -506,207 +179,42 @@ through it:
 /gensets/brf9540/analysis?run=brf9540-run-3           # one run, end to end
 /gensets/brf9540/runs?window=all                     # the whole log
 /gensets/brf9540/runs?from=2026-07-01&to=2026-07-31   # the range an export covers
-/sites?q=senai                        # sites list, filtered
-/sites?view=map&id=port-016&panel=true # one yard on the map, its preview open
 /deployments?state=active             # the register, only what is standing
 /deployments?state=planned            # what is booked and has not started
 /deployments?view=gantt&location=johor # Johor's jobs on the timeline
 /deployments?job=standby               # standby jobs only (an estate with job types)
 /deployments?q=wxq4562               # every job a plate has been on, spaces optional
-/deployments/ppu-013-job-0/gensets    # one job's machines, and the way to change them
-/sites/telco-001                      # the site page the Figma frame draws
-/sites/telco-001/runs?window=7d       # every set here, one log
-/solar?q=kedah                        # the solar register, filtered
-/solar/kdh-0431                       # one system's own page
-/solar/kdh-0431/analysis?range=custom&from=2026-03-01&to=2026-06-30
-/solar/mg-012/equipment                          # what that system is built from
+/deployments/pe-001-job-0/gensets     # one job's machines, and the way to change them
+/fuel?view=deliveries                 # the Genset fills tab
+/fuel/depots/klang                    # one depot's own page
+/reporting                            # the CSV exports
 ```
-
-A site page is reached from `/sites`, and each of its genset rows links back out to
-that unit's own page — so the two sections meet in both directions. Its solar band
-does the same for the other kind of plant, and the generation report's cards and
-rows now open the array rather than the place it stands.
-
-### A solar system has its own pages now
-
-`/solar` was a `SectionTabs` scaffold — a subtitle counting the estate and six
-empty tabs — and the scaffold's own note said where it was going: *"`/gensets` is
-a register: a list of machines, and the tabs live one level down on each
-machine."* It went there. The register took `/solar`, the six tabs moved onto
-`/solar/<id>`, and the placeholder bodies went with them. `/battery` is untouched
-and still a scaffold: it has no plant model to build a register out of, which is
-the gap it was put in the rail to name.
-
-#### A row is a system, and there is nothing under it
-
-The register's row was briefly an **array**, then for a while there was a level
-below it — an **inverter**, with its own page, its own dials, a control pad and a
-bar per string on its MPPT inputs. Both are gone, and the second one for a reason
-that outranks any argument about units: **these are telco sites.** A tower runs a
-−48 V DC bus and its loads are DC, so the array feeds the bus directly. There is
-no AC stage anywhere on the site, so there is no inverter in the cabinet, and a
-page describing one was describing a box that is not there.
-
-So the model is **system → string**, and a system is the only level that reports:
-
-| | Solar system |
-| --- | --- |
-| Unit of | reporting, alarms, maintenance |
-| Named by | the customer — "a 1.3 MW system" |
-| Carries | kWp, modules, strings, commissioning date, its generation |
-| Survives | its own plant being replaced |
-
-Strings survived the boxes, and they are the reason the model still has anything
-to say about a fault. A string is modules in series — a physical run on the roof
-with a combiner at the end of it — and it is a fact about the array whatever it
-terminates in. `string-out` is still the health rule that fires on a dated step in
-the generation series, and it is still the most useful thing this module says.
-
-**What went with the inverter, said plainly, because it is a real loss:**
-
-- **Per-box state.** A plant used to be able to be four-fifths visible — one box
-  silent, nine reporting, and the register printed `9 of 10 reporting`. There is
-  one comms link to a site now, so a system is heard or it is not.
-- **The strings as a drawing.** Dark strings were concentrated on one box and
-  shown as bars on a shared scale, which made a fault *have an address*. What is
-  left is a count: `1 of 4 strings has stopped delivering`.
-- **The `insulation-low` rule.** Resistance to earth, below which a box refuses to
-  start in the morning, was an inverter's own earth-leakage interlock. Nothing on
-  a telco site measures it, and a rule this app cannot derive is one it must not
-  print. Solar health went from five rules to three.
-
-An array as its own level is still not coming back. It earns a place in a model
-for one job, and it is *attribution* rather than measurement: a sub-array is a
-plane with one tilt and one azimuth, and naming it is how a shortfall gets pinned
-to a piece of roof rather than left as a figure about the whole system. Every site
-on both estates is one plane, so there is nothing to attribute and the level would
-only ever hold one child. When a customer turns up with an east and a west roof
-the thing to add is a `plane` under the system — not an `array`, which is too
-overloaded a word to reintroduce.
-
-#### The system page
-
-**Four bands**, the same four in the same order as a site's, a genset's and a
-bank's — which is the whole point. An operator moving between a tower's genset,
-its array and its bank finds the same things in the same places, and the pages
-differ only in what they are *about*.
-
-1. **The strip** — solar capacity, generation today, and the alarm counts.
-2. **The junction boxes** — what the array is putting out right now, broken out a
-   box at a time: strings, panels, how many are delivering, and the box's share of
-   the kilowatts. Where nobody has surveyed the roof there is no box breakdown to
-   draw, and the band falls back to one dial scaled to the array's **kWp**, which is
-   the only ceiling there is. It was scaled to the inverters' combined AC rating, on
-   the argument that a dial which can never fill reads as a plant permanently
-   underperforming; with no boxes there is no AC rating, and the honest full scale is
-   the glass. A clear noon lands near half way up, because that is what an array
-   does. Beside the total, when the sun is down, a `Dark · first light 07:00` badge —
-   without which a band of zeroes at nine in the evening is pixel-for-pixel a plant
-   that has tripped.
-3. **The chart** — generation, `Day / Month / Year / Lifetime`, one series.
-4. **The details** — three nameplate facts: system capacity in kWp, the module
-   count and rating, and the commissioning date. It was four; `Installed capacity`
-   was the AC figure and it went with the boxes, along with the question it
-   existed to answer. Nothing live is in this band, which is why it sits under the
-   chart rather than over it — the order all four detail pages keep.
-
-**What is wrong** was a fifth band and is now the first thing on the array's
-`Alarms` tab, over the standing and cleared tables: a rule and what has been done
-about it belong on one screen, and the band was spending the home page's last
-screen restating the alarm counts the strip gives at the top.
-
-Strings and the last module wash are deliberately not in band 4: `Devices` and
-`Service` each own one, and restating them here would make it a second index of
-the page rather than a description of the system.
-
-Nothing on these pages invents a quantity `hybrid.ts` already has an opinion
-about. Capacity, today's energy, the twelve months and the step-down all come
-from there, so the system page, the site page and the generation report are three
-readings of one model. What is added is the plant an energy model has no opinion
-about — how the array is wired into strings, how many modules that is, and when it
-was commissioned — and every one of those is dealt from the site's id, so the
-screens that show them cannot disagree.
-
-#### The strings are read off the shortfall
-
-The part worth checking. An underperforming system gets a *step*: output drops in
-one month and stays down. A step of that shape has one obvious cause on a PV
-plant — strings have gone — and the arithmetic agrees, so the number of dark
-strings is **computed from the size of the step**. That is what keeps the count,
-the month the `Strings offline` row prints and the drop a reader can see in the chart three
-readings of one event rather than three claims that happen to agree.
-
-Never the whole array. Every string dark is a dead plant, a different fault with a
-different fix, and the model cannot tell the two apart, so the page does not claim
-to.
-
-The dark strings used to be **concentrated on one inverter** rather than spread
-evenly, which was both the realistic failure (a combiner fuse, a blown MPPT input,
-one wet junction box) and the far more useful drawing: two boxes reading `11 of
-11` beside a third reading `7 of 11` is a fault with an address, where ten boxes
-each a little short is weather. With no boxes there is nowhere to concentrate them,
-so what is left is the count and the date.
-
-#### Two figures deliberately absent, for one reason
-
-There is no **performance ratio**. A PR is the day's energy over what the
-nameplate would have made in the irradiance that actually fell, and this app has
-no irradiance — only a regional monthly average. Worse, `siteEnergy` caps
-generation at what the site can absorb and these systems are sized to two-thirds
-of a tower's annual energy, so a good part of a clear midday is spilled by
-construction and any PR computed here would read low for a reason that is not a
-fault. `kWh/kWp` states what the roof produced per unit of glass and asserts
-nothing beyond it.
-
-And there is no **`CURTAILED` state**, because that same spill is a thirty-day
-energy cap the model does not resolve to a moment — the bank is held between 0.42
-and 0.88 by construction, so there is no instant at which the app can say the
-system is being held back right now. Both are the same gap, and both are the
-first thing to add when the model grows a dump load.
-
-#### What a silence costs, and what it does not
-
-`hybrid.ts` will produce a day's generation for a plant nobody can hear — it
-models a site's plant and knows nothing about telemetry, the same seam the run
-log and the tank chart sit either side of. So the pages refuse to publish it: a
-silent system reads `Offline`, today's energy and the figures derived from it
-become em dashes, the intraday curve keeps only its typical-day baseline, and the
-alert is critical.
-
-The refusal used to be **scoped to the box**, and that was the whole reason the
-model had a box: one quiet inverter in ten left the system `Generating`, the
-register printing `9 of 10 reporting`, and a *warning* naming the box and the kWp
-nobody could see. There is one comms link to a telco site, so that middle state is
-gone — a plant is heard or it is not.
-
-What survives either way is what this app worked out for itself over months that
-are already closed. A silence is held at **at least a day**: six hours is a missed
-poll, not an offline plant, and past a day there is nothing of today left to
-publish anyway.
-
-The state has to be *reachable* to be worth building, and moving the key from box
-to site nearly deleted it — one chance in eight over three or four solar systems
-comes up empty most of the time, and it did on both estates. So `isSilent`'s salt
-is **chosen rather than arbitrary**: under `site/silent` exactly one system on each
-estate is quiet, and neither is the largest, because a 1,333 kWp showpiece that is
-permanently offline is a different kind of unhelpful. That is the same thing
-`solarPerformance` does when it spreads 0.76–1.06 so the estate has healthy arrays
-and tired ones.
 
 ## Layout
 
 ```
 src/
+├── brands/            the brand system: types, manifest, catalog/ (marks, colours),
+│                      datasets/ (each estate's sites and gensets)
 ├── components/
-│   ├── global/        Sidebar, MobileNav, TopNav, NavButton, ComingSoon, NotFound
-│   └── ui/            shadcn-style primitives (button, input, badge, tabs, …)
+│   ├── global/        Sidebar, MobileNav, TopNav, SummaryCards, DetailSidebar,
+│   │                  FilterSelect, TablePager, PlantMap and the other shared pieces
+│   └── ui/            shadcn-style primitives (button, input, badge, tabs, dialog, …)
 ├── layouts/           AuthenticatedLayout — the 94px rail + canvas shell, or the
 │                      floating bottom bar below `md`
+├── lib/               format.ts (every figure on screen), geo/, map helpers, hooks
 ├── modules/
 │   ├── auth/          localStorage stand-in for a session
-│   ├── genset/        types, mock data, fleet screens, and detail/ for the
-│   │                  home page and detail/analysis/ for the chart
-│   └── site/          the sites list, the site page, and the single-line diagram
+│   ├── genset/        the fleet register and a genset's pages: home, analysis,
+│   │                  deployments (runs), service, alarms
+│   ├── deployment/    the jobs register, the new-deployment dialog, a job's pages
+│   ├── fuel/          depots, genset fills, fuel trucks and the truck log
+│   ├── service/       the fleet's service standing and history
+│   ├── reporting/     the CSV exports
+│   ├── settings/      the brand picker
+│   ├── gallery/       the dev-only component bench
+│   └── site/          site data the other modules read (seeds, monitoring units,
+│                      plant alarms); the site screens themselves were removed
 ├── routes/            file-based TanStack Router tree
 └── styles/            colors.ts (token source of truth) + styles.css
 ```
@@ -714,15 +222,15 @@ src/
 `routes/_authenticated/gensets_.$gensetId.tsx` — the trailing underscore on
 `gensets_` un-nests the detail route from `/gensets`. Without it TanStack treats
 the fleet screen as its parent and renders the detail page inside it, and
-`GensetsPage` has no `<Outlet />`, so nothing appears at all. `sites_.$siteId.tsx`
-does the same thing for the same reason.
+`GensetsPage` has no `<Outlet />`, so nothing appears at all. `deployments_` and
+`fuel_` do the same thing for the same reason.
 
 ## Phone width
 
-Four screens have a mobile layout: **the fleet list, the sites list, and the two
-home pages.** They are the same routes at a narrower window, not a second set of
-`/m/…` ones — so a link works wherever it is opened, and the designed desktop
-frames are untouched by it.
+The four phone destinations have a mobile layout — **Gensets, Deployments, Fuel and
+Service** — and so does the genset home page. They are the same routes at a
+narrower window, not a second set of `/m/…` ones, so a link works wherever it is
+opened.
 
 The line is Tailwind's `md` (768px), and nearly every decision either side of it is
 a CSS class. Two are not, and they are in `lib/useIsCompact.ts`: the lists swap a
@@ -732,51 +240,34 @@ accessibility tree twice) and the map's panel inset is a number rather than a cl
 What changes below `md`:
 
 - **the 94px rail becomes a floating bottom bar** — `components/global/MobileNav.tsx`,
-  centred, with the page scrolling underneath it. Two destinations, Gensets and
-  Sites, plus the report's **Solar** tab — linked as `/report/solar` rather than
-  `/report`, since the tab strip is hidden at this width and a phone sent to the
-  section would land on the one report it cannot read. The Overall and Genset
-  tabs and Settings are desktop-only here, and a nav item landing on a screen laid out
-  for 1,280px is worse than no item. The same rule hides the genset's and site's
-  tab strips, where only `Home` is built for a phone. Every route still resolves if
-  a URL is typed or followed from a desktop link — what is withheld is *navigation*
-  to a screen the app cannot show properly.
-- **the two lists become cards** — `GensetsCards.tsx`, `SitesCards.tsx`. Not the
-  table with columns dropped: the columns that would survive 390px are the ones
-  that say least, and "1,763L (72%)" and "Petaling Jaya" are why anybody scrolls.
-  The whole card navigates, since there is no preview panel at this width to select
-  into and a card that highlighted itself and did nothing else is a dead end.
+  centred, with the page scrolling underneath it. Four destinations: Gensets,
+  Deployments, Fuel and Service. Reporting and Settings are desktop-only, and a nav
+  item landing on a screen laid out for 1,280px is worse than no item. Every route
+  still resolves if a URL is typed or followed from a desktop link — what is
+  withheld is *navigation* to a screen the app cannot show properly.
+- **the registers become cards** — `GensetsCards.tsx`, `DeploymentsCards.tsx`, and
+  the Service and Fuel lists. Not the table with columns dropped: the columns that
+  would survive 390px are the ones that say least. The whole card navigates, since
+  there is no preview panel at this width to select into.
 - **the map and the preview panel are withheld**, and with them the view switcher
   and panel toggle. `?view=map` in a URL is left untouched — the same link opens
   the map on a desktop and the list on a phone.
-- **the home pages stack.** Both needed no rewrite, because their reading order is
-  already vertical: the genset's three bands and the site's diagram-then-rows are
-  asked in sequence, so each band's row becomes a column. The alerts band on the genset
-  and the health band on the array used to turn the same way — their 113px condition
-  rails would have taken a third of a phone screen — and both were removed on
-  2026-09-14, leaving the standing and cleared tables as the whole of each `Alarms`
-  tab.
-- **the two fixed-geometry drawings never reflow**, because their conductors land on
-  the boxes at measured coordinates and a reflow leaves a wire ending in mid-air.
-  They answer the narrow screen differently, and the difference is which failure is
-  cheaper. `SiteDiagram` (398px) **scales itself** to whatever width it is handed:
-  it measures its own box and shrinks the whole canvas as one piece, so every wire
-  still lands and only the type gets smaller (0.9 at 390px). `PowerFlowDiagram` +
-  `ControlPad` (484px) **scrolls sideways** in its own strip, because the control
-  pad is a set of tap targets and shrinking those is a worse answer than swiping.
+- **the genset home page stacks.** Its reading order is already vertical, so each
+  band's row becomes a column. `ControlPad` keeps its fixed geometry and scrolls
+  sideways in its own strip, because it is a set of tap targets and shrinking those
+  is a worse answer than swiping.
 
 One pattern is worth knowing before editing these: where the desktop layout is a
 wrapping row of a fixed item and a shrinkable one, **`flex-wrap` is the wrong
 instruction at phone width.** Both items "fit" on one line once the shrinkable one
 is allowed to shrink, and the result is a squeezed column with its contents
 spilling under the fixed one. Those rows are `flex-col md:flex-row md:flex-wrap`
-instead — see `GensetHome` band 1, `SiteHome`'s top band and `SiteGensetRow`.
+instead — see `GensetHome` band 1.
 
 ## Relationship to rooftopiq-frontend-v3
 
-Separate app, deliberately: telcoIQ has its own login, its own mark, and a
-completely different sidebar (Gensets / Deployment / Sites / Refuel; this branch
-ships Sites / Solar / Battery / Gensets). Nothing in
+Separate app, deliberately: gensetIQ has its own login, its own mark, and its own
+rail (Gensets, Deployments, Fuel, Service, Reporting). Nothing in
 `rooftopiq-frontend-v3` was touched.
 
 It shares that app's **design system**, though. `src/styles/colors.ts` is lifted
@@ -785,8 +276,9 @@ checked against the Figma variables on these frames (`bg-canvas #070e1d`,
 `bg-element #151c28`, `bg-sidebar #040710`, `bg-overlay #121826`,
 `bd-subtle #ffffff1a`). Two deliberate differences:
 
-- **`brand` is teal `#21B0B0`**, not Rooftop Energy's gold — it's the accent in
-  the IQ mark and the login CTA. `teal #14B8A6` is a second, greener teal the
+- **`brand` is the active brand's colour**, not Rooftop Energy's gold — teal
+  `#21B0B0` on gensetIQ (the accent in the IQ mark), green `#045832` on Express
+  Mission. `teal #14B8A6` is a second, greener teal the
   design uses for the sidebar avatar.
 - **A `STATUS` group was added** for run states. Only `status-running #3B82F6` is
   pinned by the design; the rest follow the same Tailwind-500 family.
@@ -811,18 +303,19 @@ All judgement calls worth knowing about.
    panel floats over the table's right-hand columns, so "Location" is clipped and
    "Last updated" is hidden entirely. Here the table takes the remaining width
    and its columns are proportional rather than a flat 262px, which keeps
-   `BRF9540 | Cummins 1000 kVa` from truncating in every row. Over the *map* the
+   `BRF9540 | Cummins 1000 kVA` from truncating in every row. Over the *map* the
    panel still floats, as designed.
 2. **Map pins are coloured by run state.** The mock-up shows mostly dark pins and
    one blue — and blue is exactly the `RUNNING` colour from the badge — so this
    reads as extending what the design already started rather than inventing it.
    The selected pin gets a teal ring.
-3. **The "Activity" section is filled in.** The design shows the heading over
-   empty space. Each unit has an event feed, built backwards from its current
-   state so the story stays consistent (a faulted unit's newest event is the
-   fault, not a start).
+3. **The "Activity" section is not drawn.** An event feed filled it for a while
+   (`ActivityFeed`, kept but unused); it went when the genset page dropped it.
 
 ### The genset home page
+
+The band numbers below are from the page's earlier layout; today's four bands are
+listed in `GensetHome.tsx`. The arguments still hold.
 
 The layout, spacing and every component's construction follow the frame. The
 **numbers** do not, and that is the significant departure.
@@ -930,7 +423,7 @@ The layout, spacing and every component's construction follow the frame. The
    visible 180°) and the same 36.5 → 47.5 radial band in a 97px square.
 
 8. **Band 2 empties when the engine stops**, replaced by one line of text. The
-   frame only draws a running unit; all 24 units have a page here, and a row of
+   frame only draws a running unit; every genset has a page here, and a row of
    dials pinned at zero reads as a broken page rather than a stopped engine.
 
 9. **START and STOP are inert, and say so.** Mode switching works. The two
@@ -999,89 +492,6 @@ The layout, spacing and every component's construction follow the frame. The
     and not one of them is settled; they belong to whoever wires the ingest up, and
     a details block that guessed would be this prototype asserting facts it has not
     got.
-
-### The site page
-
-The frame is `node-id=2478-7187`, confusingly named "Sites list" — it is a site's
-*own* page. Its layout, both bands and every component's construction follow it.
-Five departures, in order of how much they matter.
-
-1. **The fleet gained sites, and eight units moved.** The design implies sites
-   exist and the app had no such concept, so `Genset.siteId` was added and
-   `fleet.ts` now groups its 24 units into **17 sites, nine of them holding two**.
-   Nine gensets share a yard with another, and a shared yard means a shared
-   placename: `KLN3355` moved from Klang to Petaling Jaya, `KJG9048` from Kajang to
-   Cyberjaya, `PCH4180` from Puchong to Shah Alam, `AMP8890` from Ampang to Cheras,
-   `TPG1188` from Taiping to Ipoh, `BKM4409` from Bukit Mertajam to George Town,
-   and `JHB5503` + `PSG8817` from Johor Bahru and Pasir Gudang to Senai.
-
-   Every move stays inside its own region, so the map's twelve-in-the-Klang-Valley
-   cluster still reads `12`, and `BRF9540` keeps the exact values the Figma pins it
-   to. Co-sited units sit ~100 m apart rather than on identical coordinates, which
-   is both true of a real yard and what keeps two pins from stacking on the map.
-
-2. **`Telco-001` is in Petaling Jaya, not Senai.** The frame's header says
-   `Telco-001 · Senai, Johor` and its two genset cards both read
-   `BRF9540 | Cummins 1000 kVa` — and `BRF9540` is in Petaling Jaya on the list
-   frame, which is the reading this prototype already committed to (see
-   [Caveats](#caveats)). The cards were the more useful half to honour, so
-   `telco-001` pairs `BRF9540` with the fleet's other `Cummins 1000 kVa` — two
-   identical machines, as drawn, one running and one faulted, which also makes the
-   page demonstrate both isolator states. The design's `Senai, Johor` is not lost;
-   it is `data-013`.
-
-3. **There is a changeover control, and the diagram is live.** The frame draws the
-   *outcome* of a changeover — one isolator closed, one open — and no control that
-   causes it. A `Load on` selector is the third column of the top band on multi-set
-   sites, and transferring the load moves it in the drawing, in the site's draw
-   figure and in each genset row's badge together.
-
-   It is **modelled, not commanded**, the same line `START` and `STOP` hold: it does
-   not start an engine. Only a set that is already turning can be handed the load,
-   and each refused option says which refusal it is — stopped (start it first),
-   faulted (isolated by its controller), or unreachable. On `telco-001` every option
-   but the current one is refused, which is the honest answer for a running set
-   beside a faulted one.
-
-   Per the refined frame, only the duty set carries a run-state glyph, on a chip that
-   takes the track's full 48px height; the rest are shorter, dimmed text. That costs
-   something worth naming: a faulted option and a merely stopped one now look
-   identical, where a red triangle used to separate them at a glance. The reason
-   moves entirely into the tooltip — which is where the *specific* reason always
-   lived, and is now the only place it lives.
-
-   The consequence worth knowing: because one changeover means one connected set, a
-   **site's draw is the duty set's output, not the sum of its running sets'** — and a
-   running set whose load has been transferred away reads `off-load` rather than
-   quoting the kW its own controller is still metering.
-
-4. **Every node is captioned, in two lines.** The frame draws identical `GENSET`
-   boxes with nothing to tell them apart — fine for a mock-up, useless the moment
-   the page has to say *which* set is isolated. So each node names its asset and
-   states what it is putting into the bus, and the `LOAD` node carries the site's
-   draw at the point the power actually arrives. Only a connected, turning set gets
-   a kW figure; the rest get a word, because `0 kW` is a measurement and the page
-   has not measured anything at a machine it cannot reach. Additive only: the boxes
-   keep their designed 88 × 74 and the captions sit in the 64px gap between them.
-
-5. **The top band's empty left half became the site's figures.** The frame gave the
-   band a 1300px width with a 399px diagram and nothing else in it. The first column
-   now holds what is feeding the load, installed capacity and fuel on site:
-   site-level facts, none of which any genset row below can state. It is figures
-   only — there is no site-level status roll-up, by design.
-
-6. **Nothing in the band or the rows is boxed.** The refined frame drops the strokes
-   from the diagram card and from both genset rows, and separates the band from the
-   rows with a single 1px `bd-subtle` rule — the same device the genset home page
-   uses between its three bands. The rows' own contents keep their edges (the run
-   card, the four control tiles), so removing the outer stroke takes away a frame
-   around a frame rather than the only thing holding the row together.
-
-7. **Flow along a live conductor is animated.** The design's teal wires are static.
-   Motion is the only cue here that colour doesn't duplicate, and it is switched off
-   under `prefers-reduced-motion`. The switch geometry is redrawn rather than
-   exported for the same reason the gauges are: Figma ships four variants of it, and
-   a bitmap per state per genset count is not a component.
 
 ### Hovering a state is not in the design
 
@@ -1283,69 +693,6 @@ shared `attachStateHover`, for the reason the three cluster bubbles are one
 `clusterDonut`: four copies of this is the drift the map components already work to
 avoid.
 
-### The power role is not in the design
-
-The Figma draws a site as gensets, isolators, a bus and a load — and **no mains
-supply**, at any site. That is a gap rather than a statement: the product is standby
-power, so a page about backing something up that never draws the thing being backed
-up is missing its subject, and every site is left looking as though nothing else feeds
-it.
-
-So a site declares how it is fed, on its Settings tab, and the diagram follows:
-
-- **Backup to mains** (the default, and what the whole app assumed before this) — a
-  `MAINS` source above the gensets, on its own transfer contactor, onto the same bus.
-- **Main power source** — no incomer. The diagram is exactly what the frame draws.
-
-Five things worth knowing, in order of how much they matter.
-
-1. **It is a display choice, and only a display choice.** It selects a layout. The
-   isolator rules, the changeover, the default duty set and every control pad are
-   untouched by it, which is why there is no state to reset when it changes. A control
-   that redrew a diagram *and* quietly changed which sets could take load would be two
-   operations wearing one label, and the second would be a command this prototype has
-   no business issuing.
-
-   The honest cost of holding that line: a set's activity feed is the **machine's**
-   history, so at a site declared `PRIME` it may still read "Engine started on utility
-   outage". The role redraws the yard; it does not rewrite what the controllers did.
-
-2. **Mains health is measured, not inferred.** The first version of this derived it from
-   the gensets — "a set is running, so the grid must be down" — and that is wrong for
-   the case that matters most: a set on a **test exercise** runs beside a perfectly
-   healthy grid, and inferring a failure from it reports an outage at a site that never
-   had one. So a genset carrying the load and a failed grid are two facts, and the
-   diagram states both: `off-load` under a healthy mains that isn't carrying, `failed`
-   under a dead one. `SPG2093` and `SRB6644` are pinned to `TEST` so the fleet actually
-   contains the case — see `mfg-015`.
-
-   That is also why `Genset.startReason` was added. The incomer's reading is *derived*
-   from it rather than seeded beside it, because two independent givens could disagree,
-   and the disagreement would land on exactly this case.
-
-3. **`0 kW` is still never printed.** The mains gets the same treatment the gensets
-   already had — a word, not a measurement, when it isn't carrying — and the `LOAD`
-   node now reads `not served` only when *nothing* is feeding. On a standby site with
-   the grid up, the site's draw is the incomer's figure. Reading "0 of 2 feeding" over a
-   site running perfectly well on the grid was alarm-shaped where no alarm existed, so
-   the badge names the source everywhere: `On mains`, `On generator`, `Genset carrying`
-   at a hybrid, `Not served` when nothing has the load. It briefly counted sets at a
-   prime site — `1 of 2 feeding` — which answered how the plant is arranged rather than
-   what is carrying it, and made one column speak in two grammars. How many sets are
-   fitted and turning belongs to the genset screens.
-
-4. **Conductors are painted dead-first.** Every source elbows onto the bus riser and
-   runs along it to the tap, so with three or more sources those segments overlap — and
-   in document order a dead genset could paint a grey stub over the live mains riser
-   above it, leaving a conductor that appears to go dead halfway to the load. Ordering
-   by state rather than position makes that unrepresentable. Today's mock data cannot
-   reach it; one seed change can.
-
-5. **The setting lives in `localStorage`,** overrides only, keyed by site id. So a fresh
-   browser renders the designed screens, clearing site data restores them, and a
-   colleague opening the same site sees the default. It does not sync, and the page says
-   so rather than implying a server.
-
 ### Putting gensets on a job
 
 The design has no such control, and the app had no way to express one: `Genset.siteId`
@@ -1486,81 +833,6 @@ picker draws from the controller's readings, and admitting a derived quantity to
 settles a larger question this change did not need to answer. It is the obvious next
 step and the strongest argument for opening the picker up.
 
-### The sites screens are not in the design
-
-The Figma names `Sites` in the sidebar, draws one site's page, and gives that page
-a `Sites › Telco-001` breadcrumb — so a list is the thing that breadcrumb points
-back at, and the designed page cannot be reached without it. It is built in the
-fleet table's own language (sticky 40px header, 52px rows, hairline rules) rather
-than as a new pattern.
-
-Its columns are the site-level facts, in the order they get asked: where it is, is
-anything wrong, what is standing there, does it need a tanker. Site draw is
-deliberately absent — it changes while you read the list, which makes it a
-detail-page figure.
-
-**The map is the same list on the ground.** It was argued against for a while, on
-the grounds that a site's position is its gensets' position and `/gensets?view=map`
-already draws that. True of the coordinates, wrong about the question. The fleet
-map answers *where are my machines*, so a yard with three sets is three pins and a
-customer site reads as a cluster of hardware; this one answers *where are my
-customers, and which of them is in trouble* — one pin per site, coloured by the
-site's own status bucket and sized by how much plant is standing there. Neither
-screen is derivable by eye from the other.
-
-The pins painted by the site's **condition verdict** until 2026-09-14, with a
-`colorBy` prop choosing between that and the buckets. The verdict came off the whole
-app (see below) and the prop went with it. Status is the right survivor rather than a
-fallback: it is the vocabulary of the `Status` card sitting directly above this map
-and of the chip that filters it, so clicking `Alarms raised` now narrows the list and
-leaves the red pins standing. The *ranking* moved to the list beside it, which is
-ordered by the alarm queue.
-
-Both views carry the fleet screen's preview panel, and for its reason: a pin has
-nowhere to put a link, so a clicked site has to open something that carries the way
-in. The panel is a preview rather than a copy of the site page — what is feeding
-the yard, what is standing against it, capacity and fuel, and the sets standing
-there worst first, each a link to its own page. Its alarm row is a link too, so the
-panel has two ways out of itself: the arrow opens the site, the pill opens what is
-wrong with it. Site draw stays off it for the same reason it is off the list.
-
-Adding the map gave a site row a second thing it could do, so the list adopted the
-fleet table's split: **the row selects into the panel, the name navigates.** It was
-one link when selecting meant nothing.
-
-### The site condition verdict was removed
-
-A site used to report a **condition** of its own — `Critical`, `Attention`,
-`Optimum` — ranked from the gensets standing on it, and it was the sites list's
-second column, the preview panel's first row, the phone card's first badge, the pin
-colour and the ranking for all of them. Tristan removed it on **2026-09-14** and the
-**alarm pill** took every one of those places: `Critical · Warning · Neutral`, the
-same three figures every metric strip and device card in the app already drew, and a
-link to the queue itself.
-
-Two things were wrong with the verdict:
-
-1. **It compressed a list nobody was shown.** `Attention` told a reader something was
-   wrong and made them open the site to find out what — the same click the pill costs,
-   except the pill says *how many* and *how bad* before it is clicked.
-2. **It was a second opinion.** It ranked the **gensets' alarms only**, and a site is
-   watched by more than its engines: the monitoring unit reports on the plant, the
-   cabinet and the bank, and this app derives its own rules over the array. A yard with
-   eleven standing rows and no genset among them read `Optimum` in the list while its
-   own Alarms tab listed all eleven — the same undercount the site's metric strip was
-   fixed for one screen up, and `SiteMetricStrip` states the rule: a summary that
-   disagrees with the page it summarises is worse than no summary.
-
-The counts come from `useEstateAlarmCounts` in `modules/site/data/siteAlarmQueue.ts` —
-one pass over the estate off the same union `useSiteAlarmQueue` gives a single site. So
-a row's pill, that site's own strip and its Alarms tab are three renderings of one
-queue, and clearing a row on the tab drops the count and re-ranks the list on the way
-back.
-
-The **genset's** condition verdict is untouched. It still heads a machine's alerts
-section, still colours its row on `/gensets`, and `GensetCondition` is still what a
-leak moves. What went is the site-level roll-up of it.
-
 ### The runs tab is not in the design
 
 The Figma names `Runs` in the tab strip and draws nothing behind it, so the whole
@@ -1651,11 +923,9 @@ theming to override. It clamps to `historyStart()`, the layer's own 60-day
 horizon: selecting a February that would come back flat would read as "the machine
 did nothing" rather than "we do not hold this".
 
-**The one thing the notes ask for that is not built.** There is no *deployment*
-selector: a deployment is a period a genset was installed somewhere, and the model
-has no such concept — `Genset` carries one `siteId` with no history, so there is
-nothing to select, and a picker over a relationship the data cannot express would
-filter nothing while looking authoritative.
+**Selecting by deployment** is a `DeploymentPicker` beside the range control
+(`?dep=`), since the deployment record arrived. Precedence when a URL carries more
+than one: run, then deployment, then custom, then preset.
 
 **One knock-on change to the home page.** Extending `engineOnly` to every reading
 that exists only in motion means a stopped set now reports `0 V` line voltage and
@@ -1685,7 +955,8 @@ stopped machine reports.
   right-hand edge and the home page always agree. It is not a recording — but it
   is internally consistent all the way down, which is what makes the screen worth
   reviewing.
-- **Sites are mostly derived.** `modules/site/data/siteSeed.ts` holds the things
+- **Sites are mostly derived.** There are no site screens now; the site data stays
+  because gensets, deployments and alarms read it. `modules/site/data/siteSeed.ts` holds the things
   a diesel engine cannot tell you — a site's name, the kind of load it carries, where
   the yard is, what the customer draws, which region it sits in and which rollout
   programme it was filed under. Everything else in `sites.ts` is summed or
@@ -1693,8 +964,8 @@ stopped machine reports.
   capacity and fuel from them. Change a genset's `siteId` and every one of those
   figures follows — and so does which yard's alarm queue its controller's rows land in.
 
-  Six of those givens are **editable** from the site's Settings tab — name, latitude,
-  longitude, region, programme and supply. The edits are differences held in
+  Six of those givens were **editable** from the site's Settings tab (since removed) — name, latitude,
+  longitude, region, programme and supply. The edits are differences still held in
   `data/siteOverrides.ts` and laid over the dataset by `siteSeeds()`, so the map moves
   its pin, the region chips re-count and the breadcrumb follows, and Reset restores the
   dataset's own row. The programme is a **grouping and nothing else** — no figure on
@@ -1705,7 +976,7 @@ stopped machine reports.
   unfinished outage run, so `startReason` in `fleet.ts` is the only given behind it and
   the incomer cannot contradict a set's activity feed. What it *reads* is the site's own
   seeded load, which is why detaching a genset does not change the customer's
-  consumption. All 17 sites carry a reading, including any declared `PRIME`, where it
+  consumption. Every site carries a reading, including any declared `PRIME`, where it
   goes undrawn — which is what lets the settings page preview the standby layout
   without inventing a figure.
 - **Fuel loss is seeded, like everything else.** `genset/data/fuelInstruments.ts`
@@ -1713,8 +984,9 @@ stopped machine reports.
   started. `history.ts` integrates it into the tank ladder alongside the burn, which
   is what makes the level sensor and the flow meter two curves that *can* disagree —
   before it they were one derivation drawn twice, and a leak was assertable but not
-  representable. Ten of the twenty-four units carry a flow meter, which is what puts
-  most of the fleet in the honest `unavailable` state.
+  representable. The seed's flow-meter units name ids from an earlier fleet, so today
+  only `BRF9540` carries one and the rest of the fleet is level-only (see the warning
+  in `fuelInstruments.ts`).
 - **Three stores are browser-local.** `site/data/siteConfig.ts` (the power role, keyed by
   site), `genset/data/deployment.ts` (which yard each set stands at, keyed by
   genset) and `genset/data/fuelInstruments.ts` (the leak alarm's switch and
@@ -1730,6 +1002,6 @@ stopped machine reports.
   map, which matters more than matching frames that contradict each other.
 - **Basemap is CARTO Voyager**, chosen because it needs no account or token — the
   prototype runs on a fresh clone with nothing configured. `MAP_STYLE` is declared
-  in each map (`genset/components/GensetsMap.tsx`, `site/components/SitesMap.tsx`)
-  and both have to move together to switch to Mapbox or a self-hosted style.
+  in each map — `GensetsMap`, `DeploymentsMap`, `PinMap`, `PlantMap` and the unused
+  `SitesMap` — and all have to move together to switch to Mapbox or a self-hosted style.
 - **No tests.** Prototype scope; `bun run typecheck` and `bun run build` pass.

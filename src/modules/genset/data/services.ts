@@ -2,6 +2,8 @@ import {useSyncExternalStore} from 'react';
 
 import {scheduleFor, serviceStatus} from '../types/service.type';
 import type {ServiceRecord, ServiceSchedule, ServiceStatus} from '../types/service.type';
+import {seededDeployments, seededMemberships} from '@/modules/deployment/data/seed';
+import {siteLabel} from '@/modules/site/data/siteSeed';
 import {GENSETS} from './fleet';
 import {gensetDetail} from './detail';
 import {serviceProfile} from './serviceSeed';
@@ -89,10 +91,34 @@ const listeners = new Set<() => void>();
  * `history.ts` insists on, and the reason the Service tab's counter and the
  * `engine-hours` reading beside it cannot disagree.
  *
- * The site is the unit's **seeded** site rather than its current one. That is the
- * snapshot rule doing visible work: relocate a set in the app and its past
- * services still name the yard they were performed in.
+ * The site is the yard the set was posted to **on the day of the service**, from
+ * the seeded deployment record, or `''` between postings (in the depot). It was the
+ * set's current site until 2026-10-05, which named today's yard on services done
+ * weeks ago somewhere else. A service older than the whole record still takes the
+ * current site, `fallback`: nothing says where the set was then, and `In depot`
+ * would be a guess. The record keeps it as a snapshot: relocate a set in the app
+ * and its past services still name the yard they were performed in.
  */
+const siteOnDay = (gensetId: string, at: number, fallback: string): string => {
+  const jobs = new Map(seededDeployments().map((job) => [job.id, job]));
+  const recordStart = Math.min(...[...jobs.values()].map((job) => new Date(job.startsAt).getTime()));
+  if (at < recordStart) return fallback;
+
+  for (const member of seededMemberships()) {
+    if (member.gensetId !== gensetId) continue;
+    const job = jobs.get(member.deploymentId);
+    if (job === undefined) continue;
+    const end = member.collectedAt ?? job.endsAt;
+    const startMs = new Date(job.startsAt).getTime();
+    const endMs = end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
+    if (at >= startMs && at <= endMs) return job.siteId;
+  }
+  return '';
+};
+
+/** Where a service was done, in words: the yard's name, or `In depot` between postings. */
+export const serviceSiteLabel = (siteId: string): string => (siteId === '' ? 'In depot' : siteLabel(siteId));
+
 const buildSeeded = (): Array<ServiceRecord> =>
   GENSETS.flatMap((genset) => {
     const profile = serviceProfile(genset.id);
@@ -115,7 +141,7 @@ const buildSeeded = (): Array<ServiceRecord> =>
       {
         id: `${genset.id}-service-seed`,
         gensetId: genset.id,
-        siteId: genset.siteId ?? '',
+        siteId: siteOnDay(genset.id, performedAt.getTime(), genset.siteId ?? ''),
         performedAt: performedAt.toISOString(),
         technicianName: profile.technicianName,
         engineHoursAtService: Math.round((engineHours - profile.elapsedHours) * 10) / 10,

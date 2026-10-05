@@ -21,10 +21,9 @@ import type {Genset} from '../../types/genset.type';
  *
  * The order is unchanged, and so is the reasoning behind it: `Service` reads the
  * run log, so the section that says *how much it has run* comes before the one
- * that says *what that means for its next service*. There is no Deployments section —
- * a set on this estate is bolted to a plinth beside the tower it feeds and its
- * posting is one record, opened at commissioning and still open, so the fact lives
- * in the header's tooltip instead.
+ * that says *what that means for its next service*. `Deployments` (at `/runs`) is
+ * the jobs the set has stood on and the runs inside them; there was no such section
+ * while a set was bolted to one plinth for life.
  *
  * Two labels differ from the routes behind them. `Genset` is the home route, named
  * for its subject the way the site rail's first row is named `Site` — "Home" says
@@ -49,7 +48,8 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
     // see `deployment.type.ts` on why both exist.
     {label: 'Service', icon: WrenchIcon, to: '/gensets/$gensetId/service', params},
     {label: 'Alarms', icon: BellIcon, to: '/gensets/$gensetId/alarms', params},
-    {label: 'Devices', icon: CircuitBoardIcon, to: '/gensets/$gensetId/equipment', params},
+    // `Equipment`, the page's own title; the design's rail says `Devices` (2026-10-05).
+    {label: 'Equipment', icon: CircuitBoardIcon, to: '/gensets/$gensetId/equipment', params},
     {label: 'Settings', icon: SettingsIcon, to: '/gensets/$gensetId/settings', params},
   ];
 };
@@ -58,21 +58,11 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
  * Everything one genset's pages share: the rail on the left, an `<Outlet />`
  * beside it.
  *
- * ## The way back
+ * ## No way back in the rail
  *
- * `DetailSidebarBackLink` directly above the sections, which is the design's and is
- * the piece that makes the whole arrangement work — see that component for why it
- * sits there and not over the header. It returns to `/sites/<id>`, which restores
- * the site's rail; that is the whole of the "back to the site" gesture, since the
- * two rails are just what the two routes render.
- *
- * ## When there is no site
- *
- * A set can sit at the depot (`siteId: null`), and then there is no site to go back
- * to. The row is dropped rather than drawn dead, and the rail opens straight onto
- * the machine's sections. This is also what a reader arriving from
- * `/gensets` at an undeployed set sees, which is correct: they did not come from a
- * site, so there is nothing to return to.
+ * The rail had a back row to `/sites/<id>` while there were site pages. They went
+ * on 2026-09-22, and the rail now opens straight onto the machine's sections; the
+ * breadcrumb is the way back to the register.
  */
 export const GensetDetailShell = ({genset}: {genset: Genset}) => {
   // The job this machine is standing on, if it is standing on one. A planned
@@ -82,9 +72,9 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
   // with no detail row — and reads as a machine with no load rather than as zero.
   const detail = gensetDetail(genset.id);
   // The worst alarm standing on this machine, for the run pill. Read off the detail
-  // row rather than `standingAlarms` because this shell wraps all eight tabs and has
+  // row rather than `standingAlarms` because this shell wraps all seven tabs and has
   // no handling state of its own; the difference is an alarm a reader has already
-  // acknowledged, which still describes the machine.
+  // cleared, which this still counts.
   const worstAlert = detail?.alerts.reduce<AlertSeverity | undefined>(
     (worst, alert) =>
       worst === undefined ||
@@ -101,7 +91,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
         header={
           /* What the rows below are about. The info glyph carries the nameplate
              data the old header tooltip held — the fields that have no room in a
-             240px column and no band of their own on any of the eight pages. */
+             240px column and no band of their own on any of the seven pages. */
           <DetailSidebarLabel
             aside={
               <Tooltip>
@@ -123,7 +113,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                       {stampDate(posting.deployment.startsAt)}
                     </span>
                   )}
-                  <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>
+                  <span>Last updated · {relativeTime(genset.lastUpdated)}</span>
                 </TooltipContent>
               </Tooltip>
             }
@@ -137,14 +127,14 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* The machine's plate, over the page, with what it is doing beside it. It
             is in the rail as well, and the design draws both — the rail's copy is a
-            caption on eight rows, and this one titles what you are actually reading.
+            caption on seven rows, and this one titles what you are actually reading.
 
             The run state moved up here from the home page's run band on 2026-09-22.
             Whether the engine is turning is a fact about the machine and not about
-            the page, so it belongs on all eight tabs rather than on the one; a
+            the page, so it belongs on all seven tabs rather than on the one; a
             reader on Runs or Alarms could not see it at all before. */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-4 pb-2">
-          <h1 className="min-w-0 truncate text-base font-semibold text-primary">
+          <h1 className="min-w-0 truncate text-xl font-semibold text-primary">
             {gensetName(genset)}
           </h1>
           <RunStateSummary

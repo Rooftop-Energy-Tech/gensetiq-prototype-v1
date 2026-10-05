@@ -14,7 +14,7 @@ type Crumb = {label: string; to?: string};
  *
  *   - `staticData.crumb` for a fixed label ("Gensets", "Sites");
  *   - `crumb` on the route's **loader data** when the label depends on the params,
- *     which is how `/gensets/brf9540` reads `BRF9540 | Cummins 1000 kVa`.
+ *     which is how `/gensets/brf9540` reads `BRF9540 | Cummins 1000 kVA`.
  *
  * `staticData.crumbParent` adds one ancestor in front, or several — a depot's page
  * reads `Fuel / Depots / Klang depot`. The genset detail route is
@@ -43,15 +43,14 @@ type Crumb = {label: string; to?: string};
  * asset page has two. Opened from its register the static parent is right; opened
  * from a site it points at a list the reader has never seen, and walking up leaves
  * the yard they were reading. A `from` search param carries the site id through the
- * link, and where it names a real site the trail becomes
- * `Sites / SBH-1336 / KTB3360 | FG Wilson 20 kVa` — the register still reachable, and
- * the site sitting between it and the asset.
+ * link, and where it names a real site the trail becomes `<site name> / <asset>`,
+ * the site as an unlinked label since the site pages went (2026-09-22).
  *
  * ## A tab told apart by the query string
  *
  * `staticData.crumbTab` names the tab a route is showing when its tabs are a search
  * param rather than child routes, so `/fuel?view=deliveries` reads `Fuel /
- * Deliveries` and `Fuel` links back to the page's first tab. Read off the deepest
+ * Genset fills` and `Fuel` links back to the page's first tab. Read off the deepest
  * labelled match only, since that is the page the reader is on.
  *
  * The lookup is what makes an unknown id safe: a hand-edited or stale `from` finds no

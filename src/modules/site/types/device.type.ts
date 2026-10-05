@@ -1,4 +1,6 @@
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * Which of a site's devices the page is reporting on.
  *
  * ## Why a string and not `{kind, id}`

@@ -22,7 +22,7 @@ export const Route = createFileRoute('/_authenticated/settings')({
       <ComingSoon
         icon={SettingsIcon}
         title="Settings"
-        description="Account, fleet and alerting preferences. Not designed yet."
+        description="Account, fleet and alarm preferences. Not designed yet."
       />
     ),
 });

@@ -44,8 +44,8 @@ import {modelKva} from '../types/genset.type';
  *
  * Per-unit variation comes from `spread()` — a hash of the genset's id — rather
  * than `Math.random()`, so a unit looks the same on every render and on every
- * reload. `BRF9540`'s load is the one pinned value, chosen so its run lands on
- * the design's "12 hours".
+ * reload. `BRF9540` is the exception: its load and run hours come from its
+ * measured record (`realJobs.ts`), not from `spread()`.
  */
 
 /**
@@ -118,7 +118,6 @@ const POWER_FACTOR = 0.8;
 
 const HOUR = 3_600_000;
 
-/** `1000` out of `Cummins 1000 kVa`. */
 
 // ─── Readings ────────────────────────────────────────────────────────────────
 
@@ -169,10 +168,11 @@ const READING_SPECS: Array<ReadingSpec> = [
   {key: 'oil-temp', label: 'Oil temperature', unit: '°C', base: 96, vary: 7},
   {
     key: 'engine-hours',
-    label: 'Engine hours',
-    // `hrs`, not `h`. The estate's own paperwork writes it that way and the page
-    // reads it a dozen times; one letter is not a unit anybody says out loud.
-    unit: 'hrs',
+    label: 'Run hours',
+    // `h`, the app's one unit for run hours (2026-10-05). It was `hrs` here, after
+    // the estate's paperwork, while the service pages wrote `h` — two spellings of
+    // one counter on neighbouring tabs.
+    unit: 'h',
     base: 5_400,
     vary: 3_600,
     kind: 'cumulative',
@@ -200,7 +200,7 @@ const READING_SPECS: Array<ReadingSpec> = [
   {key: 'fuel-level', label: 'Fuel level', unit: 'L', base: 0, vary: 0},
   {
     key: 'fuel-rate',
-    label: 'Fuel consumption rate',
+    label: 'Fuel burn rate',
     unit: 'L/hr',
     precision: 1,
     base: 0,
@@ -302,15 +302,15 @@ const READING_SPECS: Array<ReadingSpec> = [
   {key: 'mains-outages', label: 'Mains outages (30 d)', unit: '', base: 5, vary: 4, kind: 'windowed'},
   {
     key: 'hours-since-service',
-    label: 'Hours since service',
-    unit: 'hrs',
+    label: 'Run hours since service',
+    unit: 'h',
     base: 140,
     vary: 90,
     kind: 'cumulative',
   },
   // Age of the newest message, measured against `now` — a stopwatch, not a
   // stored quantity, so there is nothing to plot.
-  {key: 'telemetry-age', label: 'Telemetry age', unit: 'min', base: 0, vary: 0, kind: 'cumulative'},
+  {key: 'telemetry-age', label: 'Last updated', unit: 'min', base: 0, vary: 0, kind: 'cumulative'},
 ];
 
 /**
@@ -411,7 +411,7 @@ const TAGS: Array<GensetTag> = [
  * second filing system for one genset, and the two would drift.
  *
  * Two rules turn ten tags into the sections a picker needs. A reading claimed by
- * an earlier tag is not offered again by a later one — `Starter battery voltage`
+ * an earlier tag is not offered again by a later one — `Battery voltage`
  * belongs to `Battery & charging` and *matters* to `Starting`, which is exactly
  * what tags being lists rather than a partition is for, but a catalogue that
  * printed it twice would look like two different readings. And a tag holding
@@ -456,8 +456,8 @@ type AlertRule = {
    * The limit and the tripping value as fractions of the reading's nameplate,
    * for the three rules whose line moves with the machine.
    *
-   * `AL Overload Wrn` is "at rated output", which is 800 kW on a 1000 kVa set and
-   * 160 kW on a 200 kVa one. Writing 800 here would turn a rule about overload
+   * `AL Overload Wrn` is "at rated output", which is 800 kW on a 1000 kVA set and
+   * 160 kW on a 200 kVA one. Writing 800 here would turn a rule about overload
    * into a fact about one model, and every other unit's card would then quote a
    * limit its alternator never had.
    */
@@ -893,7 +893,7 @@ const ALERT_RULES: Array<AlertRule> = [
  * this dashboard — and the map has 21 alarm bits that are not marked to be shown
  * (`AL Fuel Level Sd`, the four `AL AIN` sensor pairs, `AL Mains Fail`,
  * `AL Maintenance 1–3`, the fence and rental-timer alarms). So `AL Common Sd` can
- * be true when none of the 26 alarms below is, and *that* is the case it earns its
+ * be true when none of the 26 alarms above is, and *that* is the case it earns its
  * place in: it is the page's only signal that something it does not show has
  * stopped the engine.
  *
@@ -977,7 +977,7 @@ export type GensetDetail = {
   /** The open run while running, otherwise the last closed one. */
   run: GensetRun;
   fuel: GensetFuelDetail;
-  /** The four readings with a designed dial. Empty when the engine is stopped. */
+  /** The five readings drawn as tiles on the home page. Empty when the engine is stopped. */
   gauges: Array<GaugeReading>;
   /** Line voltages and phase currents. Empty when the engine is stopped. */
   phases: Array<PhaseGroup>;
@@ -988,7 +988,7 @@ export type GensetDetail = {
    * Two things overwrite a reading between the catalogue and the page: the
    * engine being stopped (which zeroes the ones that only exist in motion) and an
    * active alert (which forces the tripping value). Both are facts about *now*,
-   * and the analysis chart is drawing a fortnight — it needs the number the
+   * and the analysis chart is drawing up to sixty days — it needs the number the
    * machine sat at through last Tuesday's run, which is this one.
    *
    * Keeping it as a plain `number` map rather than a second set of `Reading`s is
@@ -1018,7 +1018,8 @@ const ruleById = (id: string): AlertRule => {
  * the reason is worth keeping: the map has six `Warning` bits, one of them is
  * `AL Common Wrn` (omitted, see the note above `COMMS_RULE`), and the last is
  * `AL Overload Wrn` — which would have to put this unit over its nameplate, while
- * its load is pinned at 205 kW so its run lands on the design's "12 hours". No set
+ * its load is pinned at 205 kW so its run lands on the design's "12 hours" (it now
+ * takes its measured load instead; the count argument held when this was written). No set
  * of real alarms satisfies both, and the design's count is the softer of the two
  * constraints.
  *
@@ -1167,7 +1168,7 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
 
   // Run length: how long the engine has been turning (open run) or was turning
   // (closed run). 3–14 hours — see `RUN_HOURS_MAX` in `history.ts` for why a single
-  // run does not pass about half a day. `BRF9540` is pinned to the design's 12.
+  // run does not pass about half a day. `BRF9540` takes its measured run hours.
   const runHours =
     genset.id === REAL_GENSET_ID
       ? realRunHours
@@ -1435,7 +1436,7 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
           //
           // 45–55, not 0–60. Centred on nominal, 0.26 Hz per tick: the ±0.25%
           // ISO 8528 G3 steady-state band is about a tick, and the 48/52 alarm
-          // limits sit six either side. A 0–60 scale would put nominal at 83% and
+          // limits sit about eight ticks either side. A 0–60 scale would put nominal at 83% and
           // render a 2 Hz droop — a governor fault — as one tick of movement.
           gauge('frequency', 45, 55),
           // 1.2 × rating, not rating. `AL Overload Wrn` fires at 100% and
@@ -1458,8 +1459,8 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
           gauge('coolant-temp', 40, 120),
           // The fifth, and the one that is not about this run. A flat bank is the
           // commonest reason a standby set fails its *next* start, and it carries
-          // the one alarm on the home page's list (`AL Battery Charger`, < 26 V)
-          // with no instrument behind it.
+          // two alarms of its own (`< 24 V` and `< 18 V`). `AL Battery Charger`
+          // watches the charge alternator, not this reading.
           //
           // **Battery voltage, not charge alternator** — Afifah's call, 2026-09-22,
           // and the two are near enough the same reading while the engine turns: a
@@ -1470,7 +1471,8 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
           // controller labels it that way too.
           //
           // **The scale follows the system.** 20–32 spans a 24 V bank from flat to
-          // fully charged, putting the 26 V alarm six ticks below a healthy 29.4.
+          // fully charged, putting the 24 V alarm about seventeen ticks below a
+          // healthy 29.4.
           // A 500 kVA set and under is 12 V, and drawing its 14.7 V against a 24 V
           // face would put the reading at a quarter scale and read as a dying bank.
           // Halved ends keep the same resolution on both.
@@ -1492,7 +1494,7 @@ const buildDetail = (genset: Genset, now: number): GensetDetail => {
             // actually read: a healthy 416 V filled 80% of the bar, and the 4 V of
             // imbalance between three phases that a reader is looking for moved it
             // by less than one percent of its length. At 460 the same phase sits at
-            // 90%, the over-voltage alarm's 441 V still fits, and the gap between
+            // 90%, the over-voltage warning's 441 V (the alarm is 456 V) still fits, and the gap between
             // L1-L2 and L2-L3 is visible without reading the numbers — which is the
             // only reason to draw three bars rather than print three figures.
             scale: 460,

@@ -45,8 +45,8 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
    *
    * The site's own queue rather than a second derivation of it: one handling store,
    * one set of rows, so clearing an alarm here clears it on the machine's page and
-   * on the site's. Only meaningful while the job is standing, which is why the strip
-   * that shows it is only drawn then.
+   * on the site's. The strip draws it for active and completed jobs alike, with no
+   * time window — unlike the Alarms tab, which keeps only alarms raised during the job.
    */
   const queue = useSiteAlarmQueue(row.deployment.siteId, now);
   const counts = countBySeverity(
@@ -62,8 +62,8 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
       <section aria-label="Deployment" className="flex flex-wrap items-start gap-x-6 gap-y-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg font-semibold text-primary">{row.deployment.reference}</h1>
-            <Badge variant="element" className="border-subtle">
+            <h1 className="text-xl font-semibold text-primary">{row.deployment.reference}</h1>
+            <Badge variant="element">
               <StateIcon className={meta.iconClassName} aria-hidden="true" />
               {meta.label}
             </Badge>
@@ -127,7 +127,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
           aria-label="What is committed"
           className="flex flex-col gap-2 rounded-md border border-dashed border-subtle bg-element px-5 py-4"
         >
-          <h2 className="text-sm font-medium text-primary">
+          <h2 className="text-base font-medium text-primary">
             {row.members.length} {row.members.length === 1 ? 'genset' : 'gensets'} committed,
             from {dayMonth(row.deployment.startsAt)}
           </h2>
@@ -143,11 +143,11 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
           metrics={[
             {
               label: 'Run hours',
-              value: `${amount(row.totals.runtimeHours, 'hrs')}`,
+              value: `${amount(row.totals.runtimeHours, 'h')}`,
             },
-            {label: 'Energy', value: amount(row.totals.energyKwh, 'kWh')},
+            {label: 'Energy produced', value: amount(row.totals.energyKwh, 'kWh')},
             {label: 'Fuel burned', value: amount(row.totals.fuelBurnedLitres, 'L')},
-            {label: 'Fuel delivered', value: amount(row.fuelDeliveredLitres, 'L')},
+            {label: 'Fuel filled', value: amount(row.fuelDeliveredLitres, 'L')},
             {
               // The point of the whole model. Withheld rather than printed as `0.00`
               // where nothing turned, because a ratio over no energy is not a ratio.
@@ -174,7 +174,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
 
       <section aria-labelledby="deployment-gensets" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="deployment-gensets" className="text-sm font-medium text-primary">
+          <h2 id="deployment-gensets" className="text-base font-medium text-primary">
             Gensets on this deployment
             <span className="font-normal text-secondary">
               {' · '}
@@ -229,7 +229,7 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
                         </span>
                       </span>
                       {RunIcon !== undefined && runMeta !== undefined && (
-                        <Badge variant="element" className="ml-1 shrink-0 border-subtle">
+                        <Badge variant="element" className="ml-1 shrink-0">
                           {genset !== undefined && <RunStateIcon runState={genset.runState} className="size-3" />}
                           {runMeta.label}
                         </Badge>

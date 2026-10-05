@@ -19,6 +19,11 @@ import {gensetLabel} from '@/modules/genset/types/genset.type';
 /**
  * Every alarm standing anywhere on one site, in one queue.
  *
+ * ⚠️ The site's tabs are gone, and so are the battery and solar categories. Today the
+ * union is the monitoring unit's `SITE` and `GENSET` rows, each set's controller
+ * bits and the low-tank rows; the power role only decides where the AC rows file.
+ * The table below is from when there were four tabs.
+ *
  * ## What this is the union of
  *
  * The four Alarms tabs, exactly — and that is the invariant worth stating, because

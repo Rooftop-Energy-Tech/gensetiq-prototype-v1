@@ -14,8 +14,10 @@ import type {StateHoverHandle} from '@/lib/geo/stateHover';
 import {lightToken} from '@/styles/colors';
 
 /**
- * The estate map, for a register whose rows are **plant at a site** — a solar
- * system, a battery bank.
+ * The estate map, for a register whose rows are points with a tone of their own.
+ * Today that is the fuel trucks and their depots (`TrucksView`) and the deployments
+ * (`DeploymentsMap`). It was written for the solar and battery registers, which
+ * have since gone; the reasoning below is from then and still holds.
  *
  * ## Why this is one component and the other two are not
  *
@@ -224,7 +226,7 @@ type PlantMapProps = {
    * everything, which is what a full-width map and a first paint both want.
    */
   focusIds?: Array<string>;
-  /** The map's accessible name — `Solar system locations map`. */
+  /** The map's accessible name — `Fuel truck locations map`. */
   label: string;
   /**
    * What one of these pins is called, for the count drawn inside a hovered state.

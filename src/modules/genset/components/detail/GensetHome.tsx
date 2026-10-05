@@ -2,6 +2,7 @@ import {useState} from 'react';
 
 import type {LinkProps} from '@tanstack/react-router';
 
+import {gensetKva} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 import type {ControlMode} from '../../types/telemetry.type';
 import {serviceHeadline} from '../../types/service.type';
@@ -10,7 +11,7 @@ import {useServiceStatus} from '../../data/services';
 import {fuelRemainingHeadline} from '../../types/fuelLevel.type';
 import {DetailBand} from '@/components/global/DetailBand';
 import {MetricStrip} from '@/components/global/MetricStrip';
-import {amount, fuelHeadline} from '@/lib/format';
+import {amount, figure, fuelHeadline} from '@/lib/format';
 import {useSitePowerRole} from '@/modules/site/data/siteConfig';
 import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {ALERT_SEVERITIES, countBySeverity} from '../../types/alert.type';
@@ -43,16 +44,18 @@ import {CurrentRunCard} from './CurrentRunCard';
 import {StandbyPanel} from './StandbyPanel';
 
 /**
- * The genset's home page, in the bands the design stacks — the same bands, in the
- * same order, as a site's, a system's and a bank's.
+ * The genset's home page, in four bands:
  *
  * 1. **The strip** — the tank, its runway, service, and the alarm counts.
- * 2. **The dials** — the controls and the live readings.
- * 3. **The run and the tank** — one start's totals, and when the tank needs
- *    filling.
- * 4. **The chart** — diesel output, with a day stepper and a period control.
- * 5. **The details** — which machine this is and what size it is, in a narrow
- *    block between two rules.
+ * 2. **The run** — the controls (`ControlPad`) and the current run's totals
+ *    (`CurrentRunCard`).
+ * 3. **The tank and the readings** — the fuel card, `Generator conditions` (the
+ *    marks while running, the two hour counters always) and `Generator output`
+ *    (running only).
+ * 4. **The details** — which machine this is and what size it is (`DetailBand`).
+ *
+ * A chart band (diesel output, with a day stepper) sat between 3 and 4 until it
+ * moved to the Analysis tab.
  *
  * There was a sixth: **what is wrong** — the alerts and the readings behind them.
  * It is on the `Alarms` tab now, with the standing and cleared tables it was
@@ -65,15 +68,14 @@ import {StandbyPanel} from './StandbyPanel';
  * ## The order, and what the design changed about it
  *
  * The order is the order the questions get asked, and it is the one decision the
- * whole page rests on. It used to open on the run and the tank and put the dials
- * second; the frame swaps them, and it is right to. The strip above now answers
- * *how much is left* — the tank and its runway — so the first band under it should
- * answer *what is happening this second*, which is the dials. The run's totals are
- * the slower reading of the same subject and follow it.
+ * whole page rests on. The strip answers *how much is left* — the tank and its
+ * runway — so the band under it answers *what is happening now*: the run and the
+ * controls that act on it (above the readings since 2026-09-22). The readings and
+ * the tank follow.
  *
  * ## Where the activity feed went
  *
- * Nowhere; it is gone, as it is from `/solar`. It closed the page as band 7 — a
+ * Nowhere; it is gone. It closed the page as band 7 — a
  * list of things that had already happened, with a text field for adding another
  * — and it was the page's only backwards-looking band, which is why it was last
  * and why nothing above it moves now that it has gone. Its component, its
@@ -223,8 +225,8 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
    * summary, since a reader who trusts it never opens the tab.
    *
    * The thresholds band that used to sit at the foot of this page was deliberately
-   * **not** given these rows, and it still is not — it has moved to the Alarms tab,
-   * where the tables beside it list them. Every card in that band prints the
+   * **not** given these rows. It was removed outright on 2026-09-14 (see
+   * `GensetAlarms`), and the Alarms tab has only the tables. Every card in that band printed the
    * register, the reading and the line the reading crossed, and this prototype has
    * read none of these registers, so there is no reading to draw.
    */
@@ -250,9 +252,9 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           lorry to an interior site is a day and a four-figure sum, so the
           questions this strip answers are the ones that fill it.
 
-          The design's `Generation today` is **gone from here** and lives in band
-          5's chart, where a day stepper and a period control put it beside
-          yesterday and the week. On its own in a strip it invited a share-of-site
+          The design's `Generation today` is **gone from here**; output over time is
+          the Analysis tab's, where a range picker puts it beside yesterday and the
+          week. On its own in a strip it invited a share-of-site
           reading this page cannot honestly give — an engine's output may go into a
           battery and come back out tomorrow, so what fraction of *today* it
           carried is a question about the site's day, not the machine's.
@@ -364,24 +366,20 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             stood bare on the band until 2026-09-22, which made it read as one carded
             thing next to a loose group of tiles; the heading also gives seven marks
             a name, which they had none of. */}
-        {/* Both cards are running-only from 2026-09-22 — Afifah's call. A stopped
-            set was drawing a Conditions card holding two hour counters and an Output
-            card holding one sentence, which is two card frames to say almost
-            nothing. The panel below says it in one. */}
-        {running && (
+        {/* Output is running-only from 2026-09-22 — Afifah's call: a stopped set
+            drew an Output card holding one sentence. Conditions was too until
+            2026-10-05, which took the two hour counters off every idle machine, most
+            of the estate; it now stays, holding only the counters while stopped. */}
         <Column title="Generator conditions">
           {/* Two equal columns, each tile centred in its half, so the column lines
               hold down the card; a lone last tile stays in the first (2026-09-29).
               As a left-packed wrap the tiles sat out of line with each other. */}
           <div className="grid grid-cols-2 items-start justify-items-center gap-x-4 gap-y-6 pt-1">
-            {detail.gauges.map((gauge) => (
+            {running && detail.gauges.map((gauge) => (
               <ReadingTile
                 key={gauge.key}
                 label={gauge.label}
-                value={gauge.value.toLocaleString('en-MY', {
-                  minimumFractionDigits: gauge.precision ?? 0,
-                  maximumFractionDigits: gauge.precision ?? 0,
-                })}
+                value={figure(gauge.value, gauge.precision ?? 0)}
                 unit={gauge.unit}
                 icon={READING_ICON[gauge.key] ?? GaugeIcon}
                 // The dial carried its range on its face. A tile has nowhere for
@@ -395,16 +393,16 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             ))}
 
             {/* The two hour figures, and they sit **outside** the running gate the
-                five marks are inside. They are counters rather than live readings:
+                marks are inside. They are counters rather than live readings:
                 a stopped set has run for just as many hours as it had a minute
                 before it stopped, and they were the only two things the conditions
                 card held that the marks do not. Gating them with the marks would
                 have taken them off the page for every idle machine, which is most
                 of the estate. */}
             <ReadingTile
-              label="Running hours"
-              value={engineHours === undefined ? '—' : engineHours.toLocaleString('en-MY')}
-              unit="hrs"
+              label="Run hours"
+              value={engineHours === undefined ? '—' : figure(engineHours)}
+              unit="h"
               icon={ClockIcon}
             />
             <ReadingTile
@@ -412,18 +410,14 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
               value={
                 postingHours === undefined
                   ? 'Not deployed'
-                  : postingHours.toLocaleString('en-MY', {
-                      minimumFractionDigits: 1,
-                      maximumFractionDigits: 1,
-                    })
+                  : figure(postingHours, 1)
               }
-              unit={postingHours === undefined ? undefined : 'hrs'}
+              unit={postingHours === undefined ? undefined : 'h'}
               icon={TruckIcon}
               note={posting?.deployment.reference}
             />
           </div>
         </Column>
-        )}
 
         {/* The third card: what is coming out, with the bars that carry a whole
             question each at the bottom of it.
@@ -466,10 +460,10 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
 
       <hr className="border-subtle" />
 
-      {/* Band 4 — what the machine is, in the `DetailBand` all four detail pages
-          share, and last of the bands that describe it rather than report on it.
+      {/* Band 4 — what the machine is, in the `DetailBand`, and last of the bands:
+          it describes the machine rather than reporting on it.
 
-          Last, which is the order all four detail pages now keep: nothing in this band changes between one visit and the
+          Last, which is the order the detail pages kept: nothing in this band changes between one visit and the
           next, and it was sitting between the fuel panel and the runtime trend —
           two live bands a reader reads together — with a block of nameplates
           wedged in the middle.
@@ -484,10 +478,12 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           it is, what size it is — the rows a person needs to order a part, brief a
           technician or find it in a yard. Rating is among them because it is also
           the denominator of every load figure in the bands above, and was
-          otherwise only behind the rail's info hover.
+          otherwise only behind the rail's info hover. It reads in kVA, as the
+          nameplate and the fleet list state it, under the label `Rating` every
+          detail panel uses (2026-10-05; it was `Rated capacity` in kW).
 
           `Tank capacity` has **gone from this band**, and not because it stopped
-          mattering: it is already stated as `Max capacity` in the fuel panel one
+          mattering: it is already stated as `Tank capacity` in the fuel panel one
           band up, beside the level it is the denominator of. A figure printed
           twice on one page is a figure a reader has to check against itself.
 
@@ -508,7 +504,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
             : [{label: 'Number plate', value: genset.plateNumber}]),
           {label: 'Asset tag', value: genset.tag},
           {label: 'Make and model', value: genset.model},
-          {label: 'Rated capacity', value: amount(detail.ratedKw, 'kW')},
+          {label: 'Rating', value: amount(gensetKva(genset), 'kVA')},
         ]}
       />
     </div>

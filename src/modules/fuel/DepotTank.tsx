@@ -1,6 +1,7 @@
 import {ChevronRightIcon, TriangleAlertIcon} from 'lucide-react';
 import {Link} from '@tanstack/react-router';
-import {CardPill} from '@/components/global/SummaryCards';
+import {CardPill, SummaryCardLabel} from '@/components/global/SummaryCards';
+import {Badge, verdictVariant} from '@/components/ui/badge';
 import {relativeTime, stampAt} from '@/lib/format';
 import {DepotTankGlyph} from './DepotTankGlyph';
 import {cn} from '@/lib/utils';
@@ -22,9 +23,8 @@ const PERCENT = 'absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 t
  *
  * A shortfall is `252 L unlogged`: fuel left the tank and no fill or load in the
  * depot's log accounts for it, and the amount is in the badge so a reader knows how bad before
- * reading on. Anything else past the 100 L floor — too small to be a loss, or the
- * wrong sign for one — is `Sensor fault`, since the instruments are the first thing
- * to doubt. They were `Fuel did not arrive` and `Check calibration` first, then
+ * reading on. Anything else past the 100 L floor — too small to be a loss — is
+ * `Sensor fault`, since the instruments are the first thing to doubt. They were `Fuel did not arrive` and `Check calibration` first, then
  * `252 L missing at depot` until 2026-10-01.
  */
 export const verdictLabel = (verdict: VarianceVerdict, varianceLitres: number): string =>
@@ -62,7 +62,7 @@ export const DepotTank = ({
   depot: Depot;
   from: number;
   to: number;
-  /** `7 days`, for the row labels — the page's control decides it. */
+  /** `last 30 days`, for the corner pill — the page's window decides it. */
   periodLabel: string;
   /** Opens this yard's page. The whole card is the target. */
   onOpen: () => void;
@@ -95,7 +95,7 @@ export const DepotTank = ({
       className="group flex min-w-0 cursor-pointer flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4 transition hover:-translate-y-px hover:border-strong hover:shadow-md"
     >
       <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h2 className="text-xs font-semibold tracking-wide text-primary uppercase">
+        <SummaryCardLabel>
           {/* A real link, so a keyboard reaches it and a middle-click opens a tab. */}
           <Link
             to="/fuel/depots/$depotId"
@@ -109,7 +109,7 @@ export const DepotTank = ({
               aria-hidden="true"
             />
           </Link>
-        </h2>
+        </SummaryCardLabel>
 
         {/* The verdict, where a reader's eye lands first on a grid of four yards.
             Absent when the two sides agree, rather than a green `Reconciled` chip:
@@ -121,17 +121,10 @@ export const DepotTank = ({
           {/* No place beside the name (Jeff, 2026-10-01): `Klang, Selangor` said
               Klang twice, and the state alone was not worth the space. */}
           {verdict !== undefined && (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap',
-                verdict.severity === 'CRITICAL'
-                  ? 'border-severity-critical/25 bg-severity-critical/10 text-severity-critical'
-                  : 'border-severity-warning/25 bg-severity-warning/10 text-severity-warning',
-              )}
-            >
-              <TriangleAlertIcon className="size-3" aria-hidden="true" />
+            <Badge variant={verdictVariant(verdict.severity)}>
+              <TriangleAlertIcon aria-hidden="true" />
               {verdictLabel(verdict, movement.varianceLitres)}
-            </span>
+            </Badge>
           )}
           <CardPill>{periodLabel}</CardPill>
         </div>
@@ -221,8 +214,8 @@ export const DepotBreakdown = ({
           2026-10-01), and they are kept apart
           rather than netted: a 50,000 L delivery into the yard would otherwise
           cancel a week of tankers going out and the tile would read as a quiet
-          month. Thirty days until the period control lands — long enough that
-          every yard has taken at least one delivery in it. */}
+          month. Thirty days, the page's fixed window (`useFuelWindow`) — long
+          enough that every yard has taken at least one delivery in it. */}
       {withFuelIn && (
         <div className="flex items-baseline justify-between gap-4 border-b border-subtle py-1.5">
           <dt className="shrink-0 text-sm font-medium text-secondary">Fuel In</dt>
@@ -230,7 +223,9 @@ export const DepotBreakdown = ({
             {movement.receivedLitres === 0 ? (
               <span className="text-tertiary">No delivery</span>
             ) : (
-              amount(movement.receivedLitres, 'L')
+              // Signed, as the depot page's `Deliveries into the depot` rows are:
+              // fuel in reads `+12, 670 L` wherever it is listed (2026-10-05).
+              `+${amount(movement.receivedLitres, 'L')}`
             )}
           </dd>
         </div>

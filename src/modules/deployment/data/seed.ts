@@ -60,8 +60,8 @@ const locationOf = (siteId: string): string =>
 /**
  * How often a job takes a second set: about one in seven (2026-09-29). A job is one
  * machine as a rule, two on the odd large load, and never three — Express Mission's
- * own record. The present's live jobs follow from `utility.ts`, where five yards of
- * thirty-two hold a pair; this deals the past and the planned ones to match.
+ * own record. The present's live jobs follow from `utility.ts`, where six yards of
+ * thirty-one hold a pair; this deals the past and the planned ones to match.
  */
 const PAIR_SHARE = 0.15;
 
@@ -143,16 +143,18 @@ const deal = (): Dealt => {
   const free = (gensetId: string, candidate: DeploymentBooking): boolean =>
     (committed.get(gensetId) ?? []).every((held) => !windowsOverlap(held, candidate));
 
-  // 0. The measured record, before anything is dealt. Committing it first is what
-  //    puts `BRF9540`'s eight windows into `committed`, so `free()` keeps every
-  //    dealt job off this machine without any other rule having to know about it.
-  for (const deployment of REAL_DEPLOYMENTS) {
-    deployments.push(deployment);
-    committed.set(REAL_GENSET_ID, [...(committed.get(REAL_GENSET_ID) ?? []), deployment]);
+  // 0. The measured record, before anything is dealt — and only on the estate that
+  //    has the machine. The carrier fleet has no `BRF9540`, and its eight postings
+  //    there were jobs for a genset nobody could open, at yards the estate lacks.
+  if (GENSETS.some((genset) => genset.id === REAL_GENSET_ID)) {
+    for (const deployment of REAL_DEPLOYMENTS) {
+      deployments.push(deployment);
+      committed.set(REAL_GENSET_ID, [...(committed.get(REAL_GENSET_ID) ?? []), deployment]);
+    }
+    // Its memberships carry recorded tank readings rather than ladder ones, so they
+    // are pushed as they stand instead of going through `membership()`.
+    memberships.push(...REAL_MEMBERSHIPS);
   }
-  // Its memberships carry recorded tank readings rather than ladder ones, so they
-  // are pushed as they stand instead of going through `membership()`.
-  memberships.push(...REAL_MEMBERSHIPS);
 
   const occupancy = seededOccupancy();
   const yards = [...occupancy.keys()].sort();

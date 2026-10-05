@@ -4,7 +4,7 @@ import {createFileRoute, redirect} from '@tanstack/react-router';
  * `/deployment` forwards to `/deployments`.
  *
  * The register was singular while a row was one machine's posting, and it is plural
- * now that a row is a job the way `/sites` and `/gensets` are lists of things. The
+ * now that a row is a job the way `/gensets` is a list of things (as `/sites` was). The
  * old path is kept rather than dropped because it is quoted in
  * `docs/how-it-works.md`, in the README's route table and in the screen inventory in
  * the vault, and a dead link in a deck is a worse outcome than one route file that

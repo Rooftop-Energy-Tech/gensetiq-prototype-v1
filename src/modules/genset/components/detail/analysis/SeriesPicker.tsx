@@ -76,7 +76,7 @@ const catalogue = (
  * back down to a trace to work out which is which. The **dialog** is the
  * catalogue, opened only when changing something.
  *
- * The list offers instantaneous readings and nothing else. `Engine hours` and
+ * The list offers instantaneous readings and nothing else. `Run hours` and
  * `Mains outages (30 d)` are numbers a genset reports and are not trends — see
  * `ReadingKind` — and a picker that offers them is a picker that produces
  * meaningless charts on request.
@@ -137,7 +137,7 @@ export const SeriesPicker = ({
         const slot = SERIES_SLOTS[index];
 
         return (
-          <Badge key={reading.key} variant="element" size="md" className="gap-2 border-subtle">
+          <Badge key={reading.key} variant="element" size="md" className="gap-2">
             <span className={cn('size-2 shrink-0 rounded-full', slot.background)} />
             <span className="text-primary">{reading.label}</span>
             {/* Hidden on the last one standing — `toggleKey` refuses to empty the
@@ -172,7 +172,7 @@ export const SeriesPicker = ({
             asChild
             variant="element"
             size="md"
-            className="cursor-pointer border-subtle transition-colors hover:bg-highlight"
+            className="cursor-pointer transition-colors hover:bg-highlight"
           >
             {/* The verb's own icon, not a chevron. A chevron promises a list
                 unfolding under the chip; what opens is a dialog in the middle of

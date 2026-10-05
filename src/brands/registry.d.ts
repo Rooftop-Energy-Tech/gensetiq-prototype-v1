@@ -30,7 +30,7 @@ declare module 'virtual:brands' {
   /** The estates the included brands name, and no others. */
   export const DATASETS: Partial<Record<DatasetId, BrandDataset>>;
 
-  /** Tab strings, inlined as literals so `tab.ts` stays out of the client graph. */
+  /** Tab strings, inlined as literals so `manifest.ts` stays out of the client graph. */
   export const TABS: Partial<Record<BrandId, BrandTab>>;
 
   /** What `VITE_BRAND` said at build time, before any stored choice. */

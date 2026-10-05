@@ -5,7 +5,8 @@ import {PLANT_ALARM_CATEGORY_LABEL} from '../types/plantAlarm.type';
 import type {PlantAlarmCategory} from '../types/plantAlarm.type';
 
 /**
- * The four assets as a word and a glyph.
+ * The two plant-alarm categories (`SITE`, `GENSET`) as a word and a glyph. There
+ * were four assets, with battery and solar, when this was written.
  *
  * The icons are **not chosen here** — they are the four this app already uses for
  * these things, on the site settings tab where a reader picks a power role and in

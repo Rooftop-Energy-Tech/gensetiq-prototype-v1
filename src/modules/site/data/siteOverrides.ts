@@ -24,7 +24,7 @@ import type {SitePowerRole} from '../types/site.type';
  *
  * A site with no entry here **is** its seed. That is what makes "has anybody
  * changed this site" answerable, what makes Reset a `delete` rather than a copy of
- * twenty-five defaults, and what means adding a site to a dataset needs no
+ * every site's defaults, and what means adding a site to a dataset needs no
  * migration in this file. A field set back to its seeded value drops out of the
  * patch entirely rather than sitting there saying nothing — see `setSiteOverrideField`.
  *
@@ -71,8 +71,9 @@ export type SiteOverrides = Readonly<Record<string, SiteOverride>>;
 /**
  * One key, and it is the one the power-role store already used.
  *
- * Kept rather than bumped so a reader who flipped a site to solar hybrid last week
- * still finds it that way — see `parseEntry` for the migration, which is one line
+ * Kept rather than bumped so a reader who changed a site last week still finds it
+ * that way — see `parseEntry` for the migration (which does not check the role, so a
+ * stored role that no longer exists, such as `SOLAR_HYBRID`, passes through), which is one line
  * because the old shape was a strict subset of this one.
  */
 const STORAGE_KEY = 'gensetiq.siteConfig';

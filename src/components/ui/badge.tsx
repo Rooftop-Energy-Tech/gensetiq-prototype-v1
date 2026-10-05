@@ -22,10 +22,23 @@ const badgeVariants = cva(
         /**
          * A badge that sits *on* the canvas rather than inside a card: it brings
          * its own `element` surface and a visible edge. The genset home page's
-         * severity and tag chips are all this variant — over `bg-canvas` a
-         * borderless `secondary` badge has no silhouette at all.
+         * tag chips are all this variant — over `bg-canvas` a borderless
+         * `secondary` badge has no silhouette at all. The edge is `subtle`, which
+         * every caller was setting by hand over the old `default` (2026-10-05).
          */
-        element: 'border-default bg-element text-primary',
+        element: 'border-subtle bg-element text-primary',
+        /**
+         * The verdict chips: a tint of the severity, its edge a little stronger, and
+         * the words in the severity's own colour (2026-10-05) — the Fuel depot
+         * tile's `252 L unlogged` chip, made the one way a verdict is drawn. Pick by
+         * severity with `verdictVariant`. `neutral` is the achromatic version, as
+         * `SEVERITY_META` draws a neutral alert: no hue, because a note is not a
+         * problem.
+         */
+        critical: 'border-severity-critical/25 bg-severity-critical/10 text-severity-critical',
+        warning: 'border-severity-warning/25 bg-severity-warning/10 text-severity-warning',
+        ok: 'border-severity-ok/25 bg-severity-ok/10 text-severity-ok',
+        neutral: 'border-subtle bg-fill/8 text-primary',
       },
       size: {
         /** 24px — the table and detail-panel pill. */
@@ -61,4 +74,16 @@ function Badge({
   );
 }
 
-export {Badge, badgeVariants};
+type Verdict = 'CRITICAL' | 'WARNING' | 'NEUTRAL' | 'OK';
+
+const VERDICT_VARIANT = {
+  CRITICAL: 'critical',
+  WARNING: 'warning',
+  NEUTRAL: 'neutral',
+  OK: 'ok',
+} as const satisfies Record<Verdict, VariantProps<typeof badgeVariants>['variant']>;
+
+/** The tinted verdict variant for a severity — see the `critical` variant above. */
+const verdictVariant = (severity: Verdict) => VERDICT_VARIANT[severity];
+
+export {Badge, badgeVariants, verdictVariant};

@@ -31,7 +31,7 @@ import {deployments, memberships} from './store';
  */
 export type DeploymentRow = {
   deployment: Deployment;
-  /** The machines on the job, tag order — the column, the pin size and the panel. */
+  /** The machines on the job, plate order — the column, the pin size and the panel. */
   members: Array<DeploymentMember>;
   state: DeploymentState;
   /**
@@ -50,8 +50,7 @@ export type DeploymentRow = {
   stateSlug: string | undefined;
   /**
    * The yard's division, or `undefined` for a job at a site this dataset no longer
-   * declares. The filter treats that the way the fleet does an unfitted machine: it
-   * is a real state, and it is not a division.
+   * declares. No filter reads it today; the State filter uses the yard's position.
    */
   customerId: CustomerId | undefined;
   /** The yard's position, for the map. `undefined` if the seed has gone. */

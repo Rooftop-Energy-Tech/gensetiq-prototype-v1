@@ -1,6 +1,8 @@
 import {spread} from '@/modules/genset/data/spread';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * How warm an enclosure on a tower is running, °C.
  *
  * ## Why this is site data and not battery or cabinet data

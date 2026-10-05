@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {ChevronLeftIcon, TriangleAlertIcon} from 'lucide-react';
 
 import {relativeTime, stampAt} from '@/lib/format';
-import {CardPill, SummaryCard, SummaryCardRow} from '@/components/global/SummaryCards';
+import {CardPill, SummaryCard, SummaryCardLabel, SummaryCardRow} from '@/components/global/SummaryCards';
 import {cn} from '@/lib/utils';
 import {seededGenset} from '@/modules/genset/data/fleet';
 import {RangePicker} from '@/modules/genset/components/detail/analysis/RangePicker';
@@ -34,9 +34,9 @@ import {amount, figure} from './format';
  * works in — they come back to it, share its address, and read it at length —
  * rather than a row they glance at on the way past.
  *
- * Top to bottom (Jeff, 2026-10-01): the name and street address; two overview
- * cards, `Unlogged fuel` and `Fuel balance` as on the Depots tab; the tank now
- * beside its level over the period; then `Fuel breakdown` beside the supplier
+ * Top to bottom (Jeff, 2026-10-01): the name and street address; three overview
+ * cards, `Unlogged fuel`, `Fuel balance` and the `Tank`; the tank's level over the
+ * period, full width, with its own range picker; then `Fuel breakdown` beside the supplier
  * deliveries in, and the gensets filled and trucks loaded — the two shares of
  * `Fuel Out`, in the breakdown's order, each totalling what its row says. The
  * whole page is the depot's side only: the truck list is the depot pump's litres,
@@ -48,7 +48,7 @@ import {amount, figure} from './format';
  * control (Jeff, 2026-09-30) — see `useFuelWindow`.
  */
 
-/** Gensets listed before the rest are left to the Deliveries tab. */
+/** Gensets listed before the rest are left to the Genset fills tab. */
 const LIST_LIMIT = 10;
 
 const Card = ({
@@ -67,14 +67,14 @@ const Card = ({
     className={cn('flex min-w-0 flex-col gap-3 rounded-md border border-subtle bg-element px-5 py-4', className)}
   >
     <div className="flex items-start justify-between gap-2">
-      <h2 className="text-xs font-medium tracking-wide text-secondary uppercase">{title}</h2>
+      <SummaryCardLabel>{title}</SummaryCardLabel>
       {pill !== undefined && <CardPill>{pill}</CardPill>}
     </div>
     {children}
   </section>
 );
 
-const Empty = ({children}: {children: React.ReactNode}) => <p className="text-sm text-tertiary">{children}</p>;
+const Empty = ({children}: {children: React.ReactNode}) => <p className="text-sm text-secondary">{children}</p>;
 
 /**
  * The sensor's readings over the window, and the one before it so the line starts
@@ -246,10 +246,10 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
             under it carries the warning, and the badge said it a second time. */}
       </header>
 
-      {/* ## The Depots tab's two cards, for one yard (Jeff, 2026-10-01)
-          `Unlogged fuel`, then the yard's `Fuel balance`. `Fuel in stock` and its
-          days left, and `Fuel out`, were cut: the tank beside the chart has the
-          level, and the balance card has what went out. */}
+      {/* ## The Depots tab's two cards for one yard, and its tank (Jeff, 2026-10-01)
+          `Unlogged fuel`, the yard's `Fuel balance`, then the `Tank`. `Fuel in
+          stock` and its days left, and `Fuel out`, were cut: the tank card has
+          the level, and the balance card has what went out. */}
       <SummaryCardRow cappedColumns={3}>
         {/* ## A warning when there is one (Jeff, 2026-10-01)
             Grey like its neighbour, a red verdict read as one more figure. With a
@@ -269,7 +269,7 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
           <div className="min-w-0">
             <p
               className={cn(
-                'flex items-center gap-1.5 text-2xl leading-none font-semibold tabular-nums',
+                'flex items-baseline gap-1.5 text-2xl leading-none font-semibold tabular-nums',
                 verdict?.severity === 'CRITICAL'
                   ? 'text-severity-critical'
                   : verdict?.severity === 'WARNING'
@@ -277,12 +277,16 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
                     : 'text-primary',
               )}
             >
-              {verdict !== undefined && <TriangleAlertIcon className="size-5 shrink-0" aria-hidden="true" />}
-              {amount(Math.round(movement.varianceLitres), 'L')}
+              {verdict !== undefined && (
+                <TriangleAlertIcon className="size-5 shrink-0 self-center" aria-hidden="true" />
+              )}
+              {amount(Math.round(movement.varianceLitres), '')}
+              {/* `Headline`'s unit: small and grey whatever colour the figure is. */}
+              <span className="text-sm font-normal text-secondary">L</span>
             </p>
             {/* The share, then what to do on a line of its own (Jeff, 2026-10-01). */}
             {movement.variancePercent !== null && (
-              <p className="mt-1 text-xs text-secondary">{`${movement.variancePercent.toFixed(1)}% of fuel out`}</p>
+              <p className="mt-1 text-xs text-secondary">{`${movement.variancePercent.toFixed(1)}% of Fuel Out`}</p>
             )}
             <p className={cn('text-xs', verdict === undefined ? 'text-secondary' : 'font-medium text-primary')}>
               {verdict === undefined
@@ -315,8 +319,11 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
               </span>
             </div>
             <div className="flex min-w-0 flex-col gap-1">
+              {/* No `Headline` figure: the percentage in the drawing is the headline,
+                  and these litres are its gloss, kept small to fit beside it. */}
               <p className="text-sm font-semibold text-primary tabular-nums">
-                {`${amount(level, '')} / ${amount(capacity, 'L')}`}
+                {`${amount(level, '')} / ${amount(capacity, '')}`}
+                <span className="font-normal text-secondary"> L</span>
               </p>
               {reported !== undefined && (
                 <p className="text-xs text-secondary" title={stampAt(new Date(reported).toISOString())}>
@@ -333,9 +340,9 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
         <LevelChart series={series} capacity={capacity} />
       </Card>
 
-      {/* In, then Out in the breakdown's order (Jeff, 2026-10-01): what the
-          supplier brought beside the breakdown, then the gensets filled and
-          the trucks loaded, the breakdown's two shares. */}
+      {/* The breakdown beside what the supplier brought, then the gensets filled
+          and the trucks loaded, the breakdown's two shares in its order (Jeff,
+          2026-10-01). */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* `Fuel breakdown` (Jeff, 2026-10-01; it was `Reconciliation`, then `Where
             the fuel went`): `Fuel Out` and the shares it went to. `Fuel In` is the
@@ -343,7 +350,7 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
         <Card title="Fuel breakdown" pill={periodLabel}>
           <DepotBreakdown depot={depot} movement={movement} verdict={verdict} withFuelIn={false} />
         </Card>
-        <Card title={`Deliveries into the depot · ${supplies.length}`} pill={periodLabel}>
+        <Card title={`Deliveries into the depot · ${figure(supplies.length)}`} pill={periodLabel}>
           {supplies.length === 0 ? (
             <Empty>No delivery in this period.</Empty>
           ) : (
@@ -357,9 +364,9 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
             </ol>
           )}
         </Card>
-        <Card title={`Gensets filled here · ${fills.length}`} pill={periodLabel}>
+        <Card title={`Mobile gensets filled here · ${figure(fills.length)}`} pill={periodLabel}>
           {fills.length === 0 ? (
-            <Empty>No genset filled in this period.</Empty>
+            <Empty>No mobile genset filled in this period.</Empty>
           ) : (
             <>
               <p className="text-sm text-secondary tabular-nums">{`${amount(Math.round(filledLitres), 'L')} in all`}</p>
@@ -389,14 +396,14 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
                   search={{view: 'deliveries'}}
                   className="self-start text-sm font-medium text-secondary underline-offset-2 outline-none hover:text-primary hover:underline focus-visible:underline"
                 >
-                  {`See all ${fills.length} in Deliveries`}
+                  {`See all ${figure(fills.length)} in Genset fills`}
                 </Link>
               )}
             </>
           )}
         </Card>
         {TRUCKS.length > 0 && (
-          <Card title={`Trucks loaded here · ${loads.length}`} pill={periodLabel}>
+          <Card title={`Fuel trucks loaded here · ${figure(loads.length)}`} pill={periodLabel}>
             {byTruck.length === 0 ? (
               <Empty>No truck loaded in this period.</Empty>
             ) : (
@@ -409,10 +416,13 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
                       className="text-primary underline-offset-2 outline-none hover:underline focus-visible:underline"
                     >
                       {truck.plate}
-                      <span className="text-secondary">{` · ${truck.count} ${truck.count === 1 ? 'load' : 'loads'}`}</span>
+                      <span className="text-secondary">{` · ${figure(truck.count)} ${truck.count === 1 ? 'load' : 'loads'}`}</span>
                     </Link>
+                    {/* `pumped`: the depot pump's figure, apart from the truck's own
+                        `Received from depot`, which is its tank's rise (2026-10-05). */}
                     <span className="font-semibold text-primary tabular-nums">
                       {amount(Math.round(truck.litres), 'L')}
+                      <span className="font-normal text-secondary"> pumped</span>
                     </span>
                   </li>
                 ))}

@@ -3,6 +3,8 @@ import type {ReactNode} from 'react';
 import {cn} from '@/lib/utils';
 
 /**
+ * Used by the gallery only; the genset and deployment panels copy its shell.
+ *
  * The 393px preview that floats over a register's map — the box, the placeholder and
  * the label column, shared.
  *

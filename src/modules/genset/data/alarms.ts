@@ -94,6 +94,9 @@ export const useAlarmHandling = (): HandlingByAlarm =>
     () => snapshot,
   );
 
+/** The handling map as it stands, outside a component. */
+export const alarmHandlingNow = (): HandlingByAlarm => snapshot;
+
 /** One alarm's handling, or the unhandled state it starts in. */
 export const handlingOf = (alarmId: string): AlarmHandling => snapshot[alarmId] ?? UNHANDLED;
 

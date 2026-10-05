@@ -16,7 +16,7 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  *
  * ## The columns, and the two that left with the model
  *
- * `Deployment`, `State`, `Status`, `Gensets`, `Window`, `On load`, `Fuel burned`.
+ * `Deployment`, `State`, `Status`, `Gensets`, `Dates`, `Run hours`, `Fuel burned`.
  *
  * `Genset` was the leading column while a row *was* one machine's posting. A job has
  * one to three sets on it, so the machine becomes a count with the plates behind it and
@@ -37,8 +37,9 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  * A header that is not a control is drawn as plain text rather than as a button with
  * nothing behind it.
  *
- * Time standing is `On load`'s neighbour rather than its own column: it is the second
- * line under the window, where it already was.
+ * Time standing is `Run hours`' neighbour rather than its own column: it is the
+ * second line under the dates, where it already was. (`Run hours` sorts by that time
+ * standing, `duration`, not by engine hours.)
  */
 const COLUMNS = [
   {label: 'Deployment', sort: 'reference', beside: true},
@@ -64,8 +65,9 @@ const COLUMNS = [
  * **The gaps between columns are equal, and together they fill the table** — the
  * Gensets table's layout, and see `GensetsTable` for how: each column is held to its
  * widest entry, and an empty spacer cell between every two columns takes an equal
- * share of what is left. All seven columns stay beside the map; where they outgrow the
- * space, the gaps close to the cells' padding and the table scrolls sideways.
+ * share of what is left. Beside the map the last three columns come off (`beside:
+ * false`); where the rest outgrow the space, the gaps close to the cells' padding and
+ * the table scrolls sideways.
  *
  * The plates under the count are capped, so one long list cannot take every other
  * gap's share. The address is not in the table (2026-09-29) — it is in the preview
@@ -190,7 +192,7 @@ export const DeploymentsTable = ({
                 <th
                   scope="col"
                   // `none` on the sortable-but-inactive headers, and *absent* on the
-                  // three that are not controls — the attribute is what tells a
+                  // one that is not a control (`Status`) — the attribute is what tells a
                   // screen reader a header is sortable at all, so putting it on a
                   // plain one would announce a control that isn't there.
                   aria-sort={
@@ -353,7 +355,7 @@ export const DeploymentsTable = ({
                       ) : (
                         // Hours alone: the start count under it was taken off on
                         // 2026-09-29 — a job is judged by how long it ran, not how often.
-                        amount(row.totals.runtimeHours, 'hrs')
+                        amount(row.totals.runtimeHours, 'h')
                       )}
                     </td>
 

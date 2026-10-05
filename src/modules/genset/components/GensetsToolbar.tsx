@@ -6,6 +6,7 @@ import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
+import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {FleetSummary} from '../data/fleetSummary';
 import {stateNameFromSlug} from '../data/gensetState';
@@ -27,7 +28,7 @@ type GensetsToolbarProps = {
    * Show the view switcher and the panel toggle.
    *
    * `false` at phone width, where neither has anything to switch: the map and the
-   * 393px preview panel are desktop-only. Search and the two filters are the whole
+   * 393px preview panel are desktop-only. Search and the filters are the whole
    * toolbar there, which is why they are the controls not behind this flag — they
    * are also the only filtering that width has once the strip is folded.
    */
@@ -48,9 +49,9 @@ type GensetsToolbarProps = {
  *
  * The filter sits here rather than in the card strip for the reason `FilterSelect`
  * sets out: search, filter and view are one sentence — *which gensets, and shown
- * how* — and they belong on one line in that order. The region grouping is an
- * attribute a reader either wants or does not, so it costs a button instead of a
- * card, and the strip above keeps its width for the readiness buckets.
+ * how* — and they belong on one line in that order. State, rating and run state are
+ * attributes a reader either wants or does not, so each costs a button instead of a
+ * card, and the strip above keeps its width for the status and alarm chips.
  *
  * **There was a `Duty` filter beside it until 2026-09-28** — grid backup, diesel
  * prime, workshop — and it came out because on this fleet it does not describe the
@@ -60,14 +61,13 @@ type GensetsToolbarProps = {
  * machine is "wherever it is right now" is a filter on the sites, asked from the
  * wrong register.
  *
- * The estate screen did this first; `SitesToolbar` is the same shape over the yards,
- * copied rather than generalised — see the note there for why two files beat one
- * component taking a placeholder and three labels.
+ * The estate screen did this first, with a `SitesToolbar` of the same shape (since
+ * removed); `DeploymentsToolbar` is its sibling now, copied rather than generalised.
  */
 const RESERVE = `${Math.round(RESERVE_FRACTION * 100)}%`;
 
 /**
- * The words and dots the three column filters draw with.
+ * The words and dots the column filters draw with.
  *
  * Status reads the run-state badge's own labels, so the option and the badge in the
  * column say the same word. Alarm takes the pill's three severity colours and the
@@ -266,8 +266,8 @@ export const GensetsToolbar = ({
  * What is narrowing the list, one removable chip per filter, with `Clear all` after
  * them — drawn under the toolbar, and only while something is on.
  *
- * Every way the list can be narrowed is here, not only the four dropdowns: the
- * readiness chip in the strip, a `Service due` link from elsewhere, and the search
+ * Every way the list can be narrowed is here, not only the dropdowns: the status
+ * and alarm chips in the strip, a `Service due` link from elsewhere, and the search
  * box. A row that named three of five filters would leave a reader wondering why the
  * list is still short, and `Clear all` would clear some of it. Each chip's words are
  * the control's own — the dropdown's option label, the strip's bucket name — so a
@@ -295,7 +295,7 @@ export const GensetsActiveFilters = ({
   }
   if (search.fuel !== undefined) chips.push({key: 'fuel', label: `Fuel ${FUEL_OPTION[search.fuel].label.toLowerCase()}`, clear: {fuel: undefined}});
   if (search.capacity !== undefined) {
-    chips.push({key: 'capacity', label: `${Number(search.capacity).toLocaleString('en-MY')} kVA`, clear: {capacity: undefined}});
+    chips.push({key: 'capacity', label: amount(Number(search.capacity), 'kVA'), clear: {capacity: undefined}});
   }
   if (search.status !== undefined) {
     const label = summary.byStatus.find((tally) => tally.key === search.status)?.label ?? search.status;

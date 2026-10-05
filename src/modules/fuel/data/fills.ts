@@ -1,7 +1,8 @@
 import {DATASET} from '@/brands';
 import {malaysiaStateName, MALAYSIA_STATE_IDS} from '@/lib/geo/malaysiaStates';
-import {seededDeployments, seededMemberships} from '@/modules/deployment/data/seed';
+import {deployments, memberships, subscribeDeployments} from '@/modules/deployment/data/store';
 import {GENSETS} from '@/modules/genset/data/fleet';
+import {stateNameAt} from '@/modules/genset/data/gensetState';
 import {refuelsIn} from '@/modules/genset/data/history';
 import {DEPOTS, depotFor, depotState} from './depots';
 import {TRUCKS} from './trucks';
@@ -27,13 +28,17 @@ import {TRUCKS} from './trucks';
  * yard fill, at the nearest depot to the machine. That is not a fallback for
  * missing data — it is what a customer without trucks does.
  *
- * ## Why the state comes from the label, not the coordinates
+ * ## Why the state comes from the coordinates, not the label
  *
- * The site's `locationLabel` names its state, and it is what the reader sees on
- * every row. The state polygons disagree with it at the edges: `Kepong, Kuala
- * Lumpur` sits a few hundred metres inside Selangor's outline. A row reading
- * *Kepong, Kuala Lumpur — at Klang depot* would contradict the rule on its own
- * face, so the label wins.
+ * The map's state outlines decide, through `stateNameAt` — the same test the
+ * Gensets register's `State` column and the deployments register use (Jeff,
+ * 2026-10-05). Until then the label's tail won here: `Kepong, Kuala Lumpur` sits a
+ * few hundred metres inside Selangor's outline, and the label kept it on the Kuala
+ * Lumpur truck. But the Gensets page already called that machine Selangor, so two
+ * pages disagreed about one set's state. Now it is Selangor everywhere, and fills at
+ * the Selangor depot like any other Selangor machine.
+ *
+ * `stateOfLabel` below is the old reading, kept but no longer called.
  */
 
 export type FillRoute = {kind: 'yard'; depotId: string} | {kind: 'truck'; truckId: string};
@@ -75,26 +80,30 @@ type Posting = {
 
 /** Every posting, flattened once. The per-fill lookup is then a scan of one machine's. */
 const buildPostings = (): Map<string, Array<Posting>> => {
-  const deployments = new Map(seededDeployments().map((d) => [d.id, d]));
+  // The store's record, edits and all, not the seed's: a job created, moved, ended
+  // or deleted on the Deployments pages moves the fills it covers with it.
+  const byId = new Map(deployments().map((d) => [d.id, d]));
   const sites = new Map(DATASET.sites.map((site) => [site.id, site]));
   const byGenset = new Map<string, Array<Posting>>();
 
-  for (const member of seededMemberships()) {
-    const deployment = deployments.get(member.deploymentId);
+  for (const member of memberships()) {
+    const deployment = byId.get(member.deploymentId);
     if (deployment === undefined) continue;
 
     const site = sites.get(deployment.siteId);
     const posting: Posting = {
       gensetId: member.gensetId,
       startMs: new Date(deployment.startsAt).getTime(),
-      endMs:
-        deployment.endsAt === null
-          ? Number.POSITIVE_INFINITY
-          : new Date(deployment.endsAt).getTime(),
+      // A set collected early left the job then, not when the job closed.
+      endMs: (() => {
+        const end = member.collectedAt ?? deployment.endsAt;
+        return end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
+      })(),
       place: deployment.locationLabel,
-      // The site's label, not the deployment's: a real job's label is the PE's
-      // name (`PE Tmn Sementa Jaya`), which carries no state.
-      state: site === undefined ? undefined : stateOfLabel(site.locationLabel),
+      // The site's position, read against the state outlines as the Gensets
+      // register reads it. Not the deployment's label: a real job's is the PE's name
+      // (`PE Tmn Sementa Jaya`), which carries no state.
+      state: site === undefined ? undefined : stateNameAt(site.longitude, site.latitude),
       latitude: site?.latitude,
       longitude: site?.longitude,
     };
@@ -158,7 +167,7 @@ const buildFills = (): Array<GensetFill> => {
         gensetId: genset.id,
         at: refuel.at,
         litres: refuel.litres,
-        place: posting?.place ?? 'Between postings',
+        place: posting?.place ?? 'Between deployments',
         state,
         latitude,
         longitude,
@@ -171,6 +180,12 @@ const buildFills = (): Array<GensetFill> => {
 };
 
 let held: Array<GensetFill> | undefined;
+
+// Dealt again after any change to a deployment, since where a fill happened follows
+// the posting it fell in.
+subscribeDeployments(() => {
+  held = undefined;
+});
 
 /** Every fill in the record, oldest first. Dealt on first access. */
 export const allFills = (): ReadonlyArray<GensetFill> => {

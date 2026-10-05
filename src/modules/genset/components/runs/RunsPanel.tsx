@@ -2,8 +2,9 @@ import type {ReactNode} from 'react';
 import {Link} from '@tanstack/react-router';
 import {DownloadIcon} from 'lucide-react';
 
+import {REGISTER_FRAME, REGISTER_ROWS, REGISTER_TABLE, REGISTER_TH} from '@/components/global/registerTable';
 import {Button} from '@/components/ui/button';
-import {amount, dateRange, duration, stampAt, stampDate} from '@/lib/format';
+import {amount, dateRange, duration, figure, stampAt, stampDate} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {DEFAULT_ANALYSIS_WINDOW, DEFAULT_KEYS} from '../../types/analysisView.type';
 import {runElapsedMs} from '../../types/run.type';
@@ -141,7 +142,7 @@ export const RunsPanel = ({
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Metric label="Completed runs" value={String(totals.completed)} />
+        <Metric label="Completed runs" value={figure(totals.completed)} />
         {/* `duration()` renders 0 as "under a minute", which is the right answer
             for a run that has just started and the wrong one for a window where
             nothing ran at all — it claims the engine turned. The other three tiles
@@ -151,13 +152,13 @@ export const RunsPanel = ({
           value={totals.runtimeMs === 0 ? '0 hours' : duration(totals.runtimeMs)}
         />
         <Metric label="Energy produced" value={amount(totals.energyKwh, 'kWh')} />
-        <Metric label="Fuel consumed" value={amount(totals.fuelLitres, 'L')} />
+        <Metric label="Fuel burned" value={amount(totals.fuelLitres, 'L')} />
         {/* Fuel efficiency over the window — energy out per litre in. The two
             tiles it is derived from sit beside it, so the arithmetic is
             checkable on sight. */}
         <Metric
-          label="Avg SFC"
-          value={totals.sfcKwhPerL === null ? '-' : `${totals.sfcKwhPerL.toFixed(2)} kWh/L`}
+          label="SFC"
+          value={totals.sfcKwhPerL === null ? '—' : `${totals.sfcKwhPerL.toFixed(2)} kWh/L`}
           sub={windowTankSfc(rows, range, now, showAsset)}
         />
         {/* Only the genset log carries this — a site's sets differ in nameplate,
@@ -198,7 +199,7 @@ export const RunsPanel = ({
         {energyNote !== undefined && <p>{energyNote}</p>}
       </div>
 
-      <div className="overflow-hidden rounded-md border border-subtle bg-element">
+      <div className={cn('overflow-x-auto', REGISTER_FRAME)}>
         {empty ? (
           <p className="px-4 py-10 text-center text-sm text-secondary">
             {heldCount === 0
@@ -207,9 +208,9 @@ export const RunsPanel = ({
                 `${heldCount} run${heldCount === 1 ? '' : 's'}.`}
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <table className={cn(REGISTER_TABLE, REGISTER_ROWS)}>
             <thead>
-              <tr className="border-b border-subtle text-xs text-secondary">
+              <tr>
                 {/* The job each run belongs to, leading the row. A run is a
                     stretch of engine time and a posting is the work it was doing;
                     naming the posting on the run is what lets a reader scan the log
@@ -222,11 +223,11 @@ export const RunsPanel = ({
                 {locationFor !== undefined && <Th>Location</Th>}
                 <Th>Started</Th>
                 <Th>Ended</Th>
-                {showAsset && <Th>Set</Th>}
+                {showAsset && <Th>Genset</Th>}
                 <Th align="right">Duration</Th>
                 <Th align="right">Avg load</Th>
-                <Th align="right">Energy</Th>
-                <Th align="right">Fuel</Th>
+                <Th align="right">Energy produced</Th>
+                <Th align="right">Fuel burned</Th>
                 <Th align="right">SFC</Th>
               </tr>
             </thead>
@@ -242,7 +243,6 @@ export const RunsPanel = ({
                 return (
                 <tr
                   key={run.id}
-                  className="border-b border-subtle last:border-b-0"
                   title={
                     counted
                       ? undefined
@@ -344,7 +344,7 @@ export const RunsPanel = ({
                   >
                     {run.fuelConsumedLitres > 0
                       ? `${(run.energyProducedKwh / run.fuelConsumedLitres).toFixed(2)} kWh/L`
-                      : '-'}
+                      : '—'}
                     <TankSfcLine run={run} genset={genset} now={now} />
                   </td>
                 </tr>
@@ -391,7 +391,7 @@ const TankSfcLine = ({run, genset, now}: {run: GensetRun; genset: Genset; now: n
   if (figures.overPercent >= SFC_ANOMALY_THRESHOLD_PERCENT) {
     return (
       <span
-        title={`Tank draw ${figures.overPercent}% over what this loading costs: the tank gave up ${figures.unaccountedLitres} L beyond the metered burn, returning ${figures.tankSfcKwhPerL.toFixed(2)} kWh/L against an expected ${figures.expectedKwhPerL.toFixed(2)}. Fuel is leaving without reaching the engine.`}
+        title={`Tank draw ${figures.overPercent}% over what this loading costs: the tank gave up ${figure(figures.unaccountedLitres)} L beyond the metered burn, returning ${figures.tankSfcKwhPerL.toFixed(2)} kWh/L against an expected ${figures.expectedKwhPerL.toFixed(2)}. Fuel is leaving without reaching the engine.`}
         className="mt-0.5 block whitespace-nowrap rounded-sm bg-severity-warning/15 px-1.5 py-px text-right text-xs font-medium text-severity-warning"
       >
         tank {figures.tankSfcKwhPerL.toFixed(2)} · {figures.overPercent}% over
@@ -417,8 +417,8 @@ const TankSfcLine = ({run, genset, now}: {run: GensetRun; genset: Genset; now: n
 const rowLoad = (run: GensetRun, genset: Genset, now: number): string => {
   const loadKw = Math.round(runLoadKw(run, now));
   const ratedKw = gensetDetail(genset.id)?.ratedKw;
-  if (ratedKw === undefined || ratedKw <= 0) return `${loadKw} kW`;
-  return `${loadKw} kW · ${Math.round((loadKw / ratedKw) * 100)}%`;
+  if (ratedKw === undefined || ratedKw <= 0) return amount(loadKw, 'kW');
+  return `${amount(loadKw, 'kW')} · ${Math.round((loadKw / ratedKw) * 100)}%`;
 };
 
 /**
@@ -461,7 +461,7 @@ const Metric = ({label, value, sub}: {label: string; value: string; sub?: string
 const Th = ({children, align}: {children: ReactNode; align?: 'right'}) => (
   <th
     scope="col"
-    className={`px-3 py-2 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}
+    className={cn(REGISTER_TH, 'px-3', align === 'right' ? 'text-right' : 'text-left')}
   >
     {children}
   </th>

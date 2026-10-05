@@ -15,8 +15,8 @@ import type {GensetFuelInstruments} from '../types/fuelIntegrity.type';
  * Because it is the point. A leak alarm needs a level sensor *and* a flow meter,
  * and the second is an option most customers have never bought — so a fleet where
  * every unit could reconcile would be a fleet that never exercises the state this
- * feature spends most of its time in. Ten of the twenty-four carry both here, which
- * is roughly what a real fleet looks like.
+ * feature spends most of its time in. The seed was written to give about four in
+ * ten both, which is roughly what a real fleet looks like — see the warning below.
  *
  * ## The loss rate is the only invented quantity
  *
@@ -24,8 +24,7 @@ import type {GensetFuelInstruments} from '../types/fuelIntegrity.type';
  * curve *was* the burn curve — `history.ts` integrated one from the other — so the
  * level and the flow could not disagree and a leak was assertable but not
  * representable. The rate is applied inside the ladder, so the tank the analysis
- * chart draws, the discrepancy the Settings tab quotes and the litres-per-hour the
- * alarm states are one fact rendered three ways rather than three numbers typed
+ * chart draws and the litres-per-hour the alarm states are one fact rendered three ways rather than three numbers typed
  * separately.
  *
  * A **negative** rate is a tank gaining fuel it was not given. It stands in for a
@@ -34,6 +33,12 @@ import type {GensetFuelInstruments} from '../types/fuelIntegrity.type';
  * screen to record.
  *
  * ## What the seed is arranged to show
+ *
+ * ⚠️ **The ids below no longer exist** (2026-10-05). They were the telcoIQ fleet's;
+ * the gensetIQ estates use other tags, so of these only `BRF9540` (Express Mission)
+ * still matches a machine. Every other set is level-only today, and the states the
+ * table lists are not on screen. The table is kept as the design it was; re-seed on
+ * real ids to bring it back.
  *
  * Every one of the seven states, on a real unit, without touching the two fixtures
  * that are diffed against the Figma:
@@ -227,7 +232,7 @@ export const lossRateOf = (gensetId: string): number =>
  *
  * Read by the ladder, which applies the loss only to steps after it — so a fresh
  * leak bends the tank curve at the hour it started rather than for the whole
- * fortnight the chart draws.
+ * sixty days the chart can draw.
  */
 export const lossStartedHoursAgo = (gensetId: string): number =>
   seedFor(gensetId).lossStartedHoursAgo ?? Number.POSITIVE_INFINITY;

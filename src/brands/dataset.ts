@@ -11,7 +11,7 @@ import type {BrandDataset, DatasetId} from './types';
  *
  * The estates come from the generated registry, which carries only the ones the
  * included brands name. A gensetIQ-only deployment therefore has no utility dataset
- * in it at all: not hidden, absent. Twenty-five substation names and thirty-seven
+ * in it at all: not hidden, absent. Thirty-eight substation names and thirty-eight
  * machine tags are the most identifiable thing a bundle could leak about another
  * customer, and a UI flag cannot un-ship them.
  */

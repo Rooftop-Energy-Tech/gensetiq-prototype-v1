@@ -102,9 +102,9 @@ export const TruckList = ({
         COLUMNS,
       )}
     >
-      <span>Truck</span>
+      <span>Number plate</span>
       <span>Tank</span>
-      <span>Where</span>
+      <span>Location</span>
       <span className="text-right">Delivered</span>
       <span className="text-right">Missing</span>
       <span />

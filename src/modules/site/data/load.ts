@@ -1,4 +1,6 @@
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * A site's own draw over time.
  *
  * ## Why this is one small file

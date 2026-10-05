@@ -18,7 +18,7 @@ import type {GensetRun} from './run.type';
  * for July" is the message somebody actually wanted to write, and it is also the
  * range they are about to export and invoice against.
  *
- * Two selectors rather than the analysis tab's three. There is no *by run*
+ * Three selectors (preset, deployment, custom) rather than the analysis tab's four. There is no *by run*
  * selector here, because this page **is** the list of runs — a control that
  * narrowed it to one row would be a filter whose result is the thing you clicked.
  */
@@ -187,7 +187,8 @@ export const runsOverlapping = <T,>(
  * On a billing document that is two documents that disagree.
  *
  * **A run carried in from before the window** delivered some of its energy on the
- * far side of the boundary. Splitting it pro-rata would invent a number, since
+ * far side of the boundary. (`history.ts` `runTotalsIn` does split pro-rata, for
+ * the analysis totals; this rule is the export's.) Splitting it pro-rata would invent a number, since
  * output is not uniform across a run — that is the entire premise of the analysis
  * tab. Counting it whole would credit this window with fuel burned before it
  * opened. So it belongs to the period it *began* in, the way a transaction belongs

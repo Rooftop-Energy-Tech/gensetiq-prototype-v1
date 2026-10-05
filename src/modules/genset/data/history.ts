@@ -9,7 +9,7 @@ import {REAL_GENSET_ID, REAL_REFUELS, REAL_RUNS} from '@/modules/deployment/data
 /**
  * The past, in place of the time-series API this prototype doesn't have.
  *
- * The home page needs one number per reading; the analysis tab needs a fortnight
+ * The home page needs one number per reading; the analysis tab needs sixty days
  * of them, and inventing that is where a mock data layer usually starts lying.
  * Three rules keep it honest:
  *
@@ -22,7 +22,7 @@ import {REAL_GENSET_ID, REAL_REFUELS, REAL_RUNS} from '@/modules/deployment/data
  *     when the engine was turning; everything that only exists in motion is a gap
  *     outside those windows. See `Reading.engineOnly`.
  *  3. **Same generator as everything else.** `spread()` from `./spread`, seeded
- *     on the genset's id, so a reload redraws the identical fortnight. A chart
+ *     on the genset's id, so a reload redraws the identical sixty days. A chart
  *     that reshuffles on refresh cannot be reasoned about, and this one is meant
  *     to be looked at twice.
  *
@@ -146,6 +146,9 @@ const RUN_LOG: Record<string, Array<GensetRun>> = Object.fromEntries(
  * nothing" instead of "we do not hold this".
  */
 export const historyStart = (): number => CLOCK - LOG_DAYS * DAY;
+
+/** The history layer's one clock reading — the instant its last record stands at. */
+export const historyNow = (): number => CLOCK;
 
 /** Every run for a genset, newest first. */
 export const gensetRuns = (gensetId: string): Array<GensetRun> => RUN_LOG[gensetId] ?? [];
@@ -346,7 +349,8 @@ const FUEL_LADDERS = new Map<string, Array<number>>();
  * Fuel is the one reading that must not be drawn as noise around a mean. A tank
  * falls at the burn rate whenever the engine turns, holds flat when it doesn't,
  * and jumps when a tanker comes — a sawtooth whose *slope* is a quantity an
- * operator reads off the chart to plan the next visit. Wobble around 1,600 L
+ * operator reads off the chart to plan the next visit (fills land at 82–100% and
+ * the lows run 5–62%; see the note on deliveries below). Wobble around 1,600 L
  * would look like data and mean nothing.
  *
  * Walking backwards is what keeps rule 1: the right-hand end is the published

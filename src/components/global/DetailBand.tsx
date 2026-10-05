@@ -1,8 +1,8 @@
 import {MetricRow} from '@/modules/genset/components/detail/MetricRow';
 
 /**
- * The band that says **what the thing on this page is** — one per detail page, and
- * the same band on all four.
+ * The band that says **what the thing on this page is**. Only the genset home draws
+ * it today (`GensetHome`).
  *
  * The site, genset, solar and battery pages each grew their own copy of this: a
  * `<section>` at a fixed narrow width holding a column of `MetricRow`s, with the

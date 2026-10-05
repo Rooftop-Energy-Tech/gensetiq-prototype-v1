@@ -1,3 +1,4 @@
+import {amount} from '@/lib/format';
 import type {SitePowerRole} from '@/modules/site/types/site.type';
 import {FLEET_STATUSES, STATUS_META, gensetStatus} from './fleetStatus';
 import type {FleetStatus} from './fleetStatus';
@@ -61,7 +62,7 @@ export const gensetFuelFilter = (genset: Genset): GensetFuelFilter =>
 export type FleetSummary = {
   total: number;
   depotCount: number;
-  /** The four buckets, worst first — see `fleetStatus.ts`. Always all four. */
+  /** The three buckets, worst first — see `fleetStatus.ts`. Always all three. */
   byStatus: Array<Tally<FleetStatus>>;
   /**
    * The states with at least one set standing in them, A to Z — the State filter's
@@ -139,6 +140,6 @@ export const fleetSummary = (
     byFuel: fuelCounts,
     byCapacity: [...capacityCounts.entries()]
       .sort(([left], [right]) => right - left)
-      .map(([kva, count]) => ({key: String(kva), label: `${kva.toLocaleString('en-MY')} kVA`, count})),
+      .map(([kva, count]) => ({key: String(kva), label: amount(kva, 'kVA'), count})),
   };
 };

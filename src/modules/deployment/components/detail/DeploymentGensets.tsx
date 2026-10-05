@@ -71,7 +71,7 @@ const GensetIdentity = ({genset, tag, model}: {genset: Genset | undefined; tag: 
         <span className="truncate text-[13px] leading-[18px] text-secondary">{model}</span>
       </span>
       {Icon !== undefined && meta !== undefined && (
-        <Badge variant="element" className="ml-1 shrink-0 border-subtle">
+        <Badge variant="element" className="ml-1 shrink-0">
           {genset !== undefined && <RunStateIcon runState={genset.runState} className="size-3" />}
           {meta.label}
         </Badge>
@@ -117,15 +117,15 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
   return (
     <section
       aria-labelledby="deployment-gensets"
-      className="flex flex-col gap-5 overflow-y-auto px-6 py-7"
+      className="flex flex-col gap-5 overflow-y-auto px-4 pt-4 pb-6"
     >
       <div className="flex flex-col gap-1">
-        <h2 id="deployment-gensets" className="text-sm font-medium text-primary">
+        <h2 id="deployment-gensets" className="text-base font-medium text-primary">
           Gensets on {deployment.reference}
         </h2>
         <p className="max-w-2xl text-sm text-secondary">
           {state === 'active' &&
-            `The machines standing at ${row.address}. Adding one deploys it here: it takes this address and moves on the fleet map. Collecting one ends its posting; nothing physically moves until somebody comes for it.`}
+            `The machines standing at ${row.address}. Adding one deploys it here: it takes this address and moves on the fleet map. Collecting one ends its deployment; nothing physically moves until somebody comes for it.`}
           {state === 'planned' &&
             `The machines booked to this deployment. Nothing moves until it starts on ${dayMonth(deployment.startsAt)}, and a machine committed here cannot be booked to another deployment over the same window.`}
           {state === 'completed' &&
@@ -175,7 +175,7 @@ export const DeploymentGensets = ({row}: {row: DeploymentRow}) => {
                       <TooltipContent side="left" className="max-w-64">
                         {state === 'planned'
                           ? `Release ${member.plate} from this booking. It is free for another deployment over this window.`
-                          : `Collect ${member.plate}. Its posting ends now and it stays where it is standing until somebody moves it.`}
+                          : `Collect ${member.plate}. Its deployment ends now and it stays where it is standing until somebody moves it.`}
                       </TooltipContent>
                     </Tooltip>
                   )}

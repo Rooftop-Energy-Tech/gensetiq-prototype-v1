@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {CheckIcon, ChevronDownIcon, SearchIcon, XIcon} from 'lucide-react';
 
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
-import {dayMonth, fuelLevel} from '@/lib/format';
+import {dayMonth, figure, fuelLevel} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useFleet} from '@/modules/genset/data/deployment';
 import type {Genset} from '@/modules/genset/types/genset.type';
@@ -144,7 +144,7 @@ export const GensetMultiPicker = ({
                         </span>
                         {km !== undefined && (
                           <span className="shrink-0 text-xs text-secondary">
-                            {km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString('en-MY')} km
+                            {km < 10 ? km.toFixed(1) : figure(Math.round(km))} km
                           </span>
                         )}
                       </span>
