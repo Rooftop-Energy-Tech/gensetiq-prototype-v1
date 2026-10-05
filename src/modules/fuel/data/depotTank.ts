@@ -1,4 +1,4 @@
-import {historyStart} from '@/modules/genset/data/history';
+import {historyNow, historyStart} from '@/modules/genset/data/history';
 import {spread, spreadBetween} from '@/modules/genset/data/spread';
 import {DEPOTS} from './depots';
 import {yardFills} from './fills';
@@ -20,10 +20,11 @@ export type {Depot};
  * are derived from its level rising. Same technique, opposite sign.
  *
  * That instrument sets a hard limit on what the page may claim. **The depot can say
- * how much left the yard and never where it went.** A variance is therefore a fleet
- * figure: this many litres left the bulk tank, this many arrived in machine tanks,
- * and the difference is unaccounted for somewhere across the estate. Attributing it
- * to a machine would be the page inventing the one thing the sensor cannot see.
+ * how much left the yard and never where it went.** So the gap is told from the
+ * depot's side only (Jeff, 2026-10-01): this many litres left the bulk tank, the
+ * yard's own pump log accounts for this many, and the rest is unlogged. Whether the
+ * logged fuel then reached a genset or a truck is the receiver's story, not this
+ * card's.
  *
  * ## What a fall means, and what a rise means
  *
@@ -38,10 +39,9 @@ export type {Depot};
  * **truck loading** to take fuel out to machines in states with no depot. The
  * sensor cannot tell them apart, but the yard's own log can — each fill and each
  * load is stamped — so every fall is split between the two by what that hour
- * issued, and a third share holds the fall no fill or load explains. Each part is
- * then checked against its own receiver: yard fills against the gensets' tanks,
- * truck loads against the trucks' tanks. See `fills.ts` for which is which, and
- * `truckRuns.ts` for the trucks.
+ * issued, and a third share holds the fall no fill or load explains. See `fills.ts`
+ * for which is which, and `truckRuns.ts` for the trucks, whose own losses are told
+ * on the Trucks tab.
  *
  * An estate with no trucks has nothing in the second share, and the card reads as
  * it always did.
@@ -50,7 +50,7 @@ export type {Depot};
  *
  * The seed walks the depot down by every delivery the fleet took, and then by a
  * little more: a slow ullage loss on the bulk tank, plus one larger unexplained
- * drop. Without that the two totals would match to the litre and the alarm this page
+ * drop, both scaled to what the yard issues. Without that the two totals would match to the litre and the alarm this page
  * exists for could never fire. The gap is what a real yard argues about — a meter
  * reading long, fuel drawn for a plant nobody logged, or a genuine loss.
  */
@@ -84,7 +84,7 @@ export const depotCapacityLitres = (depotId: string): number => {
   const held = capacities.get(depotId);
   if (held !== undefined) return held;
 
-  const to = Date.now();
+  const to = historyNow();
   const from = historyStart();
   const MONTH = 30 * 24 * HOUR;
   const issues = depotIssues(depotId);
@@ -164,22 +164,26 @@ export type DepotSample = {
   issuedOther: number;
 };
 
+/** A rise, or a sample that issued nothing. */
+const NO_ISSUE = {issuedYard: 0, issuedTruck: 0, issuedOther: 0};
+
 /**
- * The depot's level, six-hourly, oldest first.
+ * The depot's level, hourly, oldest first.
  *
  * Built forward rather than backwards — unlike a genset's ladder, which is anchored
  * to a level the fleet seed publishes for *now*. The depot has no published present,
  * so it is dealt from a full tank at the horizon and the level today is wherever the
  * walk lands. That is also the honest shape: a yard's tank is a consequence of what
  * it has issued, not a figure somebody states.
+ *
+ * `loadScale` shrinks or grows every round's load — see `Depot.stockFraction`.
  */
-/** A rise, or a sample that issued nothing. */
-const NO_ISSUE = {issuedYard: 0, issuedTruck: 0, issuedOther: 0};
-
-/** `loadScale` shrinks or grows every round's load — see `Depot.stockFraction`. */
 const buildSeries = (depotId: string, loadScale = 1): Array<DepotSample> => {
   const from = historyStart();
-  const to = Date.now();
+  // The fleet's clock, not this call's: the genset ladder stamps its newest fill at
+  // that instant, and a later `to` put this walk's last reading past a page's
+  // window, which then dropped that hour from Out while the level kept it.
+  const to = historyNow();
 
   // Every yard fill and truck load, as a lookup by the step it falls in. Each one is
   // fuel that left this tank at that moment.
@@ -188,22 +192,31 @@ const buildSeries = (depotId: string, loadScale = 1): Array<DepotSample> => {
 
   const yardByStep = new Map<number, number>();
   const truckByStep = new Map<number, number>();
+  let issuedInRecord = 0;
   for (const issue of depotIssues(depotId)) {
     if (issue.at < from || issue.at > to) continue;
     const step = Math.floor((issue.at - from) / STEP);
     const byStep = issue.kind === 'yard' ? yardByStep : truckByStep;
     byStep.set(step, (byStep.get(step) ?? 0) + issue.litres);
+    issuedInRecord += issue.litres;
   }
 
   // The unaccounted side. A slow ullage loss every step — evaporation, the dregs of
   // a hose, a meter reading long — and one larger drop that nobody wrote down.
-  const ullagePerStep = spreadBetween(depotId, 'ullage', 0.07, 0.19);
-  const mysteryStep = Math.floor(spread(depotId, 'mystery-when') * ((to - from) / STEP));
+  //
+  // Both scale with what the yard issues. They were flat litres, sized for Express
+  // Mission's yards issuing 50,000–70,000 L a month; a carrier yard issuing 2,000 L
+  // then lost half its month to the one drop and a twentieth to the ullage alone,
+  // and every yard on that estate read as missing fuel.
+  const steps = (to - from) / STEP;
+  const issuedPerStep = steps > 0 ? issuedInRecord / steps : 0;
+  const ullagePerStep = issuedPerStep * spreadBetween(depotId, 'ullage', 0.0012, 0.0025);
+  const mysteryStep = Math.floor(spread(depotId, 'mystery-when') * steps);
   // The drifting yard takes no mystery drop. Its story is an instrument, and a
-  // four-figure loss landing inside the window would swamp the drift and flip the
-  // variance positive — the card would then cry theft at the one depot where
-  // nothing is missing.
-  const mysteryLitres = drift > 0 ? 0 : spreadBetween(depotId, 'mystery-litres', 700, 1_400);
+  // four-figure loss landing inside the window would swamp the drift — the card
+  // would then cry theft at the one depot where nothing is missing.
+  const mysteryLitres =
+    drift > 0 ? 0 : issuedPerStep * 30 * 24 * spreadBetween(depotId, 'mystery-litres', 0.015, 0.025);
 
   const samples: Array<DepotSample> = [];
   let level = capacity;
@@ -223,7 +236,7 @@ const buildSeries = (depotId: string, loadScale = 1): Array<DepotSample> => {
     // What the sensor writes down. Every figure below is the instrument's, because
     // the instrument is all this page has — the level, the reorder, and the size of
     // the next load a yard orders against what it believes it has issued.
-    const sensed = issued * (1 - drift);
+    const sensed = issued * (1 + drift);
 
     // ## The supplier comes on a round, not when the tank nearly empties
     //
@@ -271,7 +284,11 @@ const buildSeries = (depotId: string, loadScale = 1): Array<DepotSample> => {
     level -= sensed;
     issuedSinceDelivery += sensed;
     samples.push({
-      t: t + STEP / 2,
+      // Mid-step, except the hour still running, which reads as of now. Stamped half
+      // an hour ahead, it was the level the tank showed while the window's right
+      // edge (`reconcile`) left it out — so Balance and the level disagreed by that
+      // hour's fills, and the yard's fills outran its own breakdown.
+      t: Math.min(t + STEP / 2, to),
       litres: Math.round(level),
       issuedYard: yard,
       issuedTruck: truck,
@@ -441,16 +458,15 @@ export const reconcile = (
  * never agree exactly, and a page that flagged 40 L would be flagging its own
  * resolution.
  *
- * **Past 100 L either way: check calibration** — Afifah's rule, 2026-09-22. At that
- * size the gap is no longer noise, and the first thing to doubt is the instruments
- * rather than the fuel: a float reading long, a sensor drifting since its last
- * calibration, a tank whose strapping table is wrong. It applies to a surplus at any
- * size, because machines recording more than the yard released cannot be a loss and
- * can only be a measurement.
+ * **Past 100 L: check calibration** — Afifah's rule, 2026-09-22. At that size the
+ * gap is no longer noise, and the first thing to doubt is the instruments rather
+ * than the fuel: a float reading long, a sensor drifting since its last
+ * calibration, a tank whose strapping table is wrong. The gap is never below zero
+ * (`reconcile`), so this grade is only ever a small positive one.
  *
- * **A shortfall past 0.5% of what was issued, or past 1,000 L: fuel did not
- * arrive.**
- * Fuel left the yard and reached no machine, which is the case this page exists for.
+ * **Past 0.5% of what was issued, or past 1,000 L: unlogged fuel.** The tank lost
+ * fuel its own pump log does not account for, which is the case this page exists
+ * for.
  *
  * Two tests rather than one, and the flat litre figure is the important half. The
  * percentage alone graded Klang's missing 1,271 L below Butterworth's missing
@@ -463,12 +479,12 @@ export const reconcile = (
  * **0.5%** — Afifah's figure, tightened from 2% on 2026-09-22. Two percent let a
  * yard lose a fiftieth of everything it issued before the page said so, which on
  * Klang's month is most of a tanker compartment. At a half percent the line is
- * 680 L there and 151 L at Butterworth, and the 100 L noise floor underneath stops
- * the small yards from crying wolf.
+ * about 350 L there and 260 L at Butterworth on Express Mission's month, and the
+ * 100 L noise floor underneath stops the small yards from crying wolf.
  */
 export type VarianceVerdict = {
   severity: 'CRITICAL' | 'WARNING';
-  /** `shortfall` — fuel did not arrive. `calibration` — the instruments disagree. */
+  /** `shortfall` — unlogged fuel. `calibration` — the instruments disagree. */
   kind: 'shortfall' | 'calibration';
 };
 
@@ -476,12 +492,11 @@ export const varianceSeverity = (
   outLitres: number,
   varianceLitres: number,
 ): VarianceVerdict | undefined => {
-  const gap = Math.abs(varianceLitres);
-  if (gap < 100) return undefined;
+  if (varianceLitres < 100) return undefined;
 
-  // A shortfall large enough to be about fuel rather than measurement: either a
+  // A gap large enough to be about fuel rather than measurement: either a
   // proportional gap at this yard, or a thousand litres anywhere.
-  if (varianceLitres > 0 && (gap >= 1_000 || gap >= outLitres * 0.005)) {
+  if (varianceLitres >= 1_000 || varianceLitres >= outLitres * 0.005) {
     return {severity: 'CRITICAL', kind: 'shortfall'};
   }
 

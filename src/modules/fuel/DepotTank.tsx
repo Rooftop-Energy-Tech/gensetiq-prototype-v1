@@ -22,9 +22,8 @@ const PERCENT = 'absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 t
  *
  * A shortfall is `252 L unlogged`: fuel left the tank and no fill or load in the
  * depot's log accounts for it, and the amount is in the badge so a reader knows how bad before
- * reading on. Anything else past the 100 L floor — too small to be a loss, or the
- * wrong sign for one — is `Sensor fault`, since the instruments are the first thing
- * to doubt. They were `Fuel did not arrive` and `Check calibration` first, then
+ * reading on. Anything else past the 100 L floor — too small to be a loss — is
+ * `Sensor fault`, since the instruments are the first thing to doubt. They were `Fuel did not arrive` and `Check calibration` first, then
  * `252 L missing at depot` until 2026-10-01.
  */
 export const verdictLabel = (verdict: VarianceVerdict, varianceLitres: number): string =>

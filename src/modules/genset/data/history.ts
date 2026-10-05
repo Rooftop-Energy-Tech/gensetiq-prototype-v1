@@ -147,6 +147,9 @@ const RUN_LOG: Record<string, Array<GensetRun>> = Object.fromEntries(
  */
 export const historyStart = (): number => CLOCK - LOG_DAYS * DAY;
 
+/** The history layer's one clock reading — the instant its last record stands at. */
+export const historyNow = (): number => CLOCK;
+
 /** Every run for a genset, newest first. */
 export const gensetRuns = (gensetId: string): Array<GensetRun> => RUN_LOG[gensetId] ?? [];
 

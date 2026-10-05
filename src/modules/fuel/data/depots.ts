@@ -1,3 +1,6 @@
+import {DATASET} from '@/brands';
+import type {DatasetId} from '@/brands';
+
 /**
  * The depots, on their own so the fill classifier and the depot tank can both read
  * them without importing each other. `depotTank.ts` re-exports `DEPOTS` and `Depot`,
@@ -7,9 +10,11 @@
 /**
  * The yards fuel is issued from.
  *
- * Four, placed where the estate's machines actually are: the Klang valley holds
- * thirteen of the thirty-eight, and Perak, Penang and Johor most of the rest. The
- * machines out in states with no depot are the trucks' (`trucks.ts`). A single national depot would be a fiction on an estate 700 km end to end —
+ * Placed where each estate's machines actually are. On Express Mission's, four: the
+ * Klang valley holds thirteen of the thirty-eight, and Perak, Penang and Johor most
+ * of the rest, and the machines out in states with no depot are the trucks'
+ * (`trucks.ts`). The carrier's seven follow its towers into Sabah and Sarawak. A
+ * single national depot would be a fiction on an estate 700 km end to end —
  * nobody trucks diesel from Klang to Bayan Lepas — and it would also make the one
  * number on this page an average that no yard manager recognises.
  *
@@ -37,17 +42,19 @@ export type Depot = {
    */
   capacityLitres?: number;
   /**
-   * This yard's level sensor under-reads its falls, as a fraction.
+   * This yard's level sensor over-reads its falls, as a fraction.
    *
    * A float out of calibration does not lose fuel; it mis-measures the fuel that
-   * moves. So the tank really gives up the litres the fleet took, and the
-   * instrument writes down slightly fewer — which is why the variance comes out
-   * **negative**: the gensets can prove more arrived than the depot can prove it
-   * released. That is the one shape of gap that is never a loss, and it is what
-   * `Sensor fault` exists to say.
+   * moves. So the tank really gives up the litres the pumps logged, and the
+   * instrument writes down slightly more — a small gap that grows with throughput,
+   * under the line where a gap reads as unlogged fuel. That is what `Sensor fault`
+   * exists to say.
    *
-   * Set on exactly one yard. Without it every depot reconciled to within a few
-   * litres, and the middle grade of the alarm had no way to be seen.
+   * It used to under-read, which made the gap negative; since the gap is held at
+   * zero (2026-10-01) that showed as nothing, so it over-reads now (2026-10-05).
+   * Set on one Express Mission yard. The carrier's yards issue too little for the
+   * middle grade to exist there: under 20,000 L a month, 0.5% is under the 100 L
+   * floor.
    */
   sensorDriftFraction?: number;
   /**
@@ -63,12 +70,39 @@ export type Depot = {
   stockFraction?: number;
 };
 
-export const DEPOTS: ReadonlyArray<Depot> = [
-  {id: 'klang', name: 'Klang', locationLabel: 'Klang, Selangor', address: 'Lot 12, Jalan Kebun Nenas 3, Kawasan Perindustrian Kebun Nenas, 41100 Klang, Selangor', latitude: 3.0449, longitude: 101.4455},
-  {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', address: 'Lot 7, Jalan Lahat, Kawasan Perindustrian Menglembu, 31450 Ipoh, Perak', latitude: 4.5975, longitude: 101.0901, stockFraction: 0.5},
-  {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', address: 'Plot 22, Jalan Perusahaan 4, Kawasan Perindustrian Perai, 13600 Perai, Pulau Pinang', latitude: 5.3991, longitude: 100.3639, sensorDriftFraction: 0.025},
-  {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', address: 'PLO 45, Jalan Pekeliling, Kawasan Perindustrian Pasir Gudang, 81700 Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914, stockFraction: 0.24},
-];
+/** How far the one drifting yard's sensor over-reads its falls — see `Depot.sensorDriftFraction`. */
+const SENSOR_DRIFT = 0.001;
+
+const KLANG: Depot = {id: 'klang', name: 'Klang', locationLabel: 'Klang, Selangor', address: 'Lot 12, Jalan Kebun Nenas 3, Kawasan Perindustrian Kebun Nenas, 41100 Klang, Selangor', latitude: 3.0449, longitude: 101.4455};
+const BUTTERWORTH: Depot = {id: 'butterworth', name: 'Butterworth', locationLabel: 'Butterworth, Pulau Pinang', address: 'Plot 22, Jalan Perusahaan 4, Kawasan Perindustrian Perai, 13600 Perai, Pulau Pinang', latitude: 5.3991, longitude: 100.3639};
+const PASIR_GUDANG: Depot = {id: 'pasir-gudang', name: 'Pasir Gudang', locationLabel: 'Pasir Gudang, Johor', address: 'PLO 45, Jalan Pekeliling, Kawasan Perindustrian Pasir Gudang, 81700 Pasir Gudang, Johor', latitude: 1.4716, longitude: 103.8914};
+
+/**
+ * Each estate's yards. Per estate for the reason the trucks are (`trucks.ts`): one
+ * shared list sent the carrier's Sabah and Sarawak towers to Pasir Gudang for every
+ * fill, across the South China Sea. The carrier keeps the three peninsular yards its
+ * towers there are nearest and adds four in Borneo, where most of its sets stand.
+ */
+const DEPOTS_BY_DATASET: Record<DatasetId, ReadonlyArray<Depot>> = {
+  utility: [
+    KLANG,
+    {id: 'ipoh', name: 'Ipoh', locationLabel: 'Ipoh, Perak', address: 'Lot 7, Jalan Lahat, Kawasan Perindustrian Menglembu, 31450 Ipoh, Perak', latitude: 4.5975, longitude: 101.0901, stockFraction: 0.5},
+    {...BUTTERWORTH, sensorDriftFraction: SENSOR_DRIFT},
+    {...PASIR_GUDANG, stockFraction: 0.24},
+  ],
+  carrier: [
+    KLANG,
+    BUTTERWORTH,
+    PASIR_GUDANG,
+    {id: 'kota-kinabalu', name: 'Kota Kinabalu', locationLabel: 'Kota Kinabalu, Sabah', address: 'Lot 18, Jalan Industri 2, Kota Kinabalu Industrial Park, 88460 Kota Kinabalu, Sabah', latitude: 6.0880, longitude: 116.1380},
+    {id: 'sandakan', name: 'Sandakan', locationLabel: 'Sandakan, Sabah', address: 'Lot 4, Jalan Batu Sapi, Kawasan Perindustrian Batu Sapi, 90000 Sandakan, Sabah', latitude: 5.8600, longitude: 118.0700},
+    {id: 'bintulu', name: 'Bintulu', locationLabel: 'Bintulu, Sarawak', address: 'Lot 210, Jalan Tanjung Kidurong, Kidurong Industrial Area, 97000 Bintulu, Sarawak', latitude: 3.2650, longitude: 113.0700},
+    {id: 'kuching', name: 'Kuching', locationLabel: 'Kuching, Sarawak', address: 'Lot 9, Jalan Pending, Kawasan Perindustrian Pending, 93450 Kuching, Sarawak', latitude: 1.5530, longitude: 110.3900},
+  ],
+};
+
+/** The active estate's yards. */
+export const DEPOTS: ReadonlyArray<Depot> = DEPOTS_BY_DATASET[DATASET.id];
 
 /**
  * Which depot serves a machine: the nearest one, by straight-line distance.

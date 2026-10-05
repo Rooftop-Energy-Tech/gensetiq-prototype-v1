@@ -221,6 +221,10 @@ In practice **a job is one set, and two about one time in seven** — never thre
 `utility.ts` hold a pair, and `seed.ts` deals past and planned jobs one set at a time
 with a 15% chance of a second (`PAIR_SHARE`).
 
+`BRF9540`'s eight measured postings (`realJobs.ts`) go in first, and only on the
+estate that has the machine (2026-10-05). The carrier estate has no `BRF9540`, and
+until then listed its eight jobs anyway, at yards that estate does not have.
+
 The cost of it is worth stating, because it is the thing to revisit first: **a fourth
 set arriving in week three cannot join an existing job.** It needs a successor job,
 which splits one hire into two records. If that turns out to be how Express Mission
@@ -2657,6 +2661,29 @@ machine was posted at that moment:
   east coast, Butterworth takes Kedah and Perlis.
 - **Between postings**: the genset is at a yard, so it fills at the nearest depot.
 
+**Each estate has its own depots** (2026-10-05). Express Mission's four are Klang,
+Ipoh, Butterworth and Pasir Gudang. The carrier estate runs no trucks, so every
+genset drives to its nearest yard. Its seven are Klang, Butterworth and Pasir
+Gudang for its peninsular towers, plus Kota Kinabalu, Sandakan, Bintulu and
+Kuching. Before that both estates shared Express Mission's four, and about twenty
+Sabah and Sarawak towers were listed as filled at Pasir Gudang.
+
+**What the seed puts in each depot's gap.** Each yard has a slow loss every hour
+and one larger drop nobody logged, both sized to what the yard issues (2026-10-05).
+They were flat litres before, so a small carrier yard lost half its month to the
+one drop. Butterworth, on Express Mission, takes no drop. Instead its level sensor
+over-reads every fall by 0.1%, a gap just past the 100 L floor and under the
+unlogged line, so it reads *Sensor fault*. The sensor used to under-read, which
+made the gap negative, and since the gap is never shown below zero, that example
+had vanished. The carrier estate has no *Sensor fault* case. Its yards issue under
+20,000 L a month, and at that size 0.5% is already below the 100 L floor.
+
+The depot's newest reading is taken at the same moment as the genset history's
+(2026-10-05). It used to sit half an hour later. Each page then left that last hour
+out of *Fuel Out*, *Mobile gensets* and *Fuel trucks* but still showed it in the
+level. So *Balance* was not the opening level plus *In* minus *Out*, and a yard's
+*Gensets filled here* came out higher than its *Mobile gensets* row.
+
 The state comes from the site's label, not the map polygon. `Kepong, Kuala Lumpur`
 sits just inside Selangor's outline.
 
@@ -2677,7 +2704,7 @@ many trucks, entries or fills) were cut, since a table beside them counts them t
 
 **The Depots tab's cards** (Jeff, 2026-10-01): *Needs attention* and *Fuel
 balance*. *Needs attention* lists each yard with a verdict, worst first, in the
-tile's own words (*Klang · 1,250 L unlogged*, *Butterworth · Sensor
+tile's own words (*Klang · 1, 826 L unlogged*, *Butterworth · Sensor
 fault*), each a link to that yard's page, and reads *None* when every yard balances.
 *Fuel in and out* is all four tanks together: *In*, in green, what suppliers put in,
 and *Out*, in red, what left for gensets and trucks, coloured as each tile's rows
@@ -2691,7 +2718,7 @@ day too; *Days of stock* gave the yard running dry first, but took no account of
 supplier deliveries still to come.
 
 **The depot card tells the depot's side only** (Jeff, 2026-10-01). The gap is *Unlogged fuel*,
-badged *1, 270 L unlogged* (Jeff, 2026-10-01; it was *Missing at depot*): the figure is fuel
+badged *1, 826 L unlogged* (Jeff, 2026-10-01; it was *Missing at depot*): the figure is fuel
 the log does not hold, and *missing* claimed more than that. It never reads below zero: the
 opposite case, the pumps logging more than the tank fell, had its own label (*Over-logged
 fuel*, once *Extra fuel recorded*) and was set aside the same day as not needed for now, so it
@@ -2733,7 +2760,7 @@ fault*. Fuel lost after a truck drives off is the Trucks tab's, and says so:
 *Missing from trucks* on its summary card and filter chip, *Missing from truck* in
 a truck's panel. Both once read *Fuel missing*, which let the two stages pass for
 one figure; before that the depot's were *Fuel Out − Fuel Arrived*, *Fuel did not
-arrive* and *Check calibration*. The rail's status line reads `4 depots · 1
+arrive* and *Check calibration*. The rail's status line reads `4 depots · 2
 missing fuel · 1 sensor fault`.
 
 **Clicking a depot opens its own page**, `/fuel/depots/<id>` (Jeff, 2026-09-30).
@@ -2912,7 +2939,7 @@ when its card has a verdict. A chevron at the right of the *Depot tanks* row fol
 that list away and back; the row itself still opens the tab. The link
 for the tab showing is highlighted. *Truck log* scrolled to a section of the Trucks
 tab until it became a tab of its own (2026-09-30). A heading with a problem in the period carries a red (or
-amber) dot, and its status line (`4 depots · 1 missing fuel · 1 sensor fault`) is the
+amber) dot, and its status line (`4 depots · 2 missing fuel · 1 sensor fault`) is the
 heading's tooltip. Deliveries was a table under the depot tanks until 2026-09-30,
 when it became a tab of its own (`?view=deliveries`). An estate with no trucks
 shows the Depots group only.
