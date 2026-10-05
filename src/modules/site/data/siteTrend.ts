@@ -5,6 +5,8 @@ import {loadShape} from './load';
 import type {SiteSeed} from './siteSeed';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * The series behind the site page's diagnostics band — one quantity, over one
  * window, for one site.
  *

@@ -24,12 +24,12 @@ import {DeploymentSwitcher} from './DeploymentSwitcher';
  * answered before by opening each machine and reading dates off a calendar.
  * `Settings` amends or closes it.
  *
- * ## The way back is the yard
+ * ## No back link
  *
- * A job is at exactly one site, so the rail's back link is that site, which reuses
- * the machine rail's own way out. There is no back link to the register, because the
- * switcher above the rows is that: the register is one click from the header, and a
- * second door to it would be furniture.
+ * The rail had one to the job's site while there were site pages; they went on
+ * 2026-09-22. There is no back link to the register either, because the switcher
+ * above the rows is that: the register is one click from the header, and a second
+ * door to it would be furniture.
  */
 const navEntries = (deployment: Deployment): Array<DetailNavEntry> => {
   const params = {deploymentId: deployment.id};

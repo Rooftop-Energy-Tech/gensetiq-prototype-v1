@@ -26,15 +26,13 @@ import type {DeploymentRow} from '../data/feed';
  *
  * What is different follows from what a posting *is*:
  *
- *  - **a pin is a posting, not a place.** Two sets standing at one substation are two
- *    pins at one coordinate, because two machines is two lorries and two fuel bills.
- *    The map jitters nothing to separate them — the cluster bubble already says "more
+ *  - **a pin is a job, not a place**, sized by how many sets are on it. It was one pin
+ *    per posting (per machine) until a job became the record. The map jitters
+ *    nothing to separate two jobs at one yard — the cluster bubble already says "more
  *    than one here", and moving a pin off its yard to make it visible would put a
  *    machine somewhere it has never been.
- *  - **colour is the posting's state**, which is the whole of what a posting has:
- *    open in the live green this app uses for a running machine, closed in the muted
- *    grey it uses for a record. Those are the strip's own two chips, so the filter
- *    above the map and the colours on it agree.
+ *  - **colour is the job's state** — planned, active or completed — the same three
+ *    the Status filter offers, so the filter and the colours on the map agree.
  *  - **closed postings are drawn at all**, which is the call worth stating. A map of
  *    only what is out would be a smaller and cleaner map; it would also be unable to
  *    answer "have we had a set at Kapit before", which is the question a dispatcher
@@ -192,7 +190,7 @@ const POINT_RADIUS: maplibregl.ExpressionSpecification = [
   '*',
   ['case', ['get', 'selected'], 1.5, 1],
   // A third machine adds as much as a second, and a fourth would too: the growth is
-  // linear and capped by there being three sets at most on this fleet's jobs.
+  // linear, capped at four members. Seeded jobs never pass two.
   ['+', stateBase, ['*', 1.5, ['-', ['min', ['get', 'members'], 4], 1]]],
 ];
 

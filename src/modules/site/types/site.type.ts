@@ -8,9 +8,9 @@
  *
  * A site therefore owns exactly two things of its own: an identity (its name, and
  * what kind of load it carries) and the changeover that decides which of its sets
- * feeds that load. Everything else it reports — draw, fuel, condition — is
- * summed or ranked from its gensets, never stored, so a site cannot disagree with
- * the machines standing on it.
+ * feeds that load. Fuel and status are summed or ranked from its gensets, never
+ * stored, so a site cannot disagree with the machines standing on it. Draw
+ * (`loadKw`) is the exception: it is seeded per site (see `siteSeed.ts`).
  */
 
 import type {RunState} from '@/modules/genset/types/genset.type';
@@ -167,7 +167,7 @@ export type Site = {
  * `closed` is the isolator: whether this set is *connected* to the site bus.
  * `live` is whether it is pushing power through it. The two are separate because
  * a set can be closed onto a dead bus (connected, not turning) but never live
- * while open — which is exactly the invariant `switchStateOf` below encodes.
+ * while open — which is exactly the invariant `isolatorStateOf` below encodes.
  */
 export type SwitchState = {
   closed: boolean;
@@ -187,9 +187,8 @@ export type SwitchState = {
  * So being duty is necessary to be connected, and the run state decides the rest:
  *
  * - duty + `RUNNING` → closed and live: this is the set feeding the load.
- * - duty + `IDLE` → closed and dead: made up on a dead bus, which is what lets the
- *   controller pick up a mains failure in ten seconds rather than after somebody
- *   drives out.
+ * - duty + `IDLE` → open. It was closed onto a dead bus — the classic standby
+ *   position — until the rule changed; see the note inside the function.
  * - duty + `OFFLINE` → open. A set we cannot hear from must be drawn as *not*
  *   contributing — assuming a silent machine is carrying load is the one error on
  *   this page that could get somebody hurt.

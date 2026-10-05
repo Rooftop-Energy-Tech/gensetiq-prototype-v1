@@ -4,6 +4,12 @@ import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 /**
  * One alarm on the site's DC power plant monitoring unit.
  *
+ * ⚠️ **Counts in these notes are the firmware catalogue's**: fifty-eight rows in
+ * four categories (`SITE`, `GENSET`, `BATTERY`, `SOLAR`). The app ships twenty-one
+ * rows in two (`SITE`, `GENSET`): twelve site rows and nine per-phase AC rows,
+ * thirteen of them one-way. `SystemAlert`, the cabinet pages and the `SSUS` part's
+ * rows are gone too. The reasoning stands; read the numbers against that.
+ *
  * ## Why this is neither `GensetAlert` nor `SystemAlert`
  *
  * `GensetAlert` is a bit on a genset controller with a **threshold on a reading**
@@ -65,7 +71,10 @@ export type PlantAlarmCategory = (typeof PLANT_ALARM_CATEGORIES)[number];
 /**
  * How each category is written on a chip, a tag and a cross-reference.
  *
- * `SITE` reads **`Cabinet`**, and the gap between the id and the word is deliberate.
+ * `SITE` reads **`Site`** (`PLANT_ALARM_CATEGORY_LABEL`). From 2026-09-08 it read
+ * `Cabinet`, while the cabinet had pages of its own; the argument for that follows.
+ *
+ * The gap between the id and the word was deliberate.
  * The id is `SITE` because that is what these rows were called when the poll set was
  * written and what the source document still calls them, and renaming it would touch
  * every row of `plantAlarms.ts` to say the same thing. The word is `Cabinet` because
@@ -74,9 +83,8 @@ export type PlantAlarmCategory = (typeof PLANT_ALARM_CATEGORIES)[number];
  * load fuse in the distribution unit, the door, water and smoke sensors on the
  * enclosure, the rectifier shelf and the SSUs.
  *
- * It also has somewhere to point now. The cabinet is an asset with its own pages, so
- * a reader clicking `Cabinet 2` on the site's pooled tab lands on a page called
- * Subrack Cabinet; when the chip said `Site` it named the page it was already on.
+ * It had somewhere to point then: the cabinet was an asset with its own pages. Those
+ * went with the site pages, and the label went back to `Site`.
  */
 /**
  * Which part of the cabinet a `SITE` row is about — the third tier of filter.

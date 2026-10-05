@@ -162,8 +162,8 @@ const write = (next: Patch) => {
   } catch {
     /* Private mode: the change just won't survive a reload. */
   }
-  // Written through `read()` by `emit`, so a store that could not persist still
-  // shows the reader what they did for the rest of the session.
+  // Not re-read through `read()`: the patch is set directly, so a store that could
+  // not persist still shows the reader what they did for the rest of the session.
   patch = next;
   snapshot = applyPatch(next);
   for (const listener of listeners) listener();
@@ -268,7 +268,9 @@ const nowIso = () => new Date().toISOString();
  * The next reference in the register's own series.
  *
  * Highest seeded number plus one, so a reader's job reads as the next one in the
- * book rather than as `DEP-LOCAL-3`.
+ * book rather than as `DEP-LOCAL-3`. Only meaningful on an estate without `WORK`:
+ * where the seeded references are ERQ/PRQ request numbers, their digits are read as
+ * if they were `DEP-` numbers.
  */
 export const nextReference = (): string => {
   const numbers = current().deployments

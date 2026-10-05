@@ -13,6 +13,8 @@ import type {SiteFeed, SiteSummary} from './sites';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * What is standing at a site and what each thing is putting into the bus.
  *
  * ## Why this is data and not a drawing

@@ -1,6 +1,8 @@
 import {cn} from '@/lib/utils';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * The share table, straightened into a bar — a doughnut chart uncurled.
  *
  * One horizontal track spanning 0–100%, cut into segments sized by each source's

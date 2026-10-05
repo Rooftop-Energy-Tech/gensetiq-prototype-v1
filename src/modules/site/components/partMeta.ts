@@ -27,7 +27,8 @@ import type {CabinetPart} from '../types/plantAlarm.type';
  *   and this is *the terminals it lands on*, and the two rows that matter here are a
  *   spent arrester and a dropped phase, both of which happen at the terminals.
  * - **Enclosure** is a container, because that is what it is. Deliberately not
- *   `ServerIcon` — that is `Cabinet`, the chip these five sit under, and giving a
+ *   `ServerIcon` — that was `Cabinet`, the chip these sat under (it is `Site` with a
+ *   `RadioTowerIcon` now), and giving a
  *   part the same mark as its parent would say the enclosure *is* the cabinet when it
  *   is one of five things in it. Deliberately not a door either: the door is one of
  *   its three rows and the other two are water and smoke.

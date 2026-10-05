@@ -29,8 +29,8 @@ import type {DeploymentRow} from '../../data/feed';
  * reads as a quiet fortnight.
  *
  * A monitoring-unit register is keyed on the **site** rather than on a machine, so
- * those rows are the yard's rather than this job's and are left out here. The site's
- * own Alarms tab is where they belong, and it is a click away up the rail.
+ * those rows are the yard's rather than this job's and are left out here. They show
+ * on each machine's own Alarms tab instead; the site's tab that held them is gone.
  */
 export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) => {
   const queue = useSiteAlarmQueue(row.deployment.siteId, now);

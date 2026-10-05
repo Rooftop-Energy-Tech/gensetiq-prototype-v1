@@ -42,7 +42,7 @@ export type DeploymentBooking = {
   locationLabel: string;
   /** ISO 8601. May be in the future, which is what `planned` means. */
   startsAt: string;
-  /** ISO 8601, or `null` while the job is open. */
+  /** ISO 8601, or `null` for a job with no agreed end. An active job usually has one. */
   endsAt: string | null;
 };
 

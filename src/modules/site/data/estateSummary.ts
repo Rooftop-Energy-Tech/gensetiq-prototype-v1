@@ -9,6 +9,8 @@ import {SITE_POWER_ROLE_LABEL, SITE_POWER_ROLES} from '../types/site.type';
 import type {SitePowerRole} from '../types/site.type';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * What the cards above the sites list count — the estate's answer to
  * `fleetSummary`, and the same three groupings read one level up.
  *

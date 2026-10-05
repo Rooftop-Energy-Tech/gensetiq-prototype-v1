@@ -45,8 +45,8 @@ export const DeploymentHome = ({row, now}: {row: DeploymentRow; now: number}) =>
    *
    * The site's own queue rather than a second derivation of it: one handling store,
    * one set of rows, so clearing an alarm here clears it on the machine's page and
-   * on the site's. Only meaningful while the job is standing, which is why the strip
-   * that shows it is only drawn then.
+   * on the site's. The strip draws it for active and completed jobs alike, with no
+   * time window — unlike the Alarms tab, which keeps only alarms raised during the job.
    */
   const queue = useSiteAlarmQueue(row.deployment.siteId, now);
   const counts = countBySeverity(

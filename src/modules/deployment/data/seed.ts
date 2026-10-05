@@ -60,8 +60,8 @@ const locationOf = (siteId: string): string =>
 /**
  * How often a job takes a second set: about one in seven (2026-09-29). A job is one
  * machine as a rule, two on the odd large load, and never three — Express Mission's
- * own record. The present's live jobs follow from `utility.ts`, where five yards of
- * thirty-two hold a pair; this deals the past and the planned ones to match.
+ * own record. The present's live jobs follow from `utility.ts`, where six yards of
+ * thirty-one hold a pair; this deals the past and the planned ones to match.
  */
 const PAIR_SHARE = 0.15;
 

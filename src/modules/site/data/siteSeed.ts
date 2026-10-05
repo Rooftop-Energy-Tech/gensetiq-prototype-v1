@@ -6,7 +6,8 @@ import {siteOverrides} from './siteOverrides';
 import type {SiteOverrides} from './siteOverrides';
 
 /**
- * The twenty-five sites, as **given facts about places**.
+ * The estate's sites (twenty-five on the carrier's, thirty-eight on Express
+ * Mission's), as **given facts about places**.
  *
  * The rows themselves live in `brands/datasets/*.ts` — a carrier's tower network
  * on one, a utility's injection points on the other — and this file is the view
@@ -85,20 +86,15 @@ export type SiteSeed = {
    *
    * Seeded here and nowhere else: a genset takes its division from the site it
    * stands at, so there is one statement of the fact and detaching a set leaves it
-   * with no division rather than with a stale one. The division also carries the
-   * peak sun hours every solar figure at this site is built from. See
-   * `customers.ts`.
+   * with no division rather than with a stale one. See `customers.ts`.
    */
   customer: CustomerId;
   /**
    * How this site is powered, as a **given about the place** — see `SitePowerRole`.
    *
-   * Each estate is deliberately a **mix**, because that is what a real one is and
-   * because a demo of hybrid plant is worth nothing without the sites it is being
-   * compared against. Grid-backed sites are the town and city ones. The off-grid
-   * sites split three ways: the ones still on diesel prime, the ones converted to
-   * diesel hybrid, and the ones that got an array as well. A reader filtering the
-   * sites list by configuration is reading the conversion programme's progress.
+   * Two roles today: `GRID_BACKUP` (the town and city sites) and `DIESEL_PRIME`
+   * (off-grid). There were four, with diesel and solar hybrids, until the hybrid
+   * plant was removed; those sites are `DIESEL_PRIME` now.
    *
    * Their gensets' activity feeds still read "started on utility outage", because
    * those feeds are the *machines'* history and this setting does not rewrite it.
@@ -129,8 +125,8 @@ export type SiteSeed = {
  * dataset file can be read without importing the site module, and it is asserted
  * back to `SitePowerRole` here. `assertDatasetIntegrity` cannot check it — the
  * roles are the product's vocabulary and the dataset layer does not know them — so
- * a dataset inventing a fifth role would reach the diagram and draw no sources
- * above the bus. The four names are in `SITE_POWER_ROLES`; use those.
+ * a dataset inventing a third role would pass through unchecked. The two names are
+ * in `SITE_POWER_ROLES`; use those.
  */
 export const DATASET_SITE_SEED: ReadonlyArray<SiteSeed> = DATASET.sites.map((site) => ({
   ...site,
@@ -177,8 +173,8 @@ const patched = (seed: SiteSeed, overrides: SiteOverrides): SiteSeed => {
  * Memoised on the override snapshot's identity, which is stable between writes.
  *
  * Not decoration: `sites.ts` keys its whole summary cache on the identity of what
- * this returns, and half a dozen estate-wide figures in `hybrid.ts` map over it on
- * every render. A fresh array per call would rebuild twenty-five summaries each
+ * this returns, and the estate-wide figures map over it on every render. A fresh
+ * array per call would rebuild every site's summary each
  * time and hand `useSyncExternalStore` a new snapshot forever.
  */
 let cache: {overrides: SiteOverrides; seeds: ReadonlyArray<SiteSeed>} | undefined;

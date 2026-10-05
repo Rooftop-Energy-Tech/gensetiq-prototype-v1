@@ -4,6 +4,10 @@ import type {PlantAlarmCategory} from '../types/plantAlarm.type';
 /**
  * **A demo fixture, and nothing more.** It is not a claim about any device.
  *
+ * ⚠️ Written for the array, bank and cabinet pages, which are gone, and for the
+ * `SOLAR` and `BATTERY` categories, which are too. Only the `SITE` entry still does
+ * anything — see its note.
+ *
  * ## What it is for
  *
  * The part cards — junction boxes on the array page, modules on the bank page — mark a
@@ -100,6 +104,11 @@ type DemoShowcase = {
 const DEMO_RANKS: Partial<Record<PlantAlarmCategory, DemoShowcase>> = {
 
   /**
+   * ⚠️ **Only `DC Overvoltage Alarm` shows today.** `SSU 1 Fault` and `SSU Lost` were
+   * removed with the solar rows, and `assertedPlantAlarms` skips a label it cannot
+   * find. The note below is from when all three existed; at a grid-backed site the six
+   * AC voltage rows are `MI` too, so "the only `MI` row" no longer holds either.
+   *
    * **The cabinet's three are real, and that is why they are these three.**
    *
    * Nothing here is a rerank. The `SITE` catalogue already publishes a row at every rank,

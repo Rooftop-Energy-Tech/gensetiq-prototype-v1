@@ -132,10 +132,6 @@ const notes = (deployment: DeploymentBooking): Array<DeploymentNote> => {
 };
 
 /**
- * A job type and a full crew, one name per role, on an estate that has them. The
- * seeded references stay `DEP-…`: they predate the request numbers.
- */
-/**
  * How many seeded jobs may be standby (2026-10-01): standby cover is the exception at
  * Express Mission, and a third of the register on it read wrong.
  */

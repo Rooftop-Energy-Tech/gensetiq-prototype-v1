@@ -35,7 +35,7 @@ import {DEPLOYMENT_STATE_META} from './stateMeta';
  */
 
 /**
- * The four orderings, worded as the *answer* rather than the field — the registers'
+ * The orderings, worded as the *answer* rather than the field — the registers'
  * rule, because a reader choosing a sort is choosing what they want at the top.
  */
 const DEPLOYMENT_SORT_OPTIONS: ReadonlyArray<SortOption<DeploymentSort>> = [

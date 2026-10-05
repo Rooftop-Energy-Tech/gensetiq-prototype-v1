@@ -81,8 +81,8 @@ type DeploymentPageProps = {
  * ## Filters, cards and search follow the Gensets page
  *
  * The same controls in the same places: a plate search (plus the job reference),
- * State and Status dropdowns with faceted counts, a `Filtered by:` chip row with
- * `Clear all`, four summary cards, and a map whose state click filters the list.
+ * State, Status and Job type dropdowns with faceted counts, a `Filtered by:` chip
+ * row with `Clear all`, three summary cards, and a map whose state click filters the list.
  * The state is read off the yard's position (`stateNameAt`) and travels as
  * `?location=`, the Gensets page's param, so one state reads the same on both. See
  * `DeploymentsSummaryCards` for what the cards count.

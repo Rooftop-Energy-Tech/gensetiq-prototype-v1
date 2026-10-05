@@ -682,7 +682,7 @@ export const NewDeploymentButton = () => {
         }}
       >
         <DialogContent
-          // One height for all three pages, so the buttons stay put; a long page scrolls.
+          // One height for all four pages, so the buttons stay put; a long page scrolls.
           className="h-[min(780px,90vh)] max-w-[672px] gap-5"
           // Start in the first field. Radix would focus the first (i), which opens its
           // tooltip and makes the first Escape close that instead of the dialog.

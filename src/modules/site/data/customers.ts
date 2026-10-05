@@ -31,15 +31,13 @@ import type {BrandCustomer, CustomerId} from '@/brands';
  * but the way an operations team reads its own patch. On the carrier estate that is
  * **Sabah and Sarawak first**, because twenty-one of the twenty-five sites are
  * there and the four peninsular regions are the baseline they are read against; on
- * the utility estate it is west coast, the northern tip, the interior, then down
- * the east coast.
+ * the utility estate it is the order its states are listed in (Kuala Lumpur,
+ * Selangor, Perak, Pulau Pinang, Johor, Negeri Sembilan, Pahang, Kedah, Perlis).
  *
- * ## Why the sun hours live on the division
+ * ## The sun hours that used to live here
  *
- * `peakSunHours` is a **regional** fact, not a site one, and putting it on each
- * site would be twenty-five copies of six numbers waiting to disagree. It is the
- * only input the solar figures on every hybrid site are built from, so it is
- * stated once.
+ * `peakSunHours` was a **regional** fact on each division, the only input the solar
+ * figures were built from. It went with the solar model.
  *
  * These are mock divisions on mock sites, the same standing as every other figure
  * in this prototype.
@@ -52,13 +50,13 @@ export const CUSTOMERS: ReadonlyArray<Customer> = DATASET.customers;
 
 /**
  * How this estate's divisions are named in a card heading — "By region" on a
- * carrier's network, "By zone" on a utility's. Read from the dataset so the three
+ * carrier's network, "By state" on Express Mission's. Read from the dataset so the three
  * summary cards that show it do not each have to know which brand is loaded.
  */
 export const CUSTOMER_GROUPING_LABEL: string = DATASET.groupingLabel;
 
 /**
- * The same word on its own — `Region`, `Zone` — for a field label or a chip.
+ * The same word on its own — `Region`, `State` — for a field label or a chip.
  *
  * Derived from the card heading rather than declared beside it, so a dataset states
  * the vocabulary once and the two can never drift into calling the same thing by
@@ -80,7 +78,7 @@ const BY_ID: Record<CustomerId, Customer> = Object.fromEntries(
  * Throws on an unknown id rather than returning `undefined`. Every caller reached
  * here from a seed row that `assertDatasetIntegrity` already validated, so an
  * unknown id means the dataset changed underneath the app — and the alternative is
- * `NaN` peak sun hours propagating silently into every solar figure on the page.
+ * a division that reads as `undefined` in every chip and card that names it.
  */
 export const customer = (id: CustomerId): Customer => {
   const found = BY_ID[id];

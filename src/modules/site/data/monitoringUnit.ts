@@ -1,6 +1,12 @@
 /**
  * The sites with a monitoring unit on them, and what it is wired to.
  *
+ * ⚠️ **Much of this header predates 2026-09-22.** The cabinet, solar and battery
+ * pages, `hybrid.ts`, `shelf.ts`, `banks.ts`, `systems.ts` and `PlantAlarmCatalogue`
+ * are gone, and the four sites are no longer solar hybrids. `alarmRows` is now the
+ * firmware poll table's alarm count; the app files twenty-one rows at every unit
+ * (`plantAlarms.ts`). The survey-versus-assertion warning below still holds.
+ *
  * ## ⚠️ One of these four records is a survey. Three are assertions.
  *
  * Read this before trusting any number below.
@@ -75,7 +81,8 @@ export type MonitoringUnit = {
   /** Entries in the poll table, and how many Modbus registers that is. */
   pollEntries: number;
   pollRegisters: number;
-  /** How many of those entries are alarms, and how many are readings. */
+  /** How many of those entries are alarms, and how many are readings — the poll
+   * table's counts, not what `plantAlarms` files. */
   alarmRows: number;
   telemetryRows: number;
   /**
@@ -154,14 +161,12 @@ const UNITS: Readonly<Record<string, MonitoringUnit>> = {
     ssuKw: 4.013,
   },
 
-  /* The three below are **asserted, not surveyed** — see "The other three" above.
+  /* The three below are **asserted, not surveyed** — see the header above.
      Every field is the SBH-1336 record's, except the four that are each site's own:
      the gateway id, the two module counts `sizedShelf` had been modelling, and a
      battery module count divided out of that site's own bank at SBH-1336's 7.15 kWh
-     per module. `alarmRows` is the count `plantAlarms` actually generates for those
-     counts, because `PlantAlarmCatalogue` prints "N of the alarmRows alarms in its
-     poll table" and a stated total that disagreed with the generated one would have
-     the page contradict itself in a sentence. */
+     per module. `alarmRows` was set to what `plantAlarms` generated for those counts
+     while the solar and battery rows existed; see the header for what it is now. */
   'sbh-1495': {
     deviceName: 'Huawei SMU02C',
     slaveId: 33,

@@ -11,6 +11,8 @@ import type {SiteTrend} from '../data/siteTrend';
 import {ShareBar} from './ShareBar';
 
 /**
+ * Unused since the site pages were removed (2026-09-22); kept on purpose.
+ *
  * The diagnostics band's chart: one series, drawn the way that series deserves.
  *
  * ## Why one component draws two shapes
