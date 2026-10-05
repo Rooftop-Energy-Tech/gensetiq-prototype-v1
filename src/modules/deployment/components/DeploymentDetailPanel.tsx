@@ -128,7 +128,7 @@ export const DeploymentDetailPanel = ({
           const meta = DEPLOYMENT_STATE_META[row.state];
           const Icon = meta.icon;
           return (
-            <Badge variant="element" className="border-subtle">
+            <Badge variant="element">
               <Icon className={meta.iconClassName} aria-hidden="true" />
               {meta.label}
               {' · '}
@@ -213,11 +213,11 @@ export const DeploymentDetailPanel = ({
               </DetailRow>
               {/* One line per machine, in the plates' order above, so a pair reads
                   across: the first plate's rating is the first line. */}
-              <DetailRow label="Capacity" wrap>
+              <DetailRow label="Rating" wrap>
                 <ul className="flex flex-1 flex-col gap-1">
                   {row.members.map((member) => (
                     <li key={member.membership.id} className="text-primary tabular-nums">
-                      {member.model === '' ? '—' : `${modelKva(member.model).toLocaleString('en-MY')} kVA`}
+                      {member.model === '' ? '—' : amount(modelKva(member.model), 'kVA')}
                     </li>
                   ))}
                 </ul>
@@ -234,7 +234,7 @@ export const DeploymentDetailPanel = ({
             <h3 className="font-medium text-primary">Summary</h3>
 
             <dl className="flex flex-col">
-              <DetailRow label="Running hours">{amount(row.totals.runtimeHours, 'hrs')}</DetailRow>
+              <DetailRow label="Run hours">{amount(row.totals.runtimeHours, 'h')}</DetailRow>
               <DetailRow label="Energy produced">{amount(row.totals.energyKwh, 'kWh')}</DetailRow>
               <DetailRow label="Fuel burned">{amount(row.totals.fuelBurnedLitres, 'L')}</DetailRow>
               {/* `Fuel delivered` left the panel on 2026-09-29: without the tank's own

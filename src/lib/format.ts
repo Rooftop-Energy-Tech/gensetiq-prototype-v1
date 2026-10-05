@@ -29,10 +29,26 @@ export const relativeTime = (iso: string, now: number = Date.now()): string => {
 };
 
 
-/** "1763L (72%)" — litres remaining plus the percentage of tank capacity. */
+/**
+ * "164, 158" — every figure the app puts on screen, a comma and a space between each
+ * group of three (Jeff, 2026-10-01 for Fuel; app-wide 2026-10-05). A negative takes
+ * the true minus sign, `−12`, not the hyphen `toLocaleString` writes.
+ *
+ * `precision` fixes the decimals when given — a chart tick at `0.5` steps must read
+ * `1.0`, not `1` — and leaves the locale's default (up to three) when not. Display
+ * only: a CSV or an input's value keeps the plain machine number.
+ */
+export const figure = (value: number, precision?: number): string => {
+  const digits = precision === undefined ? {} : {minimumFractionDigits: precision, maximumFractionDigits: precision};
+  const text = Math.abs(value).toLocaleString('en-MY', digits).replace(/,/g, ', ');
+  // A value that rounds to zero is "0", not "−0".
+  return value < 0 && /[1-9]/.test(text) ? `\u2212${text}` : text;
+};
+
+/** "1, 763 L (72%)" — litres remaining plus the percentage of tank capacity. */
 export const fuelLevel = (litres: number, capacityLitres: number): string => {
   const percent = capacityLitres > 0 ? Math.round((litres / capacityLitres) * 100) : 0;
-  return `${Math.round(litres).toLocaleString('en-MY')}L (${percent}%)`;
+  return `${figure(Math.round(litres))} L (${percent}%)`;
 };
 
 /** Fraction of tank remaining, clamped to 0–1 for use as a bar width. */
@@ -42,16 +58,16 @@ export const fuelFraction = (litres: number, capacityLitres: number): number => 
 };
 
 /**
- * "1,763 L  |  72%" — the fuel headline on the genset home page.
+ * "1, 763 L  |  72%" — the fuel headline on the genset home page.
  *
  * Deliberately not `fuelLevel()` above: that one is a table cell and reads
- * "1763L (72%)" to stay narrow. This one is a 16px figure with room to breathe,
+ * "1, 763 L (72%)" to stay narrow. This one is a 16px figure with room to breathe,
  * and the design separates the two halves with a spaced pipe rather than
  * parentheses because neither number is subordinate to the other.
  */
 export const fuelHeadline = (litres: number, capacityLitres: number): string => {
   const percent = capacityLitres > 0 ? Math.round((litres / capacityLitres) * 100) : 0;
-  return `${Math.round(litres).toLocaleString('en-MY')} L  |  ${percent}%`;
+  return `${figure(Math.round(litres))} L  |  ${percent}%`;
 };
 
 const MONTHS = [
@@ -112,6 +128,12 @@ export const dayMonth = (at: number | string): string => {
   const day = new Date(at);
   return `${day.getDate()} ${MONTHS[day.getMonth()]}`;
 };
+
+/**
+ * "Sep" — a month on its own, e.g. a bar under a twelve-month chart. The fixed table
+ * rather than `toLocaleDateString`, which writes "Sept" in `en-MY` (2026-10-05).
+ */
+export const monthShort = (at: number | string): string => MONTHS[new Date(at).getMonth()];
 
 /** "02/09/2026" — the day half of a run stamp, for a card that sets the time above it. */
 export const stampDay = (iso: string): string => numericDate(iso);
@@ -191,8 +213,8 @@ export const durationCompact = (milliseconds: number): string => {
  * significant figures cannot place the fourth hour of the seventh day.
  *
  * The unit is not a house style, it is a property of the set. A 400 L tank on a
- * 500 kVa machine is tens of hours and reads naturally in hours; the same figure
- * on a 1,000 L bulk tank feeding a 30 kVa set is a week and a half, and "247
+ * 500 kVA machine is tens of hours and reads naturally in hours; the same figure
+ * on a 1,000 L bulk tank feeding a 30 kVA set is a week and a half, and "247
  * hours" is a number a reader has to divide before it means anything. The
  * threshold is two days, which is the point past which nobody plans in hours.
  */
@@ -210,7 +232,7 @@ export const runtimeSpan = (hours: number): string => {
 };
 
 /**
- * A telemetry value with its unit — "1,763 L", "24.2 L/hr", "0.94".
+ * A telemetry value with its unit — "1, 763 L", "24.2 L/hr", "0.94", "−3 L".
  *
  * `precision` is carried on the reading rather than inferred from the value:
  * 24.0 L/hr must still render as "24.0", or a rate that happens to land on a
@@ -218,13 +240,10 @@ export const runtimeSpan = (hours: number): string => {
  * neighbours in the same list.
  */
 export const amount = (value: number, unit: string, precision = 0): string => {
-  const figure = value.toLocaleString('en-MY', {
-    minimumFractionDigits: precision,
-    maximumFractionDigits: precision,
-  });
+  const text = figure(value, precision);
 
-  if (unit === '') return figure;
+  if (unit === '') return text;
   // Percent is the exception to the space: "89%", not "89 %". SI units take a
   // thin gap by convention and `%` does not — it reads as a typo.
-  return unit === '%' ? `${figure}%` : `${figure} ${unit}`;
+  return unit === '%' ? `${text}%` : `${text} ${unit}`;
 };

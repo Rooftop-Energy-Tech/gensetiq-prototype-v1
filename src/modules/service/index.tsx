@@ -23,7 +23,7 @@ import {FilterCard, SummaryCardRow} from '@/components/global/SummaryCards';
 import type {ChipTone} from '@/components/global/SummaryCards';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
-import {stampDate} from '@/lib/format';
+import {figure, stampDate} from '@/lib/format';
 import {useIsCompact} from '@/lib/useIsCompact';
 import {cn} from '@/lib/utils';
 import {useFleet} from '@/modules/genset/data/deployment';
@@ -97,12 +97,12 @@ const CounterCell = ({counter}: {counter: ServiceCounter | undefined}) => {
   const fraction = counter.interval > 0 ? counter.elapsed / counter.interval : 0;
   const severity = SERVICE_SEVERITY_META[counter.severity];
   const elapsed =
-    counter.kind === 'hours' ? Math.round(counter.elapsed).toLocaleString('en-MY') : counter.elapsed.toFixed(1);
+    counter.kind === 'hours' ? figure(Math.round(counter.elapsed)) : counter.elapsed.toFixed(1);
   const unit = counter.kind === 'hours' ? 'h' : 'mo';
   return (
     <div className="flex w-28 flex-col gap-1">
       <span className="text-primary tabular-nums">
-        {elapsed} <span className="text-secondary">/ {counter.interval.toLocaleString('en-MY')} {unit}</span>
+        {elapsed} <span className="text-secondary">/ {figure(counter.interval)} {unit}</span>
       </span>
       <span className="h-1.5 w-full overflow-hidden rounded-full bg-tertiary/30" aria-hidden="true">
         <span
@@ -156,7 +156,7 @@ const DUE_COLUMNS = [
   {label: 'State', sort: 'location'},
   {label: 'Status', sort: 'standing'},
   {label: 'Next due', sort: 'due'},
-  {label: 'Running hours', sort: 'hours'},
+  {label: 'Run hours', sort: 'hours'},
   {label: 'Time', sort: 'time'},
   {label: 'Last service', sort: 'last'},
 ] as const satisfies ReadonlyArray<{label: string; sort: ServiceSort}>;
@@ -371,7 +371,7 @@ const IntervalBar = ({counter}: {counter: ServiceCounter}) => {
 
 const counterText = (counter: ServiceCounter): string =>
   counter.kind === 'hours'
-    ? `${Math.round(counter.elapsed).toLocaleString('en-MY')} / ${counter.interval.toLocaleString('en-MY')} h`
+    ? `${figure(Math.round(counter.elapsed))} / ${figure(counter.interval)} h`
     : `${counter.elapsed.toFixed(1)} / ${counter.interval} mo`;
 
 /**
@@ -392,17 +392,17 @@ const DueCards = ({rows}: {rows: Array<FleetServiceRow>}) => (
         status.kind === 'never-serviced'
           ? 'border-subtle'
           : status.severity === 'OVERDUE'
-            ? 'border-severity-critical/45'
+            ? 'border-severity-critical/40'
             : status.severity === 'DUE_SOON'
-              ? 'border-severity-warning/45'
+              ? 'border-severity-warning/40'
               : 'border-subtle';
       return (
-        <li key={genset.id} className={cn('flex flex-col gap-2.5 rounded-lg border bg-element p-3 text-sm', tone)}>
+        <li key={genset.id} className={cn('flex flex-col gap-2.5 rounded-md border bg-element px-3 py-3 text-sm', tone)}>
           <div className="flex items-center justify-between gap-2">
             <Link
               to="/gensets/$gensetId/service"
               params={{gensetId: genset.id}}
-              className="text-[15px] font-semibold text-primary underline-offset-4 hover:underline"
+              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
               {gensetLabel(genset)}
             </Link>
@@ -435,7 +435,7 @@ const DueCards = ({rows}: {rows: Array<FleetServiceRow>}) => (
               {[status.hours, status.calendar].map((counter) => (
                 <div key={counter.kind} className="flex flex-col gap-1.5">
                   <span className="text-xs text-secondary">
-                    {counter.kind === 'hours' ? 'Running hours' : 'Time'}{' '}
+                    {counter.kind === 'hours' ? 'Run hours' : 'Time'}{' '}
                     <span className="text-primary tabular-nums">{counterText(counter)}</span>
                   </span>
                   <IntervalBar counter={counter} />
@@ -489,7 +489,7 @@ const HistoryRows = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<
               <span className="text-secondary">· {stampDate(record.performedAt)}</span>
             </span>
             <span className="truncate text-xs text-secondary">
-              {record.technicianName} · {serviceSiteLabel(record.siteId)} · {record.engineHoursAtService.toLocaleString('en-MY')} h
+              {record.technicianName} · {serviceSiteLabel(record.siteId)} · {figure(record.engineHoursAtService)} h
             </span>
           </div>
           {record.document.url === null ? (
@@ -521,9 +521,9 @@ const HistoryTable = ({records, byId}: {records: Array<ServiceRecord>; byId: Map
         <Th>Date</Th>
         <Th>Number plate</Th>
         <Th>State</Th>
-        <Th>Site</Th>
+        <Th>Location</Th>
         <Th>Technician</Th>
-        <Th align="right">Engine hours</Th>
+        <Th align="right">Run hours at service</Th>
         <Th>Report</Th>
       </tr>
     </thead>
@@ -550,7 +550,7 @@ const HistoryTable = ({records, byId}: {records: Array<ServiceRecord>; byId: Map
             <td className={cn(CELL, 'border-b border-subtle text-primary')}>{serviceSiteLabel(record.siteId)}</td>
             <td className={cn(CELL, 'border-b border-subtle text-primary')}>{record.technicianName}</td>
             <td className={cn(CELL, 'border-b border-subtle text-right text-primary tabular-nums')}>
-              {record.engineHoursAtService.toLocaleString('en-MY')} h
+              {figure(record.engineHoursAtService)} h
             </td>
             <td className={cn(CELL, 'border-b border-subtle')}>
               <ReportLink record={record} />
@@ -790,7 +790,8 @@ export const ServicePage = ({
       {tab === 'due' && compact && (
         // Three across at phone width, label and count only: the explanation lines
         // are what made them cards on a desktop, and here they would push the list
-        // below the fold.
+        // below the fold. The label and figure are `SummaryCardLabel`'s and
+        // `Headline`'s, so the strip reads as the same cards made narrow (2026-10-05).
         <div className="grid grid-cols-3 gap-2">
           {CARD_STANDINGS.map((key) => (
             <button
@@ -804,11 +805,11 @@ export const ServicePage = ({
                 standing === key ? 'border-strong bg-highlight' : 'border-subtle bg-element',
               )}
             >
-              <span className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-secondary uppercase">
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold tracking-wide text-primary uppercase">
                 <span className={cn('size-1.5 shrink-0 rounded-full', STANDING_DOT[key])} aria-hidden="true" />
                 {STANDING_META[key].label}
               </span>
-              <span className="text-xl leading-none font-semibold text-primary tabular-nums">{counts[key]}</span>
+              <span className="text-2xl leading-none font-semibold text-primary tabular-nums">{figure(counts[key])}</span>
             </button>
           ))}
         </div>
@@ -834,7 +835,7 @@ export const ServicePage = ({
       {/* `N of 38 gensets` came off the Due tab on 2026-09-30: the cards above count
           the fleet and the pager under the table counts the rows. */}
       {tab === 'history' && (
-        <p className="text-sm text-secondary">{`${shown} ${shown === 1 ? 'service' : 'services'} on record`}</p>
+        <p className="text-sm text-secondary">{`${figure(shown)} ${shown === 1 ? 'service' : 'services'} on record`}</p>
       )}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">

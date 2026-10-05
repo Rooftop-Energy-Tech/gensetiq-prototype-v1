@@ -124,10 +124,11 @@ export const GensetRuns = ({
       referenceFor={(run) => postingFor(run)?.deployment.reference}
       // **A genset turned on anywhere but the yard is a deployment.** So a run with
       // a posting names that posting's yard, and a run with none was turning at
-      // home — a test or a service run, nobody's hire. Saying `Express Mission
-      // yard` rather than leaving it blank is what makes the em dash in the
-      // Deployment column a statement instead of a gap.
-      locationFor={(run) => postingFor(run)?.deployment.locationLabel ?? 'Express Mission yard'}
+      // home — a test or a service run, nobody's hire. Saying `Depot` rather than
+      // leaving it blank is what makes the em dash in the Deployment column a
+      // statement instead of a gap. Brand-neutral since 2026-10-05: it named one
+      // customer's yard on every brand's build.
+      locationFor={(run) => postingFor(run)?.deployment.locationLabel ?? 'Depot'}
       postingContext={
         <PostingContext
           posting={posting}

@@ -90,7 +90,7 @@ export const FleetTanks = () => {
         <p className="text-xs text-secondary">
           {needing.length === 0
             ? 'Every tank above its reserve line'
-            : `${needing.length} of ${rows.length} below reserve · ${figure(Math.round(litresToFill))} L to fill them`}
+            : `${figure(needing.length)} of ${figure(rows.length)} below reserve · ${figure(Math.round(litresToFill))} L to fill them`}
         </p>
       </header>
 

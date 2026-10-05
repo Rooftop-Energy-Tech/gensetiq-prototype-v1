@@ -1,4 +1,4 @@
-import {amount} from '@/lib/format';
+import {amount, figure} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {DialReading} from '../../types/telemetry.type';
 
@@ -104,7 +104,7 @@ export const TickGauge = ({
     <div className={cn('flex flex-col items-center gap-[3px]', scale.track)}>
       <div className="flex w-full items-end justify-center gap-[5px]">
         <span className="w-7 shrink-0 pb-3 text-right text-[10px] font-medium text-secondary">
-          {reading.min.toLocaleString('en-MY')}
+          {figure(reading.min)}
         </span>
 
         <div className={cn('relative shrink-0', scale.dial)}>
@@ -146,7 +146,7 @@ export const TickGauge = ({
         </div>
 
         <span className="w-7 shrink-0 pb-3 text-[10px] font-medium text-secondary">
-          {reading.max.toLocaleString('en-MY')}
+          {figure(reading.max)}
         </span>
       </div>
 

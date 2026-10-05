@@ -60,7 +60,7 @@ type GensetsTableProps = {
  * also carry the row rule and the selection tint across the gap.
  *
  * Three arrangements came first. Percentages weighted towards the plate, from when a
- * plate cell carried `BRF9540 | Cummins 1000 kVa`, left uneven gaps. Equal
+ * plate cell carried `BRF9540 | Cummins 1000 kVA`, left uneven gaps. Equal
  * percentages broke the text: at a fifth of the split view `Negeri Sembilan`
  * truncated, and at a seventh of the full list more than half the `Location` cells
  * did. Content-width columns with all the slack in one last column made the gaps

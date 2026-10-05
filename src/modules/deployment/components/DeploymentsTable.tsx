@@ -353,7 +353,7 @@ export const DeploymentsTable = ({
                       ) : (
                         // Hours alone: the start count under it was taken off on
                         // 2026-09-29 — a job is judged by how long it ran, not how often.
-                        amount(row.totals.runtimeHours, 'hrs')
+                        amount(row.totals.runtimeHours, 'h')
                       )}
                     </td>
 

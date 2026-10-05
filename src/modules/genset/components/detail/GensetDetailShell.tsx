@@ -49,7 +49,8 @@ const NAV_ENTRIES = (gensetId: string): Array<DetailNavEntry> => {
     // see `deployment.type.ts` on why both exist.
     {label: 'Service', icon: WrenchIcon, to: '/gensets/$gensetId/service', params},
     {label: 'Alarms', icon: BellIcon, to: '/gensets/$gensetId/alarms', params},
-    {label: 'Devices', icon: CircuitBoardIcon, to: '/gensets/$gensetId/equipment', params},
+    // `Equipment`, the page's own title; the design's rail says `Devices` (2026-10-05).
+    {label: 'Equipment', icon: CircuitBoardIcon, to: '/gensets/$gensetId/equipment', params},
     {label: 'Settings', icon: SettingsIcon, to: '/gensets/$gensetId/settings', params},
   ];
 };
@@ -123,7 +124,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
                       {stampDate(posting.deployment.startsAt)}
                     </span>
                   )}
-                  <span>Telemetry · {relativeTime(genset.lastUpdated)}</span>
+                  <span>Last updated · {relativeTime(genset.lastUpdated)}</span>
                 </TooltipContent>
               </Tooltip>
             }
@@ -144,7 +145,7 @@ export const GensetDetailShell = ({genset}: {genset: Genset}) => {
             the page, so it belongs on all eight tabs rather than on the one; a
             reader on Runs or Alarms could not see it at all before. */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-4 pb-2">
-          <h1 className="min-w-0 truncate text-base font-semibold text-primary">
+          <h1 className="min-w-0 truncate text-xl font-semibold text-primary">
             {gensetName(genset)}
           </h1>
           <RunStateSummary

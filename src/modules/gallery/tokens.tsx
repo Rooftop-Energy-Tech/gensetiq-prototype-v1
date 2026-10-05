@@ -95,9 +95,11 @@ const TokenRow = ({
 const Swatch = ({value, mode}: {value: string; mode: ColorMode}) => (
   <span
     title={`${mode}: ${value}`}
-    className="size-9 bg-[length:8px_8px] bg-[position:0_0,4px_4px]"
+    className="size-9 bg-overlay bg-[length:8px_8px] bg-[position:0_0,4px_4px]"
     style={{
-      backgroundImage: `linear-gradient(${value}, ${value}), repeating-conic-gradient(#d4d4d8 0% 25%, #fafafa 0% 50%)`,
+      // The dark squares are the `strong` border over the `overlay` ground, so the
+      // board is drawn in tokens and follows the theme like everything around it.
+      backgroundImage: `linear-gradient(${value}, ${value}), repeating-conic-gradient(var(--strong) 0% 25%, transparent 0% 50%)`,
     }}
   />
 );

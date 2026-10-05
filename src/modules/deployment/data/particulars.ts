@@ -95,7 +95,7 @@ const NOTE_BODIES = [
   'Fuel top-up scheduled every Tuesday and Friday.',
   'Access road is soft after rain. Use the north entrance.',
   'Site supervisor confirmed load of about 60% during the day shift.',
-  'Customer requested a noise barrier around the set. Arranged with the depot.',
+  'Customer requested a noise barrier around the genset. Arranged with the depot.',
   'Earth cable replaced on arrival; the old one was damaged in transit.',
   'Extension of two weeks under discussion with the customer.',
 ];

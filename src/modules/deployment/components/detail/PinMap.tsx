@@ -155,7 +155,7 @@ export const PinMap = ({
       >
         <span
           className={cn(
-            'absolute bottom-0 left-1/2 h-1.5 w-3 -translate-x-1/2 translate-y-1/2 rounded-[50%] bg-black/35 transition-[opacity,transform] duration-150',
+            'absolute bottom-0 left-1/2 h-1.5 w-3 -translate-x-1/2 translate-y-1/2 rounded-[50%] bg-scrim/70 transition-[opacity,transform] duration-150',
             lifted ? 'scale-100 opacity-100' : 'scale-50 opacity-0',
           )}
         />

@@ -183,12 +183,13 @@ export const TruckLog = ({
               : `${litres(losses.reduce((sum, row) => sum + (row.missing ?? 0), 0))} missing`
           }
           tone={losses.length > 0 ? 'critical' : 'neutral'}
+          pill={period.label}
           active={missingOnly}
           onToggle={refilter(setMissingOnly)}
         />
       </SummaryCardRow>
 
-      <h2 className="mt-2 text-sm font-medium text-primary">Truck log</h2>
+      <h2 className="mt-2 text-base font-medium text-primary">Truck log</h2>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <SearchBox

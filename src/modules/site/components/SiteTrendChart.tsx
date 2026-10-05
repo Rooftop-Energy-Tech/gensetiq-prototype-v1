@@ -4,6 +4,7 @@ import {ChartMetrics} from '@/components/global/ChartMetrics';
 import type {ChartMetric} from '@/components/global/ChartMetrics';
 import {ChartTooltip} from '@/components/global/ChartTooltip';
 import type {ChartTooltipRow} from '@/components/global/ChartTooltip';
+import {figure} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import {useElementSize} from '@/lib/useElementSize';
 import type {SiteTrend} from '../data/siteTrend';
@@ -58,7 +59,7 @@ const TICK_ROWS = 4;
  * the same numbers and only one of them scans.
  */
 const tickLabel = (tick: number, step: number): string =>
-  step >= 1 ? String(Math.round(tick)) : tick.toFixed(step >= 0.1 ? 1 : 2);
+  figure(tick, step >= 1 ? 0 : step >= 0.1 ? 1 : 2);
 
 /** A rounded step that lands on clean divisions — same rule the overview uses. */
 const niceStep = (rough: number): number => {
@@ -308,7 +309,7 @@ export const SiteTrendChart = ({
       : [
           {
             key: 'value',
-            value: shown.value === null ? 'not yet' : `${shown.value} ${unit}`,
+            value: shown.value === null ? 'not yet' : `${figure(shown.value)} ${unit}`,
             swatch: bars ? ('square' as const) : ('line' as const),
           },
           ...(trend.bands ?? []).flatMap((band): Array<ChartTooltipRow> => {

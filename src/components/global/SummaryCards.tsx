@@ -2,6 +2,7 @@ import {ChevronDownIcon, ChevronUpIcon, SlidersHorizontalIcon} from 'lucide-reac
 import {Children} from 'react';
 import type {CSSProperties, ReactNode} from 'react';
 
+import {figure} from '@/lib/format';
 import {cn} from '@/lib/utils';
 
 /**
@@ -195,16 +196,19 @@ export const CardPill = ({children}: {children: ReactNode}) => (
 /**
  * A card's heading, as its own export so a linked card's label reads identically.
  *
- * `<h2>` in both, because the two are the same rank on the page whatever element
- * carries the box around them.
+ * `<h2>` by default, because a summary card and a linked one are the same rank on
+ * the page whatever element carries the box around them. `as="h3"` for a card that
+ * sits under a section heading of its own — the genset home page's tiles — so the
+ * look is shared without flattening the outline.
  */
-export const SummaryCardLabel = ({children}: {children: ReactNode}) => (
+export const SummaryCardLabel = ({children, as: Heading = 'h2'}: {children: ReactNode; as?: 'h2' | 'h3'}) => (
   // In the text colour and semibold, a step up from the figure's grey, so the title
   // reads as the card's heading rather than a caption (Jeff, 2026-10-01). Shared, so
-  // every summary card in the app takes it — the Service page's too.
-  <h2 className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold tracking-wide text-primary uppercase">
+  // every card title in the app takes it — the Service page's, the Fuel depot's and
+  // the genset home page's tiles too (2026-10-05).
+  <Heading className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold tracking-wide text-primary uppercase">
     {children}
-  </h2>
+  </Heading>
 );
 
 type HeadlineProps = {
@@ -231,7 +235,7 @@ export const Headline = ({value, unit, detail}: HeadlineProps) => (
   <div className="min-w-0">
     <p className="flex items-baseline gap-1.5">
       <span className="text-2xl leading-none font-semibold text-primary tabular-nums">
-        {value}
+        {typeof value === 'number' ? figure(value) : value}
       </span>
       {unit !== undefined && <span className="truncate text-sm text-secondary">{unit}</span>}
     </p>
@@ -319,7 +323,7 @@ export const CountChip = ({
       <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[tone])} aria-hidden="true" />
       <span className={cn('truncate', active ? 'text-primary' : 'text-secondary')}>{label}</span>
     </span>
-    <span className="shrink-0 font-medium text-primary tabular-nums">{count}</span>
+    <span className="shrink-0 font-medium text-primary tabular-nums">{figure(count)}</span>
   </button>
 );
 
@@ -339,6 +343,8 @@ type FilterCardProps = {
   active: boolean;
   /** Toggle it. Called with the *next* state, so a second click clears. */
   onToggle: (next: boolean) => void;
+  /** The window the figure covers — `SummaryCard`'s `pill`, for the same reason. */
+  pill?: string;
 };
 
 /**
@@ -368,6 +374,7 @@ export const FilterCard = ({
   tone = 'neutral',
   active,
   onToggle,
+  pill,
 }: FilterCardProps) => (
   <button
     type="button"
@@ -380,12 +387,17 @@ export const FilterCard = ({
       active && 'border-strong bg-highlight hover:bg-highlight',
     )}
   >
-    <SummaryCardLabel>
-      <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[tone])} aria-hidden="true" />
-      <span className="truncate">{label}</span>
-    </SummaryCardLabel>
+    <div className="flex min-w-0 items-start justify-between gap-2">
+      <SummaryCardLabel>
+        <span className={cn('size-1.5 shrink-0 rounded-full', DOT_CLASS[tone])} aria-hidden="true" />
+        <span className="truncate">{label}</span>
+      </SummaryCardLabel>
+      {pill !== undefined && <CardPill>{pill}</CardPill>}
+    </div>
     <p className="flex items-baseline gap-1.5">
-      <span className="text-2xl leading-none font-semibold text-primary tabular-nums">{count}</span>
+      <span className="text-2xl leading-none font-semibold text-primary tabular-nums">
+        {typeof count === 'number' ? figure(count) : count}
+      </span>
       <span className="truncate text-sm text-secondary">{unit}</span>
     </p>
     {/* Wraps rather than truncating, unlike `Headline`'s detail line: this sentence is

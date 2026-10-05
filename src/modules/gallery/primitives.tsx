@@ -80,6 +80,10 @@ const BADGE_VARIANTS = exhaustive<BadgeVariant>({
   secondary: true,
   outline: true,
   element: true,
+  critical: true,
+  warning: true,
+  ok: true,
+  neutral: true,
 });
 
 const BADGE_SIZES = exhaustive<BadgeSize>({sm: true, md: true});

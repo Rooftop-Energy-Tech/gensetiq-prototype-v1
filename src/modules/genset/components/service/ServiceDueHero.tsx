@@ -1,7 +1,7 @@
 import {cn} from '@/lib/utils';
 import {calendarDueDate, counterOvershoot} from '../../types/service.type';
 import type {ServiceCounter, ServiceStatus} from '../../types/service.type';
-import {stampDate} from '@/lib/format';
+import {figure, stampDate} from '@/lib/format';
 import {COUNTER_META, SERVICE_SEVERITY_META} from './serviceMeta';
 
 /**
@@ -73,10 +73,10 @@ const CounterDonut = ({counter, binding}: {counter: ServiceCounter; binding: boo
   // difference between just-serviced and nearly-due.
   const elapsed =
     counter.kind === 'hours'
-      ? Math.round(counter.elapsed).toLocaleString('en-MY')
+      ? figure(Math.round(counter.elapsed))
       : counter.elapsed.toFixed(1);
 
-  const scale = `${counter.interval.toLocaleString('en-MY')} ${meta.unit}`;
+  const scale = `${figure(counter.interval)} ${meta.unit}`;
 
   return (
     <div className="flex w-[152px] flex-col items-center gap-2.5">
@@ -209,7 +209,7 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
           thing and worth not confusing on a screen somebody makes a call-out from.
         </p>
         <p className="text-sm text-secondary">
-          Schedule · every {status.schedule.intervalHours.toLocaleString('en-MY')} run hours or{' '}
+          Schedule · every {figure(status.schedule.intervalHours)} h or{' '}
           {status.schedule.intervalMonths} months, whichever comes first.
         </p>
       </section>
@@ -241,11 +241,11 @@ export const ServiceDueHero = ({status}: {status: ServiceStatus}) => {
   const verdict =
     status.severity === 'OVERDUE'
       ? status.binding === 'hours'
-        ? `Overdue by ${Math.round(overshoot).toLocaleString('en-MY')} run hours.`
+        ? `Overdue by ${figure(Math.round(overshoot))} h.`
         : `Overdue by ${overshoot.toFixed(1)} months — due ${stampDate(dueDate.toISOString())}.`
       : status.severity === 'DUE_SOON'
         ? status.binding === 'hours'
-          ? `Due in ${Math.round(-overshoot).toLocaleString('en-MY')} run hours.`
+          ? `Due in ${figure(Math.round(-overshoot))} h.`
           : `Due ${stampDate(dueDate.toISOString())}.`
         : undefined;
 

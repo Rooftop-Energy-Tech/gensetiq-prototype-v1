@@ -24,7 +24,7 @@ import {setSchedule} from '../../data/services';
  *
  * Because the shipped `250 h / 6 months` is a placeholder for an answer the
  * operations team has not given yet, and the questions that settle it — does a
- * 1250 kVa set differ from a 250 kVa one, do prime sites differ from standby —
+ * 1250 kVA set differ from a 250 kVA one, do prime sites differ from standby —
  * are all "this unit is not like the others". Being able to correct one machine
  * without a code change is what lets the prototype be shown to the people who
  * know the answer.
@@ -93,7 +93,7 @@ export const ServiceScheduleCard = ({
               onChange={(event) => setHours(event.target.value)}
               aria-label="Run hours between services"
             />
-            <span className="text-sm whitespace-nowrap text-secondary">run hours</span>
+            <span className="text-sm whitespace-nowrap text-secondary">h</span>
           </div>
         </label>
 

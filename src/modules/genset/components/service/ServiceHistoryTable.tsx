@@ -1,7 +1,9 @@
 import {FileTextIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
-import {stampAt} from '@/lib/format';
+import {REGISTER_FRAME, REGISTER_ROWS, REGISTER_TABLE, REGISTER_TH} from '@/components/global/registerTable';
+import {figure, stampAt} from '@/lib/format';
+import {cn} from '@/lib/utils';
 import {serviceSiteLabel} from '../../data/services';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
@@ -10,7 +12,7 @@ import type {ServiceRecord} from '../../types/service.type';
 const Th = ({children, align}: {children: ReactNode; align?: 'right'}) => (
   <th
     scope="col"
-    className={`px-3 py-2 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}
+    className={cn(REGISTER_TH, 'px-3', align === 'right' ? 'text-right' : 'text-left')}
   >
     {children}
   </th>
@@ -86,22 +88,22 @@ export const ServiceHistoryTable = ({
         counters measure from.
       </p>
     ) : (
-      <div className="overflow-x-auto rounded-lg border border-default">
-        <table className="w-full text-sm">
+      <div className={cn('overflow-x-auto', REGISTER_FRAME)}>
+        <table className={cn(REGISTER_TABLE, REGISTER_ROWS)}>
           <thead>
-            <tr className="border-b border-subtle text-xs text-secondary">
-              <Th>Service date</Th>
-              <Th>Site</Th>
+            <tr>
+              <Th>Date</Th>
+              <Th>Location</Th>
               <Th>Technician</Th>
               <Th>Genset</Th>
-              <Th align="right">Hours at service</Th>
+              <Th align="right">Run hours at service</Th>
               <Th>Report</Th>
             </tr>
           </thead>
 
           <tbody>
             {records.map((record) => (
-              <tr key={record.id} className="border-b border-subtle last:border-b-0">
+              <tr key={record.id}>
                 <td className="px-3 py-2.5 font-medium whitespace-nowrap text-primary">
                   {stampAt(record.performedAt)}
                 </td>
@@ -114,7 +116,7 @@ export const ServiceHistoryTable = ({
                   {gensetName(genset)}
                 </td>
                 <td className="px-3 py-2.5 text-right text-secondary tabular-nums">
-                  {record.engineHoursAtService.toLocaleString('en-MY')} h
+                  {figure(record.engineHoursAtService)} h
                 </td>
                 <td className="max-w-[220px] px-3 py-2.5">
                   <AttachmentCell record={record} />

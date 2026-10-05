@@ -146,7 +146,7 @@ export const RangePicker = ({
               variant="element"
               size="md"
               className={cn(
-                'cursor-pointer border-subtle transition-colors hover:bg-highlight',
+                'cursor-pointer transition-colors hover:bg-highlight',
                 selectedRun !== undefined && 'bg-highlight',
               )}
             >

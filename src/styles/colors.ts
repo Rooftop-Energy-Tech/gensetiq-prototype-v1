@@ -117,6 +117,11 @@ const BACKGROUND: ColorMap = {
     dark: 'rgba(0, 0, 0, 0.30)',
     figma: 'tr-indent',
   },
+  // The dimming layer behind a modal dialog, and the soft contact shadow under a
+  // lifted map pin (at `/70`, which is 35%). Black in both modes, because a dimmed
+  // page reads as dimmed whatever its polarity. Code-only: the design system's
+  // dialogs carry no backdrop variable. Overlay — layer, don't replace.
+  scrim: {light: 'rgba(0, 0, 0, 0.50)', dark: 'rgba(0, 0, 0, 0.50)', figma: ''},
   // Navy/off-white primary button fill.
   'primary-button': {light: '#151C28', dark: '#F6F7F8', figma: 'bg-primary-button'},
   // Translucent overlay layered on the *primary* button on hover. The polarity
@@ -342,6 +347,11 @@ const SEVERITY: ColorMap = {
   'severity-critical': {light: '#EF4444', dark: '#EF4444', figma: ''},
   'severity-warning': {light: '#F59E0B', dark: '#F59E0B', figma: ''},
   'severity-ok': {light: '#22C55E', dark: '#22C55E', figma: ''},
+  // A pale step of `severity-ok` (`green/300`): a booked deployment's slice of a
+  // map cluster ring. A ring has no outline to go hollow with, the way a planned
+  // pin does, so it takes the tint instead; the full green would run planned and
+  // active together into one arc.
+  'severity-ok-tint': {light: '#86EFAC', dark: '#86EFAC', figma: ''},
 };
 
 /** Everything else — brand text, scrollbar, focus outline, destructive. */

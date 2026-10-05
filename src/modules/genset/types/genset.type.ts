@@ -60,7 +60,7 @@ export type Genset = {
    * is, and the model column is not always beside it.
    */
   tag: string;
-  /** e.g. `Cummins 1000 kVa`. */
+  /** e.g. `Cummins 1000 kVA`. */
   model: string;
   runState: RunState;
   /**
@@ -196,11 +196,11 @@ export const gensetName = (genset: Genset): string => `Genset | ${gensetLabel(ge
 export const gensetLabel = (genset: Genset): string => genset.plateNumber ?? genset.tag;
 
 /**
- * A model's rated capacity in kVA, read off its name (`Cummins 1000 kVa` → 1000) —
+ * A model's rated capacity in kVA, read off its name (`Cummins 1000 kVA` → 1000) —
  * the Capacity filter and column, and the rating the detail model derives kW from.
  * 500 where a name carries none, the fleet's middle size.
  */
-export const modelKva = (model: string): number => Number(model.match(/(\d+)\s*kVa/i)?.[1] ?? 500);
+export const modelKva = (model: string): number => Number(model.match(/(\d+)\s*kVA/i)?.[1] ?? 500);
 
 /** A set's rated capacity in kVA. See `modelKva`. */
 export const gensetKva = (genset: Genset): number => modelKva(genset.model);

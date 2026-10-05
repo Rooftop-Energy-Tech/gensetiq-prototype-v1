@@ -6,7 +6,7 @@ import {DEPOTS, reconcile, varianceSeverity} from './data/depotTank';
 import {missingIn} from './data/truckRuns';
 import {TRUCKS} from './data/trucks';
 import type {FuelView} from './index';
-import {amount} from './format';
+import {amount, figure} from './format';
 
 /**
  * The switch between the Fuel tabs, as cards rather than a small pill
@@ -34,9 +34,9 @@ export const depotStatus = (from: number, to: number): Status => {
   const short = verdicts.filter((v) => v?.kind === 'shortfall').length;
   const check = verdicts.filter((v) => v?.kind === 'calibration').length;
   const parts = [
-    `${DEPOTS.length} ${DEPOTS.length === 1 ? 'depot' : 'depots'}`,
-    ...(short > 0 ? [`${short} missing fuel`] : []),
-    ...(check > 0 ? [`${check} sensor ${check === 1 ? 'fault' : 'faults'}`] : []),
+    `${figure(DEPOTS.length)} ${DEPOTS.length === 1 ? 'depot' : 'depots'}`,
+    ...(short > 0 ? [`${figure(short)} with unlogged fuel`] : []),
+    ...(check > 0 ? [`${figure(check)} sensor ${check === 1 ? 'fault' : 'faults'}`] : []),
   ];
   return {
     text: parts.join(' · '),
@@ -46,17 +46,17 @@ export const depotStatus = (from: number, to: number): Status => {
 
 export const truckStatus = (from: number, to: number): Status => {
   const lost = missingIn(from, to).reduce((sum, missing) => sum + missing.litres, 0);
-  const count = `${TRUCKS.length} ${TRUCKS.length === 1 ? 'truck' : 'trucks'}`;
+  const count = `${figure(TRUCKS.length)} ${TRUCKS.length === 1 ? 'truck' : 'trucks'}`;
   return lost > 0
     ? {text: `${count} · ${amount(Math.round(lost), 'L')} missing`, tone: 'critical'}
     : {text: count, tone: undefined};
 };
 
 /**
- * No verdict of its own: a delivery is a fact, and whether it was short is the
+ * No verdict of its own: a fill is a fact, and whether it was short is the
  * depot card's to say. So this only names the tab.
  */
-export const deliveriesStatus = (): Status => ({text: 'Gensets filled at a yard', tone: undefined});
+export const deliveriesStatus = (): Status => ({text: 'Gensets filled at a depot', tone: undefined});
 
 export const DOT: Record<'critical' | 'warning', string> = {
   critical: 'bg-severity-critical',
@@ -136,7 +136,7 @@ export const ViewSwitch = ({
     />
     <Card
       icon={DropletIcon}
-      title="Deliveries"
+      title="Genset fills"
       status={deliveriesStatus()}
       selected={value === 'deliveries'}
       onSelect={() => onChange('deliveries')}
@@ -154,7 +154,7 @@ export const ViewSwitch = ({
       <Card
         icon={ScrollTextIcon}
         title="Truck log"
-        status={{text: 'Every load, stop and loss', tone: undefined}}
+        status={{text: 'Every load, stop and short load', tone: undefined}}
         selected={value === 'truck-log'}
         onSelect={() => onChange('truck-log')}
       />

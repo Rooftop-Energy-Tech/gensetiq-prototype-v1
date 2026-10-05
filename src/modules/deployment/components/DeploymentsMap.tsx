@@ -71,9 +71,9 @@ const STATE_COLOR = {
 /**
  * A booked job's slice of a cluster ring. A ring has no outline to go hollow with,
  * so it takes a pale tint of Deployed's green instead of the green itself, which
- * would run the two states together into one arc. Green 300 on the Tailwind scale.
+ * would run the two states together into one arc — the `severity-ok-tint` token.
  */
-const PLANNED_RING = '#86EFAC';
+const PLANNED_RING = lightToken['severity-ok-tint'];
 
 type DeploymentsMapProps = {
   rows: Array<DeploymentRow>;

@@ -10,7 +10,7 @@ import {DEPOTS} from './data/depots';
 import {currentDriver, missingIn, reconcileTruck, truckEvents, truckLevel} from './data/truckRuns';
 import type {TruckEvent} from './data/truckRuns';
 import type {RefuelTruck} from './data/trucks';
-import {amount} from './format';
+import {amount, figure} from './format';
 
 /**
  * One truck, opened from its row or its pin — a panel over the map from `md` up
@@ -20,14 +20,14 @@ import {amount} from './format';
  */
 
 const Section = ({title, children}: {title: string; children: React.ReactNode}) => (
-  <section className="flex flex-col gap-2 border-t border-subtle px-5 py-4">
+  <section className="flex flex-col gap-2 border-t border-subtle px-4 py-4">
     <h3 className="text-xs font-medium text-secondary">{title}</h3>
     {children}
   </section>
 );
 
 const Facts = ({rows}: {rows: ReadonlyArray<[string, string]>}) => (
-  <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[13px]">
+  <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-xs">
     {rows.map(([label, value]) => (
       <div key={label} className="contents">
         <dt className="text-tertiary">{label}</dt>
@@ -87,40 +87,44 @@ const PanelBody = ({truck, from, to}: {truck: RefuelTruck; from: number; to: num
 
   return (
     <>
-      <section className="flex flex-col gap-2 px-5 pb-4">
+      <section className="flex flex-col gap-2 px-4 pb-4">
         <div className="flex items-center gap-3">
           <TankBar fraction={fraction} className="h-2 flex-1" />
-          <span className="text-[13px] text-primary tabular-nums">
+          <span className="text-xs text-primary tabular-nums">
             {`${amount(Math.round(level), '')} of ${amount(truck.capacityLitres, 'L')} · ${Math.round(fraction * 100)}%`}
           </span>
         </div>
-        <p className="text-[13px] text-secondary">{whereNow(truck)}</p>
-        {driver !== undefined && <p className="text-[13px] text-secondary">{`With ${driver}`}</p>}
+        <p className="text-xs text-secondary">{whereNow(truck)}</p>
+        {driver !== undefined && <p className="text-xs text-secondary">{`With ${driver}`}</p>}
       </section>
 
-      {/* One line, not a card per loss: the losses one by one are the log's. */}
+      {/* One line, not a card per short load: the short loads one by one are the
+          log's. `Short load` and `missing`, not `loss` (2026-10-05): `Missing` is
+          the trucks' word for fuel that did not arrive, as `Unlogged` is the depots'. */}
       {losses.length > 0 && (
-        <p className="flex items-center gap-1.5 border-t border-subtle px-5 py-3 text-[13px] font-semibold text-severity-critical">
+        <p className="flex items-center gap-1.5 border-t border-subtle px-4 py-3 text-xs font-semibold text-severity-critical">
           <TriangleAlertIcon className="size-3.5 shrink-0" aria-hidden="true" />
-          {`${losses.length} ${losses.length === 1 ? 'loss' : 'losses'} · ${amount(Math.round(lost), 'L')} missing`}
+          {`${figure(losses.length)} short ${losses.length === 1 ? 'load' : 'loads'} · ${amount(Math.round(lost), 'L')} missing`}
         </p>
       )}
 
       <Section title="This period">
         <Facts
           rows={[
-            ['Depot loads', `${depotLoads} · ${amount(movement.loadedDepotLitres, 'L')}`],
-            ['Stops', `${stops.length} · ${gensets} ${gensets === 1 ? 'genset' : 'gensets'}`],
+            // The truck tank's rise at the depot, not the pump's figure the depot page
+            // lists as `pumped` — the two differ by whatever went astray (2026-10-05).
+            ['Received from depot', `${figure(depotLoads)} · ${amount(movement.loadedDepotLitres, 'L')}`],
+            ['Stops', `${figure(stops.length)} · ${figure(gensets)} ${gensets === 1 ? 'genset' : 'gensets'}`],
             ['Delivered', amount(movement.arrivedLitres, 'L')],
           ]}
         />
       </Section>
 
-      <div className="border-t border-subtle px-5 py-4">
+      <div className="border-t border-subtle px-4 py-4">
         <Link
           to="/fuel"
           search={{view: 'truck-log', truck: truck.id}}
-          className="inline-flex items-center gap-0.5 rounded-sm text-[13px] font-medium text-primary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
+          className="inline-flex items-center gap-0.5 rounded-sm text-xs font-medium text-primary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-outline"
         >
           View in Truck log
           <ChevronRightIcon className="size-3.5" aria-hidden="true" />
@@ -160,10 +164,10 @@ export const TruckDetailPanel = ({
         className,
       )}
     >
-      <header className="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
+      <header className="flex items-start justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 flex-col">
-          <h2 className="text-base font-semibold text-primary">{truck.plate}</h2>
-          <p className="text-[13px] text-secondary">{`${depot?.name ?? truck.homeDepotId} depot · ${truck.areaLabel}`}</p>
+          <h2 className="truncate text-sm font-medium text-primary">{truck.plate}</h2>
+          <p className="text-xs text-secondary">{`${depot?.name ?? truck.homeDepotId} depot · ${truck.areaLabel}`}</p>
         </div>
         <button
           type="button"
@@ -195,16 +199,16 @@ export const TruckPanel = ({
   return (
     <DialogPrimitive.Root open={truck !== undefined} onOpenChange={(open) => !open && onClose()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim" />
         <DialogPrimitive.Content className="fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-y-auto border-l border-default bg-overlay text-primary shadow-lg outline-none sm:max-w-md">
           {truck !== undefined && (
             <>
-              <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
+              <header className="flex items-start justify-between gap-3 px-4 py-3">
                 <div className="flex min-w-0 flex-col">
-                  <DialogPrimitive.Title className="text-base font-semibold text-primary">
+                  <DialogPrimitive.Title className="truncate text-sm font-medium text-primary">
                     {truck.plate}
                   </DialogPrimitive.Title>
-                  <DialogPrimitive.Description className="text-[13px] text-secondary">
+                  <DialogPrimitive.Description className="text-xs text-secondary">
                     {`${depot?.name ?? truck.homeDepotId} depot · ${truck.areaLabel}`}
                   </DialogPrimitive.Description>
                 </div>

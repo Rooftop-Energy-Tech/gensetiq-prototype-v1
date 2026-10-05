@@ -2,6 +2,7 @@ import {DATASET} from '@/brands';
 import {malaysiaStateName, MALAYSIA_STATE_IDS} from '@/lib/geo/malaysiaStates';
 import {deployments, memberships, subscribeDeployments} from '@/modules/deployment/data/store';
 import {GENSETS} from '@/modules/genset/data/fleet';
+import {stateNameAt} from '@/modules/genset/data/gensetState';
 import {refuelsIn} from '@/modules/genset/data/history';
 import {DEPOTS, depotFor, depotState} from './depots';
 import {TRUCKS} from './trucks';
@@ -27,13 +28,17 @@ import {TRUCKS} from './trucks';
  * yard fill, at the nearest depot to the machine. That is not a fallback for
  * missing data — it is what a customer without trucks does.
  *
- * ## Why the state comes from the label, not the coordinates
+ * ## Why the state comes from the coordinates, not the label
  *
- * The site's `locationLabel` names its state, and it is what the reader sees on
- * every row. The state polygons disagree with it at the edges: `Kepong, Kuala
- * Lumpur` sits a few hundred metres inside Selangor's outline. A row reading
- * *Kepong, Kuala Lumpur — at Klang depot* would contradict the rule on its own
- * face, so the label wins.
+ * The map's state outlines decide, through `stateNameAt` — the same test the
+ * Gensets register's `State` column and the deployments register use (Jeff,
+ * 2026-10-05). Until then the label's tail won here: `Kepong, Kuala Lumpur` sits a
+ * few hundred metres inside Selangor's outline, and the label kept it on the Kuala
+ * Lumpur truck. But the Gensets page already called that machine Selangor, so two
+ * pages disagreed about one set's state. Now it is Selangor everywhere, and fills at
+ * the Selangor depot like any other Selangor machine.
+ *
+ * `stateOfLabel` below is the old reading, kept but no longer called.
  */
 
 export type FillRoute = {kind: 'yard'; depotId: string} | {kind: 'truck'; truckId: string};
@@ -95,9 +100,10 @@ const buildPostings = (): Map<string, Array<Posting>> => {
         return end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
       })(),
       place: deployment.locationLabel,
-      // The site's label, not the deployment's: a real job's label is the PE's
-      // name (`PE Tmn Sementa Jaya`), which carries no state.
-      state: site === undefined ? undefined : stateOfLabel(site.locationLabel),
+      // The site's position, read against the state outlines as the Gensets
+      // register reads it. Not the deployment's label: a real job's is the PE's name
+      // (`PE Tmn Sementa Jaya`), which carries no state.
+      state: site === undefined ? undefined : stateNameAt(site.longitude, site.latitude),
       latitude: site?.latitude,
       longitude: site?.longitude,
     };
@@ -161,7 +167,7 @@ const buildFills = (): Array<GensetFill> => {
         gensetId: genset.id,
         at: refuel.at,
         litres: refuel.litres,
-        place: posting?.place ?? 'Between postings',
+        place: posting?.place ?? 'Between deployments',
         state,
         latitude,
         longitude,

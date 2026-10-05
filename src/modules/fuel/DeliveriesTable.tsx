@@ -1,5 +1,5 @@
 import {Link} from '@tanstack/react-router';
-import {DropletIcon} from 'lucide-react';
+import {ArrowUpRightIcon, DropletIcon} from 'lucide-react';
 import {useRef, useState} from 'react';
 
 import {FilterSelect} from '@/components/global/FilterSelect';
@@ -26,13 +26,14 @@ import {allFills} from './data/fills';
 import {amount, figure} from './format';
 
 /**
- * The Deliveries tab, with the controls the Gensets and Deployments registers have
+ * The Genset fills tab (`Deliveries` until 2026-10-05; the URL keeps
+ * `?view=deliveries`), with the controls the Gensets and Deployments registers have
  * (Jeff, 2026-09-29), built from the same pieces as the truck log — see
  * `RegisterTable` — so the two tables behave alike.
  *
  * ## An overview row, as every Fuel tab now opens on
  *
- * Two cards (Jeff, 2026-10-01): the litres delivered in the table's period, and
+ * Two cards (Jeff, 2026-10-01): the litres filled in the table's period, and
  * the gensets waiting for fuel now — see the comment over the row.
  */
 
@@ -69,8 +70,8 @@ const PAGE_SIZE = 20;
 
 const COLUMNS: ReadonlyArray<Column<Sort>> = [
   {label: 'Number plate', sort: 'name'},
-  {label: 'Depot location', sort: 'depot', hide: 'hidden sm:table-cell'},
-  {label: 'Delivered', sort: 'at'},
+  {label: 'Depot', sort: 'depot', hide: 'hidden sm:table-cell'},
+  {label: 'When', sort: 'at'},
   {label: 'Litres', sort: 'litres'},
 ];
 
@@ -94,7 +95,7 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
       set(next);
       setPage(1);
     };
-  const period = useTablePeriod(pageWindow, 'Delivered', () => setPage(1));
+  const period = useTablePeriod(pageWindow, 'When', () => setPage(1));
 
   const inRange = rows.filter((row) => row.at >= period.range.from && row.at <= period.range.to);
   const searched = inRange.filter((row) => matches(query, row.name));
@@ -136,18 +137,18 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
   return (
     <section ref={sectionRef} id="fuel-deliveries" className="flex min-h-0 scroll-mt-3 flex-col gap-2">
       {/* ## Two cards, of what someone acts on (Jeff, 2026-10-01)
-          What was delivered, with how many fills and machines under it, and the
+          What was filled, with how many fills and machines under it, and the
           machines below reserve now, which leads to the Gensets page filtered to
           low fuel. `Busiest depot` and `Latest delivery` were cut: one was
           interesting and acted on by nobody, the other nearly always said `just
           now`. */}
       <SummaryCardRow cappedColumns={2}>
-        <SummaryCard label="Litres delivered">
+        <SummaryCard label="Litres filled" pill={period.label}>
           <Headline
             value={amount(periodLitres, 'L')}
-            detail={`${figure(inRange.length)} ${inRange.length === 1 ? 'fill' : 'fills'} · ${gensets} ${
+            detail={`${figure(inRange.length)} ${inRange.length === 1 ? 'fill' : 'fills'} · ${figure(gensets)} ${
               gensets === 1 ? 'genset' : 'gensets'
-            } · ${period.phrase}`}
+            }`}
           />
         </SummaryCard>
         <Link
@@ -156,25 +157,30 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
           aria-label={`Waiting for fuel: ${waiting.length}`}
           className={cn(SUMMARY_CARD_BOX, SUMMARY_CARD_LINK)}
         >
-          <SummaryCardLabel>Waiting for fuel</SummaryCardLabel>
+          <SummaryCardLabel>
+            Waiting for fuel
+            {/* The arrow every other way out of this app carries — see
+                `DeploymentsSummaryCards`. */}
+            <ArrowUpRightIcon className="size-3.5 shrink-0 text-tertiary" aria-hidden="true" />
+          </SummaryCardLabel>
           <Headline
             value={waiting.length}
             unit={waiting.length === 1 ? 'genset' : 'gensets'}
             detail={
               waiting.length === 0
                 ? 'no tank below reserve'
-                : `below reserve · longest ${Math.floor(longestWait)} ${Math.floor(longestWait) === 1 ? 'day' : 'days'} since a fill ›`
+                : `below reserve · longest ${Math.floor(longestWait)} ${Math.floor(longestWait) === 1 ? 'day' : 'days'} since a fill`
             }
           />
         </Link>
       </SummaryCardRow>
 
-      <h2 className="mt-2 text-sm font-medium text-primary">Deliveries</h2>
+      <h2 className="mt-2 text-base font-medium text-primary">Genset fills</h2>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <SearchBox value={query} onChange={refilter(setQuery)} placeholder="Number plate" label="Search deliveries" />
+        <SearchBox value={query} onChange={refilter(setQuery)} placeholder="Number plate" label="Search genset fills" />
         {/* Each option counts the deliveries the search leaves, so with a plate
-            typed the dropdown says which yard filled it. */}
+            typed the dropdown says which depot filled it. */}
         <FilterSelect
           label="Depot"
           allLabel="All depots"
@@ -196,11 +202,11 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
 
       {shown.length === 0 ? (
         <EmptyTable>
-          {inRange.length === 0 ? `No delivery in ${period.phrase}.` : 'No delivery matches these filters.'}
+          {inRange.length === 0 ? `No genset fill in ${period.phrase}.` : 'No genset fill matches these filters.'}
         </EmptyTable>
       ) : (
         // No overflow on this wrapper: the page scrolls, not the table — the
-        // reason is in `FuelPage`. `Depot location` drops below `sm` instead.
+        // reason is in `FuelPage`. `Depot` drops below `sm` instead.
         <div className="rounded-md border border-subtle">
           <table className="w-full border-separate border-spacing-0 text-sm">
             <caption className="sr-only">
@@ -239,7 +245,7 @@ export const DeliveriesTable = ({rows, page: pageWindow}: {rows: ReadonlyArray<D
       {/* The page scrolls, not the table, so turning a page brings the table's head
           back into view rather than leaving the reader at the foot of the new page. */}
       <TablePager
-        label="Deliveries table pages"
+        label="Genset fills table pages"
         page={currentPage}
         pageCount={pageCount}
         pageSize={PAGE_SIZE}

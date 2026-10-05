@@ -3,6 +3,7 @@ import {ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon} 
 import {useState} from 'react';
 
 import {Button} from '@/components/ui/button';
+import {figure} from '@/lib/format';
 import {cn} from '@/lib/utils';
 
 /**
@@ -97,7 +98,7 @@ export const TablePager = ({
       className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 pt-2 text-sm"
     >
       <p className="text-secondary tabular-nums">
-        {first}–{last} of {total}
+        {figure(first)}–{figure(last)} of {figure(total)}
       </p>
       <div className="flex items-center gap-0.5">
         <Button

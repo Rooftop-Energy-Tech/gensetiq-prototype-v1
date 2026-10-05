@@ -1,88 +1,89 @@
 import {useState} from 'react';
 
+import {dateRange} from '@/lib/format';
+import {RangePicker} from '@/modules/genset/components/detail/analysis/RangePicker';
+import {WINDOW_LABELS, analysisRange, parseDateParam} from '@/modules/genset/types/analysisView.type';
+import type {AnalysisWindow} from '@/modules/genset/types/analysisView.type';
 import type {Chip} from './RegisterTable';
-import {PERIOD_LABEL, PeriodControl, inputDay, periodWindow} from './PeriodControl';
 import type {Period} from './PeriodControl';
 
 /**
- * A table's own period, drawn as the page's control is: the same four segments and
- * the same `Custom` date pair (Jeff, 2026-09-30). The deliveries table and the truck
- * log each carry one.
+ * A table's own period, drawn with the genset analysis tab's `RangePicker` — `24
+ * hours`, `7 days`, `30 days` and a custom range (2026-10-05), the control the
+ * depot page's level chart already used, so the app has one period control rather
+ * than two. `By run` is off, as on the depot chart: a fuel table has no engine run
+ * to pick. The deliveries table and the truck log each carry one.
  *
- * Until it is touched it shows and follows the page's period, so on arrival a table
- * lists what the figures above it add up. Once touched it holds its own, for that
- * table alone, and leaves a chip that puts it back to the page's.
+ * It opens on 30 days, which is the page's own fixed window, so on arrival a table
+ * lists what the figures above it add up. Changed, it holds its own period, for that
+ * table alone, and leaves a chip that puts it back to 30 days. Held in the
+ * component, not the URL, as the depot chart's is.
  */
 
-/** The page's period, which a table follows until its own control is touched. */
+/** The page's period, which a table opens on. */
 export type PageWindow = {period: Period; from: number; to: number; now: number; earliest: number};
 
-const IN: Record<Period, string> = {
-  '1d': 'the last day',
-  '7d': 'the last 7 days',
-  '1m': 'the last month',
-  custom: 'this range',
-};
-
-/** `3 Sep – 11 Sep`, for the chip a custom range leaves. */
-const rangeLabel = (from: string, to: string): string => {
-  const day = (value: string) =>
-    new Date(`${value}T00:00:00`).toLocaleDateString('en-MY', {day: 'numeric', month: 'short'});
-  return `${day(from)} – ${day(to)}`;
-};
+/** The window a table opens on and a cleared chip goes back to — the page's 30 days. */
+const DEFAULT_WINDOW: AnalysisWindow = '30d';
 
 /**
- * `chipLabel` names the chip, `Delivered` or `Logged`. `onChange` runs on every
+ * `chipLabel` names the chip, `When` or `Logged`. `onChange` runs on every
  * change of period, for the table to go back to its first page.
  */
 export const useTablePeriod = (page: PageWindow, chipLabel: string, onChange: () => void) => {
-  const [period, setPeriod] = useState<Period | undefined>(undefined);
-  const [customFrom, setCustomFrom] = useState(() => inputDay(page.from));
-  const [customTo, setCustomTo] = useState(() => inputDay(page.to - 1));
+  const [window, setWindow] = useState<AnalysisWindow>(DEFAULT_WINDOW);
+  const [custom, setCustom] = useState<{from: string; to: string} | undefined>(undefined);
 
-  const choose = (next: Period | undefined) => {
-    setPeriod(next);
+  const range = analysisRange(
+    {keys: '', window, run: undefined, dep: undefined, from: custom?.from, to: custom?.to},
+    [],
+    page.now,
+    page.earliest,
+  );
+
+  const choose = (nextWindow: AnalysisWindow, nextCustom: {from: string; to: string} | undefined) => {
+    setWindow(nextWindow);
+    setCustom(nextCustom);
     onChange();
   };
 
-  const range =
-    period === undefined ? {from: page.from, to: page.to} : periodWindow(period, page.now, customFrom, customTo);
-
   const control = (
-    <PeriodControl
-      period={period ?? page.period}
-      customFrom={period === undefined ? inputDay(page.from) : customFrom}
-      customTo={period === undefined ? inputDay(page.to - 1) : customTo}
+    <RangePicker
+      window={window}
+      range={range}
+      runs={[]}
+      customFrom={custom?.from}
+      customTo={custom?.to}
       earliest={page.earliest}
       now={page.now}
-      onPeriodChange={(next) => {
-        // Custom opened from the page's period starts on the page's dates, not on
-        // whatever the dates were when the table first mounted.
-        if (next === 'custom' && period === undefined) {
-          setCustomFrom(inputDay(page.from));
-          setCustomTo(inputDay(page.to - 1));
-        }
-        choose(next);
-      }}
-      onCustomChange={(nextFrom, nextTo) => {
-        setCustomFrom(nextFrom);
-        setCustomTo(nextTo);
-        choose('custom');
-      }}
+      onWindowChange={(next) => choose(next, undefined)}
+      onRunChange={() => undefined}
+      onCustomChange={(from, to) => choose(window, {from, to})}
+      showRuns={false}
     />
   );
 
+  // The custom range named by the days picked, as the picker's own button names it —
+  // not by `range.to`, which is the exclusive midnight after the last day.
+  const fromMs = parseDateParam(custom?.from);
+  const toMs = parseDateParam(custom?.to);
+  const isCustom = range.kind === 'custom' && fromMs !== undefined && toMs !== undefined;
+  const customLabel = isCustom ? dateRange(Math.min(fromMs, toMs), Math.max(fromMs, toMs)) : undefined;
+
+  /** `last 30 days`, `last 24 hours`, or the custom dates — the cards' pill. */
+  const label = customLabel ?? `last ${WINDOW_LABELS[window]}`;
+
   const chip: Chip | undefined =
-    period === undefined
+    customLabel === undefined && window === DEFAULT_WINDOW
       ? undefined
       : {
           key: 'period',
-          label: `${chipLabel} ${period === 'custom' ? rangeLabel(customFrom, customTo) : PERIOD_LABEL[period]}`,
-          clear: () => choose(undefined),
+          label: `${chipLabel} ${customLabel ?? WINDOW_LABELS[window]}`,
+          clear: () => choose(DEFAULT_WINDOW, undefined),
         };
 
-  /** `this period`, `the last 7 days` — for the count and the empty state. */
-  const phrase = period === undefined ? 'this period' : IN[period];
+  /** `the last 30 days`, `this range` — for the count and the empty state. */
+  const phrase = customLabel === undefined ? `the ${label}` : 'this range';
 
-  return {range, control, chip, phrase};
+  return {range, control, chip, label, phrase};
 };

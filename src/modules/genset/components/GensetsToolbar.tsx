@@ -6,6 +6,7 @@ import {Button} from '@/components/ui/button';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
+import {amount} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {FleetSummary} from '../data/fleetSummary';
 import {stateNameFromSlug} from '../data/gensetState';
@@ -295,7 +296,7 @@ export const GensetsActiveFilters = ({
   }
   if (search.fuel !== undefined) chips.push({key: 'fuel', label: `Fuel ${FUEL_OPTION[search.fuel].label.toLowerCase()}`, clear: {fuel: undefined}});
   if (search.capacity !== undefined) {
-    chips.push({key: 'capacity', label: `${Number(search.capacity).toLocaleString('en-MY')} kVA`, clear: {capacity: undefined}});
+    chips.push({key: 'capacity', label: amount(Number(search.capacity), 'kVA'), clear: {capacity: undefined}});
   }
   if (search.status !== undefined) {
     const label = summary.byStatus.find((tally) => tally.key === search.status)?.label ?? search.status;

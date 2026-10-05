@@ -114,14 +114,14 @@ const Field = ({
       {info !== undefined && <InfoTip label={label}>{info}</InfoTip>}
     </span>
     <LockTip reason={locked}>{children}</LockTip>
-    {hint !== undefined && <p className="text-[13px] text-secondary">{hint}</p>}
+    {hint !== undefined && <p className="text-xs text-secondary">{hint}</p>}
   </div>
 );
 
 const Section = ({title, info, children}: {title: string; info?: string; children: ReactNode}) => (
   <section aria-label={title} className="flex flex-col gap-4">
     <span className="flex items-center gap-1.5">
-      <h2 className="text-sm font-medium text-primary">{title}</h2>
+      <h2 className="text-base font-medium text-primary">{title}</h2>
       {info !== undefined && <InfoTip label={title}>{info}</InfoTip>}
     </span>
     {children}
@@ -148,7 +148,7 @@ export const DeploymentSettings = ({row}: {row: DeploymentRow}) => {
   const {move: movePin, lookingUp} = usePinLookup((pin) => updateDeployment(deployment.id, {pin}));
 
   return (
-    <div className="flex flex-col gap-7 overflow-y-auto px-6 py-7">
+    <div className="flex flex-col gap-7 overflow-y-auto px-4 pt-4 pb-6">
       <Section title="General">
         {/* Fields and map half the width each (2026-10-01; the fields were 28rem). */}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -158,8 +158,8 @@ export const DeploymentSettings = ({row}: {row: DeploymentRow}) => {
               htmlFor={`${ids}-reference`}
               info={
                 WORK === undefined
-                  ? "The reference shown in the deployments list, alerts and reports. You can rename it, for example to the customer's work-order number."
-                  : 'The ERQ or PRQ request number: three letters and seven digits. Shown in the deployments list, alerts and reports, and its letters set the job type.'
+                  ? "The reference shown in the deployments list, alarms and reports. You can rename it, for example to the customer's work-order number."
+                  : 'The ERQ or PRQ request number: three letters and seven digits. Shown in the deployments list, alarms and reports, and its letters set the job type.'
               }
               hint={referenceRefused}
               locked={readOnly ? ENDED : undefined}

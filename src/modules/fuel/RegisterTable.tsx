@@ -2,6 +2,7 @@ import {ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, SearchIcon, SearchXIcon,
 import {Fragment, useState} from 'react';
 import type {ReactNode} from 'react';
 
+import {REGISTER_TH} from '@/components/global/registerTable';
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group';
 import {cn} from '@/lib/utils';
 
@@ -121,11 +122,16 @@ export const ActiveFilters = ({chips}: {chips: ReadonlyArray<Chip>}) =>
     </div>
   );
 
+/**
+ * The Gensets register's empty state, as every register draws it (2026-10-05): a
+ * centred search-off mark over one line. `py-10` stands in for the height a
+ * full-screen register gives it, since these tables sit in a page that scrolls.
+ */
 export const EmptyTable = ({children}: {children: ReactNode}) => (
-  <p className="flex items-center gap-2 rounded-md border border-subtle bg-element p-3 text-sm text-secondary">
-    <SearchXIcon className="size-4 shrink-0" aria-hidden="true" />
-    {children}
-  </p>
+  <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+    <SearchXIcon className="size-6 text-secondary" aria-hidden="true" />
+    <p className="text-sm text-secondary">{children}</p>
+  </div>
 );
 
 /**
@@ -159,7 +165,7 @@ export const SortHeader = <K extends string>({
               }
               className={cn(
                 CELL,
-                'sticky top-0 z-10 h-10 border-b border-subtle bg-canvas font-medium text-secondary',
+                REGISTER_TH,
                 column.align === 'right' ? 'text-right' : 'text-left',
                 column.hide,
               )}

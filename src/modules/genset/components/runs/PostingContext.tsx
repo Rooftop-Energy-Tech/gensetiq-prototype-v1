@@ -1,6 +1,6 @@
 import {MapPinIcon} from 'lucide-react';
 
-import {amount, stampDate} from '@/lib/format';
+import {amount, figure, stampDate} from '@/lib/format';
 import {postingEnd} from '@/modules/deployment/types/deployment.type';
 import type {GensetPosting} from '@/modules/deployment/types/deployment.type';
 
@@ -56,13 +56,13 @@ export const PostingContext = ({
 
     return (
       <div className="flex flex-wrap items-center gap-x-10 gap-y-3 rounded-md border border-subtle bg-element px-5 py-4">
-        <Field label="Postings held" value={String(postings.length)} />
-        <Field label="Standing at" value={standingAt ?? 'In depot'} />
+        <Field label="Deployments held" value={figure(postings.length)} />
+        <Field label="Location" value={standingAt ?? 'In depot'} />
         {/* Said plainly rather than left for a reader to infer from the range
             control: a window drawn on the calendar can straddle three postings and
             a gap, and the totals under it are then a sum across all of them. */}
         <p className="min-w-0 text-xs text-tertiary">
-          Showing a calendar window. Pick a posting to scope the runs and totals to
+          Showing a calendar window. Pick a deployment to scope the runs and totals to
           one job.
         </p>
       </div>

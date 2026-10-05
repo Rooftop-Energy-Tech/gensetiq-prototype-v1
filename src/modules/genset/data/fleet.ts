@@ -1,4 +1,5 @@
 import {DATASET} from '@/brands';
+import {amount} from '@/lib/format';
 import type {
   Genset,
   GensetActivity,
@@ -22,7 +23,7 @@ import type {
  *  - **The two switching centres carry the big plant**, and they are the only
  *    places on the estate that do. `WPKL-0207` at 205 kW and `JHR-0907` at
  *    168 kW are the sites where a 1,000 and a 500 kVA set are the right answer.
- *  - `BRF9540 | Cummins 1000 kVa` is pinned to exactly the values in the Figma
+ *  - `BRF9540 | Cummins 1000 kVA` is pinned to exactly the values in the Figma
  *    frames — Running, 1763 L of 2450 (72%), ~57 minutes stale, carrying 205 kW —
  *    so the detail panel can be diffed against the design directly. It sits at
  *    `wpkl-0207`, whose load is that same 205 kW, which is what keeps the pin
@@ -98,9 +99,16 @@ type FleetSeed = {
  * integrity check does not cover them — those vocabularies are the product's — so
  * use the names in `RunState` and `StartReason`.
  */
+/**
+ * How long a controller can go quiet before the set reads `Offline` — an hour
+ * (Jeff, 2026-10-05). Online was the seed's run state alone until then, so
+ * `BRF9540` read `Idle` five days after its last message.
+ */
+const OFFLINE_AFTER_MINUTES = 60;
+
 const FLEET_SEED: Array<FleetSeed> = DATASET.gensets.map((seed) => ({
   ...seed,
-  runState: seed.runState as RunState,
+  runState: (seed.staleMinutes > OFFLINE_AFTER_MINUTES ? 'OFFLINE' : seed.runState) as RunState,
   startReason: seed.startReason as StartReason | undefined,
   // A machine in the workshop stands at no site. The seeds here all name one, but
   // the dataset shape allows the workshop case and this column is not optional.
@@ -165,7 +173,7 @@ const buildActivity = (seed: FleetSeed, now: number): Array<GensetActivity> => {
   // entry this used to fake. Leaving the seeded line in would have put a service
   // eight days ago on the same page as a service log saying it was in April.
   const tail: Array<[GensetActivityKind, string, number]> = [
-    ['REFUEL', `Refuelled to ${seed.fuelCapacityLitres.toLocaleString('en-MY')}L`, staleMinutes + 2_760],
+    ['REFUEL', `Refuelled to ${amount(seed.fuelCapacityLitres, 'L')}`, staleMinutes + 2_760],
   ];
 
   return [...head, ...tail].map(([kind, message, minutes], index) => ({

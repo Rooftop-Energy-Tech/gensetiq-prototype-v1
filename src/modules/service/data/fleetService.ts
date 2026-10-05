@@ -1,6 +1,6 @@
 import {useMemo} from 'react';
 
-import {numericDate} from '@/lib/format';
+import {figure, numericDate} from '@/lib/format';
 import {malaysiaStateAt, malaysiaStateName} from '@/lib/geo/malaysiaStates';
 import {gensetStateName} from '@/modules/genset/data/gensetState';
 import {engineHoursOf, scheduleOf, useServiceRecords} from '@/modules/genset/data/services';
@@ -108,9 +108,10 @@ export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} 
 
   if (nearer.kind === 'hours') {
     const left = Math.round(nearer.interval - nearer.elapsed);
-    // Spelled out (2026-09-30): `run h` read as a unit code.
-    const hours = (count: number) =>
-      `${count.toLocaleString('en-MY')} running ${count === 1 ? 'hour' : 'hours'}`;
+    // `63 h`, the app's one unit for run hours (2026-10-05). It was spelled out as
+    // `running hours` from 2026-09-30, when `run h` read as a unit code; the column
+    // is headed `Run hours` now, so the bare unit has its noun beside it.
+    const hours = (count: number) => `${figure(count)} h`;
     return left <= 0
       ? {text: `${hours(Math.abs(left))} over`, overdue: true}
       : {text: `In ${hours(left)}`, overdue: false};

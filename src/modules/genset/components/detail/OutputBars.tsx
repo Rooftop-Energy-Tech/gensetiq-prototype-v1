@@ -64,7 +64,9 @@ export const OutputBars = ({lines}: {lines: ReadonlyArray<OutputLine>}) => (
               />
             </div>
 
-            <div className="flex w-[64px] items-center gap-1 whitespace-nowrap">
+            {/* `%` sits tight against its figure, `89%`, as `amount` writes it; every
+                other unit keeps its gap (2026-10-05). */}
+            <div className={`flex w-[64px] items-center whitespace-nowrap ${line.unit === '%' ? '' : 'gap-1'}`}>
               <span className="text-sm font-semibold text-primary">
                 {amount(line.value, '', line.precision)}
               </span>

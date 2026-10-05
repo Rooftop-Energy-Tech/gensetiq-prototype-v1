@@ -118,7 +118,7 @@ const POWER_FACTOR = 0.8;
 
 const HOUR = 3_600_000;
 
-/** `1000` out of `Cummins 1000 kVa`. */
+/** `1000` out of `Cummins 1000 kVA`. */
 
 // ─── Readings ────────────────────────────────────────────────────────────────
 
@@ -169,10 +169,11 @@ const READING_SPECS: Array<ReadingSpec> = [
   {key: 'oil-temp', label: 'Oil temperature', unit: '°C', base: 96, vary: 7},
   {
     key: 'engine-hours',
-    label: 'Engine hours',
-    // `hrs`, not `h`. The estate's own paperwork writes it that way and the page
-    // reads it a dozen times; one letter is not a unit anybody says out loud.
-    unit: 'hrs',
+    label: 'Run hours',
+    // `h`, the app's one unit for run hours (2026-10-05). It was `hrs` here, after
+    // the estate's paperwork, while the service pages wrote `h` — two spellings of
+    // one counter on neighbouring tabs.
+    unit: 'h',
     base: 5_400,
     vary: 3_600,
     kind: 'cumulative',
@@ -200,7 +201,7 @@ const READING_SPECS: Array<ReadingSpec> = [
   {key: 'fuel-level', label: 'Fuel level', unit: 'L', base: 0, vary: 0},
   {
     key: 'fuel-rate',
-    label: 'Fuel consumption rate',
+    label: 'Fuel burn rate',
     unit: 'L/hr',
     precision: 1,
     base: 0,
@@ -302,15 +303,15 @@ const READING_SPECS: Array<ReadingSpec> = [
   {key: 'mains-outages', label: 'Mains outages (30 d)', unit: '', base: 5, vary: 4, kind: 'windowed'},
   {
     key: 'hours-since-service',
-    label: 'Hours since service',
-    unit: 'hrs',
+    label: 'Run hours since service',
+    unit: 'h',
     base: 140,
     vary: 90,
     kind: 'cumulative',
   },
   // Age of the newest message, measured against `now` — a stopwatch, not a
   // stored quantity, so there is nothing to plot.
-  {key: 'telemetry-age', label: 'Telemetry age', unit: 'min', base: 0, vary: 0, kind: 'cumulative'},
+  {key: 'telemetry-age', label: 'Last updated', unit: 'min', base: 0, vary: 0, kind: 'cumulative'},
 ];
 
 /**
@@ -456,8 +457,8 @@ type AlertRule = {
    * The limit and the tripping value as fractions of the reading's nameplate,
    * for the three rules whose line moves with the machine.
    *
-   * `AL Overload Wrn` is "at rated output", which is 800 kW on a 1000 kVa set and
-   * 160 kW on a 200 kVa one. Writing 800 here would turn a rule about overload
+   * `AL Overload Wrn` is "at rated output", which is 800 kW on a 1000 kVA set and
+   * 160 kW on a 200 kVA one. Writing 800 here would turn a rule about overload
    * into a fact about one model, and every other unit's card would then quote a
    * limit its alternator never had.
    */

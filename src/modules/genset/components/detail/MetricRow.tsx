@@ -1,5 +1,5 @@
 /**
- * `Max capacity ─────────── 400 L`
+ * `Tank capacity ─────────── 400 L`
  *
  * The label/value pair the tank card and the details band are built from. Label
  * left at `text-secondary`, value hard right at `text-primary`.

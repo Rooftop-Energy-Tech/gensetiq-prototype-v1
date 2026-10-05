@@ -57,8 +57,8 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
 
   if (row.state === 'planned') {
     return (
-      <div className="flex flex-col gap-2 overflow-y-auto px-6 py-7">
-        <h2 className="text-sm font-medium text-primary">Runs</h2>
+      <div className="flex flex-col gap-2 overflow-y-auto px-4 pt-4 pb-6">
+        <h2 className="text-base font-medium text-primary">Runs</h2>
         <p className="max-w-2xl text-sm text-secondary">
           This deployment starts on {stampDate(row.deployment.startsAt)}. Nothing has run on it,
           because nothing has been delivered yet.
@@ -68,9 +68,9 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
   }
 
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto px-6 py-7">
+    <div className="flex flex-col gap-4 overflow-y-auto px-4 pt-4 pb-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-sm font-medium text-primary">
+        <h2 className="text-base font-medium text-primary">
           Runs
           <span className="font-normal text-secondary">
             {' · '}
@@ -80,10 +80,10 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
         <p className="max-w-2xl text-sm text-secondary">
           Every run the machines on {row.deployment.reference} started inside its window.
           {' '}
-          {amount(row.totals.runtimeHours, 'hrs')} run ·{' '}
+          {amount(row.totals.runtimeHours, 'h')} run ·{' '}
           {amount(row.totals.energyKwh, 'kWh')} produced ·{' '}
-          {amount(row.totals.fuelBurnedLitres, 'L')} burned. Energy is what the sets
-          produced rather than what the load drew: only one set is on the bus at a time.
+          {amount(row.totals.fuelBurnedLitres, 'L')} burned. Energy is what the gensets
+          produced rather than what the load drew: only one genset is on the bus at a time.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export const DeploymentRuns = ({row, now}: {row: DeploymentRow; now: number}) =>
             </caption>
             <thead>
               <tr>
-                {['Genset', 'Started', 'Ran for', 'Energy', 'Fuel'].map((label) => (
+                {['Genset', 'Started', 'Ran for', 'Energy produced', 'Fuel burned'].map((label) => (
                   <th
                     key={label}
                     scope="col"

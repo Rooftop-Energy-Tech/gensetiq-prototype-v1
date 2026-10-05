@@ -187,7 +187,7 @@ const Field = ({
       {info !== undefined && <InfoTip label={label}>{info}</InfoTip>}
     </span>
     {children}
-    {hint !== undefined && <p className="text-[13px] text-secondary">{hint}</p>}
+    {hint !== undefined && <p className="text-xs text-secondary">{hint}</p>}
   </div>
 );
 

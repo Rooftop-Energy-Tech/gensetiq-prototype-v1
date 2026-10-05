@@ -6,6 +6,7 @@ import {
 import type {LucideIcon} from 'lucide-react';
 import type {ComponentType, ReactNode, SVGProps} from 'react';
 
+import {SummaryCardLabel} from '@/components/global/SummaryCards';
 import {TankGlyph} from '@/components/global/TankGlyph';
 import {amount, fuelFraction, fuelHeadline, stampDate} from '@/lib/format';
 import type {GensetDetail} from '../../data/detail';
@@ -93,11 +94,10 @@ const Row = ({
  * whatever each holds — a four-row card and a six-row card with different bottoms
  * read as two unfinished things rather than two groups.
  *
- * The heading is `text-secondary`, the same 60% every label on this page carries.
- * It was `text-tertiary` at 40% on the argument that a group's name is a step below
- * the readings in it — true in the abstract, and wrong here: three cards whose
- * titles are the palest text on the band read as three faded things beside a strip
- * whose labels are solid. One page, one label colour.
+ * The heading is `SummaryCardLabel`, the title every card in the app wears
+ * (2026-10-05): 13px, semibold, `text-primary`, upper case. It was a small
+ * `text-secondary` caption of its own, which made this page's tiles the one set of
+ * cards titled unlike the rest.
  *
  * **The surface is `MetricStrip`'s, down to the padding.** That strip is what draws
  * `Fuel level` and `Fuel remaining` at the top of this page, and a card lower down
@@ -108,7 +108,7 @@ const Row = ({
  */
 export const Column = ({title, children}: {title: string; children: ReactNode}) => (
   <section className="flex min-w-0 flex-1 basis-0 flex-col gap-2 self-stretch rounded-md border border-subtle bg-element px-5 py-4">
-    <h3 className="text-xs font-medium tracking-wide text-secondary uppercase">{title}</h3>
+    <SummaryCardLabel as="h3">{title}</SummaryCardLabel>
     {children}
   </section>
 );
@@ -177,7 +177,7 @@ export const FuelColumn = ({
         </div>
 
         <dl className="flex min-w-0 flex-1 flex-col divide-y divide-subtle">
-          <Row label="Max capacity" icon={ContainerIcon}>{amount(detail.fuel.maxLitres, 'L')}</Row>
+          <Row label="Tank capacity" icon={ContainerIcon}>{amount(detail.fuel.maxLitres, 'L')}</Row>
           {/* ⚠️ The label no longer says whether the figure is metered or
               estimated. It read `Metered rate` / `Estimated rate` until 2026-09-22
               — Afifah's call — and the distinction is real: without a flow meter

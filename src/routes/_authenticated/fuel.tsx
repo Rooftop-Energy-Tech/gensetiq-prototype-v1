@@ -39,7 +39,7 @@ export const Route = createFileRoute('/_authenticated/fuel')({
       : search.view === 'deliveries'
         ? {view: 'deliveries'}
         : {},
-  // `Fuel / Deliveries`: the tab is the query string, so the crumb reads it there.
+  // `Fuel / Genset fills`: the tab is the query string, so the crumb reads it there.
   staticData: {crumb: 'Fuel', crumbTab: (search) => fuelTabLabel(search.view)},
   component: Fuel,
 });

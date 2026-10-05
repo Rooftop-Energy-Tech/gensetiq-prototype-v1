@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {PaperclipIcon, PlusIcon} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
+import {DateInput} from '@/components/ui/date-input';
 import {
   Dialog,
   DialogClose,
@@ -11,13 +12,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {Input} from '@/components/ui/input';
+import {figure} from '@/lib/format';
 import {siteSeeds} from '@/modules/site/data/siteSeed';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 import {logService} from '../../data/services';
 
 /**
- * Today and now, as the values an `<input type="date">` and `type="time"` want.
+ * Today and now, as the values `DateInput` and an `<input type="time">` want.
  *
  * Local, not UTC. `toISOString().slice(0, 10)` is the tempting one-liner and it
  * is wrong by a day for anyone west of Greenwich in the evening — the form
@@ -39,7 +41,7 @@ const Field = ({
   children: React.ReactNode;
 }) => (
   <label className="flex flex-col gap-1.5">
-    <span className="text-sm text-primary">{label}</span>
+    <span className="text-sm font-medium text-primary">{label}</span>
     {children}
     {hint !== undefined && <span className="text-xs text-secondary">{hint}</span>}
   </label>
@@ -162,7 +164,7 @@ export const LogServiceDialog = ({
         <form className="mt-5 flex flex-col gap-4" onSubmit={submit}>
           <div className="flex flex-wrap gap-4">
             <div className="min-w-[180px] flex-1">
-              <Field label="Site" hint="Where the work was done — stored as it is now.">
+              <Field label="Location" hint="Where the work was done — stored as it is now.">
                 <select
                   value={siteId}
                   onChange={(event) => setSiteId(event.target.value)}
@@ -192,11 +194,7 @@ export const LogServiceDialog = ({
           <div className="flex flex-wrap gap-4">
             <div className="min-w-[140px] flex-1">
               <Field label="Date">
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                />
+                <DateInput value={date} onChange={setDate} />
               </Field>
             </div>
 
@@ -212,8 +210,8 @@ export const LogServiceDialog = ({
 
             <div className="min-w-[160px] flex-1">
               <Field
-                label="Hours at service"
-                hint={`Meter now reads ${currentEngineHours.toLocaleString('en-MY')} h.`}
+                label="Run hours at service"
+                hint={`Meter now reads ${figure(currentEngineHours)} h.`}
               >
                 <Input
                   type="number"

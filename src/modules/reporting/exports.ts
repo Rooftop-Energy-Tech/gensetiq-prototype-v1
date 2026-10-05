@@ -195,11 +195,11 @@ const placeAt = (gensetId: string, at: number): string => {
 
   // A top-up between jobs is a real thing and not a gap in the record, so it says so
   // rather than falling back to a yard the machine was not at.
-  return 'Between postings';
+  return 'Between deployments';
 };
 
 const deliveriesExport = ({from, to}: ExportRange) => {
-  const out = [line('Genset', 'Asset tag', 'Delivered at', 'Litres', 'Location')];
+  const out = [line('Genset', 'Asset tag', 'Filled at', 'Litres', 'Location')];
   let rows = 0;
 
   for (const genset of GENSETS) {
@@ -229,14 +229,14 @@ export const EXPORTS: ReadonlyArray<ExportSpec> = [
   },
   {
     kind: 'postings',
-    label: 'Postings',
-    blurb: 'Deployments overlapping the range — yard, days, run hours and the tank at each edge.',
+    label: 'Deployments',
+    blurb: 'Deployments overlapping the range — location, days, run hours and the tank at each edge.',
     build: postingsExport,
   },
   {
     kind: 'deliveries',
-    label: 'Deliveries',
-    blurb: 'Fuel that went into a tank inside the range, per machine.',
+    label: 'Genset fills',
+    blurb: 'Every genset fill inside the range, per machine — at a depot or from a fuel truck.',
     build: deliveriesExport,
   },
 ];

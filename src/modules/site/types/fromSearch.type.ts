@@ -8,7 +8,7 @@ import {z} from 'zod';
  * `/gensets/ktb3360` is one page with two ways in, and its breadcrumb could only ever
  * describe one of them. `crumbParent` is `staticData`, so a set opened from the fleet
  * register and the same set opened from its site both read `Gensets / KTB3360 | FG
- * Wilson 20 kVa` — and at a site that crumb is wrong in the one way a breadcrumb must
+ * Wilson 20 kVA` — and at a site that crumb is wrong in the one way a breadcrumb must
  * not be: the link above the page you are on goes somewhere you have never been, and
  * walking up lands you in a register of every set on the estate rather than back at
  * the yard you were reading.

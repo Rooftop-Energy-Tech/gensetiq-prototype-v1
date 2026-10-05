@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {Link} from '@tanstack/react-router';
 
-import {amount, duration, stampAt} from '@/lib/format';
+import {amount, duration, figure, stampAt} from '@/lib/format';
 import {DEFAULT_RUN_WINDOW} from '../../types/runsView.type';
 import {postingTotals} from '@/modules/deployment/data/seed';
 import {gensetPostings} from '@/modules/deployment/data/store';
@@ -42,10 +42,10 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
   return (
     <div className="flex min-h-full flex-col gap-4 px-4 pt-4 pb-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Metric label="Postings held" value={String(postings.length)} />
-        <Metric label="Standing" value={String(standing.length)} />
+        <Metric label="Deployments held" value={figure(postings.length)} />
+        <Metric label="Standing" value={figure(standing.length)} />
         <Metric
-          label="Standing at"
+          label="Location"
           value={standing.length > 0 ? standing[0].deployment.locationLabel : 'In depot'}
         />
       </div>
@@ -53,7 +53,7 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
       <div className="overflow-hidden rounded-md border border-subtle bg-element">
         {postings.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-secondary">
-            No postings held. This set has not been deployed in the period this log covers.
+            No deployments held. This genset has not been deployed in the period this log covers.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -65,7 +65,7 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
                   <Th align="right">Duration</Th>
                   <Th align="right">Run hours</Th>
                   <Th align="right">Starts</Th>
-                  <Th align="right">Energy</Th>
+                  <Th align="right">Energy produced</Th>
                   <Th align="right">Fuel burned</Th>
                   <Th align="right">SFC</Th>
                 </tr>
@@ -154,11 +154,11 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
                           <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
                             {totals.runtimeHours < 1 && totals.runtimeHours > 0
                               ? 'under 1 h'
-                              : `${Math.round(totals.runtimeHours)} h`}
+                              : `${figure(Math.round(totals.runtimeHours))} h`}
                           </td>
 
                           <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
-                            {totals.starts}
+                            {figure(totals.starts)}
                           </td>
 
                           <td className="px-3 py-2.5 text-right tabular-nums text-secondary">
@@ -184,8 +184,8 @@ export const GensetDeploymentLog = ({genset}: {genset: Genset}) => {
       </div>
 
       <p className="text-xs text-secondary">
-        Figures are read off the run log, clipped to each posting's window — a posting's row
-        here matches the dispatch feed's row for the same posting, and the Runs tab scoped to
+        Figures are read off the run log, clipped to each deployment's window — a deployment's row
+        here matches the dispatch feed's row for the same deployment, and the Runs tab scoped to
         it. Fuel burned is the flow meter's figure; fuel that left the tank without reaching
         the engine is the fuel-integrity alarm's business, not this table's.
       </p>

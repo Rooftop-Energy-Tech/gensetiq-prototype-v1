@@ -95,7 +95,7 @@ export type RunsCsvRow = {
 export type RunsCsvInput = {
   /** `Genset` or `Site` — what the log is *of*. */
   scope: string;
-  /** `BRF9540 | Cummins 1000 kVa`, or `Telco-001`. */
+  /** `BRF9540 | Cummins 1000 kVA`, or `Telco-001`. */
   name: string;
   /** Where it stands. */
   place: string;

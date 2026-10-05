@@ -6,7 +6,7 @@ import {AlarmBadge} from '@/components/global/AlarmCounts';
 import {Button} from '@/components/ui/button';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
 import {cn} from '@/lib/utils';
-import {fuelLevel, relativeTime} from '@/lib/format';
+import {amount, fuelLevel, relativeTime} from '@/lib/format';
 import {RunStateBadge} from './RunStateBadge';
 import {fuelLevelTextClass} from './fuelLevelTone';
 import {SEVERITY_META} from './detail/severityMeta';
@@ -171,10 +171,12 @@ export const GensetDetailPanel = ({
                 {fuelLevel(genset.fuelLitres, genset.fuelCapacityLitres)}
               </span>
             </DetailRow>
-            {/* After fuel, as the register's `Capacity` column follows `Fuel level`. */}
-            <DetailRow label="Capacity">
+            {/* After fuel, where the register's kVA column stood beside `Fuel level`.
+                `Rating`, not `Capacity` (2026-10-05): capacity on these screens is
+                a tank's, in litres. */}
+            <DetailRow label="Rating">
               <span className="text-primary tabular-nums">
-                {gensetKva(genset).toLocaleString('en-MY')} kVA
+                {amount(gensetKva(genset), 'kVA')}
               </span>
             </DetailRow>
             {/* The town, then the street address under it — the short answer

@@ -31,7 +31,7 @@ const groups = (from: number, to: number): ReadonlyArray<Group> => [
     status: depotStatus(from, to),
     items: [
       {label: 'Depot tanks', view: 'depots'},
-      {label: 'Deliveries', view: 'deliveries'},
+      {label: 'Genset fills', view: 'deliveries'},
     ],
   },
   ...(TRUCKS.length > 0
@@ -64,7 +64,7 @@ type RailProps = {
   depotId?: string;
 };
 
-/** A depot's dot: red for fuel missing, amber for a sensor fault. */
+/** A depot's dot: red for unlogged fuel, amber for a sensor fault. */
 const depotTone = (depotId: string, from: number, to: number): Status['tone'] => {
   const movement = reconcile(depotId, from, to);
   const verdict = varianceSeverity(movement.outLitres, movement.varianceLitres);
@@ -96,7 +96,7 @@ const RailHeader = () => (
  *
  * The link for the tab showing is marked active. *Truck log* was a section of the
  * Trucks tab that its link scrolled to, until it became a tab of its own (Jeff,
- * 2026-09-30) as Deliveries is beside Depot tanks.
+ * 2026-09-30) as Genset fills is beside Depot tanks.
  *
  * Buttons rather than the rail's links: the tabs are one route told apart by
  * `?view=`, and a link's active match either ignores the query string or lets the

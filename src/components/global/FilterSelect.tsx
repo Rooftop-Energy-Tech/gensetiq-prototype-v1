@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {CheckIcon, ChevronDownIcon} from 'lucide-react';
 
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
+import {figure} from '@/lib/format';
 import {cn} from '@/lib/utils';
 import type {ChipTone} from '@/components/global/SummaryCards';
 
@@ -149,7 +150,7 @@ export const FilterSelect = <K extends string>({
               </span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
-              <span className="text-secondary tabular-nums">{option.count}</span>
+              <span className="text-secondary tabular-nums">{figure(option.count)}</span>
               {option.key === value && (
                 <CheckIcon className="size-3.5 shrink-0 text-secondary" aria-hidden="true" />
               )}

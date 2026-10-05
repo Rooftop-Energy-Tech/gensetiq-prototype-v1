@@ -114,7 +114,7 @@ const AC_SPECS: ReadonlyArray<AlarmSpec> = [
     huawei: 'MI',
     checkability: 'ONE_WAY',
     threshold: '> 280 V (default)',
-    meaning: `Phase L${phase} voltage above its window. With no incomer here, this is the set's own regulator rather than the mains.`,
+    meaning: `Phase L${phase} voltage above its window. With no incomer here, this is the genset's own regulator rather than the mains.`,
     corroboration: `Threshold 0x2106, factory default 280 V, settable 60–300 V — not in the poll set, so the line shown is the default rather than this plant's setting. Per-phase voltage 0x100${5 + phase} is not polled either, so nothing can contradict a quiet row.`,
   })),
   ...PHASES.map((phase): AlarmSpec => ({
@@ -125,7 +125,7 @@ const AC_SPECS: ReadonlyArray<AlarmSpec> = [
     huawei: 'MI',
     checkability: 'ONE_WAY',
     threshold: '< 180 V (default)',
-    meaning: `Phase L${phase} voltage below its window — the set under load.`,
+    meaning: `Phase L${phase} voltage below its window — the genset under load.`,
     corroboration: `Threshold 0x2107, factory default 180 V, settable 60–300 V — not in the poll set, so the line shown is the default rather than this plant's setting. Per-phase voltage 0x100${5 + phase} is not polled either, so nothing can contradict a quiet row.`,
   })),
   ...PHASES.map((phase): AlarmSpec => ({
