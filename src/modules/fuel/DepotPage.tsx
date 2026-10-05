@@ -93,6 +93,9 @@ const LEVEL_SLOT: SeriesSlot = {
 
 const HOUR = 3_600_000;
 
+/** The longest window the level chart draws as a stair, fill by fill: a week. */
+const STAIR_SPAN = 7 * 24 * HOUR;
+
 /**
  * The tank's level over the window, drawn by the genset analysis tab's chart
  * (Jeff, 2026-10-01): its scale, gridlines, crosshair and readout, so a depot's
@@ -113,15 +116,19 @@ const HOUR = 3_600_000;
  * level is read at a fixed step — every 15 minutes over two days or less, so a
  * 24-hour window is more than twenty-four points, and hourly past that.
  *
- * ## A saw-tooth, not every reading (Jeff, 2026-10-05)
+ * ## A saw-tooth past a week, a stair within one (Jeff, 2026-10-05)
  *
- * Drawn through the refills only: one straight slope down from each refill to the
- * next, and a slope up during the refill. The tank only falls while a genset is
- * being filled, so every reading drawn was a stair — flat for hours, then a drop —
- * and the reader wants the rate it runs down at, not each fill, which the
- * `Gensets fuelled` card lists. Between refills the line is that rate, not the
- * sensor: the crosshair there reads the trend. Until then it was the newest
- * reading at or before each step.
+ * Past a week, drawn through the refills only: one straight slope down from each
+ * refill to the next, and a slope up during the refill. The tank only falls while
+ * a genset is being filled, so every reading drawn was a stair — flat for hours,
+ * then a drop — and over a month the reader wants the rate it runs down at, not
+ * each fill, which the `Gensets fuelled` card lists. Between refills the line is
+ * that rate, not the sensor: the crosshair there reads the trend.
+ *
+ * At a week or less (`STAIR_SPAN`) it is the stair again — the newest reading at
+ * or before each step, which is what every window drew until the saw-tooth. The
+ * saw-tooth there merged a week's fills into one slope, and that read as a single
+ * genset fill taking days.
  *
  * The axis runs from empty to full rather than fitting the readings. Fitted, a
  * week that moved 3% fills the chart top to bottom and reads as a crisis; against
@@ -146,15 +153,23 @@ const LevelChart = ({series, capacity}: {series: ReadonlyArray<DepotSample>; cap
   // A saw-tooth (Jeff, 2026-10-05): the level only at the refills — the reading
   // before each rise and the reading after it — plus the first and newest, with a
   // straight line between. So the tank runs down on one slope from each refill to
-  // the next and climbs on another during the refill. Every reading drawn was a
-  // stair: flat for hours, then a genset fill's drop.
-  const knots = series.filter((sample, index) => {
-    if (index === 0 || index === series.length - 1) return true;
-    const rises = sample.litres > series[index - 1].litres;
-    const beforeRise = series[index + 1].litres > sample.litres;
-    return rises || beforeRise;
-  });
-  // Each step on the line between the knots either side; past the newest, held.
+  // the next and climbs on another during the refill.
+  //
+  // Over 30 days, that is. At a week or less every reading is drawn, a stair —
+  // flat, then each genset fill's drop (Jeff, 2026-10-05). The saw-tooth everywhere
+  // merged a week's fills into one slope that read as a single fill taking days,
+  // and a week is short enough for the drops to be told apart.
+  const stairs = end - from <= STAIR_SPAN;
+  const knots = stairs
+    ? series
+    : series.filter((sample, index) => {
+        if (index === 0 || index === series.length - 1) return true;
+        const rises = sample.litres > series[index - 1].litres;
+        const beforeRise = series[index + 1].litres > sample.litres;
+        return rises || beforeRise;
+      });
+  // Each step on the line between the knots either side — or, as a stair, the newest
+  // reading at or before it; past the newest, held.
   const readings: Array<Sample> = [];
   let index = 0;
   for (let t = from; t <= end; t += step) {
@@ -164,7 +179,7 @@ const LevelChart = ({series, capacity}: {series: ReadonlyArray<DepotSample>; cap
     const value =
       before === undefined
         ? null
-        : after === undefined
+        : after === undefined || stairs
           ? before.litres
           : before.litres + ((after.litres - before.litres) * (t - before.t)) / (after.t - before.t);
     readings.push({t, value});
