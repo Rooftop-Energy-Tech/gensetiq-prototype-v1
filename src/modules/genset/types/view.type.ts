@@ -20,8 +20,8 @@ export const GENSET_VIEWS = ['split', 'list', 'map'] as const;
 /**
  * How the fleet is ordered. `state` is the default and the register's own ranking.
  *
- * The sites register offers the same three questions over yards — see `SITE_SORTS`.
- * `state` is this list's equivalent of that one's `alarms`: the machine you should
+ * The removed sites register offered the same questions over yards. `state` was
+ * this list's equivalent of that one's `alarms`: the machine you should
  * look at first, by what it is doing rather than by what it is called.
  */
 // `location` is the Malaysian state a set stands in, and it is not called `state`
@@ -94,7 +94,7 @@ export type GensetFuelFilter = (typeof GENSET_FUEL_FILTERS)[number];
  */
 export const gensetSearchSchema = z.object({
   // Every field is `.catch()`-guarded. These params are meant to be shared and
-  // hand-edited, and a typo'd `?view=grid` should fall back to the list rather
+  // hand-edited, and a typo'd `?view=grid` should fall back to the split view rather
   // than throw out of validateSearch and blank the route.
   view: z.enum(GENSET_VIEWS).default('split').catch('split'),
   q: z.string().optional().catch(undefined),
@@ -119,7 +119,7 @@ export const gensetSearchSchema = z.object({
   /**
    * The toolbar's three. `run` rather than `state` because `sort=state` already means
    * the run state and `?state=` beside it would read as the Malaysian one; `status`
-   * is the readiness chips'.
+   * is the strip's status chips'.
    */
   run: z.enum(RUN_STATES).optional().catch(undefined),
   alarm: z.enum(GENSET_ALARM_FILTERS).optional().catch(undefined),

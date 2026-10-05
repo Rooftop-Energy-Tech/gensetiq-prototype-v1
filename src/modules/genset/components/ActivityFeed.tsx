@@ -22,6 +22,8 @@ const ACTIVITY_ICON: Record<GensetActivityKind, LucideIcon> = {
 };
 
 /**
+ * Unused since the activity feed left the genset page and the fleet panel; kept on purpose.
+ *
  * The machine's history as a rail of events — starts, stops, refuels, deployments
  * and services, newest first.
  *

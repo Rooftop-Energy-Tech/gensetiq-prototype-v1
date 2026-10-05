@@ -19,8 +19,8 @@ import {lowFuelAlarms} from './lowFuelAlarm';
  * ## Why this moved out of the component
  *
  * It was a local `viewOf` in `GensetAlarms.tsx` for as long as one page rendered
- * these. Two do now — the set's own Alarms tab, and the **site's**, which pools
- * every alarm on the yard from all four assets and three devices. A second copy
+ * these. Two do now — the set's own Alarms tab, and a deployment's, which pools its
+ * machines' alarms (a site's tab did the same until the site pages went). A second copy
  * of the adapter is a second chance for the same bit to print its rule one way here
  * and another way there, in the one column whose whole job is to say where a row
  * came from.
@@ -28,8 +28,7 @@ import {lowFuelAlarms} from './lowFuelAlarm';
  * It is not a method on `TrackedAlarm` for the reason it never was: the alert type
  * is the fixture the analysis chart draws its threshold lines from, and a
  * presentation shape belongs to the presentation. The monitoring unit's adapter sits
- * in `assertedAlarms.ts` and the solar rules' in `solarAlarmQueue.ts`, both for the
- * same reason.
+ * in `assertedAlarms.ts` for the same reason.
  */
 export const controllerView = (alarm: TrackedAlarm): AlarmView => ({
   id: alarm.id,

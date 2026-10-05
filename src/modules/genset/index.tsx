@@ -61,8 +61,8 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * that the app offers no control it cannot honour.
    *
    * The summary cards *are* kept, because they have a phone form: they stack two-up
-   * and each readiness bucket is still a filter at this width. Region is in the
-   * toolbar, which every width gets.
+   * and each status and alarm chip is still a filter at this width. The other
+   * filters are in the toolbar, which every width gets.
    *
    * `view` in the URL is left exactly as it is. A phone reading a link to
    * `?view=split` shows the list and, followed on a desktop, that same link still
@@ -102,9 +102,8 @@ export const GensetsPage = ({search, onSearchChange}: GensetsPageProps) => {
    * `dir: undefined` rather than the key's default written out: the default belongs
    * to the key, so storing it would put a redundant `dir` in every shared URL.
    *
-   * The sites register's `changeSort` is this function over yards. The two are kept
-   * identical deliberately: a reader who learns the headers on one list has learnt
-   * them on the other.
+   * The Deployments register's own sort handler follows the same rule, deliberately:
+   * a reader who learns the headers on one list has learnt them on the other.
    */
   const changeSort = (next: GensetSort) => {
     if (next === sort) {

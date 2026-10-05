@@ -86,7 +86,7 @@ export type GensetAlert = {
   readingKey: string | null;
   /**
    * The limit as a number on the reading's own scale, or `null` for a rule with
-   * no fixed line — `Phase imbalance` fires on a 10% *deviation between phases*,
+   * no fixed line — a phase-imbalance rule fires on a 10% *deviation between phases*,
    * which is not a height on the current axis.
    *
    * Held as a number and not only as prose because the analysis chart draws it:
@@ -176,11 +176,9 @@ export const worstCondition = (
 /**
  * How many alerts sit at each severity — the counts on the three filter chips.
  *
- * Typed on the one field it reads rather than on `GensetAlert`, so a `SystemAlert`
- * counts through it too. The two alert types deliberately share `AlertSeverity`
- * (see `health.type.ts`) and deliberately share nothing else, and a second copy of
- * this loop in the solar module would be the second place the three chips could be
- * counted differently.
+ * Typed on the one field it reads rather than on `GensetAlert`, so any alarm row
+ * with a severity counts through it — the controller's, the monitoring unit's and
+ * the low-tank row alike — and the three chips are counted in one place.
  */
 export const countBySeverity = (
   alerts: ReadonlyArray<{severity: AlertSeverity}>,

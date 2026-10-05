@@ -12,6 +12,8 @@ import {LeakBadge} from './LeakBadge';
 import {MetricRow} from './MetricRow';
 
 /**
+ * Unused since `FuelCard` replaced it on the home page; kept on purpose.
+ *
  * The fuel half of the top row.
  *
  * Structured to answer the two questions in the order they get asked: *how much

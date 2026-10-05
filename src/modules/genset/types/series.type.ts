@@ -49,7 +49,8 @@ export const hasData = (series: ReadingSeries): boolean =>
   series.samples.some((sample) => sample.value !== null);
 
 /**
- * The sample nearest a moment, or `undefined` past either end.
+ * The sample nearest a moment, clamped to the first or last past either end;
+ * `undefined` only for an empty series.
  *
  * Buckets are evenly spaced, so this is arithmetic rather than a search — the
  * crosshair calls it on every pointer move, and a scan over 600 samples per

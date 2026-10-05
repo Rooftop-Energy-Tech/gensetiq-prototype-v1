@@ -117,13 +117,12 @@ export const Column = ({title, children}: {title: string; children: ReactNode}) 
 /**
  * The tank, beside the generator columns rather than a band below them.
  *
- * **Rendered whether or not the engine is turning, and that is the point.** The two
- * columns beside it are about a machine in motion and have nothing to say about one
- * standing still. A tank always has something to say, and on a standby estate it has
- * the most to say precisely when the set is stopped: what is in it now is what the
- * next outage gets. So the labels change with the run state and the figures do not
- * disappear — a stopped set's burn rate is what it *was* metering, and its runway is
- * runtime it would get rather than a countdown of wall-clock.
+ * **Rendered whether or not the engine is turning, and that is the point.** The
+ * output column beside it is about a machine in motion and has nothing to say about
+ * one standing still. A tank always has something to say, and on a standby estate it
+ * has the most to say precisely when the set is stopped: what is in it now is what
+ * the next outage gets. So the tank and its capacity stay; the rate rows that only
+ * mean something while running (`Fuel burn rate`, `Refuel by`) read `—` when stopped.
  *
  * **The glyph stays**, at `2xl`. The rows are the numbers; the tank is the one thing
  * on this band a reader takes in without reading, and a column of aligned figures is

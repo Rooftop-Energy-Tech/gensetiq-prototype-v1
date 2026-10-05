@@ -19,7 +19,7 @@ const PAD_TOP = 24;
 const PAD_BOTTOM = 30;
 const TICK_ROWS = 5;
 
-/** Wide enough for `Starter battery voltage` — the longest label in the set. */
+/** Wide enough for `Charge alternator voltage` — the longest plottable label. */
 const READOUT_WIDTH = 228;
 
 type Scale = {

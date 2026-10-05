@@ -28,8 +28,8 @@ import {AlarmLists} from './AlarmLists';
  * you cannot act on, printed above the thing you act on, is a screen's worth of
  * scrolling between a reader and the control.
  *
- * The band's category chips went with it. The tables have their own filters — by
- * severity and by asset — which is the filtering this tab actually needed, and the
+ * The band's category chips went with it. The tables carry severity counts but no
+ * filters of their own yet, and the
  * search parameter that carried the band's chip selection went too: a URL that names
  * a filter nothing applies is worse than no URL state.
  *

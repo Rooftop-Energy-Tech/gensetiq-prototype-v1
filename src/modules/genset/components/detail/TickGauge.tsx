@@ -3,6 +3,8 @@ import {cn} from '@/lib/utils';
 import type {DialReading} from '../../types/telemetry.type';
 
 /**
+ * Unused since the home page's marks became tiles (`ReadingTile`); kept on purpose.
+ *
  * Geometry lifted off the design's gauge asset.
  *
  * Figma ships the dial as two PNGs — a full circle of 76 radial ticks in

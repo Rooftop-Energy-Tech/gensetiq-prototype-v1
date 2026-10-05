@@ -3,8 +3,8 @@
  * them in.
  *
  * One `Reading` type covers all of them. A reading is not "a gauge" or "a row" —
- * it is a named quantity, and the page decides how to draw it: the four with a
- * designed sweep become gauges, the three-channel sets become bar groups, and
+ * it is a named quantity, and the page decides how to draw it: the five marks become
+ * tiles on the home page, the three-channel sets become bar groups, and
  * everything else becomes a row under whichever tag references it. Keeping that
  * decision out of the data is what lets an alert point at a reading key without
  * caring where on the page it happens to be rendered.
@@ -28,7 +28,7 @@ export type ReadingKind = (typeof READING_KINDS)[number];
 export type Reading = {
   /** Stable key. This is what a `GensetAlert` and a `GensetTag` refer to. */
   key: string;
-  /** Operator-facing name, e.g. `Starter battery voltage`. */
+  /** Operator-facing name, e.g. `Battery voltage`. */
   label: string;
   value: number;
   /** Rendered after the figure. `''` for dimensionless readings like Power factor. */
@@ -69,9 +69,9 @@ export type GaugeReading = Reading & {min: number; max: number};
 /**
  * The subset of a reading `SeriesPicker` draws — a name, and the number now.
  *
- * Widened out of `Reading` alongside `DialReading` below, and for the same
- * reason: the solar module's analysis tab needs the same control over a reading
- * type that differs only in fields the picker never touches. `Reading` is
+ * Widened out of `Reading` alongside `DialReading` below, when a solar module
+ * (since removed) needed the same control over a reading type that differed only
+ * in fields the picker never touches. `Reading` is
  * assignable to this, so nothing that passed the picker a genset reading has
  * changed.
  *
@@ -105,7 +105,8 @@ export type PickableReading = {
 export type ReadingGroup = {label: string; keys: Array<string>};
 
 /**
- * The subset of a gauge reading that `TickGauge` actually draws.
+ * The subset of a gauge reading that `TickGauge` draws. `TickGauge` is unused since
+ * the home page's marks became tiles (`ReadingTile`); this stays with it.
  *
  * Widened out of `GaugeReading` when the solar module needed the same dial. The
  * dial reads six fields and cares about none of the rest, and the two modules'

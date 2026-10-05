@@ -44,16 +44,18 @@ import {CurrentRunCard} from './CurrentRunCard';
 import {StandbyPanel} from './StandbyPanel';
 
 /**
- * The genset's home page, in the bands the design stacks — the same bands, in the
- * same order, as a site's, a system's and a bank's.
+ * The genset's home page, in four bands:
  *
  * 1. **The strip** — the tank, its runway, service, and the alarm counts.
- * 2. **The dials** — the controls and the live readings.
- * 3. **The run and the tank** — one start's totals, and when the tank needs
- *    filling.
- * 4. **The chart** — diesel output, with a day stepper and a period control.
- * 5. **The details** — which machine this is and what size it is, in a narrow
- *    block between two rules.
+ * 2. **The run** — the controls (`ControlPad`) and the current run's totals
+ *    (`CurrentRunCard`).
+ * 3. **The tank and the readings** — the fuel card, `Generator conditions` (the
+ *    marks while running, the two hour counters always) and `Generator output`
+ *    (running only).
+ * 4. **The details** — which machine this is and what size it is (`DetailBand`).
+ *
+ * A chart band (diesel output, with a day stepper) sat between 3 and 4 until it
+ * moved to the Analysis tab.
  *
  * There was a sixth: **what is wrong** — the alerts and the readings behind them.
  * It is on the `Alarms` tab now, with the standing and cleared tables it was
@@ -66,15 +68,14 @@ import {StandbyPanel} from './StandbyPanel';
  * ## The order, and what the design changed about it
  *
  * The order is the order the questions get asked, and it is the one decision the
- * whole page rests on. It used to open on the run and the tank and put the dials
- * second; the frame swaps them, and it is right to. The strip above now answers
- * *how much is left* — the tank and its runway — so the first band under it should
- * answer *what is happening this second*, which is the dials. The run's totals are
- * the slower reading of the same subject and follow it.
+ * whole page rests on. The strip answers *how much is left* — the tank and its
+ * runway — so the band under it answers *what is happening now*: the run and the
+ * controls that act on it (above the readings since 2026-09-22). The readings and
+ * the tank follow.
  *
  * ## Where the activity feed went
  *
- * Nowhere; it is gone, as it is from `/solar`. It closed the page as band 7 — a
+ * Nowhere; it is gone. It closed the page as band 7 — a
  * list of things that had already happened, with a text field for adding another
  * — and it was the page's only backwards-looking band, which is why it was last
  * and why nothing above it moves now that it has gone. Its component, its
@@ -224,8 +225,8 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
    * summary, since a reader who trusts it never opens the tab.
    *
    * The thresholds band that used to sit at the foot of this page was deliberately
-   * **not** given these rows, and it still is not — it has moved to the Alarms tab,
-   * where the tables beside it list them. Every card in that band prints the
+   * **not** given these rows. It was removed outright on 2026-09-14 (see
+   * `GensetAlarms`), and the Alarms tab has only the tables. Every card in that band printed the
    * register, the reading and the line the reading crossed, and this prototype has
    * read none of these registers, so there is no reading to draw.
    */
@@ -251,9 +252,9 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           lorry to an interior site is a day and a four-figure sum, so the
           questions this strip answers are the ones that fill it.
 
-          The design's `Generation today` is **gone from here** and lives in band
-          5's chart, where a day stepper and a period control put it beside
-          yesterday and the week. On its own in a strip it invited a share-of-site
+          The design's `Generation today` is **gone from here**; output over time is
+          the Analysis tab's, where a range picker puts it beside yesterday and the
+          week. On its own in a strip it invited a share-of-site
           reading this page cannot honestly give — an engine's output may go into a
           battery and come back out tomorrow, so what fraction of *today* it
           carried is a question about the site's day, not the machine's.
@@ -459,10 +460,10 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
 
       <hr className="border-subtle" />
 
-      {/* Band 4 — what the machine is, in the `DetailBand` all four detail pages
-          share, and last of the bands that describe it rather than report on it.
+      {/* Band 4 — what the machine is, in the `DetailBand`, and last of the bands:
+          it describes the machine rather than reporting on it.
 
-          Last, which is the order all four detail pages now keep: nothing in this band changes between one visit and the
+          Last, which is the order the detail pages kept: nothing in this band changes between one visit and the
           next, and it was sitting between the fuel panel and the runtime trend —
           two live bands a reader reads together — with a block of nameplates
           wedged in the middle.

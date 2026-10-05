@@ -13,6 +13,8 @@ import {
 import type {Genset} from '../../types/genset.type';
 
 /**
+ * Unused: the Deployments tab (`/runs`, `GensetRuns`) took over its job; kept on purpose.
+ *
  * One genset's posting log — every deployment this machine has been sent on,
  * ongoing first, with what each posting cost.
  *

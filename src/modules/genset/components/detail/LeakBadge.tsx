@@ -6,6 +6,8 @@ import {amount} from '@/lib/format';
 import type {FuelIntegrityState} from '../../types/fuelIntegrity.type';
 
 /**
+ * Used only by `FuelPanel`, itself unused; kept on purpose.
+ *
  * The reconciliation verdict, in the fuel band, in one line.
  *
  * ## Why the three quiet states are drawn at all

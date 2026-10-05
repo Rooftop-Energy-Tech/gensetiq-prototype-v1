@@ -62,7 +62,7 @@ export const gensetFuelFilter = (genset: Genset): GensetFuelFilter =>
 export type FleetSummary = {
   total: number;
   depotCount: number;
-  /** The four buckets, worst first — see `fleetStatus.ts`. Always all four. */
+  /** The three buckets, worst first — see `fleetStatus.ts`. Always all three. */
   byStatus: Array<Tally<FleetStatus>>;
   /**
    * The states with at least one set standing in them, A to Z — the State filter's

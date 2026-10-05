@@ -36,8 +36,8 @@ import type {
  *  - **Tank levels are chosen rather than scattered.** `rulesFor` deals alarms
  *    from a hash of the tag, so a fleet seeded without thought lands almost
  *    everything in the alarm bucket and leaves "Low fuel" reading zero on a
- *    screen built to show it. The levels below put real numbers in all four
- *    buckets — three below the reserve line, one dry, two alarming.
+ *    screen built to show it. The levels (now in `brands/datasets/*.ts`) put real
+ *    numbers in every status bucket.
  *
  * Timestamps are minutes-ago offsets resolved at module load rather than fixed
  * ISO strings: a hardcoded date would drift into "412 days ago" the week after
@@ -62,7 +62,7 @@ type FleetSeed = {
    * distinction exists for — a set turning beside a healthy grid.
    */
   startReason?: StartReason;
-  /** Road registration, when the machine has one. Most do not. */
+  /** Road registration — the lorry's plate, since a set is bolted to its lorry. */
   plateNumber?: string;
   /**
    * The site this unit stands at. Sites are derived from this column rather than
