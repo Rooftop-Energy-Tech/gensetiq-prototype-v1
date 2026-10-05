@@ -4,10 +4,9 @@ import {figure} from './format';
 /**
  * A period's fuel in two figures and what is left: `Fuel In`, `Fuel Out`, then
  * `Balance` ruled off under them (Jeff, 2026-10-01; `In` and `Out` until 2026-10-05,
- * now the depot tile's names for the same two rows). In green and out in red, as each depot
- * tile's rows are coloured. On `/fuel` it sums all four yards; on a depot's page it
- * is that one yard, where `Balance` is litres only since the tank drawing beside it
- * carries the percentage.
+ * now the depot tile's names for the same two rows). On `/fuel` it sums every yard;
+ * on a depot's page it is that one yard, where `Balance` is litres only since the
+ * tank card beside it carries the percentage.
  *
  * Titled `Fuel balance`, for the line it ends on, with the period once, in the
  * card's corner pill, not on each line. It was `Days of stock` on `/fuel` until then.

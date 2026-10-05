@@ -10,12 +10,12 @@ import {GalleryPage} from '@/modules/gallery';
  * ## Dev only
  *
  * `import.meta.env.DEV` is `true` under `vite dev` and `false` in every `vite
- * build`, so the route 404s in the four `dist-*` bundles. Those go in front of
+ * build`, so the route 404s in both builds (`dist` and `dist-unbranded`). Those go in front of
  * customers and an internal page at a guessable URL in one of them is a
  * liability.
  *
  * It costs the shipped app nothing at runtime. `autoCodeSplitting` puts the
- * component in its own chunk (~24 kB, verified against `dist-telcoiq`) and
+ * component in its own chunk (~24 kB when it was measured, in the telcoIQ build) and
  * `beforeLoad` runs before that chunk is requested, so a build never fetches it —
  * the file sits on disk unread. Not worth a build-time route filter for that; if
  * it ever matters, drop the file from `tanstackRouter`'s scan rather than

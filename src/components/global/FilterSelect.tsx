@@ -16,15 +16,17 @@ import type {ChipTone} from '@/components/global/SummaryCards';
  * buckets are the estate's readiness, and folding them behind a click would hide the
  * one thing this screen is for.
  *
- * The estate's other three groupings are not that. How a site is fed, which region it
- * is in and which rollout filed it are **attributes**: a reader either wants one of
+ * Other groupings are not that. Which state a genset stands in, its rating or its job
+ * type are **attributes** (the estate strip's three — feed, region, rollout — were the
+ * first): a reader either wants one of
  * them or does not, and the counts beside them are context rather than an answer. Three
  * cards' worth of width to say so left the strip in two rows. As dropdowns they cost a
  * button each, the counts survive inside, and the summary fits on one line.
  *
  * ## The shape
  *
- * The app's own picker pattern — `InstallationPicker` and the range calendar — rather
+ * The app's own picker pattern — the range calendar's, and the old site switcher's —
+ * rather
  * than a native `<select>`: the rows carry a count on the right, the trigger has to
  * show a *pressed* state when a filter is on, and neither survives an `<option>`.
  *
@@ -81,8 +83,8 @@ export const FilterSelect = <K extends string>({
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.key === value);
 
-  // Nothing to choose between, so nothing to draw — the rule `InstallationPicker`
-  // sets. An estate whose dataset declares no programmes has an empty list here, and
+  // Nothing to choose between, so nothing to draw — the rule the old site switcher
+  // set. An estate whose dataset declares no programmes has an empty list here, and
   // a dropdown that opens onto one row is a control that cannot do anything.
   if (options.length === 0) return null;
 

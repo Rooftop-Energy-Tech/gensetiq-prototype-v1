@@ -10,8 +10,8 @@ import type {DatasetId} from '@/brands';
  * The rule is Jeff's, 2026-09-29: **a genset standing in a depot's own state drives
  * in to that depot and fills at the yard; anywhere else, a truck comes to it.** So
  * trucks only ever work states that have no depot — Kuala Lumpur, Putrajaya,
- * Negeri Sembilan, Pahang, Kedah and Perlis on this estate — and each truck is
- * given those states by name in `areaStates`.
+ * Negeri Sembilan, Melaka, Pahang, Kelantan, Terengganu, Kedah and Perlis on this
+ * estate — and each truck is given those states by name in `areaStates`.
  *
  * Nearest-depot would have handed every one of them to Klang, since KL, Seremban
  * and even Kuantan are all closer to Klang than to any other yard, and three of the

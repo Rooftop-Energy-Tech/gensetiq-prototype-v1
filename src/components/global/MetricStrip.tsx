@@ -5,13 +5,14 @@ import {AlarmBadge} from '@/components/global/AlarmCounts';
 import type {AlertSeverity} from '@/modules/genset/types/alert.type';
 
 /**
- * The strip across the top of a site, a system or a bank: the figures that move,
- * then the alarm counts.
+ * The strip across the top of a genset or a deployment's home page: the figures
+ * that move, then the alarm counts. `GensetHome`, `DeploymentHome` and `FuelCard`
+ * draw it.
  *
- * ## Why one component for three pages
+ * ## Why one component for several pages
  *
- * Because the design draws one. The site frame, the solar frame and the battery
- * frame all open on the same rule — equal columns, a label over a figure, and the
+ * Because the design draws one. The site, solar and battery frames it was first
+ * written for (all since removed) opened on the same rule — equal columns, a label over a figure, and the
  * severity pill last — and the only thing that differs is which figures. That is
  * the caller's business and nothing else here is.
  *
@@ -63,8 +64,7 @@ export const MetricStrip = ({
   /**
    * Where the alarm pill goes — this asset's own Alarms tab.
    *
-   * Required, and the five callers are the five routes: a site, a system, a bank, a
-   * cabinet and a set. `params` and `search` are typed as the router's own loose
+   * Required: every caller has an Alarms tab to point at. `params` and `search` are typed as the router's own loose
    * shapes for the reason `DetailNavItem` gives: `to` here is the union of every route
    * in the app, so the router has nothing to narrow them against, and a typo is caught
    * one file away where the caller builds them from its own route's params.
@@ -87,7 +87,7 @@ export const MetricStrip = ({
       aria-label={ariaLabel}
       // A column until the columns fit: five equal shares of 672px is 134px each,
       // which the widest of them — a draw with its bus reading — meets by dropping
-      // the bracket to its own line rather than truncating it. See `SiteMetricStrip`.
+      // the bracket to its own line rather than truncating it.
       className="flex flex-col gap-4 rounded-md border border-subtle bg-element px-5 py-4 @2xl:flex-row @2xl:gap-3"
     >
       {metrics.map((metric) => (

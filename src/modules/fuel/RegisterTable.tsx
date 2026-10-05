@@ -7,8 +7,8 @@ import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/inpu
 import {cn} from '@/lib/utils';
 
 /**
- * The pieces both Fuel tables are built from, so the Depots tab's deliveries and
- * the Trucks tab's log behave alike (Jeff, 2026-09-29): a search box, filter
+ * The pieces both Fuel tables are built from, so the Genset fills tab and the
+ * Truck log behave alike (Jeff, 2026-09-29): a search box, filter
  * dropdowns, a `Filtered by` row with `Clear all`, headers that sort, and the
  * equal-gap layout. Each piece is the Gensets register's markup — `GensetsTable`
  * for the header and the gaps, `GensetsActiveFilters` for the chips — so a reader

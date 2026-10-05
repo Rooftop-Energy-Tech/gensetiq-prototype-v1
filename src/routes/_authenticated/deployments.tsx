@@ -11,8 +11,9 @@ const Deployments = () => {
   const handleSearchChange = (next: Partial<DeploymentSearch>) => {
     void navigate({
       search: (previous) => ({...previous, ...next}),
-      // Typing would otherwise push one history entry per keystroke — the call the
-      // registers make about their own search boxes.
+      // Every change replaces the entry, not only typing: typing would otherwise
+      // push one history entry per keystroke, and the filters and view switch here
+      // are treated the same way. The Gensets route replaces for `q` alone.
       replace: true,
     });
   };

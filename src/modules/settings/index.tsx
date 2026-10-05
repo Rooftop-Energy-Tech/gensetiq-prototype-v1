@@ -10,7 +10,7 @@ import {cn} from '@/lib/utils';
  *
  * ## Why a picker exists at all
  *
- * Because the alternative was restarting the dev server. Three brands share one
+ * Because the alternative was restarting the dev server. Two brands share one
  * build now (see `brands/types.ts`), and the thing a designer actually does with
  * that is compare them: is the rail dark enough behind this mark, does the amber
  * still read on that blue, does the estate's own vocabulary make the summary cards
@@ -79,7 +79,7 @@ const BrandOption = ({
 
       {/* The brand's own rail colour, carrying its own mark — the swatch is the
           thing being chosen, so it is drawn rather than named. Fixed 40px square so
-          three marks of different aspect ratios still line up down the column. */}
+          marks of different aspect ratios still line up down the column. */}
       <span
         className="flex size-10 shrink-0 items-center justify-center rounded-md"
         style={{backgroundColor: brand.theme.sidebar}}

@@ -12,24 +12,24 @@ import type {ServiceSearch} from '@/modules/service/types/view.type';
  * The phone-width nav: a floating pill at the bottom of the screen.
  *
  * It replaces the 94px sidebar rather than reflowing it, because the sidebar is a
- * *rail* — six destinations stacked vertically — and a phone has no vertical
+ * *rail* — five destinations stacked vertically — and a phone has no vertical
  * space to spare for one. Floating rather than docked, and centred rather than
  * full-width, which is the shape RooftopIQ's own floating bars take (see its
  * `FilesBulkActionBar`): the page scrolls underneath it and the bar reads as a
  * control over the content instead of a piece of the frame.
  *
- * ## Four destinations, not seven
+ * ## Four destinations
  *
  * Only the screens that have a mobile layout are here. `Settings` is desktop-only in
  * this prototype, and a nav item that lands on a screen laid out for 1,280px would be
  * worse than no item at all — the point of a limited bar is that everything it offers
  * works.
  *
- * ## Why the three are the three
+ * ## Why these four
  *
- * Two are **registers** — a list, which is the one shape that reads at 390px. The
- * third is Fuel, which is not a list but stacks: four depot cards in one column and
- * a delivery table that sheds two columns below `sm`. It is on the bar because it
+ * Three are **registers** — Gensets, Deployments and Service — a list, which is the
+ * one shape that reads at 390px. The fourth is Fuel, which is not a list but stacks:
+ * depot cards in one column and a fills table that sheds two columns below `sm`. It is on the bar because it
  * was the one screen a reader could reach only by typing its URL, and because the
  * question it answers — did the fuel that left the yard arrive — is asked standing
  * in the yard rather than at a desk.
@@ -40,7 +40,7 @@ import type {ServiceSearch} from '@/modules/service/types/view.type';
  *
  * Everything below a register is a detail page with a 240px rail beside it, and
  * the rail has no phone form at all (see `DetailSidebar`): a phone sent to
- * `/gensets/brf9540` gets the page but not its six sections. That is acceptable for
+ * `/gensets/brf9540` gets the page but not its seven sections. That is acceptable for
  * a page you arrive at from a list you tapped; it would not be acceptable as a
  * destination the bar offered directly.
  *
@@ -56,14 +56,11 @@ type MobileNavItem = {
   /**
    * The screen's own view state, whole.
    *
-   * All three destinations validate their search params, and a `Link` type-checks
-   * against the *parsed* shape rather than the URL's — so each item names the
-   * complete object through that screen's own `…Search()` helper, which is where its
-   * defaults are written down. `view: 'list'` in all three cases, because at this
-   * width the list is the only view any of them has.
-   *
-   * No longer optional: the dispatch feed used to be one table with a search box and
-   * carried no view state to name. It is a register now — see `DeploymentPage`.
+   * Each register validates its search params, and a `Link` type-checks against the
+   * *parsed* shape rather than the URL's — so each item names the complete object,
+   * through that screen's own `…Search()` helper where it has one. `view: 'list'` for
+   * Gensets and Deployments, because at this width the list is their only view;
+   * Service names its tab and sort. Fuel names none — see its item.
    */
   search?: GensetSearch | DeploymentSearch | ServiceSearch;
 };
@@ -82,9 +79,8 @@ const ITEMS: Array<MobileNavItem> = [
     link: '/deployments',
     search: deploymentSearch({view: 'list'}),
   },
-  // The depot reconciliation. No `search`: its period and depot filter are
-  // component state rather than URL state, so the route takes no params and the
-  // bar has nothing to name.
+  // The depots and trucks. No `search`: the bare `/fuel` is the Depots tab, which is
+  // where the bar should land.
   {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
   // The fleet's service standing — which set is due, and Log service on its card. On
   // the bar because a service is logged standing beside the machine. At this width

@@ -8,9 +8,9 @@ import type {BrandId} from './types';
  *
  * Because a brand is not only colours. It names a **dataset**, and the site and
  * genset modules build their whole graph once at module load — `GENSETS`,
- * `SITE_SEED`, and every summary, economic and hybrid figure derived from them.
- * That is deliberate and stated in `siteConfig.ts`: built once "so two sites cannot
- * report figures from different moments".
+ * `DATASET_SITE_SEED`, and every summary derived from them. That is deliberate and
+ * stated in `site/data/siteOverrides.ts`: derived in one pass "so two sites cannot
+ * report from different" moments.
  *
  * A live swap would have to tear that graph down and rebuild it mid-render, and the
  * failure mode is not a crash — it is a screen showing one estate's site names over

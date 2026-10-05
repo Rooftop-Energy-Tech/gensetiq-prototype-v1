@@ -4,17 +4,16 @@ import type {BrandDataset} from '../types';
  * The utility estate: **a distribution licensee's pencawang elektrik in Peninsular
  * Malaysia**.
  *
- * Twenty-five substations, feeder points and rural mini-grids across Sabah and
- * Labuan, with thirty-seven machines posted to them. **Posted, not fitted** — this
+ * Thirty-eight pencawang from Kangar down to Johor Bahru — twenty-five on the
+ * network, six yards from `BRF9540`'s own record and seven added on 2026-09-29 —
+ * with thirty-eight machines, `BRF9540` among them. **Posted, not fitted** — this
  * is the estate Express Mission walks, and EM is a vendor whose sets are trucked to
  * an injection point for a job and brought back. That is what `plant: 'mobile'`
  * below records, and it is why this estate's rail offers no Sites register.
  * Recovered from
  * `feat/sesb-demo`, which is where it was stranded — the branch predates the
  * hybrid plant, the generation series and the energy screen, and every one of
- * those was invisible on it.
- * Twenty-five distribution substations from Kangar down to Johor Bahru, with
- * thirty-seven machines standing on them.
+ * those was invisible on it; the SESB sites it carried were replaced by these.
  *
  * ## Why every site is a `PE`
  *
@@ -40,7 +39,7 @@ import type {BrandDataset} from '../types';
  * circuit the single-line diagram should draw at those five, and it is the case the
  * whole temporary-supply business is about.
  *
- * Five of twenty-five, all filed under the refurbishment programme: Rawang, Teluk
+ * Five of the thirty-eight, all filed under the refurbishment programme: Rawang, Teluk
  * Intan, Butterworth, Kulai and Kuantan.
  *
  * These are mock sites carrying mock figures, the same standing as every other
@@ -161,7 +160,8 @@ const SITES = [
   {id: 'pe-031', name: 'PE Alam Perdana No 3', kind: 'PE', locationLabel: 'Bandar Puncak Alam, Selangor', address: 'Lot 52, Jalan Alam Perdana 3, 42300 Bandar Puncak Alam, Selangor', latitude: 3.2300, longitude: 101.4200, loadKw: 172, customer: 'selangor', powerRole: 'GRID_BACKUP'},
 
   // — Seven more yards (2026-09-29), each taking the second set off a yard that held
-  //   two, so a job is one set as a rule and two only now and then.
+  //   two, so a job is one set as a rule and two only now and then. Six hold one;
+  //   pe-033 is empty since its set moved to pe-032.
   {id: 'pe-032', name: 'PE-032', kind: 'PE', locationLabel: 'Damansara, Kuala Lumpur', address: 'Lot 8, Jalan Damansara, Bukit Damansara, 50490 Kuala Lumpur', latitude: 3.1480, longitude: 101.6620, loadKw: 238, customer: 'wilayah', powerRole: 'GRID_BACKUP'},
   {id: 'pe-033', name: 'PE-033', kind: 'PE', locationLabel: 'Kuchai Lama, Kuala Lumpur', address: 'Lot 20, Jalan Kuchai Lama, 58200 Kuala Lumpur', latitude: 3.0900, longitude: 101.6870, loadKw: 176, customer: 'wilayah', powerRole: 'GRID_BACKUP'},
   {id: 'pe-034', name: 'PE-034', kind: 'PE', locationLabel: 'Subang Jaya, Selangor', address: 'Lot 33, Jalan SS 15/4, 47500 Subang Jaya, Selangor', latitude: 3.0780, longitude: 101.5860, loadKw: 284, customer: 'selangor', powerRole: 'GRID_BACKUP'},
@@ -172,21 +172,23 @@ const SITES = [
 ] as const;
 
 /**
- * The machines. Thirty-seven across thirty-two yards: a job is one set as a rule,
- * and five yards carry two — about one job in seven, which is how often Express
- * Mission sends a pair (2026-09-29; twelve yards held two before).
+ * The machines. Thirty-eight: thirty-seven dealt across thirty-one yards, and
+ * `BRF9540` in the workshop. A job is one set as a rule, and six yards carry two —
+ * about one job in five; Express Mission sends a pair about one time in seven
+ * (2026-09-29; twelve yards held two before).
  *
  * Their tank levels are chosen rather than scattered. `rulesFor` deals alarms from a
  * hash of the tag, so a fleet seeded without thought lands almost everything in the
  * alarm bucket and leaves "Low fuel" reading zero on a screen built to show it.
- * These are picked to put real numbers in all four readiness buckets — two dry, a
- * handful below the reserve line — alongside a spread of run states including a set
- * on a test exercise and two that have not reported in days.
+ * These are picked to put real numbers in every status bucket — a handful below the
+ * reserve line — alongside a spread of run states including two sets on a test
+ * exercise and a few that have stopped reporting.
  *
  * Plates carry the state prefix of the yard the machine is posted to, which is what
  * a lorry's paperwork would say: `W` in the Federal Territory, `B` in Selangor, `A`
  * in Perak, `P` in Pulau Pinang, `J` in Johor, `N` in Negeri Sembilan, `C` in
- * Pahang, `K` in Kedah, `R` in Perlis.
+ * Pahang, `K` in Kedah, `R` in Perlis. One exception: `FGW-181837` at Kepong carries
+ * `H 4141`.
  */
 const GENSETS = [
   // — Wilayah Persekutuan (5).
@@ -214,7 +216,7 @@ const GENSETS = [
   {tag: 'CUM-617409', model: 'Cummins 500 kVA',      runState: 'RUNNING', siteId: 'pe-014', locationLabel: 'Teluk Intan, Perak',           latitude: 4.0234, longitude: 101.0216, fuelLitres: 940,  fuelCapacityLitres: 1200, staleMinutes: 4,  plateNumber: 'AUF 6414'},
   {tag: 'KHL-928197', model: 'Kohler 400 kVA',       runState: 'RUNNING', siteId: 'pe-015', locationLabel: 'Sitiawan, Perak',              latitude: 4.2160, longitude: 100.6960, fuelLitres: 655,  fuelCapacityLitres: 900,  staleMinutes: 4,  startReason: 'TEST', plateNumber: 'AUD 5366'},
 
-  // — Pulau Pinang (5) — Bayan Lepas carries the estate's heaviest pair.
+  // — Pulau Pinang (5).
   {tag: 'CUM-882799', model: 'Cummins 500 kVA',      runState: 'RUNNING', siteId: 'pe-016', locationLabel: 'George Town, Pulau Pinang',    latitude: 5.4137, longitude: 100.3282, fuelLitres: 220,  fuelCapacityLitres: 1000, staleMinutes: 12, plateNumber: 'PHQ 8279'},
   {tag: 'CUM-440939', model: 'Cummins 500 kVA',      runState: 'IDLE',    siteId: 'pe-037', locationLabel: 'Air Itam, Pulau Pinang', latitude: 5.4024, longitude: 100.2796, fuelLitres: 860,  fuelCapacityLitres: 1000, staleMinutes: 4,  plateNumber: 'PFA 5976'},
   {tag: 'CUM-672771', model: 'Cummins 1000 kVA',     runState: 'RUNNING', siteId: 'pe-017', locationLabel: 'Bayan Lepas, Pulau Pinang',    latitude: 5.2944, longitude: 100.2776, fuelLitres: 588,  fuelCapacityLitres: 2450, staleMinutes: 9,  plateNumber: 'PGW 9748'},

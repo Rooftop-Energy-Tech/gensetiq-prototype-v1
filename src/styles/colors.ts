@@ -25,9 +25,9 @@
  *     than Rooftop Energy's gold `#D1AA51`. This is a deliberate product-level
  *     override of `bg-brand`, recorded in the token's `divergent` field so the
  *     drift check reports it as intended rather than as a defect.
- *   - a `SOLAR` and a `BATTERY` group are added for the hybrid plant this
- *     white-label's estate carries. Diesel already had its own hue; solar and
- *     storage need theirs for the same reason. See each group's own comment.
+ *   - a `BATTERY` group was added, with a `SOLAR` one, for the hybrid plant the
+ *     estate once carried. `SOLAR` has gone with that plant; `BATTERY` remains for
+ *     the gallery's `BatteryGlyph`. See its own comment.
  *   - a `STATUS` group is added for genset run states — this product needs
  *     state colour in a way the CRM never did. None of it is in the design
  *     system's semantic collection; see the group's own comment.
@@ -89,10 +89,10 @@ const BACKGROUND: ColorMap = {
     dark: 'rgba(255, 255, 255, 0.08)',
     figma: 'tr-highlight',
   },
-  // GensetIQ teal — primary accents, brand moments. The IQ mark's accent stroke
-  // and the login CTA both use this exact value.
+  // Primary accents and brand moments. The light value is the active brand's
+  // (`BRAND.theme.brand`); the dark value is GensetIQ's teal.
   brand: {
-    // The active brand's own control colour — see `brands/identity.ts`, where each
+    // The active brand's own control colour — see `brands/catalog/*.ts`, where each
     // customer's value is recorded with the variable name their own stylesheet
     // uses. The product's teal stays in dark mode, which these light-only
     // white-label builds never show.
@@ -206,7 +206,8 @@ const BORDER: ColorMap = {
  * The rail is the one surface in these builds that does not follow the app's
  * light/dark polarity: it is painted in the active brand's own colour in both
  * modes, so everything layered on it is light-on-dark either way. That is why the
- * four foreground tokens below carry the same value in both columns while the rest
+ * foreground tokens below are light in both columns (`sidebar-secondary` a shade
+ * dimmer in dark) while the rest
  * of the palette still flips.
  *
  * Every brand's rail colour is therefore required to be dark enough to carry white
@@ -214,7 +215,7 @@ const BORDER: ColorMap = {
  * unbranded build uses the design system's own near-black rather than the teal.
  */
 const SIDEBAR: ColorMap = {
-  // The active brand's rail colour, from `brands/identity.ts`. A dark surface in
+  // The active brand's rail colour, from `brands/catalog/*.ts`. A dark surface in
   // the light mode this app actually ships, hence the mode-invariant foregrounds.
   //
   // On Express Mission that is #0A2723 rather than the mark's own #045832,
@@ -225,14 +226,14 @@ const SIDEBAR: ColorMap = {
     dark: BRAND.theme.sidebar,
     figma: 'bg-sidebar',
     divergent:
-      "The rail is the active brand's own colour in both modes, not the design system's #E2E4E9 / #040710. Customer-level override, set per brand in brands/identity.ts — do not sync this value from Figma's bg-sidebar.",
+      "The rail is the active brand's own colour in both modes, not the design system's #E2E4E9 / #040710. Customer-level override, set per brand in brands/catalog/*.ts — do not sync this value from Figma's bg-sidebar.",
   },
   // Active / hovered nav item. Overlay — layer over the sidebar background.
   'sidebar-highlight': {
     light: 'rgba(255, 255, 255, 0.10)',
     dark: 'rgba(255, 255, 255, 0.10)',
     figma: 'tr-sidebar-highlight',
-    divergent: 'Light-on-dark in both modes — the rail is blue in both. See the group comment.',
+    divergent: 'Light-on-dark in both modes — the rail is the dark brand colour in both. See the group comment.',
   },
   // Outline on the active nav item. Code-only: the design system has no sidebar
   // border, and the global `strong` border is black-alpha in light mode, which
@@ -247,14 +248,14 @@ const SIDEBAR: ColorMap = {
     light: '#F0F2F5',
     dark: '#F0F2F5',
     figma: 'text-sidebar-strong',
-    divergent: 'Light-on-dark in both modes — the rail is blue in both. See the group comment.',
+    divergent: 'Light-on-dark in both modes — the rail is the dark brand colour in both. See the group comment.',
   },
   // Inactive / secondary nav label.
   'sidebar-secondary': {
     light: 'rgba(240, 242, 245, 0.70)',
     dark: 'rgba(240, 242, 245, 0.60)',
     figma: 'text-sidebar-default',
-    divergent: 'Light-on-dark in both modes — the rail is blue in both. See the group comment.',
+    divergent: 'Light-on-dark in both modes — the rail is the dark brand colour in both. See the group comment.',
   },
 };
 
@@ -366,7 +367,7 @@ const MISC: ColorMap = {
     dark: '#161D27',
     figma: 'text-brand',
     divergent:
-      "Text on the brand button is the active brand's declared foreground, paired with its own brand colour in brands/identity.ts — do not sync from Figma's text-brand.",
+      "Text on the brand button is the active brand's declared foreground, paired with its own brand colour in brands/catalog/*.ts — do not sync from Figma's text-brand.",
   },
   'scroll-bar': {light: '#9EA6B2', dark: '#4D5561', figma: 'scroll-bar'},
   // Focus ring. Figma carries a single translucent value for both modes —

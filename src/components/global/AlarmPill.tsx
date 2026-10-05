@@ -8,6 +8,8 @@ import {SEVERITY_META} from '@/modules/genset/components/detail/severityMeta';
 import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 
 /**
+ * Used by the gallery only; kept on purpose.
+ *
  * **A standing row as one pill: how bad it is, then which register said so.**
  *
  * `Critical · SSU 4 Fault`, in the badge row of a part's detail panel, leading to the

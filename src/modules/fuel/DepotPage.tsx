@@ -34,9 +34,9 @@ import {amount, figure} from './format';
  * works in — they come back to it, share its address, and read it at length —
  * rather than a row they glance at on the way past.
  *
- * Top to bottom (Jeff, 2026-10-01): the name and street address; two overview
- * cards, `Unlogged fuel` and `Fuel balance` as on the Depots tab; the tank now
- * beside its level over the period; then `Fuel breakdown` beside the supplier
+ * Top to bottom (Jeff, 2026-10-01): the name and street address; three overview
+ * cards, `Unlogged fuel`, `Fuel balance` and the `Tank`; the tank's level over the
+ * period, full width, with its own range picker; then `Fuel breakdown` beside the supplier
  * deliveries in, and the gensets filled and trucks loaded — the two shares of
  * `Fuel Out`, in the breakdown's order, each totalling what its row says. The
  * whole page is the depot's side only: the truck list is the depot pump's litres,
@@ -246,10 +246,10 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
             under it carries the warning, and the badge said it a second time. */}
       </header>
 
-      {/* ## The Depots tab's two cards, for one yard (Jeff, 2026-10-01)
-          `Unlogged fuel`, then the yard's `Fuel balance`. `Fuel in stock` and its
-          days left, and `Fuel out`, were cut: the tank beside the chart has the
-          level, and the balance card has what went out. */}
+      {/* ## The Depots tab's two cards for one yard, and its tank (Jeff, 2026-10-01)
+          `Unlogged fuel`, the yard's `Fuel balance`, then the `Tank`. `Fuel in
+          stock` and its days left, and `Fuel out`, were cut: the tank card has
+          the level, and the balance card has what went out. */}
       <SummaryCardRow cappedColumns={3}>
         {/* ## A warning when there is one (Jeff, 2026-10-01)
             Grey like its neighbour, a red verdict read as one more figure. With a
@@ -340,9 +340,9 @@ const DepotBody = ({depot, from, to, periodLabel}: {depot: Depot; from: number; 
         <LevelChart series={series} capacity={capacity} />
       </Card>
 
-      {/* In, then Out in the breakdown's order (Jeff, 2026-10-01): what the
-          supplier brought beside the breakdown, then the gensets filled and
-          the trucks loaded, the breakdown's two shares. */}
+      {/* The breakdown beside what the supplier brought, then the gensets filled
+          and the trucks loaded, the breakdown's two shares in its order (Jeff,
+          2026-10-01). */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* `Fuel breakdown` (Jeff, 2026-10-01; it was `Reconciliation`, then `Where
             the fuel went`): `Fuel Out` and the shares it went to. `Fuel In` is the

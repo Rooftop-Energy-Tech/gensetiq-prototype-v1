@@ -3,8 +3,8 @@ import type * as React from 'react';
 import {cn} from '@/lib/utils';
 
 /**
- * An input with inline addons either side of it — the toolbar's search field is
- * the one instance (leading magnifier, trailing ⌘K hint).
+ * An input with inline addons either side of it — every toolbar's search field (a
+ * leading magnifier, and a clear button where there is text).
  *
  * The border and focus ring live on the *group*, not the inner `<input>`, so the
  * addons sit inside the same focus outline. That's why this doesn't just wrap

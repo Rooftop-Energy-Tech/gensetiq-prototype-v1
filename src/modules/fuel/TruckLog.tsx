@@ -20,7 +20,7 @@ import {amount, figure} from './format';
 
 /**
  * Every load and every stop in the period, newest first, with the same controls as
- * the Depots tab's deliveries (Jeff, 2026-09-29) — see `RegisterTable`.
+ * the Genset fills tab (Jeff, 2026-09-29) — see `RegisterTable`.
  *
  * Each row puts the readings that are checked against each other side by side:
  * what was recorded (the nozzle meter at a stop, the depot pump at a load), the

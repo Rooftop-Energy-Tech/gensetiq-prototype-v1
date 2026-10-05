@@ -4,9 +4,10 @@ import type {BrandDataset} from '../types';
  * The carrier estate: **a mobile operator's own tower network in Borneo**.
  *
  * Twenty-five base stations with a permanent power plant beside each, and thirty
- * machines standing on them. Nothing here is a temporary supply and nothing moves —
- * the genset is bolted to a plinth at the foot of the tower and has been for years,
- * which is the assumption every screen in this build makes.
+ * machines standing on them. Nothing here is a temporary supply: the genset is
+ * bolted to a plinth at the foot of the tower. The dealt deployment history does
+ * still move sets between towers (`deployment/data/seed.ts`), which this estate's
+ * story does not account for.
  *
  * ## Why the estate is in Sabah and Sarawak
  *
@@ -77,7 +78,7 @@ const PROGRAMS = [
  * switching centre and a rural coverage site with identical plant are not equally
  * covered by one working genset — one of them carries traffic for a whole state.
  * It also sets the scale a reader should expect the load in: a macro base station
- * is 4–6 kW and a switching centre is a few hundred, so "is 216 kW a lot here" has
+ * is 4–6 kW and a switching centre is a few hundred, so "is 205 kW a lot here" has
  * no answer without this field.
  */
 const SITE_KIND_LABELS = {
@@ -122,7 +123,7 @@ const SITES = [
 
   // — The peninsula (4), one per remaining region and **in no programme**. The
   //   two switching centres are here, which is where a carrier's heavy plant
-  //   actually is, and they are the estate's baseline: a pair of 1000 kVA sets
+  //   actually is, and they are the estate's baseline: a pair of heavy sets
   //   behind a healthy incomer, against which a 15 kVA set on the Rajang is the
   //   thing this product has something to say about.
   {id: 'wpkl-0207', name: 'WPKL-0207', kind: 'CORE',  locationLabel: 'Bangsar South, Kuala Lumpur', address: 'Lot 3, Jalan Kerinchi, Bangsar South, 59200 Kuala Lumpur',  latitude: 3.1109, longitude: 101.6640, loadKw: 205, customer: 'central',    powerRole: 'GRID_BACKUP'},
@@ -135,13 +136,13 @@ const SITES = [
  * The machines, and which plinth each one stands on.
  *
  * Grouped by what the site is, because the plant follows from it: a switching
- * centre holds a pair of 1000 kVA sets and a rural tower holds one 20 kVA.
+ * centre holds a pair of 500 or 1000 kVA sets and a rural tower holds one 20 kVA.
  */
 const GENSETS = [
-  // — The switching centres (6) — the estate's heavy plant, and the only sites
-  //   here that hold a pair. `BRF9540` and its twin are the Figma frame's two
-  //   identical genset cards, one running and one on standby, and `BRF9540` is
-  //   pinned by name in `genset/data/detail.ts` — it does not move.
+  // — The switching centres (6) — the estate's heavy plant: three pairs, 1000 kVA at
+  //   Bangsar South and 500 kVA at Johor Bahru and Sepanggar. `CUM-739893` and
+  //   `CUM-303952` are the Figma frame's two identical genset cards, one running
+  //   and one on standby. Nabawan and Kapit hold the estate's other two pairs.
   {tag: 'CUM-739893', model: 'Cummins 1000 kVA',    runState: 'RUNNING', siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1105, longitude: 101.6634, fuelLitres: 1763, fuelCapacityLitres: 2450, staleMinutes: 57, plateNumber: 'SAC 5385 D'},
   {tag: 'CUM-303952', model: 'Cummins 1000 kVA',    runState: 'IDLE',    siteId: 'wpkl-0207', locationLabel: 'Bangsar South, Kuala Lumpur',  latitude: 3.1113, longitude: 101.6646, fuelLitres: 214,  fuelCapacityLitres: 2450, staleMinutes: 45, plateNumber: 'SA 4562 D'},
   {tag: 'CUM-408590', model: 'Cummins 500 kVA',     runState: 'IDLE',    siteId: 'jhr-0907',  locationLabel: 'Johor Bahru, Johor',           latitude: 1.4923, longitude: 103.7408, fuelLitres: 1088, fuelCapacityLitres: 1200, staleMinutes: 3, plateNumber: 'SAC 1975 A'},
@@ -156,11 +157,11 @@ const GENSETS = [
   {tag: 'PRK-606662', model: 'Perkins 60 kVA',      runState: 'IDLE',    siteId: 'swk-0918',  locationLabel: 'Bintulu, Sarawak',             latitude: 3.1700, longitude: 113.0410, fuelLitres: 781,  fuelCapacityLitres: 900,  staleMinutes: 4, plateNumber: 'ST 7155 W'},
   {tag: 'PRK-930666', model: 'Perkins 60 kVA',      runState: 'IDLE',    siteId: 'png-0255',  locationLabel: 'Bayan Lepas, Penang',          latitude: 5.2945, longitude: 100.2760, fuelLitres: 774,  fuelCapacityLitres: 900,  staleMinutes: 2, plateNumber: 'QS 7644 H'},
 
-  // — The grid-backed towers (7) — 20 kVA on a plinth, idle most of the year.
-  //   `TUA2910` and `SER4870` are the two sets pinned to a test exercise: turning
-  //   beside a perfectly healthy incomer, which is the case that distinction
-  //   exists for. `KTN1970` is the estate's silent unit — nothing heard in two
-  //   days, at the one east-coast site.
+  // — The grid-backed towers (6) — 20–30 kVA on a plinth, idle most of the year.
+  //   `FGW-467022` and `FGW-428760` are the two sets pinned to a test exercise:
+  //   turning beside a perfectly healthy incomer, which is the case that
+  //   distinction exists for. `FGW-954710` is the estate's silent unit — nothing
+  //   heard in two days, at the one east-coast site.
   {tag: 'FGW-431307', model: 'FG Wilson 30 kVA',    runState: 'IDLE',    siteId: 'sbh-1788',  locationLabel: 'Tawau, Sabah',                 latitude: 4.2450, longitude: 117.8840, fuelLitres: 430,  fuelCapacityLitres: 600,  staleMinutes: 4, plateNumber: 'QM 6462 S'},
   {tag: 'FGW-467022', model: 'FG Wilson 20 kVA',    runState: 'RUNNING', siteId: 'sbh-1291',  locationLabel: 'Tuaran, Sabah',                latitude: 6.1770, longitude: 116.2330, fuelLitres: 364,  fuelCapacityLitres: 400,  staleMinutes: 5,  startReason: 'TEST', plateNumber: 'SA 7918 S'},
   {tag: 'FGW-428760', model: 'FG Wilson 20 kVA',    runState: 'RUNNING', siteId: 'swk-0487',  locationLabel: 'Serian, Sarawak',              latitude: 1.1670, longitude: 110.5670, fuelLitres: 305,  fuelCapacityLitres: 400,  staleMinutes: 4,  startReason: 'TEST', plateNumber: 'SD 9478 E'},
@@ -180,16 +181,16 @@ const GENSETS = [
   {tag: 'DNY-215418', model: 'Denyo 15 kVA',        runState: 'IDLE',    siteId: 'swk-0663',  locationLabel: 'Kapit, Sarawak',               latitude: 2.0176, longitude: 112.9338, fuelLitres: 511,  fuelCapacityLitres: 800,  staleMinutes: 95, plateNumber: 'SAA 3131 H'},
   {tag: 'DNY-758670', model: 'Denyo 15 kVA',        runState: 'OFFLINE', siteId: 'swk-0851',  locationLabel: 'Belaga, Sarawak',              latitude: 2.7000, longitude: 113.7830, fuelLitres: 172,  fuelCapacityLitres: 800,  staleMinutes: 1_615, plateNumber: 'SAA 4956 W'},
 
-  // — The diesel-hybrid sites (3) — the same 20 kVA machine, running in blocks
-  //   to recharge a battery instead of idling all day at what a tower draws.
-  //   Their tanks are the fullest on the estate for exactly that reason.
+  // — Three more prime sites — the same 20 kVA machine. They were diesel-hybrid
+  //   sites, charging a battery, until the battery model was removed; they are
+  //   `DIESEL_PRIME` like the six above.
   {tag: 'FGW-135607', model: 'FG Wilson 20 kVA',    runState: 'RUNNING', siteId: 'sbh-1553',  locationLabel: 'Ranau, Sabah',                 latitude: 5.9540, longitude: 116.6640, fuelLitres: 502,  fuelCapacityLitres: 600,  staleMinutes: 6, plateNumber: 'SAC 1492 D'},
   {tag: 'FGW-359597', model: 'FG Wilson 20 kVA',    runState: 'IDLE',    siteId: 'sbh-1612',  locationLabel: 'Lahad Datu, Sabah',            latitude: 5.0269, longitude: 118.3270, fuelLitres: 488,  fuelCapacityLitres: 600,  staleMinutes: 21, plateNumber: 'QA 8401 L'},
   {tag: 'FGW-287781', model: 'FG Wilson 20 kVA',    runState: 'IDLE',    siteId: 'swk-0794',  locationLabel: 'Song, Sarawak',                latitude: 2.0170, longitude: 112.5420, fuelLitres: 331,  fuelCapacityLitres: 400,  staleMinutes: 44, plateNumber: 'ST 4461 G'},
 
-  // — The solar-hybrid sites (4) — the same set again, and the least-used
-  //   machines on the estate. A full tank on one of these is not neglect; it is
-  //   the array having carried the site since the last delivery.
+  // — Four more prime sites — the same set again, and the least-used machines on
+  //   the estate. They were solar-hybrid sites until the array model was removed,
+  //   which is why their tanks run 94–98% full.
   {tag: 'FGW-497643', model: 'FG Wilson 20 kVA',    runState: 'IDLE',    siteId: 'sbh-1336',  locationLabel: 'Kota Belud, Sabah',            latitude: 6.3510, longitude: 116.4300, fuelLitres: 566,  fuelCapacityLitres: 600,  staleMinutes: 2, plateNumber: 'QS 9224 T'},
   {tag: 'FGW-140106', model: 'FG Wilson 20 kVA',    runState: 'IDLE',    siteId: 'sbh-1495',  locationLabel: 'Pulau Banggi, Kudat',          latitude: 7.2717, longitude: 117.1782, fuelLitres: 588,  fuelCapacityLitres: 600,  staleMinutes: 5, plateNumber: 'SAC 1255 R'},
   {tag: 'FGW-344581', model: 'FG Wilson 20 kVA',    runState: 'IDLE',    siteId: 'swk-0559',  locationLabel: 'Sri Aman, Sarawak',            latitude: 1.2370, longitude: 111.4630, fuelLitres: 392,  fuelCapacityLitres: 400,  staleMinutes: 31, plateNumber: 'SB 5161 S'},
@@ -208,9 +209,8 @@ export const CARRIER_DATASET: BrandDataset = {
   siteKindLabels: SITE_KIND_LABELS,
   sites: SITES,
   gensets: GENSETS,
-  // A solar hybrid rather than the first row: it is the configuration this estate
-  // is about, and the one whose site page has every band on it. Ba'kelalan is the
-  // furthest site from a road on the estate, which is the case for the array.
+  // Ba'kelalan rather than the first row: the furthest site from a road on the
+  // estate. It was chosen as a solar hybrid, a role since removed.
   defaultSiteId: 'swk-1163',
   defaultGensetId: 'cum-739893',
 };

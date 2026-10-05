@@ -8,7 +8,7 @@ import {useSyncExternalStore} from 'react';
  * of step with the stylesheet. This exists for the handful that CSS cannot make,
  * where the *tree* differs rather than its layout —
  *
- *  - the fleet and sites lists render a table on a desktop and cards on a phone.
+ *  - the registers render a table on a desktop and cards on a phone.
  *    `hidden md:table` on one and `md:hidden` on the other would mount both, which
  *    means every row's links and tooltips exist twice in the accessibility tree.
  *  - the preview panel is not shown on a phone at all, and the page's map inset

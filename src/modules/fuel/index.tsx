@@ -23,11 +23,9 @@ import {FuelBalanceCard} from './FuelBalanceCard';
 /**
  * `/fuel` — diesel, in the two halves an operations room asks about.
  *
- * **Tanks first, deliveries after them.** The tanks are who will need a tanker; the
- * delivery list is where one has already been. That order is deliberate and is the
- * argument in `FleetTanks` — a machine at 8% with nothing booked against it is
- * invisible on a page made only of what has been booked. Each yard's card opens that
- * yard's own page, `/fuel/depots/$depotId` (`DepotPage`).
+ * **Depot tanks first, then the fills, then the trucks.** The tanks are where a
+ * loss shows; the fills and the trucks are where the fuel went. Each yard's card
+ * opens that yard's own page, `/fuel/depots/$depotId` (`DepotPage`).
  *
  * ## Where a delivery happened
  *
@@ -38,8 +36,8 @@ import {FuelBalanceCard} from './FuelBalanceCard';
  *
  * ## Two halves, where the estate runs trucks
  *
- * Chosen from a second rail on the left (`FuelNav`), whose rows also jump to each
- * half's sections, or two cards at the top on a phone (`ViewSwitch`).
+ * Chosen from a second rail on the left (`FuelNav`), whose links switch the tab, or
+ * cards at the top on a phone (`ViewSwitch`).
  * A combined page of both was tried and dropped (Jeff, 2026-09-29): depots and
  * trucks are different jobs, and one page of both read as neither.
  *
@@ -48,8 +46,10 @@ import {FuelBalanceCard} from './FuelBalanceCard';
  * tab of its own (Jeff, 2026-09-30) rather than a table under the tanks. **Trucks**
  * is the other way fuel reaches a machine — a truck driving it out to a genset in a
  * state with no depot — with each truck's tank, where it is, and whether what it
- * pumped arrived. One window under all three — the last month — for the reason it is one: a
- * reconciliation measured over two periods does not reconcile.
+ * pumped arrived. **Truck log** is every load, stop and short load. The depot and
+ * truck cards share one window, the last 30 days, because a reconciliation measured
+ * over two periods does not reconcile; the Genset fills and Truck log tables each
+ * have their own period picker.
  *
  * An estate with no trucks gets Depots and Genset fills only, not a Trucks row with
  * nothing behind it. See `data/trucks.ts`.
@@ -57,11 +57,10 @@ import {FuelBalanceCard} from './FuelBalanceCard';
  * ## What is not here yet
  *
  * The **work-order half** — what has been booked and what the tanker is still owed.
- * There is a `/refuel` page in the tree that does exactly that, written against the
- * per-genset `DeploymentSession` model this app replaced on 21 September; folding it
- * in means migrating it to the job-at-a-yard model, which is its author's call. This
- * page deliberately reads only what a delivery *was*, which the history layer can
- * answer today.
+ * A `/refuel` page that did this was written against the per-genset
+ * `DeploymentSession` model this app replaced on 21 September, and is not in this
+ * tree. This page reads only what a fill *was*, which the history layer can answer
+ * today.
  */
 
 /** Which tab `/fuel` is showing — the `view` search parameter. */
@@ -191,7 +190,7 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
       verdict: varianceSeverity(movement.outLitres, movement.varianceLitres),
     };
   });
-  // Worst first: fuel missing before a sensor to check, and the bigger loss first.
+  // Worst first: unlogged fuel before a sensor fault, and the bigger gap first.
   const flagged = yards
     .filter((yard) => yard.verdict !== undefined)
     .sort(
@@ -210,7 +209,7 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
           (Jeff, 2026-10-01)
 
           `Needs attention` names each yard with a verdict and says what, in the
-          tile's own words — `1,249 L unlogged`, `Sensor fault` — each a
+          tile's own words — `1, 826 L unlogged`, `Sensor fault` — each a
           link to that yard's page. It replaced two cards, `Fuel unaccounted for`
           and `Sensor faults`, that counted yards without naming them: with four
           tiles a count sent the reader scanning for which, and their filters hid

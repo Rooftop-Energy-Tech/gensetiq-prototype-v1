@@ -214,8 +214,8 @@ export const DepotBreakdown = ({
           2026-10-01), and they are kept apart
           rather than netted: a 50,000 L delivery into the yard would otherwise
           cancel a week of tankers going out and the tile would read as a quiet
-          month. Thirty days until the period control lands — long enough that
-          every yard has taken at least one delivery in it. */}
+          month. Thirty days, the page's fixed window (`useFuelWindow`) — long
+          enough that every yard has taken at least one delivery in it. */}
       {withFuelIn && (
         <div className="flex items-baseline justify-between gap-4 border-b border-subtle py-1.5">
           <dt className="shrink-0 text-sm font-medium text-secondary">Fuel In</dt>

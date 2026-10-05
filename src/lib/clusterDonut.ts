@@ -15,8 +15,8 @@ import maplibregl from 'maplibre-gl';
  * SVG, over the transparent middle of the marker so the count still shows through.
  *
  * Domain-free on purpose: it knows about colours and counts, and each map supplies
- * those from its own vocabulary — run state on the fleet map, condition or fleet
- * status on the sites map. Three maps drawing their bubbles from three copies of
+ * those from its own vocabulary — run state on the fleet map, job state on the
+ * deployments map. Maps drawing their bubbles from separate copies of
  * this is exactly the drift the two map components already work to avoid.
  */
 

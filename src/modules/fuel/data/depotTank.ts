@@ -107,8 +107,8 @@ export const depotCapacityLitres = (depotId: string): number => {
 };
 
 /**
- * Below this the supplier is called, and the tank steps back up. Exported for the
- * Depots tab's `Low stock` card, which counts the yards under it.
+ * Below this the supplier is called, and the tank steps back up. Exported for a
+ * `Low stock` card that was cut on 2026-10-01; only this file reads it now.
  */
 export const REORDER_FRACTION = 0.18;
 

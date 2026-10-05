@@ -13,6 +13,8 @@ import type {FuelLevelKind} from '@/modules/genset/types/fuelLevel.type';
 import {figure} from './format';
 
 /**
+ * Unused since the depot tanks became the Depots tab (2026-09-30); kept on purpose.
+ *
  * Every tank on the estate, worst first — the panel above the order list.
  *
  * ## Why it leads the page rather than sitting under the orders

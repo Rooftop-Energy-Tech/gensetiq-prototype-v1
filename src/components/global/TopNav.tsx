@@ -43,9 +43,8 @@ type Crumb = {label: string; to?: string};
  * asset page has two. Opened from its register the static parent is right; opened
  * from a site it points at a list the reader has never seen, and walking up leaves
  * the yard they were reading. A `from` search param carries the site id through the
- * link, and where it names a real site the trail becomes
- * `Sites / SBH-1336 / KTB3360 | FG Wilson 20 kVA` — the register still reachable, and
- * the site sitting between it and the asset.
+ * link, and where it names a real site the trail becomes `<site name> / <asset>`,
+ * the site as an unlinked label since the site pages went (2026-09-22).
  *
  * ## A tab told apart by the query string
  *

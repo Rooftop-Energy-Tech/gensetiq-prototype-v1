@@ -139,8 +139,8 @@ const alarmLegend = (counts: Record<AlertSeverity, number>) =>
  * below had it as a link (Jeff, 2026-09-09). Two renderings of one pill, one of which
  * answered the question and one of which did not.
  *
- * Every count in the app is now this element: the five `MetricStrip` headers — site,
- * solar, battery, cabinet, genset — and the three device cards on the site panel.
+ * Every count in the app is now this element: the `MetricStrip` headers and the
+ * registers' alarm columns.
  *
  * ## Three numbers, coloured rather than labelled
  *
@@ -209,12 +209,13 @@ export const AlarmBadge = ({
  * `AlarmBadge` above is the rule: every count in this app is clickable, because a
  * count is the question *which ones*, and a pill that names alarms and cannot be
  * opened is the one alarm in the app you cannot read. This is the exception, and it
- * is a markup exception rather than a design one: the sites screen's phone card is
- * itself a `<Link>` into the site, and an anchor inside an anchor is invalid — the
+ * is a markup exception rather than a design one: the Gensets phone card
+ * (`GensetsCards`) is itself a `<Link>` into the genset, and an anchor inside an
+ * anchor is invalid — the
  * browser closes the outer one, and the rest of the card stops navigating.
  *
- * Nothing is lost by it. The card leads to the site, the site's strip carries the
- * same three figures as `AlarmBadge`, and that pill opens the queue. The reading is
+ * Nothing is lost by it. The card leads to the genset, the genset's strip carries
+ * the same three figures as `AlarmBadge`, and that pill opens the queue. The reading is
  * one tap further away on the surface that has no room for the queue anyway.
  *
  * Use it only where an enclosing element already owns the click. Anywhere else the

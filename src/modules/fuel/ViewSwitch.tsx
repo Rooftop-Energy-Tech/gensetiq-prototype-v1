@@ -53,8 +53,8 @@ export const truckStatus = (from: number, to: number): Status => {
 };
 
 /**
- * No verdict of its own: a fill is a fact, and whether it was short is the
- * depot card's to say. So this only names the tab.
+ * No verdict of its own: a fill is a fact, and the depot's gap is the depot
+ * card's to say. So this only names the tab.
  */
 export const deliveriesStatus = (): Status => ({text: 'Gensets filled at a depot', tone: undefined});
 

@@ -16,7 +16,7 @@
  * ## The line this file draws
  *
  * A brand owns **whose app this is**: the name on the door, the mark on the rail,
- * the four colours that are the customer's rather than the product's, and the
+ * the three colours that are the customer's rather than the product's, and the
  * estate the demo walks through.
  *
  * A brand does **not** own the product model. `SitePowerRole` is the clearest
@@ -96,7 +96,7 @@ export type PlantKind = (typeof PLANT_KINDS)[number];
  * the design system's and is shared by every brand — a customer who wanted their
  * own `bg-canvas` would be asking for a different product, and a customer whose
  * yellow fails contrast as a data mark does not get to make bars invisible (see
- * the `SOLAR` group's comment for the case where exactly that was refused).
+ * the case the old `SOLAR` group refused, before it was removed).
  *
  * These four are the ones that carry an identity rather than a meaning:
  *
@@ -117,9 +117,9 @@ export type BrandTheme = {
 };
 
 /**
- * Whose app this is: the name, the marks, and the four colours.
+ * Whose app this is: the name, the marks, and the three colours.
  *
- * **No tab strings here.** The title, description and favicon live in `tab.ts`,
+ * **No tab strings here.** The title, description and favicon live in `manifest.ts`,
  * which is read by the Vite plugin in Node and inlined into the generated registry
  * as literals for only the brands a build includes. Putting them on this type
  * would mean the client importing a map of every brand's title — three short
@@ -362,7 +362,7 @@ export type BrandDataset = {
 /**
  * The browser tab, per brand.
  *
- * Defined here so both sides can name the shape: `tab.ts` states the values in a
+ * Defined here so both sides can name the shape: `manifest.ts` states the values in a
  * module only Node reads, and the generated registry re-emits the included ones as
  * literals for the client.
  */

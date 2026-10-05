@@ -3,6 +3,8 @@ import {ArrowDownIcon, ArrowRightIcon, ArrowUpIcon} from 'lucide-react';
 import {cn} from '@/lib/utils';
 
 /**
+ * Used only by `site/components/SiteTrendChart`, itself unused; kept on purpose.
+ *
  * One figure in a chart band's metric row: what the window came to, and what it is.
  *
  * `value` carries its own unit — the row is read across, and a unit hoisted into a

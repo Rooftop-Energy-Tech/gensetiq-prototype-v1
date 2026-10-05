@@ -159,8 +159,7 @@ export const FuelNav = ({value, onChange, from, to, depotId}: RailProps) => {
                       <span className={cn(LABEL, 'min-w-0 flex-1 truncate')}>{item.label}</span>
                     </button>
                     {/* The link opens the tab; its chevron, a separate button,
-                        folds the depot list under it, as a heading's does its
-                        group (Jeff, 2026-09-30). */}
+                        folds the depot list under it (Jeff, 2026-09-30). */}
                     {hasDepots && (
                       <button
                         type="button"

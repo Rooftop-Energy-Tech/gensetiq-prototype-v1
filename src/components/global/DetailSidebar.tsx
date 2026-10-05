@@ -7,8 +7,12 @@ import type {ComponentType, ReactNode} from 'react';
 import {cn} from '@/lib/utils';
 
 /**
- * The second rail: a 240px navigation column for one *thing* — a site, or one
- * machine standing on it.
+ * The second rail: a 240px navigation column for one *thing* — a genset, a
+ * deployment, or a section such as Service or Fuel.
+ *
+ * It was written for a site and the machines standing on it; the site pages went on
+ * 2026-09-22, and with them the only caller of `group` (the `Asset` disclosure) and
+ * `backLink`. Both stay supported. The history below is from then.
  *
  * ## Why a rail rather than the tab strip it replaces
  *
@@ -63,9 +67,8 @@ export type DetailNavItem = {
   /**
    * Search params for `to`, typed as loosely as `params` is and for the same reason.
    *
-   * The site's rail is the only caller so far: its asset rows pass `from`, so an
-   * asset opened here crumbs back to this site rather than to its register. See
-   * `fromSearch.type.ts`.
+   * The Service rail passes its tab and sort. The site rail, now gone, passed `from`
+   * so an asset opened there crumbed back to its site — see `fromSearch.type.ts`.
    */
   search?: Record<string, string>;
   /**
@@ -119,8 +122,7 @@ export const DetailSidebar = ({
    *
    * Its own slot rather than part of `header`, because the design puts it in its
    * own band: the header's 8px padding closes above it, and the row sits flush
-   * against the nav below. That is the whole point of the arrangement — see
-   * `DetailSidebarBackLink`.
+   * against the nav below. No rail passes one today.
    */
   backLink?: ReactNode;
   entries: ReadonlyArray<DetailNavEntry>;

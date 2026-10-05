@@ -29,11 +29,11 @@ import {cn} from '@/lib/utils';
  *
  * So the `battery` tone is gone, deliberately rather than left as a spare: a caller
  * that could still ask for it would get the old shape on a page that has replaced it,
- * which is the drift this file's own note warns about. What is left is a one-member
- * enum, and `tone` stays a prop for the reason it was one — the token pair is not a
+ * which is the drift this file's own note warns about. `fuel` was left alone and
+ * `teal` was added later (below), and `tone` stays a prop for the reason it was one — the token pair is not a
  * caller's choice to make, `fuel`/`fuel-tip` being two halves of one scale, and the
  * rule the whole app follows is that a mark is coloured by *what it measures*. The
- * next level anybody draws lands here as a second member.
+ * next level anybody draws lands here as another member.
  */
 const TONES = {
   fuel: {fill: 'bg-fuel', tip: 'bg-fuel-tip'},
@@ -43,9 +43,9 @@ const TONES = {
   //
   // ⚠️ It crosses the rule the note above states: hue says *what kind of job it is*,
   // violet for diesel and teal for the electrical side, so a tank drawn teal is a
-  // fuel figure wearing the electrical colour. The tank on `/fuel`, the droplets on
-  // the fleet cards and the fuel badges are all still violet, so the same machine's
-  // level is now two colours on two screens. Worth settling in one direction.
+  // fuel figure wearing the electrical colour. The depot tank on `/fuel`
+  // (`DepotTankGlyph`) fills teal too, while the droplets on the fleet cards and the
+  // fuel badges are still violet. Worth settling in one direction.
   teal: {fill: 'bg-teal', tip: 'bg-teal/70'},
 } as const;
 
