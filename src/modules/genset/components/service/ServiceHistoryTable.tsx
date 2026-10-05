@@ -2,7 +2,7 @@ import {FileTextIcon} from 'lucide-react';
 import type {ReactNode} from 'react';
 
 import {stampAt} from '@/lib/format';
-import {siteLabel} from '@/modules/site/data/siteSeed';
+import {serviceSiteLabel} from '../../data/services';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
 import type {ServiceRecord} from '../../types/service.type';
@@ -108,7 +108,7 @@ export const ServiceHistoryTable = ({
                 {/* The site as it was, not as it is — see `ServiceRecord.siteId`.
                     A set that has since moved yards still shows where the work
                     was actually done. */}
-                <td className="px-3 py-2.5 text-secondary">{siteLabel(record.siteId)}</td>
+                <td className="px-3 py-2.5 text-secondary">{serviceSiteLabel(record.siteId)}</td>
                 <td className="px-3 py-2.5 text-secondary">{record.technicianName}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap text-secondary">
                   {gensetName(genset)}

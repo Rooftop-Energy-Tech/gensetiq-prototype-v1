@@ -1,6 +1,6 @@
 import {DATASET} from '@/brands';
 import {malaysiaStateName, MALAYSIA_STATE_IDS} from '@/lib/geo/malaysiaStates';
-import {seededDeployments, seededMemberships} from '@/modules/deployment/data/seed';
+import {deployments, memberships, subscribeDeployments} from '@/modules/deployment/data/store';
 import {GENSETS} from '@/modules/genset/data/fleet';
 import {refuelsIn} from '@/modules/genset/data/history';
 import {DEPOTS, depotFor, depotState} from './depots';
@@ -75,22 +75,25 @@ type Posting = {
 
 /** Every posting, flattened once. The per-fill lookup is then a scan of one machine's. */
 const buildPostings = (): Map<string, Array<Posting>> => {
-  const deployments = new Map(seededDeployments().map((d) => [d.id, d]));
+  // The store's record, edits and all, not the seed's: a job created, moved, ended
+  // or deleted on the Deployments pages moves the fills it covers with it.
+  const byId = new Map(deployments().map((d) => [d.id, d]));
   const sites = new Map(DATASET.sites.map((site) => [site.id, site]));
   const byGenset = new Map<string, Array<Posting>>();
 
-  for (const member of seededMemberships()) {
-    const deployment = deployments.get(member.deploymentId);
+  for (const member of memberships()) {
+    const deployment = byId.get(member.deploymentId);
     if (deployment === undefined) continue;
 
     const site = sites.get(deployment.siteId);
     const posting: Posting = {
       gensetId: member.gensetId,
       startMs: new Date(deployment.startsAt).getTime(),
-      endMs:
-        deployment.endsAt === null
-          ? Number.POSITIVE_INFINITY
-          : new Date(deployment.endsAt).getTime(),
+      // A set collected early left the job then, not when the job closed.
+      endMs: (() => {
+        const end = member.collectedAt ?? deployment.endsAt;
+        return end === null ? Number.POSITIVE_INFINITY : new Date(end).getTime();
+      })(),
       place: deployment.locationLabel,
       // The site's label, not the deployment's: a real job's label is the PE's
       // name (`PE Tmn Sementa Jaya`), which carries no state.
@@ -171,6 +174,12 @@ const buildFills = (): Array<GensetFill> => {
 };
 
 let held: Array<GensetFill> | undefined;
+
+// Dealt again after any change to a deployment, since where a fill happened follows
+// the posting it fell in.
+subscribeDeployments(() => {
+  held = undefined;
+});
 
 /** Every fill in the record, oldest first. Dealt on first access. */
 export const allFills = (): ReadonlyArray<GensetFill> => {

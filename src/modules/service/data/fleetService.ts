@@ -126,6 +126,8 @@ export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} 
 
 /** The state a service was done in — its site's, not where the set is today. */
 export const recordStateName = (record: ServiceRecord, genset: Genset | undefined): string | undefined => {
+  // Done in the depot: no yard, so no state — not the state the set is in today.
+  if (record.siteId === '') return undefined;
   const site = siteSeed(record.siteId);
   if (site !== undefined) {
     const id = malaysiaStateAt(site.longitude, site.latitude);

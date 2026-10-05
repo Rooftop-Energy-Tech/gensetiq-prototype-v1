@@ -53,8 +53,11 @@ export const ReportingPage = () => {
   // Half-open: the range runs to midnight the morning *after* the day picked, so a
   // range drawn to the 16th includes everything that happened on the 16th. The same
   // convention `runsCsv` holds, and the reason it prints the last instant rather
-  // than the boundary.
-  const range: ExportRange = {from: dayStart(from), to: dayStart(to) + DAY};
+  // than the boundary. Never past now, though (2026-10-05): a range drawn to today
+  // ran to tomorrow's midnight, and a set running now was billed for hours it has
+  // not run yet — hours the postings file and the Runs tab, which stop at now, did
+  // not have.
+  const range: ExportRange = {from: dayStart(from), to: Math.min(dayStart(to) + DAY, now)};
   const valid = range.to > range.from;
 
   const counts = useMemo(

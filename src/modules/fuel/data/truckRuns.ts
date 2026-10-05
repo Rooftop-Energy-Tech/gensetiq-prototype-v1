@@ -1,3 +1,4 @@
+import {subscribeDeployments} from '@/modules/deployment/data/store';
 import {historyStart} from '@/modules/genset/data/history';
 import {spreadBetween} from '@/modules/genset/data/spread';
 import {DEPOTS} from './depots';
@@ -234,6 +235,9 @@ const buildEvents = (truck: RefuelTruck): Array<TruckEvent> => {
 };
 
 const eventsByTruck = new Map<string, Array<TruckEvent>>();
+
+// A truck's stops are the fills routed to it, which follow the deployments.
+subscribeDeployments(() => eventsByTruck.clear());
 
 /** One truck's record, oldest first. Dealt on first access. */
 export const truckEvents = (truckId: string): ReadonlyArray<TruckEvent> => {

@@ -28,14 +28,13 @@ import {useIsCompact} from '@/lib/useIsCompact';
 import {cn} from '@/lib/utils';
 import {useFleet} from '@/modules/genset/data/deployment';
 import {gensetStateName, stateNameFromSlug, stateSlug} from '@/modules/genset/data/gensetState';
-import {engineHoursOf, useServiceRecords} from '@/modules/genset/data/services';
+import {engineHoursOf, serviceSiteLabel, useServiceRecords} from '@/modules/genset/data/services';
 import {LogServiceDialog} from '@/modules/genset/components/service/LogServiceDialog';
 import {SERVICE_SEVERITY_META} from '@/modules/genset/components/service/serviceMeta';
 import {gensetLabel} from '@/modules/genset/types/genset.type';
 import type {Genset} from '@/modules/genset/types/genset.type';
 import type {ServiceCounter, ServiceRecord} from '@/modules/genset/types/service.type';
 import {searchGensets} from '@/modules/genset/utils/searchGensets';
-import {siteLabel} from '@/modules/site/data/siteSeed';
 import {nextDue, recordStateName, sortFleetService, useFleetService} from './data/fleetService';
 import type {FleetServiceRow} from './data/fleetService';
 import {SERVICE_PAGE_SIZE, SERVICE_SORT_DEFAULT_DIRECTION, SERVICE_STANDINGS} from './types/view.type';
@@ -490,7 +489,7 @@ const HistoryRows = ({records, byId}: {records: Array<ServiceRecord>; byId: Map<
               <span className="text-secondary">· {stampDate(record.performedAt)}</span>
             </span>
             <span className="truncate text-xs text-secondary">
-              {record.technicianName} · {siteLabel(record.siteId)} · {record.engineHoursAtService.toLocaleString('en-MY')} h
+              {record.technicianName} · {serviceSiteLabel(record.siteId)} · {record.engineHoursAtService.toLocaleString('en-MY')} h
             </span>
           </div>
           {record.document.url === null ? (
@@ -548,7 +547,7 @@ const HistoryTable = ({records, byId}: {records: Array<ServiceRecord>; byId: Map
               )}
             </td>
             <td className={cn(CELL, 'border-b border-subtle text-primary')}>{recordStateName(record, genset) ?? '—'}</td>
-            <td className={cn(CELL, 'border-b border-subtle text-primary')}>{siteLabel(record.siteId)}</td>
+            <td className={cn(CELL, 'border-b border-subtle text-primary')}>{serviceSiteLabel(record.siteId)}</td>
             <td className={cn(CELL, 'border-b border-subtle text-primary')}>{record.technicianName}</td>
             <td className={cn(CELL, 'border-b border-subtle text-right text-primary tabular-nums')}>
               {record.engineHoursAtService.toLocaleString('en-MY')} h

@@ -10,7 +10,9 @@ import type {GensetCondition} from '../types/alert.type';
 import {SEVERITY_OF_FUEL_LEVEL, fuelLevelKind} from '../types/fuelLevel.type';
 import {seededGenset} from './fleet';
 import {gensetDetail} from './detail';
-import {standingAlarms} from './alarms';
+import {sitePowerRole} from '@/modules/site/data/siteConfig';
+import {alarmHandlingNow, standingAlarms} from './alarms';
+import {plantAlarmQueue} from './assertedAlarms';
 import {
   flowMeterAgeMinutes,
   flowMeterSilent,
@@ -237,7 +239,16 @@ export const machineCondition = (gensetId: string, now: number = NOW): GensetCon
    * reading at module load, which is what the analysis chart's threshold lines are
    * drawn from.
    */
-  const registers = conditionOf(standingAlarms(gensetId));
+  //
+  // With the site monitoring unit's rows filed against the set beside them, as its
+  // alarm count has them (`useFleetAlarmCounts`). Without them, three carrier sets
+  // carrying a standing `CRITICAL` site row read `All OK` under a red badge
+  // (2026-10-05).
+  const siteId = seededGenset(gensetId)?.siteId;
+  const plant = siteId
+    ? plantAlarmQueue(siteId, sitePowerRole(siteId), 'GENSET', alarmHandlingNow()).standing
+    : [];
+  const registers = conditionOf([...standingAlarms(gensetId), ...plant]);
 
   const state = fuelIntegrityOf(gensetId, now);
   if (state.kind === 'critical') return 'CRITICAL';

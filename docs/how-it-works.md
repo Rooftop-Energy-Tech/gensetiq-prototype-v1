@@ -865,8 +865,9 @@ it is not; the row says `Clears when refuelled` where the button would be. It ca
 handling store as every other row.
 
 **The fleet buckets read a tank-blind verdict, and that is the one place they must.**
-`gensetStatus` asks `machineCondition` — the register map and the leak, and nothing
-about the tank — because it already tests the tank itself, in `REFUEL`. Asking the wide
+`gensetStatus` asks `machineCondition` — the register map, the site monitoring unit's
+rows filed against the set (since 2026-10-05, as its alarm count has them), and the
+leak, and nothing about the tank — because it already tests the tank itself, in `REFUEL`. Asking the wide
 `gensetCondition` there would say the same fact twice: every `REFUEL` set would test
 true for `ALARM`, `ALARM` outranks `REFUEL`, and the fuel bucket those tiles exist to
 show would drain into the red one entirely.
@@ -2660,6 +2661,10 @@ machine was posted at that moment:
   KL, Pasir Gudang takes Negeri Sembilan, Melaka and Putrajaya, Ipoh takes the
   east coast, Butterworth takes Kedah and Perlis.
 - **Between postings**: the genset is at a yard, so it fills at the nearest depot.
+
+The postings are the deployments as they stand, edits included (2026-10-05). Create,
+move, end or delete a job and the fills it covers move with it, on the Fuel pages
+and in the Reporting files. Both used to read the seeded record and ignore edits.
 
 **Each estate has its own depots** (2026-10-05). Express Mission's four are Klang,
 Ipoh, Butterworth and Pasir Gudang. The carrier estate runs no trucks, so every

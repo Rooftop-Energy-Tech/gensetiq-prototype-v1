@@ -1,3 +1,4 @@
+import {subscribeDeployments} from '@/modules/deployment/data/store';
 import {historyNow, historyStart} from '@/modules/genset/data/history';
 import {spread, spreadBetween} from '@/modules/genset/data/spread';
 import {DEPOTS} from './depots';
@@ -300,6 +301,13 @@ const buildSeries = (depotId: string, loadScale = 1): Array<DepotSample> => {
 };
 
 const seriesByDepot = new Map<string, Array<DepotSample>>();
+
+// A deployment edit moves fills between yards and trucks (`fills.ts`), and with them
+// what each tank issued — so the walks, and the sizes read off them, are dealt again.
+subscribeDeployments(() => {
+  seriesByDepot.clear();
+  capacities.clear();
+});
 
 /** Dealt on first access, for the reason `deployment/data/seed.ts` gives. */
 export const depotSeries = (depotId: string): ReadonlyArray<DepotSample> => {

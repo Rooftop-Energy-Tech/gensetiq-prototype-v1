@@ -139,7 +139,7 @@ export type GensetTag = {
  */
 export type GensetCondition = 'OPTIMUM' | 'ATTENTION' | 'CRITICAL';
 
-export const conditionOf = (alerts: Array<GensetAlert>): GensetCondition => {
+export const conditionOf = (alerts: ReadonlyArray<Pick<GensetAlert, 'severity'>>): GensetCondition => {
   if (alerts.some((alert) => alert.severity === 'CRITICAL')) return 'CRITICAL';
   if (alerts.some((alert) => alert.severity === 'WARNING')) return 'ATTENTION';
   return 'OPTIMUM';
