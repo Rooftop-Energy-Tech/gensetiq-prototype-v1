@@ -79,7 +79,7 @@ const ITEMS: Array<MobileNavItem> = [
     link: '/deployments',
     search: deploymentSearch({view: 'list'}),
   },
-  // The depots and trucks. No `search`: the bare `/fuel` is the Depots tab, which is
+  // The depots and the genset fills. No `search`: the bare `/fuel` is the Depots tab, which is
   // where the bar should land.
   {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
   // The fleet's service standing — which set is due, and Log service on its card. On

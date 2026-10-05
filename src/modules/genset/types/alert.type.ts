@@ -1,11 +1,18 @@
 /**
  * Alerts and the tags operators file them under.
  *
- * An alert is a **bit in the controller's alarm map**, and the set of them is
- * closed: it is the Modbus register map's alarm bits marked *To Include in
+ * A `GensetAlert` is a **bit in the controller's alarm map**, and the set of them
+ * is closed: it is the Modbus register map's alarm bits marked *To Include in
  * Dashboard*, and nothing else. Each one names its register and bit, so any row
- * on the page can be traced back to the sheet it came from. Invented alarms are
- * not allowed here, however plausible they read.
+ * on the page can be traced back to the sheet it came from. No bit is invented
+ * here, however plausible it reads.
+ *
+ * **Service alarms are the one kind not from the register map** (Jeff,
+ * 2026-10-05). An item of the service schedule falling due is raised by the app
+ * — overdue a `WARNING`, due soon a `NEUTRAL` — and its row prints `Service
+ * schedule` where a bit prints its register, so nothing pretends a panel asserted
+ * it. They are not `GensetAlert`s; see `ServiceNotice` in `service.type.ts` and
+ * `data/serviceAlarm.ts`. The low tank (`lowFuelAlarm.ts`) is raised the same way.
  *
  * Most of those bits are a **threshold on a reading**: `AL Battery Voltage` is
  * the controller's name for a rule that watches `battery-voltage` and fires
@@ -135,7 +142,8 @@ export type GensetTag = {
  *
  * Derived from the alerts rather than stored, so it cannot drift from them.
  * Worst severity wins, and `NEUTRAL` alerts do not spoil it — a neutral alert is
- * a note (a service coming due), not a problem.
+ * a note (a service coming due), not a problem. An overdue service is a `WARNING`
+ * and does: `machineCondition` counts the service alarms beside the bits.
  */
 export type GensetCondition = 'OPTIMUM' | 'ATTENTION' | 'CRITICAL';
 
@@ -153,7 +161,7 @@ export const CONDITION_ORDER = ['CRITICAL', 'ATTENTION', 'OPTIMUM'] as const;
  *
  * The same mapping `conditionOf` applies to a list, written down so a verdict can
  * also be formed from an alarm the app raised rather than the register map — the
- * fuel leak and the tank level. `NEUTRAL` maps to `OPTIMUM` because a neutral
+ * fuel leak, the tank level and a service falling due. `NEUTRAL` maps to `OPTIMUM` because a neutral
  * alert is a note, which is the rule `conditionOf` has always worked to.
  */
 export const CONDITION_OF_SEVERITY: Record<AlertSeverity, GensetCondition> = {

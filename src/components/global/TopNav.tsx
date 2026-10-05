@@ -49,8 +49,8 @@ type Crumb = {label: string; to?: string};
  * ## A tab told apart by the query string
  *
  * `staticData.crumbTab` names the tab a route is showing when its tabs are a search
- * param rather than child routes, so `/fuel?view=deliveries` reads `Fuel /
- * Genset fills` and `Fuel` links back to the page's first tab. Read off the deepest
+ * param rather than child routes, so `/fuel?view=history` reads `Fuel /
+ * History` and `Fuel` links back to the page's first tab. Read off the deepest
  * labelled match only, since that is the page the reader is on.
  *
  * The lookup is what makes an unknown id safe: a hand-edited or stale `from` finds no

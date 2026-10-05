@@ -12,7 +12,7 @@ import type {Period} from './PeriodControl';
  * hours`, `7 days`, `30 days` and a custom range (2026-10-05), the control the
  * depot page's level chart already used, so the app has one period control rather
  * than two. `By run` is off, as on the depot chart: a fuel table has no engine run
- * to pick. The deliveries table and the truck log each carry one.
+ * to pick. The History table carries one.
  *
  * It opens on 30 days, which is the page's own fixed window, so on arrival a table
  * lists what the figures above it add up. Changed, it holds its own period, for that

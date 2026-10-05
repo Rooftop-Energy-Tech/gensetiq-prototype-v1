@@ -139,10 +139,10 @@ const SITES = [
   {id: 'pe-025', name: 'PE-025', kind: 'PE', locationLabel: 'Kuantan, Pahang', address: 'Lot 74, Jalan Gambang, 25150 Kuantan, Pahang',                latitude: 3.8077, longitude: 103.3260, loadKw: 187, customer: 'pahang',          powerRole: 'DIESEL_PRIME', program: 'substation-refurbishment'},
   {id: 'pe-002', name: 'PE-002', kind: 'PE', locationLabel: 'Temerloh, Pahang', address: 'Lot 3, Jalan Tengku Bakar, 28000 Temerloh, Pahang',                latitude: 3.4500, longitude: 102.4170, loadKw: 288, customer: 'pahang',          powerRole: 'GRID_BACKUP'},
 
-  // — Kedah and Perlis (1 each) — the far north, worked by Butterworth's truck.
+  // — Kedah and Perlis (1 each) — the far north, supplied by the Butterworth depot.
   //   PE-002 to PE-004 were Setapak, Cheras and Sentul in Kuala Lumpur until
-  //   2026-09-29. They moved so each refuel truck has a similar share of the work
-  //   (Jeff); with six yards in the Klang valley, one truck did most of it.
+  //   2026-09-29. They moved to spread the fuel work across the depots (Jeff); with
+  //   six yards in the Klang valley, Klang did most of it.
   {id: 'pe-004', name: 'PE-004', kind: 'PE', locationLabel: 'Alor Setar, Kedah', address: 'Lot 9, Jalan Sultan Badlishah, 05000 Alor Setar, Kedah',                latitude: 6.1210, longitude: 100.3670, loadKw: 196, customer: 'kedah',           powerRole: 'GRID_BACKUP'},
   {id: 'pe-003', name: 'PE-003', kind: 'PE', locationLabel: 'Kangar, Perlis', address: 'Lot 27, Jalan Bukit Lagi, 01000 Kangar, Perlis',                latitude: 6.4414, longitude: 100.1986, loadKw: 355, customer: 'perlis',          powerRole: 'GRID_BACKUP'},
 

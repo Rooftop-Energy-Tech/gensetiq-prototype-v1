@@ -1,4 +1,6 @@
-import {figure} from '@/lib/format';
+import {figure, numericDate} from '@/lib/format';
+
+import type {AlertSeverity} from './alert.type';
 
 /**
  * Servicing, and how a genset falls due for it.
@@ -22,19 +24,35 @@ import {figure} from '@/lib/format';
  */
 
 /**
- * How often this genset is serviced — the two intervals, always both.
+ * One thing on the schedule — engine oil, the air filter, the battery — and how
+ * often it is done.
  *
- * Not optional individually. A schedule with only an hour interval would let a
- * set that never runs go unserviced forever, and one with only a calendar
- * interval would let a set worked around the clock run three intervals' worth of
- * hours between visits. The pair is the schedule; either alone is a different and
- * worse policy.
+ * ## A list of items, as a car's book has (Jeff, 2026-10-05)
+ *
+ * Not every part is changed on every visit: oil every 250 h, coolant every two
+ * years. So the schedule is a list, each item on its own interval, and each item
+ * falls due on its own. It was one pair of intervals for the whole set until then.
+ *
+ * Either interval may be left out, but not both. A battery ages by the calendar
+ * whether the set runs or not, so it has months only; an item with both is due on
+ * whichever comes first, as the whole set was. The reasoning below for keeping the
+ * two counters apart still holds item by item.
  */
+export type ServiceItem = {
+  /** Stable, so a record's `itemIds` still finds it after a rename. */
+  id: string;
+  name: string;
+  /** Run hours between services. Absent: this item is on the calendar alone. */
+  intervalHours?: number;
+  /** Calendar months between services, run or not. Absent: run hours alone. */
+  intervalMonths?: number;
+  /** A standing note — the oil grade, a part number (Jeff, 2026-10-05). */
+  remarks?: string;
+};
+
+/** How often this genset is serviced — its items, in the order the page lists them. */
 export type ServiceSchedule = {
-  /** Run hours between services. */
-  intervalHours: number;
-  /** Calendar months between services, run or not. */
-  intervalMonths: number;
+  items: Array<ServiceItem>;
 };
 
 /**
@@ -91,7 +109,16 @@ export type ServiceRecord = {
   document: ServiceDocument;
   /** The sheet's "Remarks" line, when there is one. */
   notes?: string;
+  /**
+   * The schedule items this visit did, by id. Absent means a full service, every
+   * item — the seeded history, and any record logged before items existed.
+   */
+  itemIds?: Array<string>;
 };
+
+/** Whether this visit did this item. */
+export const recordCovers = (record: ServiceRecord, itemId: string): boolean =>
+  record.itemIds === undefined || record.itemIds.includes(itemId);
 
 /** How close to its interval a counter has to be before it is worth flagging. */
 const DUE_SOON_FRACTION = 0.9;
@@ -133,15 +160,43 @@ export const counterOvershoot = (counter: ServiceCounter): number =>
  * don't know", and a `severity` field with an `UNKNOWN` member would let every
  * reader forget to handle it.
  */
+export type ItemStatus =
+  | {kind: 'never-serviced'; item: ServiceItem}
+  | {
+      kind: 'tracked';
+      item: ServiceItem;
+      /** The newest visit that did this item — what its counters measure from. */
+      lastService: ServiceRecord;
+      /** Absent when the item has no hour interval. */
+      hours?: ServiceCounter;
+      /** Absent when the item has no month interval. */
+      calendar?: ServiceCounter;
+      /** The worse of its counters. */
+      severity: ServiceSeverity;
+      binding: ServiceCounterKind;
+      /** How far through its interval the nearer counter is; >1 is overdue. */
+      progress: number;
+    };
+
+/**
+ * A genset's verdict: its most urgent item's, with every item's beside it.
+ *
+ * The top-level fields are that one item's, so a reader that wants one answer —
+ * the strip tile, the fleet page, the `Due for service` filter — reads them as it
+ * read the single schedule's, and `item` says which part it is about.
+ */
 export type ServiceStatus =
-  | {kind: 'never-serviced'; schedule: ServiceSchedule}
+  | {kind: 'never-serviced'; schedule: ServiceSchedule; items: Array<ItemStatus>}
   | {
       kind: 'tracked';
       schedule: ServiceSchedule;
+      items: Array<ItemStatus>;
+      /** The item the verdict is about. */
+      item: ServiceItem;
       lastService: ServiceRecord;
-      hours: ServiceCounter;
-      calendar: ServiceCounter;
-      /** The worse of the two counters. */
+      hours?: ServiceCounter;
+      calendar?: ServiceCounter;
+      /** The worse of the item's counters. */
       severity: ServiceSeverity;
       /**
        * The counter that set the severity — what the page names as the reason.
@@ -201,28 +256,37 @@ export const monthsBetween = (fromIso: string, now: number): number => {
   return months + (span > 0 ? Math.min(1, Math.max(0, into / span)) : 0);
 };
 
-/** The date this genset's calendar interval falls due, from its last service. */
-export const calendarDueDate = (lastService: ServiceRecord, schedule: ServiceSchedule): Date => {
+/** The date a calendar interval of `intervalMonths` falls due, from the service it counts from. */
+export const calendarDueDate = (lastService: ServiceRecord, intervalMonths: number): Date => {
   const due = new Date(lastService.performedAt);
-  due.setMonth(due.getMonth() + schedule.intervalMonths);
+  due.setMonth(due.getMonth() + intervalMonths);
   return due;
 };
 
-/**
- * The two counters and the verdict, from the last service and the hour meter.
- *
- * `currentEngineHours` is passed in rather than read here because this file has
- * no business knowing where telemetry comes from — and because the caller has to
- * hold one clock reading and one meter reading for a whole page, or two rows
- * rendered a millisecond apart can disagree about the same machine.
- */
-export const serviceStatus = (
-  lastService: ServiceRecord | undefined,
-  schedule: ServiceSchedule,
+/** The counter that set a tracked status's severity. Always present, by construction. */
+export const bindingCounter = (status: {
+  hours?: ServiceCounter;
+  calendar?: ServiceCounter;
+  binding: ServiceCounterKind;
+}): ServiceCounter => {
+  const counter = status.binding === 'hours' ? (status.hours ?? status.calendar) : (status.calendar ?? status.hours);
+  // An item has at least one interval, so at least one counter.
+  return counter as ServiceCounter;
+};
+
+const ratio = (counter: ServiceCounter | undefined): number =>
+  counter === undefined || counter.interval <= 0 ? 0 : counter.elapsed / counter.interval;
+
+/** One item's counters, from the newest visit that did it. */
+export const itemStatus = (
+  item: ServiceItem,
+  records: Array<ServiceRecord>,
   currentEngineHours: number,
   now: number = Date.now(),
-): ServiceStatus => {
-  if (lastService === undefined) return {kind: 'never-serviced', schedule};
+): ItemStatus => {
+  // Newest first, as the store hands them out.
+  const lastService = records.find((record) => recordCovers(record, item.id));
+  if (lastService === undefined) return {kind: 'never-serviced', item};
 
   // Clamped at zero: a technician's written figure can land below the meter's
   // current value if the panel was replaced, and a negative "hours since
@@ -230,100 +294,227 @@ export const serviceStatus = (
   const hoursElapsed = Math.max(0, currentEngineHours - lastService.engineHoursAtService);
   const monthsElapsed = Math.max(0, monthsBetween(lastService.performedAt, now));
 
-  const hours: ServiceCounter = {
-    kind: 'hours',
-    elapsed: hoursElapsed,
-    interval: schedule.intervalHours,
-    severity: severityOf(hoursElapsed, schedule.intervalHours),
-  };
+  const hours: ServiceCounter | undefined =
+    item.intervalHours === undefined
+      ? undefined
+      : {
+          kind: 'hours',
+          elapsed: hoursElapsed,
+          interval: item.intervalHours,
+          severity: severityOf(hoursElapsed, item.intervalHours),
+        };
+  const calendar: ServiceCounter | undefined =
+    item.intervalMonths === undefined
+      ? undefined
+      : {
+          kind: 'calendar',
+          elapsed: monthsElapsed,
+          interval: item.intervalMonths,
+          severity: severityOf(monthsElapsed, item.intervalMonths),
+        };
 
-  const calendar: ServiceCounter = {
-    kind: 'calendar',
-    elapsed: monthsElapsed,
-    interval: schedule.intervalMonths,
-    severity: severityOf(monthsElapsed, schedule.intervalMonths),
-  };
-
-  const severity = worse(hours.severity, calendar.severity);
+  const severity = worse(hours?.severity ?? 'OK', calendar?.severity ?? 'OK');
+  // On a tie, hours win — see `binding` on `ServiceStatus`.
+  const binding: ServiceCounterKind =
+    hours !== undefined && (calendar === undefined || hours.severity === severity) ? 'hours' : 'calendar';
 
   return {
     kind: 'tracked',
-    schedule,
+    item,
     lastService,
     hours,
     calendar,
     severity,
-    binding: hours.severity === severity ? 'hours' : 'calendar',
+    binding,
+    progress: Math.max(ratio(hours), ratio(calendar)),
   };
 };
 
 /**
- * An overdue service, as something the alerts section can render.
+ * Every item's counters, and the verdict — the most urgent item's.
  *
- * ## Why this is not a `GensetAlert`
+ * Most urgent is the worst severity, then the furthest through its interval. A
+ * genset with no service on record at all is `never-serviced`, as before; one
+ * whose only unmeasured items are new ones keeps the verdict of the items it has.
  *
- * Because `alert.type.ts` says what a `GensetAlert` is, and it is not this: "an
- * alert is a **bit in the controller's alarm map**, and the set of them is
- * closed … Invented alarms are not allowed here, however plausible they read."
- * Every alert card on the home page names the Modbus register and bit it came
- * from, which is what lets a reader trace any row back to the sheet.
+ * `currentEngineHours` is passed in rather than read here because this file has
+ * no business knowing where telemetry comes from — and because the caller has to
+ * hold one clock reading and one meter reading for a whole page, or two rows
+ * rendered a millisecond apart can disagree about the same machine.
+ */
+export const serviceStatus = (
+  records: Array<ServiceRecord>,
+  schedule: ServiceSchedule,
+  currentEngineHours: number,
+  now: number = Date.now(),
+): ServiceStatus => {
+  const items = schedule.items.map((item) => itemStatus(item, records, currentEngineHours, now));
+  const tracked = items.filter((status) => status.kind === 'tracked');
+  const [worst] = [...tracked].sort(
+    (left, right) =>
+      SERVICE_SEVERITIES.indexOf(left.severity) - SERVICE_SEVERITIES.indexOf(right.severity) ||
+      right.progress - left.progress,
+  );
+  if (worst === undefined) return {kind: 'never-serviced', schedule, items};
+
+  return {
+    kind: 'tracked',
+    schedule,
+    items,
+    item: worst.item,
+    lastService: worst.lastService,
+    hours: worst.hours,
+    calendar: worst.calendar,
+    severity: worst.severity,
+    binding: worst.binding,
+  };
+};
+
+/**
+ * A service falling due, as an alarm.
  *
- * A service falling overdue is not a bit on any panel. It is the app comparing a
- * date and an hour meter against a policy — a real thing worth showing in the
- * same place, and a different *kind* of thing. Adding it to the alarm list would
- * have been one line and would have cost the alerts page the only invariant it
- * actually defends: once one row on it is invented, none of them can be trusted
- * to be real.
+ * ## The one alarm not from the register map (Jeff, 2026-10-05)
  *
- * So it renders alongside the alarms, in the same section, visibly sourced from
- * the app. `source` is what the card prints where an alarm prints its register.
+ * `alert.type.ts` closes the controller's alarm list to the register map's bits,
+ * and that still holds for the controller. This is the one kind raised by the app
+ * instead: an item of the schedule falling due counts as an alarm being triggered.
+ * It is not a bit on any panel — it is the app comparing a date and an hour meter
+ * against the schedule — so it never pretends to be one. It prints `Service
+ * schedule` where a controller row prints its register and bit, so a reader can
+ * still tell at a glance which rows a panel asserted.
+ *
+ * Until that date it was a notice beside the alarms rather than one of them, on the
+ * argument that one invented row makes every row suspect. The provenance line
+ * answers that argument now: the row says where it came from.
+ *
+ * ## One per item, at two levels
+ *
+ * **Overdue is a `WARNING`** — a job to book, the same weight as a low tank. **Due
+ * soon is `NEUTRAL`**, the lowest level, a note that does not move the condition
+ * verdict. Each item raises its own, so a set with oil and the air filter both late
+ * carries two. A never-serviced item raises nothing: it is unmeasured, not late,
+ * and a row claiming otherwise would assert a service history that does not exist.
  */
 export type ServiceNotice = {
+  /**
+   * The handling store's key. Starts with the genset id, which is how a job's pages
+   * tell a machine's rows from the yard's. Carries the stage and the service it
+   * counts from, so an acknowledgement does not outlive either: a due-soon row that
+   * turns overdue, or an item serviced and late again, is a fresh alarm.
+   */
   id: string;
   gensetId: string;
-  severity: ServiceSeverity;
-  /** Which counter is overdue — what the card names as the reason. */
+  item: ServiceItem;
+  severity: AlertSeverity;
+  /** Which counter is talking — what the message names as the reason. */
   binding: ServiceCounterKind;
-  /** e.g. `Service overdue by 41 h`. */
+  /** e.g. `Engine oil and filter overdue by 26 h`, `Battery due on 12/11/2026`. */
   message: string;
-  /** Always the app. Printed where an alarm card prints its register and bit. */
+  /** The item's intervals, e.g. `Every 250 h or 6 months`. */
+  rule: string;
+  /** ISO 8601 — when the item crossed into its stage. See `crossedAt`. */
+  raisedAt: string;
+  /** Always the app. Printed where an alarm prints its register and bit. */
   source: 'Service schedule';
 };
 
-/**
- * The notice for a genset, or `undefined` when there is nothing to say.
- *
- * Only `OVERDUE` produces one. `DUE_SOON` deliberately does not: the alerts
- * section is what an operator scans to decide where to send somebody today, and
- * a fleet that puts a row there for every set within 10% of its interval trains
- * people to skim past the section. Due-soon is on the Service tab, which is
- * where somebody planning next week's work is already looking.
- *
- * A never-serviced genset gets no notice either. It is unmeasured, not late, and
- * a red row claiming otherwise would be asserting a service history that does
- * not exist.
- */
-export const serviceNotice = (
-  gensetId: string,
-  status: ServiceStatus,
-): ServiceNotice | undefined => {
-  if (status.kind !== 'tracked' || status.severity !== 'OVERDUE') return undefined;
+/** Service severity → alarm severity. `OK` raises nothing. */
+export const ALARM_SEVERITY_OF_SERVICE: Record<Exclude<ServiceSeverity, 'OK'>, AlertSeverity> = {
+  OVERDUE: 'WARNING',
+  DUE_SOON: 'NEUTRAL',
+};
 
-  const counter = status.binding === 'hours' ? status.hours : status.calendar;
+/**
+ * When a counter crossed `fraction` of its interval.
+ *
+ * By the calendar for months — the date a person would write on the sheet, with
+ * the part-month prorated as `monthsBetween` counts it. For hours it is an
+ * estimate: the meter is read at the service and now, nothing in between, so the
+ * hours are taken as run evenly over that span. Good enough for a raised time;
+ * never used to decide whether anything is due.
+ */
+const crossedAt = (
+  lastService: ServiceRecord,
+  counter: ServiceCounter,
+  fraction: number,
+  now: number,
+): number => {
+  const from = new Date(lastService.performedAt).getTime();
+  const threshold = counter.interval * fraction;
+
+  if (counter.kind === 'hours') {
+    if (counter.elapsed <= 0) return now;
+    return from + (now - from) * Math.min(1, threshold / counter.elapsed);
+  }
+
+  const whole = new Date(from);
+  whole.setMonth(whole.getMonth() + Math.floor(threshold));
+  const next = new Date(whole);
+  next.setMonth(next.getMonth() + 1);
+  return Math.min(now, whole.getTime() + (threshold % 1) * (next.getTime() - whole.getTime()));
+};
+
+const ruleOf = (item: ServiceItem): string =>
+  `Every ${[
+    item.intervalHours === undefined ? undefined : `${figure(item.intervalHours)} h`,
+    item.intervalMonths === undefined ? undefined : `${item.intervalMonths} months`,
+  ]
+    .filter((part) => part !== undefined)
+    .join(' or ')}`;
+
+/**
+ * One item's alarm, or `undefined` while it is inside its interval or unmeasured.
+ *
+ * `now` must be the clock the status was measured against, or the raised time and
+ * the counters disagree about the same moment.
+ */
+export const serviceNoticeOf = (
+  gensetId: string,
+  status: ItemStatus,
+  now: number,
+): ServiceNotice | undefined => {
+  if (status.kind !== 'tracked' || status.severity === 'OK') return undefined;
+
+  const counter = bindingCounter(status);
   const overshoot = counterOvershoot(counter);
+  const overdue = status.severity === 'OVERDUE';
+  const name = status.item.name;
+
+  const message = overdue
+    ? counter.kind === 'hours'
+      ? `${name} overdue by ${figure(Math.round(overshoot))} h`
+      : `${name} overdue by ${overshoot.toFixed(1)} months`
+    : counter.kind === 'hours'
+      ? `${name} due in ${figure(Math.round(-overshoot))} h`
+      : `${name} due on ${numericDate(calendarDueDate(status.lastService, counter.interval).getTime())}`;
+
+  // The earliest crossing among the counters at this stage — an item late on both
+  // has been late since the first of them went.
+  const fraction = overdue ? 1 : DUE_SOON_FRACTION;
+  const crossings = [status.hours, status.calendar]
+    .filter((candidate): candidate is ServiceCounter => candidate?.severity === status.severity)
+    .map((candidate) => crossedAt(status.lastService, candidate, fraction, now));
 
   return {
-    id: `${gensetId}-service-overdue`,
+    id: `${gensetId}-service-${status.item.id}-${overdue ? 'overdue' : 'due-soon'}:${status.lastService.id}`,
     gensetId,
-    severity: status.severity,
+    item: status.item,
+    severity: ALARM_SEVERITY_OF_SERVICE[status.severity],
     binding: status.binding,
-    message:
-      status.binding === 'hours'
-        ? `Service overdue by ${figure(Math.round(overshoot))} h`
-        : `Service overdue by ${overshoot.toFixed(1)} months`,
+    message,
+    rule: ruleOf(status.item),
+    raisedAt: new Date(Math.min(...crossings)).toISOString(),
     source: 'Service schedule',
   };
 };
+
+/** Every item's alarm on one genset, in schedule order. */
+export const serviceNotices = (
+  gensetId: string,
+  status: ServiceStatus,
+  now: number,
+): Array<ServiceNotice> =>
+  status.items.flatMap((item) => serviceNoticeOf(gensetId, item, now) ?? []);
 
 /**
  * "Due in 63 h", "Overdue by 41 h", "Not recorded" — service, in a strip tile.
@@ -334,14 +525,13 @@ export const serviceNotice = (
  * nobody asked of a summary. The Service tab shows both.
  *
  * A never-serviced set reads `Not recorded` rather than a number. It is
- * unmeasured, not due — the same distinction `serviceNotice` refuses to collapse,
+ * unmeasured, not due — the same distinction `serviceNoticeOf` refuses to collapse,
  * and a tile printing `0 h of 250 h` would assert a service that never happened.
  */
 export const serviceHeadline = (status: ServiceStatus): string => {
   if (status.kind === 'never-serviced') return 'Not recorded';
 
-  const counter = status.binding === 'hours' ? status.hours : status.calendar;
-  const overshoot = counterOvershoot(counter);
+  const overshoot = counterOvershoot(bindingCounter(status));
   const remaining = -overshoot;
 
   if (status.binding === 'hours') {
@@ -357,13 +547,22 @@ export const serviceHeadline = (status: ServiceStatus): string => {
 /**
  * The default schedule, and the per-model table that overrides it.
  *
- * **`250 h / 6 months` is a placeholder standing in for an answer nobody has
- * given yet.** The questions that settle it — does it vary by set size, is there
- * a tiered minor/major schedule, do prime sites differ — are listed in this
- * change's `design.md` for the operations team. They land here, in one table,
- * and nothing else in the app has to move when they do.
+ * **These intervals are typical diesel-genset figures standing in for the
+ * operations team's.** Engine oil and its filter at `250 h / 6 months` is the
+ * single interval the whole set ran on until 2026-10-05, so a fleet on the
+ * defaults reads exactly as it did. The rest are the usual longer items. They land
+ * here, in one table, and nothing else in the app has to move when they change.
  */
-export const DEFAULT_SCHEDULE: ServiceSchedule = {intervalHours: 250, intervalMonths: 6};
+export const DEFAULT_SCHEDULE: ServiceSchedule = {
+  items: [
+    {id: 'engine-oil', name: 'Engine oil and filter', intervalHours: 250, intervalMonths: 6},
+    {id: 'fuel-filter', name: 'Fuel filter', intervalHours: 500, intervalMonths: 12},
+    {id: 'air-filter', name: 'Air filter', intervalHours: 500, intervalMonths: 12},
+    {id: 'belts', name: 'Drive belts', intervalHours: 1000, intervalMonths: 12},
+    {id: 'coolant', name: 'Coolant', intervalHours: 2000, intervalMonths: 24},
+    {id: 'battery', name: 'Battery', intervalMonths: 24},
+  ],
+};
 
 const SCHEDULE_BY_MODEL: Record<string, ServiceSchedule> = {};
 

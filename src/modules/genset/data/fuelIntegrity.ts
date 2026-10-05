@@ -13,6 +13,7 @@ import {gensetDetail} from './detail';
 import {sitePowerRole} from '@/modules/site/data/siteConfig';
 import {alarmHandlingNow, standingAlarms} from './alarms';
 import {plantAlarmQueue} from './assertedAlarms';
+import {serviceAlarms} from './serviceAlarm';
 import {
   flowMeterAgeMinutes,
   flowMeterSilent,
@@ -207,8 +208,9 @@ export const useFuelIntegrity = (gensetId: string, now: number = NOW): FuelInteg
 };
 
 /**
- * The genset's condition from the **machine** alone — the register map's bits and
- * the leak reconciliation, and nothing about how full the tank is.
+ * The genset's condition from the **machine** alone — the register map's bits, the
+ * service items falling due and the leak reconciliation, and nothing about how full
+ * the tank is.
  *
  * Split out from `gensetCondition` when the tank level became an alarm of its own.
  * One caller wants this narrower reading and only one: `fleetStatus.gensetStatus`,
@@ -249,7 +251,15 @@ export const machineCondition = (gensetId: string, now: number = NOW): GensetCon
   const plant = siteId
     ? plantAlarmQueue(siteId, sitePowerRole(siteId), 'GENSET', alarmHandlingNow()).standing
     : [];
-  const registers = conditionOf([...standingAlarms(gensetId), ...plant]);
+  //
+  // And the service alarms (Jeff, 2026-10-05): an overdue item is a `WARNING`, so it
+  // reads `ATTENTION`; a due-soon one is `NEUTRAL` and moves nothing. A late service
+  // is the machine's state rather than the tank's, so it belongs on this side.
+  const registers = conditionOf([
+    ...standingAlarms(gensetId),
+    ...plant,
+    ...serviceAlarms(gensetId, alarmHandlingNow()),
+  ]);
 
   const state = fuelIntegrityOf(gensetId, now);
   if (state.kind === 'critical') return 'CRITICAL';
@@ -263,15 +273,14 @@ export const machineCondition = (gensetId: string, now: number = NOW): GensetCon
  *
  * **This is the reading every screen should use**, not `detail.condition`. That one
  * is the register map's verdict alone, which was the whole verdict until alarms
- * existed that the register map does not carry. There are now two of them, and both
- * are the app's own arithmetic rather than the panel's.
+ * existed that the register map does not carry. There are now three of them — the
+ * leak, the tank, and a service falling due — all the app's own arithmetic rather
+ * than the panel's.
  *
- * A leak moves it and an overdue service does not, and the asymmetry is the point.
- * A service falling due is a chore nobody has done yet; a tank losing eighty litres
- * a night is a machine actively spilling its consumable onto the ground. A genset
- * doing that while its page reads `Optimum` would cost the reader their trust in
- * every other verdict on the screen — which is a far more expensive failure than
- * one over-coloured badge.
+ * An overdue service moves it to `ATTENTION` since it became an alarm (Jeff,
+ * 2026-10-05), through `machineCondition`. Until then it did not, on the argument
+ * that a late service is a chore rather than a fault; a leak still outranks it, a
+ * leak being able to reach `CRITICAL` and a service never.
  *
  * The tank level is here for exactly that argument, applied to the fact it was
  * missing from. The estate's most consequential number had no verdict attached to

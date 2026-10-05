@@ -9,7 +9,7 @@ import type {Genset} from '@/modules/genset/types/genset.type';
 import {calendarDueDate, serviceStatus} from '@/modules/genset/types/service.type';
 import type {ServiceCounter, ServiceRecord, ServiceStatus} from '@/modules/genset/types/service.type';
 import {siteSeed} from '@/modules/site/data/siteSeed';
-import type {ServiceSort, ServiceSortDirection, ServiceStanding} from '../types/view.type';
+import type {ServiceHistorySort, ServiceSort, ServiceSortDirection, ServiceStanding} from '../types/view.type';
 
 /**
  * One genset's line on the fleet service page.
@@ -32,8 +32,8 @@ export const standingOf = (status: ServiceStatus): ServiceStanding => {
   return status.severity === 'OVERDUE' ? 'overdue' : status.severity === 'DUE_SOON' ? 'due-soon' : 'ok';
 };
 
-const ratio = (counter: ServiceCounter): number =>
-  counter.interval > 0 ? counter.elapsed / counter.interval : 0;
+const ratio = (counter: ServiceCounter | undefined): number =>
+  counter === undefined || counter.interval <= 0 ? 0 : counter.elapsed / counter.interval;
 
 /**
  * Worst first: overdue, due soon, never serviced, then in service. A set with no
@@ -48,17 +48,18 @@ export const useFleetService = (fleet: Array<Genset>): Array<FleetServiceRow> =>
 
   return useMemo(() => {
     const now = Date.now();
-    const latest = new Map<string, ServiceRecord>();
-    // Records are newest first, as `gensetServices` hands them out.
-    for (const record of records) if (!latest.has(record.gensetId)) latest.set(record.gensetId, record);
+    // Records are newest first, as `gensetServices` hands them out, and stay so per set.
+    const byGenset = new Map<string, Array<ServiceRecord>>();
+    for (const record of records) byGenset.set(record.gensetId, [...(byGenset.get(record.gensetId) ?? []), record]);
 
     return fleet
       .map((genset) => {
-        const status = serviceStatus(latest.get(genset.id), scheduleOf(genset.id), engineHoursOf(genset.id), now);
+        const status = serviceStatus(byGenset.get(genset.id) ?? [], scheduleOf(genset.id), engineHoursOf(genset.id), now);
+        // The most urgent item's nearer counter. An item on one interval has only that one.
         const nearer =
           status.kind === 'never-serviced'
             ? undefined
-            : ratio(status.hours) >= ratio(status.calendar)
+            : status.calendar === undefined || (status.hours !== undefined && ratio(status.hours) >= ratio(status.calendar))
               ? status.hours
               : status.calendar;
         return {genset, status, standing: standingOf(status), progress: nearer ? ratio(nearer) : 0, nearer};
@@ -80,20 +81,20 @@ const SORT_KEY: Record<ServiceSort, (row: FleetServiceRow) => number | string | 
   name: (row) => gensetLabel(row.genset),
   location: (row) => gensetStateName(row.genset),
   due: (row) => (row.nearer === undefined ? undefined : row.progress),
-  hours: (row) => (row.status.kind === 'tracked' ? ratio(row.status.hours) : undefined),
-  time: (row) => (row.status.kind === 'tracked' ? ratio(row.status.calendar) : undefined),
+  hours: (row) => (row.status.kind === 'tracked' && row.status.hours !== undefined ? ratio(row.status.hours) : undefined),
+  time: (row) =>
+    row.status.kind === 'tracked' && row.status.calendar !== undefined ? ratio(row.status.calendar) : undefined,
   last: (row) => (row.status.kind === 'tracked' ? Date.parse(row.status.lastService.performedAt) : undefined),
 };
 
-/** The Due rows in the header's order. Ties keep the worst-first ranking, since the sort is stable. */
-export const sortFleetService = (
-  rows: Array<FleetServiceRow>,
-  sort: ServiceSort,
+/** Both tables' sort: by one key, `undefined` last either way, stable on ties. */
+const sortBy = <T,>(
+  items: Array<T>,
+  key: (item: T) => number | string | undefined,
   direction: ServiceSortDirection,
-): Array<FleetServiceRow> => {
-  const key = SORT_KEY[sort];
+): Array<T> => {
   const sign = direction === 'asc' ? 1 : -1;
-  return [...rows].sort((left, right) => {
+  return [...items].sort((left, right) => {
     const a = key(left);
     const b = key(right);
     if (a === undefined || b === undefined) return a === b ? 0 : a === undefined ? 1 : -1;
@@ -101,8 +102,41 @@ export const sortFleetService = (
   });
 };
 
-/** When the nearer counter comes due — a date for the calendar, hours for the meter. */
-export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} | undefined => {
+/** The Due rows in the header's order. Ties keep the worst-first ranking, since the sort is stable. */
+export const sortFleetService = (
+  rows: Array<FleetServiceRow>,
+  sort: ServiceSort,
+  direction: ServiceSortDirection,
+): Array<FleetServiceRow> => sortBy(rows, SORT_KEY[sort], direction);
+
+/**
+ * The History rows in the header's order (Jeff, 2026-10-05). The log arrives newest
+ * first and the sort is stable, so ties — one plate, one technician — stay newest first.
+ * A record whose set has left the fleet sorts by the id it is listed under.
+ */
+export const sortServiceHistory = (
+  records: Array<ServiceRecord>,
+  byId: Map<string, Genset>,
+  sort: ServiceHistorySort,
+  direction: ServiceSortDirection,
+): Array<ServiceRecord> => {
+  const key: Record<ServiceHistorySort, (record: ServiceRecord) => number | string> = {
+    name: (record) => {
+      const genset = byId.get(record.gensetId);
+      return genset === undefined ? record.gensetId : gensetLabel(genset);
+    },
+    date: (record) => Date.parse(record.performedAt),
+    technician: (record) => record.technicianName,
+    hours: (record) => record.engineHoursAtService,
+  };
+  return sortBy(records, key[sort], direction);
+};
+
+/**
+ * When the nearer counter comes due — a date for the calendar, hours for the meter —
+ * and which schedule item it is (2026-10-05).
+ */
+export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean; item: string} | undefined => {
   const {status, nearer} = row;
   if (status.kind === 'never-serviced' || nearer === undefined) return undefined;
 
@@ -113,16 +147,16 @@ export const nextDue = (row: FleetServiceRow): {text: string; overdue: boolean} 
     // is headed `Run hours` now, so the bare unit has its noun beside it.
     const hours = (count: number) => `${figure(count)} h`;
     return left <= 0
-      ? {text: `${hours(Math.abs(left))} over`, overdue: true}
-      : {text: `In ${hours(left)}`, overdue: false};
+      ? {text: `${hours(Math.abs(left))} over`, overdue: true, item: status.item.name}
+      : {text: `In ${hours(left)}`, overdue: false, item: status.item.name};
   }
 
-  const due = calendarDueDate(status.lastService, status.schedule);
+  const due = calendarDueDate(status.lastService, nearer.interval);
   const date = numericDate(due.getTime());
   // `Due on` / `Was due on` so a bare date is not left to explain itself.
   return due.getTime() <= Date.now()
-    ? {text: `Was due on ${date}`, overdue: true}
-    : {text: `Due on ${date}`, overdue: false};
+    ? {text: `Was due on ${date}`, overdue: true, item: status.item.name}
+    : {text: `Due on ${date}`, overdue: false, item: status.item.name};
 };
 
 /** The state a service was done in — its site's, not where the set is today. */

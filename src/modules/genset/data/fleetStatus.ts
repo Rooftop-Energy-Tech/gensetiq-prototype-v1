@@ -126,7 +126,8 @@ export const STATUS_META: Record<
  * would drain into the red one entirely.
  *
  * So the tank is tested where it belongs — in the fuel line below — and the alarm
- * line asks only about the *machine*: the register map's bits and the leak
+ * line asks only about the *machine*: the register map's bits, an overdue service
+ * (a `WARNING` since 2026-10-05, so an overdue set is `ALARM` now) and the leak
  * reconciliation. The three buckets stay exhaustive and stay non-overlapping, which is
  * the property an operator reading them as a workload depends on.
  *

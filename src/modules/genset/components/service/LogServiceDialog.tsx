@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {PaperclipIcon, PlusIcon} from 'lucide-react';
+import {CheckIcon, PaperclipIcon, PlusIcon} from 'lucide-react';
 
 import {Button} from '@/components/ui/button';
 import {DateInput} from '@/components/ui/date-input';
@@ -13,10 +13,9 @@ import {
 } from '@/components/ui/dialog';
 import {Input} from '@/components/ui/input';
 import {figure} from '@/lib/format';
-import {siteSeeds} from '@/modules/site/data/siteSeed';
 import {gensetName} from '../../types/genset.type';
 import type {Genset} from '../../types/genset.type';
-import {logService} from '../../data/services';
+import {logService, scheduleOf} from '../../data/services';
 
 /**
  * Today and now, as the values `DateInput` and an `<input type="time">` want.
@@ -52,8 +51,9 @@ const Field = ({
  *
  * ## What it asks for, and what it doesn't
  *
- * Six fields, and every one of them is either a counter input or one of the four
- * facts the history displays. The twenty-eight checklist items, the phase
+ * Every field is either a counter input or one of the facts the history displays.
+ * *Work done* is a counter input (2026-10-05): the schedule's items, ticked, and only
+ * the ticked ones restart their counters. The twenty-eight checklist items, the phase
  * voltages, the battery readings — none of it is here, because all of it is on
  * the attached sheet and re-keying it into the app would create a second copy
  * that can disagree with the first.
@@ -76,6 +76,7 @@ export const LogServiceDialog = ({
   genset,
   currentEngineHours,
   compact = false,
+  itemId,
 }: {
   genset: Genset;
   currentEngineHours: number;
@@ -84,28 +85,37 @@ export const LogServiceDialog = ({
    * than the Service tab's primary button. The dialog behind it is the same.
    */
   compact?: boolean;
+  /**
+   * One schedule item to mark done: the trigger is that row's `Mark done`, and the
+   * form opens with only that item ticked (Jeff, 2026-10-05). Absent, none is.
+   */
+  itemId?: string;
 }) => {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const now = new Date();
-  const [siteId, setSiteId] = useState(genset.siteId ?? '');
   const [date, setDate] = useState(localDate(now));
   const [time, setTime] = useState(localTime(now));
   const [technician, setTechnician] = useState('');
   const [hours, setHours] = useState('');
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const items = scheduleOf(genset.id).items;
+  // Nothing ticked to start with (Jeff, 2026-10-05) — or the one item a row's
+  // `Mark done` opened it for.
+  const preset = () => (itemId === undefined ? [] : [itemId]);
+  const [done, setDone] = useState<Array<string>>(preset);
 
   const reset = () => {
     const fresh = new Date();
-    setSiteId(genset.siteId ?? '');
     setDate(localDate(fresh));
     setTime(localTime(fresh));
     setTechnician('');
     setHours('');
     setNotes('');
     setFile(null);
+    setDone(preset());
     setError(undefined);
   };
 
@@ -114,18 +124,25 @@ export const LogServiceDialog = ({
 
     const engineHours = Number(hours);
     if (hours.trim() === '' || Number.isNaN(engineHours)) {
-      setError('Enter the hour-meter reading. Both counters measure from it, so a service without one cannot reset them.');
+      setError('Enter the run hours at service.');
+      return;
+    }
+    if (done.length === 0) {
+      setError('Tick at least one item.');
       return;
     }
 
     logService({
       gensetId: genset.id,
-      siteId,
+      // Where the set stands now, or the depot: no longer asked (Jeff, 2026-10-05).
+      siteId: genset.siteId ?? '',
       performedAt: new Date(`${date}T${time}`).toISOString(),
       technicianName: technician.trim() === '' ? 'Unrecorded' : technician.trim(),
       engineHoursAtService: engineHours,
       file,
       notes,
+      // In the schedule's order, whatever order they were ticked in.
+      itemIds: items.filter((item) => done.includes(item.id)).map((item) => item.id),
     });
 
     setOpen(false);
@@ -141,7 +158,16 @@ export const LogServiceDialog = ({
       }}
     >
       <DialogTrigger asChild>
-        {compact ? (
+        {itemId !== undefined ? (
+          <Button
+            size="xs"
+            variant="outline"
+            aria-label={`Mark ${items.find((item) => item.id === itemId)?.name ?? 'item'} done`}
+          >
+            <CheckIcon aria-hidden="true" />
+            Mark done
+          </Button>
+        ) : compact ? (
           <Button size="xs" variant="outline" aria-label={`Log a service for ${gensetName(genset)}`}>
             <PlusIcon aria-hidden="true" />
             Log service
@@ -149,43 +175,24 @@ export const LogServiceDialog = ({
         ) : (
           <Button size="sm">
             <PlusIcon aria-hidden="true" />
-            Log a service
+            Log service
           </Button>
         )}
       </DialogTrigger>
 
       <DialogContent aria-describedby={undefined}>
         <DialogTitle>Log a service</DialogTitle>
-        <DialogDescription className="mt-1">
-          {gensetName(genset)} · attach the completed checklist. The app displays the site,
-          technician, date and machine; the sheet holds the rest.
-        </DialogDescription>
+        {/* The genset alone: the form's explanatory lines came off (Jeff, 2026-10-05). */}
+        <DialogDescription className="mt-1">{gensetName(genset)}</DialogDescription>
 
         <form className="mt-5 flex flex-col gap-4" onSubmit={submit}>
           <div className="flex flex-wrap gap-4">
-            <div className="min-w-[180px] flex-1">
-              <Field label="Location" hint="Where the work was done — stored as it is now.">
-                <select
-                  value={siteId}
-                  onChange={(event) => setSiteId(event.target.value)}
-                  className="h-9 w-full rounded-md border border-default bg-element px-3 text-sm text-primary outline-none focus-visible:border-brand focus-visible:ring-[1px] focus-visible:ring-brand"
-                >
-                  {genset.siteId === null && <option value="">Workshop — not fitted</option>}
-                  {siteSeeds().map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
             <div className="min-w-[180px] flex-1">
               <Field label="Technician">
                 <Input
                   value={technician}
                   onChange={(event) => setTechnician(event.target.value)}
-                  placeholder="Name on the sheet"
+                  placeholder="Name"
                 />
               </Field>
             </div>
@@ -207,7 +214,10 @@ export const LogServiceDialog = ({
                 />
               </Field>
             </div>
+          </div>
 
+          {/* A line of its own (Jeff, 2026-10-05), under the date and time. */}
+          <div className="flex flex-wrap gap-4">
             <div className="min-w-[160px] flex-1">
               <Field
                 label="Run hours at service"
@@ -229,18 +239,53 @@ export const LogServiceDialog = ({
             </div>
           </div>
 
-          <Field label="Remarks" hint="Optional — the sheet's own remarks line.">
+          {/* What was done (2026-10-05): only the ticked items restart their
+              counters; the rest keep counting from their own last service. */}
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 flex w-full items-center justify-between text-sm font-medium text-primary">
+              Work done
+              <button
+                type="button"
+                className="text-xs font-normal text-brand hover:text-primary"
+                onClick={() => setDone(done.length === items.length ? [] : items.map((item) => item.id))}
+              >
+                {done.length === items.length ? 'Clear all' : 'Tick all'}
+              </button>
+            </legend>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+              {items.map((item) => (
+                <label key={item.id} className="flex items-start gap-2 text-sm text-primary">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 shrink-0 accent-brand"
+                    checked={done.includes(item.id)}
+                    onChange={(event) => {
+                      setDone(
+                        event.target.checked ? [...done, item.id] : done.filter((candidate) => candidate !== item.id),
+                      );
+                      setError(undefined);
+                    }}
+                  />
+                  {/* The item's remark under its name, so the technician sees the
+                      grade or part number while ticking it. */}
+                  <span className="flex min-w-0 flex-col">
+                    {item.name}
+                    {item.remarks !== undefined && <span className="text-xs text-secondary">{item.remarks}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <Field label="Remarks">
             <Input
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              placeholder="Refill diesel 600litre & pm genset"
+              placeholder="e.g. Refill diesel 600litre & pm genset"
             />
           </Field>
 
-          <Field
-            label="Report"
-            hint="Held for this browser session only — this prototype stores records, not files."
-          >
+          <Field label="Report">
             <div className="flex items-center gap-3">
               <Button type="button" variant="outline" size="sm" asChild>
                 <label className="cursor-pointer">

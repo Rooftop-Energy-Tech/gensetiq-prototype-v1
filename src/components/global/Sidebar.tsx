@@ -61,10 +61,10 @@ const NAV_ITEMS: Array<NavItem> = [
   // register above it, and next to it because it is the question you ask as soon as
   // you know what the fleet is.
   {label: 'Deployments', icon: TruckIcon, link: '/deployments'},
-  // Diesel, in the two halves an operations room asks about: the depot tanks and the
-  // fuel trucks, with every fill and load. Under the dispatch feed because a fill is
-  // dispatch too — the tanker rather than the lorry — and because who needs fuel is
-  // a question you ask about machines you already know are out.
+  // Diesel: the depot tanks, each checked against the gensets it supplied, and every
+  // fill. Under the dispatch feed because a fill is dispatch too — the tanker rather
+  // than the lorry — and because who needs fuel is a question you ask about machines
+  // you already know are out.
   {label: 'Fuel', icon: FuelIcon, link: '/fuel'},
   // Which machines are due for a visit, and every visit on record — the genset's own
   // Service tab, fleet-wide, so a workshop can plan a week without opening each set.

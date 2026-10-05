@@ -11,48 +11,34 @@ import type {DeliveryRow} from './DeliveriesTable';
 import {DepotTank, verdictLabel} from './DepotTank';
 import {DEPOTS, depotCapacityLitres, reconcile, varianceSeverity} from './data/depotTank';
 import {allFills} from './data/fills';
-import {TRUCKS, truckById} from './data/trucks';
 import {useFuelWindow} from './PeriodControl';
-import {TruckLog} from './TruckLog';
-import {TrucksView} from './TrucksView';
 import {ViewSwitch} from './ViewSwitch';
 import {FuelNav} from './FuelNav';
 import {historyStart} from '@/modules/genset/data/history';
 import {FuelBalanceCard} from './FuelBalanceCard';
 
 /**
- * `/fuel` — diesel, in the two halves an operations room asks about.
+ * `/fuel` — diesel, from the depot out to the gensets.
  *
- * **Depot tanks first, then the fills, then the trucks.** The tanks are where a
- * loss shows; the fills and the trucks are where the fuel went. Each yard's card
- * opens that yard's own page, `/fuel/depots/$depotId` (`DepotPage`).
+ * **Depot tanks first, then the fills.** The tanks are where a loss shows; the fills
+ * are where the fuel arrived. Each yard's card opens that yard's own page,
+ * `/fuel/depots/$depotId` (`DepotPage`).
  *
- * ## Where a delivery happened
+ * ## Two tabs
  *
- * At the depot on its row, and nowhere else: this list is gensets that drove in to
- * a yard, so the depot *is* the place. A separate `Where` column once gave the
- * machine's posting, which beside the depot said the same thing twice (Jeff,
- * 2026-09-29).
+ * Chosen from a second rail on the left (`FuelNav`), drawn like the Service page's,
+ * whose links switch the tab, or cards at the top on a phone (`ViewSwitch`).
  *
- * ## Two halves, where the estate runs trucks
+ * **Depots** is the yards' tanks, each reconciled against the gensets it supplied
+ * (`data/depotTank.ts`). **History** (`?view=history`; `Deliveries`, then `Genset
+ * fills`, until 2026-10-05) is every fill, with the depot it was charged to, a tab
+ * of its own (Jeff, 2026-09-30) rather than a table under the tanks. The depot cards
+ * share one window, the last 30 days, because a reconciliation measured over two
+ * periods does not reconcile; the History table has its own period picker.
  *
- * Chosen from a second rail on the left (`FuelNav`), whose links switch the tab, or
- * cards at the top on a phone (`ViewSwitch`).
- * A combined page of both was tried and dropped (Jeff, 2026-09-29): depots and
- * trucks are different jobs, and one page of both read as neither.
- *
- * **Depots** is the yards' tanks. **Genset fills** (`Deliveries` until 2026-10-05; the
- * URL keeps `?view=deliveries`) is every genset filled at a yard, a
- * tab of its own (Jeff, 2026-09-30) rather than a table under the tanks. **Trucks**
- * is the other way fuel reaches a machine — a truck driving it out to a genset in a
- * state with no depot — with each truck's tank, where it is, and whether what it
- * pumped arrived. **Truck log** is every load, stop and short load. The depot and
- * truck cards share one window, the last 30 days, because a reconciliation measured
- * over two periods does not reconcile; the Genset fills and Truck log tables each
- * have their own period picker.
- *
- * An estate with no trucks gets Depots and Genset fills only, not a Trucks row with
- * nothing behind it. See `data/trucks.ts`.
+ * Trucks were removed (Jeff, 2026-10-05), with their `Truck fleet` and `Truck log`
+ * tabs: the depot is now reconciled against the gensets it supplied, and whatever
+ * carries the fuel between them is not tracked.
  *
  * ## What is not here yet
  *
@@ -64,36 +50,26 @@ import {FuelBalanceCard} from './FuelBalanceCard';
  */
 
 /** Which tab `/fuel` is showing — the `view` search parameter. */
-export type FuelView = 'depots' | 'deliveries' | 'trucks' | 'truck-log';
+export type FuelView = 'depots' | 'history';
 
 /**
  * The tab's name for the breadcrumb, from the raw `view` param. Resolved as the page
- * does — anything unknown, or a truck tab on an estate with none, is Depots — so
- * the crumb never names a tab the page is not showing.
+ * does — anything unknown is Depots — so the crumb never names a tab the page is not
+ * showing.
  */
-export const fuelTabLabel = (view: unknown): string =>
-  view === 'deliveries'
-    ? 'Genset fills'
-    : TRUCKS.length > 0 && view === 'trucks'
-      ? 'Trucks'
-      : TRUCKS.length > 0 && view === 'truck-log'
-        ? 'Truck log'
-        : 'Depots';
+export const fuelTabLabel = (view: unknown): string => (view === 'history' ? 'History' : 'Depots');
 
 /**
- * Every genset filled at a yard, off the one fill record the depot cards and the
- * trucks also read, so they cannot disagree about where a fill happened.
- *
- * Yard fills only. A truck's fill is the Trucks tab's, in its log: listed here under
- * the truck's home depot, it read as the depot filling a genset in a state it has
- * no yard in (Jeff, 2026-09-29).
+ * Every genset fill, off the one fill record the depot cards also read, so they
+ * cannot disagree about which depot supplied a fill. Every fill is charged to one
+ * depot, the nearest to where the genset stood (`data/fills.ts`), so every fill is
+ * listed — yard and field alike since the trucks were removed (Jeff, 2026-10-05).
  */
 const buildDeliveries = (): Array<DeliveryRow> =>
   allFills()
-    .flatMap((fill) => (fill.route.kind === 'yard' ? [{fill, depotId: fill.route.depotId}] : []))
-    .map(({fill, depotId}) => {
+    .map((fill) => {
       const genset = seededGenset(fill.gensetId);
-      const depot = DEPOTS.find((d) => d.id === depotId);
+      const depot = DEPOTS.find((d) => d.id === fill.depotId);
 
       return {
         id: fill.id,
@@ -101,9 +77,8 @@ const buildDeliveries = (): Array<DeliveryRow> =>
         name: genset === undefined ? fill.gensetId : gensetLabel(genset),
         at: fill.at,
         litres: Math.round(fill.litres),
-        depotId,
-        depotName: depot?.name ?? 'Unassigned',
-        depotLocation: depot === undefined ? 'Unassigned' : `${depot.name} depot, ${depot.locationLabel.split(', ').at(-1)}`,
+        depotId: fill.depotId,
+        depotName: depot === undefined ? 'Unassigned' : `${depot.name} depot`,
       };
     })
     .sort((a, b) => b.at - a.at);
@@ -111,14 +86,14 @@ const buildDeliveries = (): Array<DeliveryRow> =>
 export const FuelPage = ({
   view,
   onViewChange,
-  truckId,
-  onTruckChange,
+  depotId,
+  onDepotChange,
 }: {
   view: FuelView;
   onViewChange: (next: FuelView) => void;
-  /** The truck whose panel is open — the `truck` search parameter. */
-  truckId: string | undefined;
-  onTruckChange: (next: string | undefined) => void;
+  /** The History table's depot filter, held in the URL; `undefined` is every yard. */
+  depotId: string | undefined;
+  onDepotChange: (next: string | undefined) => void;
 }) => {
   // ## One fixed window, and no control over it
   //
@@ -131,10 +106,6 @@ export const FuelPage = ({
   // What the two tables open on, and the record's start their calendars stop at.
   const pageWindow: PageWindow = {period, from, to, now, earliest: historyStart()};
 
-  // A truck tab in the URL of an estate without any is the depot tab, not an empty one.
-  const hasTrucks = TRUCKS.length > 0;
-  const active: FuelView = (view === 'trucks' || view === 'truck-log') && !hasTrucks ? 'depots' : view;
-
   return (
     // The page scrolls, not the table inside it. The shell is `h-screen
     // overflow-hidden` so every page owns its own scrolling, and this one had given
@@ -144,31 +115,17 @@ export const FuelPage = ({
     // `pb-24` below `md`: `MobileNav` is a floating pill rather than a docked bar,
     // so nothing reserves space for it and the last card's final rows sat under it.
     //
-    // Depots, Genset fills and Trucks are a second rail on the left from `md` (Jeff,
-    // 2026-09-29), and cards above the page on a phone. See `FuelNav`.
+    // Depot tanks and History are a second rail on the left from `md` (Jeff,
+    // 2026-09-29; the Service rail's look since 2026-10-05), and cards above the
+    // page on a phone. See `FuelNav`.
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <FuelNav value={active} onChange={onViewChange} from={from} to={to} />
+      <FuelNav />
 
-      {/* The Trucks tab, from `md`, fills the screen rather than scrolling it, as
-          the Gensets page does, with that page's `gap-3`. */}
-      <div
-        className={cn(
-          'flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-24 md:pb-4',
-          active === 'trucks' ? 'gap-3' : 'gap-4',
-        )}
-      >
-        <ViewSwitch value={active} onChange={onViewChange} from={from} to={to} />
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-24 md:pb-4">
+        <ViewSwitch value={view} onChange={onViewChange} from={from} to={to} />
 
-        {active === 'trucks' ? (
-          <TrucksView from={from} to={to} periodLabel={periodLabel} truckId={truckId} onTruckChange={onTruckChange} />
-        ) : active === 'truck-log' ? (
-          // Every truck's log, a tab of its own (Jeff, 2026-09-30) rather than a
-          // table under the register — as Genset fills is beside Depot tanks.
-          // Keyed by truck, so the panel's `View in Truck log` link for another
-          // truck starts the search afresh.
-          <TruckLog key={truckId ?? ''} page={pageWindow} initialQuery={truckById(truckId ?? '')?.plate} />
-        ) : active === 'deliveries' ? (
-          <DeliveriesView page={pageWindow} />
+        {view === 'history' ? (
+          <DeliveriesView page={pageWindow} depotId={depotId} onDepotChange={onDepotChange} />
         ) : (
           <DepotsView from={from} to={to} periodLabel={periodLabel} />
         )}
@@ -187,15 +144,14 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
     return {
       depot,
       movement,
-      verdict: varianceSeverity(movement.outLitres, movement.varianceLitres),
+      verdict: varianceSeverity(movement.varianceLitres),
     };
   });
-  // Worst first: unlogged fuel before a sensor fault, and the bigger gap first.
+  // The bigger gap first.
   const flagged = yards
     .filter((yard) => yard.verdict !== undefined)
     .sort(
       (a, b) =>
-        Number(b.verdict?.severity === 'CRITICAL') - Number(a.verdict?.severity === 'CRITICAL') ||
         b.movement.varianceLitres - a.movement.varianceLitres,
     );
   const fuelIn = yards.reduce((sum, yard) => sum + yard.movement.receivedLitres, 0);
@@ -209,7 +165,8 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
           (Jeff, 2026-10-01)
 
           `Needs attention` names each yard with a verdict and says what, in the
-          tile's own words — `1, 826 L unlogged`, `Sensor fault` — each a
+          tile's own words — `1, 826 L missing in transit` (`Sensor fault` too until
+          2026-10-05) — each a
           link to that yard's page. It replaced two cards, `Fuel unaccounted for`
           and `Sensor faults`, that counted yards without naming them: with four
           tiles a count sent the reader scanning for which, and their filters hid
@@ -218,10 +175,10 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
       <SummaryCardRow cappedColumns={2}>
         <SummaryCard label="Needs attention" pill={periodLabel}>
           {flagged.length === 0 ? (
-            <Headline value="None" detail="every depot balances and its sensors agree" />
+            <Headline value="None" detail="every depot balances" />
           ) : (
             <ul className="flex flex-col gap-1">
-              {flagged.map(({depot, verdict, movement}) => (
+              {flagged.map(({depot, movement}) => (
                 <li key={depot.id}>
                   <Link
                     to="/fuel/depots/$depotId"
@@ -231,7 +188,7 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
                     <span
                       className={cn(
                         'size-1.5 shrink-0 rounded-full',
-                        verdict?.severity === 'CRITICAL' ? 'bg-severity-critical' : 'bg-severity-warning',
+                        'bg-severity-critical',
                       )}
                       aria-hidden="true"
                     />
@@ -239,7 +196,7 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
                       {depot.name}
                     </span>
                     <span className="truncate text-secondary">
-                      {verdict === undefined ? '' : verdictLabel(verdict, movement.varianceLitres)}
+                      {verdictLabel(movement.varianceLitres)}
                     </span>
                   </Link>
                 </li>
@@ -276,10 +233,18 @@ const DepotsView = ({from, to, periodLabel}: {from: number; to: number; periodLa
   );
 };
 
-/** The Genset fills tab: every genset filled at a yard. */
-const DeliveriesView = ({page}: {page: PageWindow}) => {
+/** The History tab: every genset fill, with its supplying depot. */
+const DeliveriesView = ({
+  page,
+  depotId,
+  onDepotChange,
+}: {
+  page: PageWindow;
+  depotId: string | undefined;
+  onDepotChange: (next: string | undefined) => void;
+}) => {
   // Every delivery the record holds. Built once because the full list is the
   // expensive part; the table cuts it to the page's period, or its own.
   const all = useMemo(() => buildDeliveries(), []);
-  return <DeliveriesTable rows={all} page={page} />;
+  return <DeliveriesTable rows={all} page={page} depotId={depotId} onDepotChange={onDepotChange} />;
 };

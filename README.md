@@ -8,7 +8,7 @@ nothing here ships.
 
 The estate it walks is a **mobile fleet**: gensets trucked to a yard for a job and
 brought back. The pages are the fleet (Gensets), the jobs (Deployments), diesel
-(Fuel: depot tanks, genset fills and fuel trucks), Service, and Reporting (CSV
+(Fuel: depot tanks and genset fills), Service, and Reporting (CSV
 exports).
 
 **[docs/how-it-works.md](docs/how-it-works.md) explains what the product is for
@@ -137,7 +137,7 @@ gallery lists it.
 | Genset home | `/gensets/<id>` | The genset's own page, in four bands: the strip (tank, runway, service, alarm counts); the controls and the current run; the tank, `Generator conditions` (the marks while running, the two hour counters always) and `Generator output` (running only); then what the machine is. Every genset has one. |
 | Genset analysis | `/gensets/<id>/analysis` | Two readings over one window on a dual-axis chart, with a hover crosshair. Built from the [Figma annotations](https://www.figma.com/design/rq8SndEmYOrjkEbCcbJU3P/RooftopIQ-V2?node-id=2799-3338) — see [below](#the-analysis-tab). |
 | Genset deployments | `/gensets/<id>/runs` | Labelled *Deployments* in the rail: the jobs the set has stood on, the runs inside them on a timeline, totals for the chosen window, the list, and a CSV export. The path stays `/runs` so old links work. Not a Figma frame — see [below](#the-runs-tab-is-not-in-the-design). |
-| Genset service | `/gensets/<id>/service` | When the set is next due on hours and on calendar, its service history, and **Log service**. Not a Figma frame. |
+| Genset service | `/gensets/<id>/service` | The most urgent schedule item and its hour and calendar counters; the **Schedule**, a list of items each on its own interval (hours, months or both), editable per genset with **Add item**; the service history with what each visit did; and **Log service**, which ticks the items done. Not a Figma frame. |
 | Genset alarms | `/gensets/<id>/alarms` | Every alarm the set carries — its controller's, the site monitoring unit's rows filed against it, and the low-tank row — in a standing table with a cleared log under it. |
 | Equipment / Settings | `/gensets/<id>/equipment`, `/gensets/<id>/settings` | Named in the design's rail but not drawn — labelled placeholders (`ComingSoon`) so the rail isn't dead. |
 | Deployments — list | `/deployments?view=list` | The register: a row per **job**, the ones standing first, six columns with the headers as the ordering control. 20 jobs a page, `page=2` onward. Not a Figma frame. |
@@ -149,12 +149,10 @@ gallery lists it.
 | Deployment runs | `/deployments/<id>/runs` | The runs of its machines inside the window. No range picker: the window is the job. |
 | Deployment alarms | `/deployments/<id>/alarms` | The site's own queue, filtered to this job's machines and window. |
 | Deployment settings | `/deployments/<id>/settings` | The ID, the address with a pin you move by moving the map, the dates, the customer and site contacts, a notes log, and End or Delete (a planned deployment only). Read-only once completed. |
-| Service — fleet | `/service` | Every genset's service standing in one list, worst first: status, next due, run hours and months against the interval, last service with its report, and **Log service** on each row (the genset Service tab's own dialog). Cards for Overdue / Due soon / In service filter it (a never-serviced set still lists, with its own status); `WXQ 4562` / `SA 4562 D` is seeded overdue so the state has an example, and since 2026-09-30 each estate has two more overdue and five more due soon (`serviceSeed.ts`); search, `State` and a `Status` dropdown (the cards' filter, as a menu) narrow it, with a `Filtered by:` chip row and `Clear all` under the toolbar while any is on. A **History** tab lists every logged service, newest first. Each one names the yard the genset stood at on that day, or *In depot* between postings, not the yard it is at now. From tablet width up, `Due` and `History` are rows in a second rail on the left (a genset page's `DetailSidebar`); the phone keeps the switch in the toolbar. Both tables show 20 rows a page (`page=2` onward). On the phone bottom nav. At phone width the Due list is a card per genset (status, next due, both interval bars, last service, full-width Log service) and History is two-line rows; both end clear of the floating nav. Not a Figma frame. |
-| Fuel — depots | `/fuel` | Each depot's bulk tank checked against what it issued over the last 30 days; no period control at the top of `/fuel`. Each estate has its own depots: Express Mission's four in the peninsula, and the carrier's seven, four of them in Sabah and Sarawak. Opens on two summary cards: *Needs attention*, naming each depot with a verdict and linking to its page, and *Fuel balance*: all depots' supplier deliveries in and issues out for the 30 days, and what is left in them now. Where the estate runs trucks, the depot card splits its fall into *mobile gensets* and *fuel trucks*, from the depot's own pump log; *Unlogged fuel* is the fuel the log does not account for. Whether a load reached the truck is the Truck log's to say. Every card shows its full breakdown; clicking a card opens the depot's own page. Not a Figma frame — see [how-it-works](docs/how-it-works.md#the-fuel-page). |
-| Fuel — one depot | `/fuel/depots/<id>` | One yard, from the depot's side only: name and street address; three overview cards (unlogged fuel, the yard's fuel balance in, out and left, and the tank); its level over time, full width, with its own 24 hours / 7 days / 30 days / custom picker; *Fuel breakdown* (fuel out and its shares) beside supplier deliveries; then gensets filled and trucks loaded there, at the depot pump's litres. Keeps the Fuel rail; crumb *Fuel / Depots / Klang depot*. The cards cover the last 30 days; the page has no period control of its own. Not a Figma frame. |
-| Fuel — genset fills | `/fuel?view=deliveries` | Labelled *Genset fills*: every genset filled at a depot in the period, under two overview cards (litres filled, and gensets waiting for fuel, which links to the Gensets page filtered to low fuel), searchable, filterable by depot, with its own 24 hours / 7 days / 30 days / custom picker, and sortable by any column, twenty rows a page. Truck fills are the Trucks tab's, not listed here. The URL keeps `?view=deliveries`. |
-| Fuel — truck log | `/fuel?view=truck-log` | **Express Mission only.** Every truck's loads, stops and short loads, newest first, under one overview card (*Missing from trucks*, which filters the table), with its own 24 hours / 7 days / 30 days / custom picker, twenty rows a page under the registers' pager. A tab of its own since 2026-09-30, no longer under the truck register. |
-| Fuel — trucks | `/fuel?view=trucks` · `&truck=<id>` | **Express Mission only** (the `utility` estate); absent, not empty, elsewhere. Laid out and sized as the Gensets page is: toolbar with list / split / map, two summary cards (*Missing from trucks*, which filters, and *Fuel on board*), the truck register beside the map, and the selected truck's panel over it only while a truck is selected. `truck` selects that truck into the panel (a drawer on a phone): tank, one fuel-missing line, period totals and a link to the Truck log searched to it (`?view=truck-log&truck=<id>`). Not a Figma frame. |
+| Service — fleet | `/service` | Every genset's service standing in one list, worst first: status, next due, run hours and months against the interval, last service with its report, and **Log service** on each row (the genset Service tab's own dialog). Cards for Overdue / Due soon / In service filter it (a never-serviced set still lists, with its own status); `WXQ 4562` / `SA 4562 D` is seeded overdue so the state has an example, and since 2026-09-30 each estate has two more overdue and five more due soon (`serviceSeed.ts`); search, `State` and a `Status` dropdown (the cards' filter, as a menu) narrow it, with a `Filtered by:` chip row and `Clear all` under the toolbar while any is on. A **History** tab lists every logged service, newest first: number plate, date, technician, run hours at service and the report. Its headers sort like the Due table's (`hsort` / `hdir` in the URL; the Report column doesn't sort), and its phone rows follow the same order. It does not say where the service was done: its `State` and `Location` columns and the `State` filter came off on 2026-10-05, so only the search narrows it. From tablet width up, `Due` and `History` are rows in a second rail on the left (a genset page's `DetailSidebar`); the phone keeps the switch in the toolbar. Both tables show 20 rows a page (`page=2` onward). On the phone bottom nav. At phone width the Due list is a card per genset (status, next due, both interval bars, last service, full-width Log service) and History is two-line rows; both end clear of the floating nav. Not a Figma frame. |
+| Fuel — depots | `/fuel` | Each depot's bulk tank checked against what it issued over the last 30 days; no period control at the top of `/fuel`. Each estate has its own depots: Express Mission's four in the peninsula, and the carrier's seven, four of them in Sabah and Sarawak. Opens on two summary cards: *Needs attention*, naming each depot with a verdict and linking to its page, and *Fuel balance*: all depots' supplier deliveries in and issues out for the 30 days, and what is left in them now. Each depot is reconciled against the gensets it supplied: every fill is charged to the depot nearest where the genset stood, so the card sets *Fuel Out* (the bulk tank's falls) against *Reached gensets* (the gensets' own level-sensor rises), and the gap is *Missing in transit*. Every card shows its full breakdown; clicking a card opens the depot's own page. Not a Figma frame — see [how-it-works](docs/how-it-works.md#the-fuel-page). |
+| Fuel — one depot | `/fuel/depots/<id>` | One yard: name and street address; the tank, two cards tall and 30% wide with its litres under the drawing, beside the yard's fuel balance (in, out and left) stacked over missing in transit; *Fuel level* over time, with its own 24 hours / 7 days / 30 days / custom picker; *Tank refills* (supplier deliveries); then *Gensets fuelled*, the genset fills it supplied, each with where the set stood. Keeps the Fuel rail; crumb *Fuel / Depots / Klang depot*. The cards cover the last 30 days; the page has no period control of its own. Not a Figma frame. |
+| Fuel — history | `/fuel?view=history` | Labelled *History* (*Genset fills* until 2026-10-05): every genset fill in the period, with its *Supplying depot*, under two overview cards (litres filled, and gensets waiting for fuel, which links to the Gensets page filtered to low fuel), searchable, filterable by depot (`&depot=<id>` in the URL, so a depot page's *See all* opens it filtered), with its own 24 hours / 7 days / 30 days / custom picker, and sortable by any column, twenty rows a page. An old `?view=deliveries` link redirects here. |
 | `/deployment` | → `/deployments` | The singular path redirects, so links in decks and docs keep working. |
 | Reporting | `/reporting` | Three CSV exports over a date range: runs, deployments and genset fills. The range ends now at the latest. Not a Figma frame. |
 | Settings | `/settings` | The brand picker where the build carries more than one brand; a `ComingSoon` placeholder otherwise. |
@@ -185,7 +183,7 @@ through it:
 /deployments?job=standby               # standby jobs only (an estate with job types)
 /deployments?q=wxq4562               # every job a plate has been on, spaces optional
 /deployments/pe-001-job-0/gensets     # one job's machines, and the way to change them
-/fuel?view=deliveries                 # the Genset fills tab
+/fuel?view=history                    # the History tab (every genset fill)
 /fuel/depots/klang                    # one depot's own page
 /reporting                            # the CSV exports
 ```
@@ -198,7 +196,7 @@ src/
 │                      datasets/ (each estate's sites and gensets)
 ├── components/
 │   ├── global/        Sidebar, MobileNav, TopNav, SummaryCards, DetailSidebar,
-│   │                  FilterSelect, TablePager, PlantMap and the other shared pieces
+│   │                  FilterSelect, TablePager and the other shared pieces
 │   └── ui/            shadcn-style primitives (button, input, badge, tabs, dialog, …)
 ├── layouts/           AuthenticatedLayout — the 94px rail + canvas shell, or the
 │                      floating bottom bar below `md`
@@ -208,7 +206,7 @@ src/
 │   ├── genset/        the fleet register and a genset's pages: home, analysis,
 │   │                  deployments (runs), service, alarms
 │   ├── deployment/    the jobs register, the new-deployment dialog, a job's pages
-│   ├── fuel/          depots, genset fills, fuel trucks and the truck log
+│   ├── fuel/          depot tanks and genset fills
 │   ├── service/       the fleet's service standing and history
 │   ├── reporting/     the CSV exports
 │   ├── settings/      the brand picker
@@ -688,10 +686,10 @@ does under OSM, which is as good a measure of the two datasets as any.
 `src/lib/geo/malaysiaStates.ts` holds the lookup and the reasoning;
 `buildMalaysiaStates.mjs` beside it is the whole derivation.
 
-All four maps carry it — gensets, sites, deployments and `PlantMap` — through one
-shared `attachStateHover`, for the reason the three cluster bubbles are one
-`clusterDonut`: four copies of this is the drift the map components already work to
-avoid.
+All three maps carry it — gensets, sites and deployments — through one shared
+`attachStateHover`, for the reason the three cluster bubbles are one
+`clusterDonut`: three copies of this is the drift the map components already work
+to avoid.
 
 ### Putting gensets on a job
 
@@ -786,11 +784,11 @@ Five things worth knowing. The concept itself is in
 [how-it-works](docs/how-it-works.md#fuel-reconciliation).
 
 1. **It is the app's arithmetic, not a controller bit.** `alert.type.ts` is emphatic
-   that a `GensetAlert` is a bit in the Modbus register map and that invented alarms
-   are not allowed, "however plausible they read". No panel raises this one, because
-   no panel sees both instruments at once. So it follows the `ServiceNotice` pattern
-   the service change established: its own type, its own card, printing
-   `Fuel reconciliation` where an alarm prints its register and bit.
+   that a `GensetAlert` is a bit in the Modbus register map. No panel raises this one,
+   because no panel sees both instruments at once. So it has its own type and prints
+   `Fuel reconciliation` where an alarm prints its register and bit — as a service
+   alarm prints `Service schedule` (service items falling due are alarms since
+   2026-10-05; see how-it-works, *Alert*).
 
 2. **There is no screen for it — it runs on its defaults.** The check is on wherever
    both instruments are fitted, and off where they are not, at the threshold floor the
@@ -812,10 +810,9 @@ Five things worth knowing. The concept itself is in
    gets closed. The litres it implies are shown beside it, since that is what
    somebody deciding whether to send a van actually reasons in.
 
-4. **A leak moves the condition verdict.** Unlike the overdue-service notice, which
-   does not. A chore nobody has done is not the same as a machine spilling its
-   consumable, and `Optimum` over a set losing eighty litres a night would cost the
-   reader their trust in every other verdict. That ripples into the fleet sort, the
+4. **A leak moves the condition verdict.** So does an overdue service since it became
+   an alarm (2026-10-05), but only to `Attention`. `Optimum` over a set losing eighty
+   litres a night would cost the reader their trust in every other verdict. That ripples into the fleet sort, the
    site roll-up and both map layers, so the seeded leaks are placed away from
    `BRF9540` and `telco-001` — the two fixtures diffed against the Figma. `BRF9540`
    carries both instruments and reconciles cleanly, so the panel is demonstrable on
@@ -1002,6 +999,6 @@ stopped machine reports.
   map, which matters more than matching frames that contradict each other.
 - **Basemap is CARTO Voyager**, chosen because it needs no account or token — the
   prototype runs on a fresh clone with nothing configured. `MAP_STYLE` is declared
-  in each map — `GensetsMap`, `DeploymentsMap`, `PinMap`, `PlantMap` and the unused
+  in each map — `GensetsMap`, `DeploymentsMap`, `PinMap` and the unused
   `SitesMap` — and all have to move together to switch to Mapbox or a self-hosted style.
 - **No tests.** Prototype scope; `bun run typecheck` and `bun run build` pass.

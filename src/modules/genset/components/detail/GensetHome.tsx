@@ -17,7 +17,7 @@ import {keepFrom} from '@/modules/site/types/fromSearch.type';
 import {ALERT_SEVERITIES, countBySeverity} from '../../types/alert.type';
 import type {AlertSeverity} from '../../types/alert.type';
 import {plantAlarmQueue} from '../../data/assertedAlarms';
-import {lowFuelAlarms} from '../../data/lowFuelAlarm';
+import {appAlarms} from '../../data/alarmViews';
 import {standingAlarms, useAlarmHandling} from '../../data/alarms';
 import {
   ActivityIcon,
@@ -95,8 +95,9 @@ import {StandbyPanel} from './StandbyPanel';
  * sequence and the rules between them carry that, so a phone gets the same page in
  * the same order with each band's row broken into a column.
  *
- * Every child keeps its designed size: the gauges are 153px, the phase bars 322px
- * and the control pad 220px, all of which fit a 390px screen. Nothing in band 2
+ * Every child keeps its designed size: the gauges are 153px and the phase bars
+ * 322px, which fit a 390px screen. The control pad takes 20% of band 2 from `md`
+ * and the run card 80% (Jeff, 2026-10-05); below `md` the pad is full width. Nothing in band 2
  * needs to shrink or scroll sideways — the pad in particular is four **tap targets**
  * and a control shrunk below a thumb is worse than no reflow at all.
  */
@@ -182,7 +183,7 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
   const role = useSitePowerRole(genset.siteId ?? '');
 
   // Live, not from `detail` — a service logged in this session has to move the
-  // reading in band 3 and clear the overdue notice without a reload. Measured
+  // reading in band 3 and drop its service alarm without a reload. Measured
   // against the same `now` as everything else on the page.
   const service = useServiceStatus(genset.id, now);
 
@@ -281,8 +282,10 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
           },
           {label: 'Service', value: serviceHeadline(service)},
         ]}
-        // The app's low-tank row too, as the Alarms tab lists it — see `lowFuelAlarm`.
-        counts={countBySeverity([...alerts, ...plantStanding, ...lowFuelAlarms(genset, handling)])}
+        // The app's own rows too — the low tank and each service item falling due —
+        // as the Alarms tab lists them. See `appAlarms`. `service` above subscribes,
+        // so logging a service drops its row from these counts on the way back.
+        counts={countBySeverity([...alerts, ...plantStanding, ...appAlarms(genset, handling)])}
         /* The pill opens this asset's own Alarms tab — the tab the count is read
            from, so the figure and the queue behind it cannot be two lists.
            `keepFrom` carries `from` across, which is what keeps a set
@@ -311,20 +314,20 @@ export const GensetHome = ({genset, detail}: {genset: Genset; detail: GensetDeta
       {/* Under the fuel strip: the 2 × 2 controls at the far left, then the run card
           taking the rest of the row (2026-09-29). The pad had sat at the far right of
           two equal halves, which left a gap wider than either. Both sit flush with
-          the strip's edges. On a phone the pad is a full-width 2 × 2 above the run. */}
-      <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch">
+          the strip's edges. On a phone the pad is a full-width 2 × 2 above the run.
+          From `md` a grid, 20% to the pad and 80% to the run (Jeff, 2026-10-05); it
+          was the pad at a fixed 220px and the run taking the rest. */}
+      <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,4fr)] md:items-stretch">
         {/* Where the fuel panel stood until 2026-09-22, and first in the row since
             2026-09-29: the controls lead, and the run they act on follows. */}
-        <div className="flex min-w-0 md:shrink-0">
+        <div className="flex min-w-0">
           <ControlPad runState={genset.runState} mode={mode} onModeChange={setMode} />
         </div>
-        {/* The 360px floor is a desktop instruction — keep the run beside the pad or
-            wrap it under — and it is the width the card already fits on a phone, so
-            the row holds together down to a 1180px window. `min-w-0` below `md`: a
-            flex item's automatic minimum is its content's, so without it the card's
-            widest line, a timestamp that must not wrap, would push the page into a
-            sideways scroll. */}
-        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 md:min-w-[360px] md:flex-row">
+        {/* `min-w-0`: a grid or flex item's automatic minimum is its content's, so
+            without it the card's widest line, a timestamp that must not wrap, would
+            push the page into a sideways scroll. The 360px floor it had went with the
+            20/80 grid (2026-10-05). */}
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2.5 md:flex-row">
           <CurrentRunCard run={detail.run} gensetId={genset.id} now={now} />
         </div>
 

@@ -12,7 +12,8 @@ import {cn} from '@/lib/utils';
  *
  * It was written for a site and the machines standing on it; the site pages went on
  * 2026-09-22, and with them the only caller of `group` (the `Asset` disclosure) and
- * `backLink`. Both stay supported. The history below is from then.
+ * `backLink`. Both stay supported, and `group` has a caller again: the Fuel rail's
+ * depots under *Depot tanks* (2026-10-05). The history below is from then.
  *
  * ## Why a rail rather than the tab strip it replaces
  *
@@ -49,10 +50,14 @@ import {cn} from '@/lib/utils';
  * measurements and nothing in the app computes them.
  */
 
-/** One row in the rail. `icon` is a lucide component, as everywhere else. */
+/**
+ * One row in the rail. `icon` is a lucide component, as everywhere else. Only a
+ * sub-row may go without one — the Fuel rail's depots, which are names under
+ * *Depot tanks* rather than sections of their own.
+ */
 export type DetailNavItem = {
   label: string;
-  icon: ComponentType<{className?: string}>;
+  icon?: ComponentType<{className?: string}>;
   to: LinkProps['to'];
   /**
    * Path params for `to`.
@@ -89,6 +94,13 @@ export type DetailNavGroup = {
   label: string;
   icon: ComponentType<{className?: string}>;
   items: Array<DetailNavItem>;
+  /**
+   * Where the row itself goes, for a group that is also a page — the Fuel rail's
+   * *Depot tanks*, the tab its depots are listed under (2026-10-05). The row is
+   * then a link, and the chevron beside it a button of its own that folds the
+   * list. Without it the whole row is the fold, as `Asset`'s was.
+   */
+  link?: Omit<DetailNavItem, 'label' | 'icon'>;
 };
 
 export type DetailNavEntry = DetailNavItem | DetailNavGroup;
@@ -183,7 +195,7 @@ const DetailSidebarLink = ({
       activeOptions={{exact: item.end ?? false, includeSearch: item.matchSearch ?? false}}
       className={cn(rowClassName, className)}
     >
-      <Icon className="size-[17.6px] shrink-0" aria-hidden="true" />
+      {Icon !== undefined && <Icon className="size-[17.6px] shrink-0" aria-hidden="true" />}
       <span className={cn(LABEL, 'min-w-0 flex-1 truncate text-left')}>{item.label}</span>
     </Link>
   );
@@ -200,27 +212,49 @@ const DetailSidebarLink = ({
  * A `<button>` rather than a link: `Asset` is not a page. Nothing in this app is
  * "the assets of a site" as a destination — the device rows at the bottom of the
  * home page are that — so a row that navigated nowhere in particular would be
- * worse than one that plainly opens a list.
+ * worse than one that plainly opens a list. A group that *is* a page says so with
+ * `link`: the row becomes that link, and the chevron alone folds the list, sitting
+ * where the whole row's chevron would.
  */
 const DetailNavDisclosure = ({group}: {group: DetailNavGroup}) => {
   const [open, setOpen] = useState(true);
   const Icon = group.icon;
+  const chevron = (
+    <ChevronRightIcon
+      className={cn('size-4 shrink-0 transition-transform', open && 'rotate-90')}
+      aria-hidden="true"
+    />
+  );
 
   return (
     <div className="flex flex-col">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        className={cn(rowClassName, 'h-8 cursor-pointer')}
-      >
-        <Icon className="size-[17.6px] shrink-0" aria-hidden="true" />
-        <span className={cn(LABEL, 'min-w-0 flex-1 truncate text-left')}>{group.label}</span>
-        <ChevronRightIcon
-          className={cn('size-4 shrink-0 transition-transform', open && 'rotate-90')}
-          aria-hidden="true"
-        />
-      </button>
+      {group.link === undefined ? (
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          aria-expanded={open}
+          className={cn(rowClassName, 'h-8 cursor-pointer')}
+        >
+          <Icon className="size-[17.6px] shrink-0" aria-hidden="true" />
+          <span className={cn(LABEL, 'min-w-0 flex-1 truncate text-left')}>{group.label}</span>
+          {chevron}
+        </button>
+      ) : (
+        // `pr-8` keeps the label clear of the chevron, and `right-1` with a 24px
+        // button puts the chevron 8px in, where the plain disclosure's sits.
+        <div className="relative">
+          <DetailSidebarLink item={{...group.link, label: group.label, icon: Icon}} className="h-8 pr-8" />
+          <button
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+            aria-expanded={open}
+            aria-label={open ? `Hide ${group.label}` : `Show ${group.label}`}
+            className="absolute inset-y-0 right-1 my-auto flex size-6 cursor-pointer items-center justify-center rounded-md text-tertiary outline-none hover:bg-hover hover:text-primary focus-visible:ring-2 focus-visible:ring-outline"
+          >
+            {chevron}
+          </button>
+        </div>
+      )}
 
       {open && (
         // The design's inset: a hairline at 16px with the rows starting at 24px,

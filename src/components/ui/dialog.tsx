@@ -42,11 +42,15 @@ function DialogContent({className, children, ...props}: React.ComponentProps<typ
         data-slot="dialog-overlay"
         className="fixed inset-0 z-50 bg-scrim"
       />
+      {/* Centred by `inset-0` and auto margins, not a translate (2026-10-05): a
+          transform makes the dialog the containing block of the `fixed` popovers
+          portalled into it, so its scroll box clipped them — the Log service
+          calendar opened cut off. Without one they lay out against the viewport. */}
       <DialogPrimitive.Content
         ref={setContainer}
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-lg border border-default bg-overlay p-5 text-primary shadow-lg outline-none',
+          'fixed inset-0 z-50 m-auto flex h-fit max-h-[90vh] w-[calc(100vw-2rem)] max-w-lg flex-col overflow-y-auto rounded-lg border border-default bg-overlay p-5 text-primary shadow-lg outline-none',
           className,
         )}
         {...props}

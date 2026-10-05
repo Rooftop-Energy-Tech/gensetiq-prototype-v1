@@ -45,6 +45,8 @@ export type AlarmView = {
    * `sbh-1336-5009`, keyed on the **site** rather than the set, because the register
    * is one register: two machines on one yard share the AC bus, and acknowledging a
    * dropped phase from one of their pages has to acknowledge it from the other's.
+   * The app's own rows key on the set — `ktb3360-low-fuel`, and a service alarm's
+   * `ktb3360-service-<item>-<stage>:<record>` (see `ServiceNotice.id`).
    */
   id: string;
   /** The alarm's name, as its own device writes it. Never prettified. */
@@ -89,9 +91,12 @@ export type AlarmView = {
   part?: CabinetPart;
   /**
    * `false` for a row that ends by itself and cannot be cleared by a person — the
-   * low-tank row, which stands exactly while the level is under the reserve line.
-   * Its standing row offers Acknowledge and no Clear. Absent means clearable, which
-   * is every row a device raises.
+   * low-tank row, which stands exactly while the level is under the reserve line,
+   * and a service item falling due, which stands until the item is done. Its
+   * standing row offers Acknowledge and no Clear. Absent means clearable, which is
+   * every row a device raises.
    */
   clearable?: false;
+  /** What ends a row that is not clearable, printed where Clear would be. */
+  endsWhen?: string;
 };

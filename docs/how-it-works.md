@@ -27,7 +27,7 @@ Someone has to know, across a few dozen machines:
   and litres;
 - which machines are **at risk** right now, and which need a person sent;
 - how much diesel is left, where it came from, and whether any went missing between
-  the depot, the fuel truck and the genset;
+  the depot and the genset;
 - what each machine has been doing, and when it is next due for service.
 
 gensetIQ answers those questions. The pages are Gensets, Deployments, Fuel, Service
@@ -445,7 +445,15 @@ still reads 70 °C.
 closed.** It is the register map's alarm bits marked *To Include in Dashboard* —
 26 of them across registers 1299, 1300, 1301, 1304 and 1390 — and nothing else.
 Each alert names its register and bit, so any row on the page traces back to the
-sheet it came from. There are no invented alarms, however plausible they read.
+sheet it came from. There are no invented bits, however plausible they read.
+
+**Service alarms are the one kind not from the register map** (Jeff, 2026-10-05).
+A schedule item falling due is an alarm the app raises: overdue is a `Warning`, due
+soon (within 10% of its interval) is `Neutral`, one per item. Its row prints `Service
+schedule` where a bit prints its register, carries the class `Service`, and stands
+until the item is logged done — it can be acknowledged, not cleared. It counts
+everywhere alarms do: the Alarms tabs, the strip and register counts, the job's
+pages and the condition verdict. See [Service](#service).
 
 Most of those bits are a threshold on a reading. `AL Battery Voltage` is the
 controller's *name for a rule* that watches `battery-voltage` and fires below
@@ -648,8 +656,8 @@ its coordinates. Note it is also *not* the map's `AL Fuel Level Wrn`, which fire
 when a tank is **low** — a full tank losing eighty litres a night trips that one
 never.
 
-**A leak moves the condition verdict; an overdue service does not.** The asymmetry
-is deliberate. A service falling due is a chore nobody has done yet; a tank losing
+**A leak moves the condition verdict, and so, since 2026-10-05, does an overdue
+service** — but only as far as `Attention`, the weight of a `Warning`. A tank losing
 fuel onto the ground is a live fault, and a genset doing that while its page reads
 `Optimum` would cost the reader their trust in every other verdict on the screen.
 
@@ -790,10 +798,27 @@ anything about the machine's condition. Worse, an idle set divides by something 
 near zero. Two counters that are each honest in their own units beat one number that
 is a forecast wearing a fact's clothes.
 
-A schedule is **both intervals, always**. Either alone is a different and worse
-policy: hours only lets a set that never runs go unserviced forever, months only
-lets a set worked around the clock run three intervals' worth of hours between
-visits.
+**The schedule is a list of items, each on its own interval** (Jeff, 2026-10-05), as
+a car's service book is: not every part is changed on every visit. A genset starts
+with six — engine oil and filter (250 h or 6 months, the single interval the whole
+set ran on until then), fuel filter and air filter (500 h or 12 months), drive belts
+(1,000 h or 12 months), coolant (2,000 h or 24 months) and the battery (24 months) —
+and its Service tab renames, removes and adds them, per genset, each with a
+*Remarks* field for a standing note such as the oil grade or a part number. The
+schedule saves itself as each field is left or on Enter; there is no Save button. A
+row added and left empty, or one still incomplete, is not saved. An item may have
+hours, months or both, never neither: a battery ages by the calendar whether the set
+runs or not. With both, the item is due on whichever comes first.
+
+Logging a service ticks the items done, none ticked to start with; a schedule row's
+*Mark done* opens the same form with only that item ticked. Only those restart
+their counters; the rest keep counting from the last visit that did them. The
+history's *Work done* column says *Full service* or names the items. A seeded record,
+or one logged before items existed, did every item. The genset's verdict — the hero
+on its Service tab, the strip tile, the fleet page's *Next due*, the `Due for service`
+filter — is its most urgent item: the worst severity, then the furthest through its
+interval, and the page names the item. Until 2026-10-05 a schedule was **both
+intervals, always**, for the whole set; schedules saved before then are not read.
 
 A service record is the technician's filled-in checklist, and its document link is
 **nullable on purpose** rather than defensively. A seeded record points at a bundled
@@ -802,11 +827,18 @@ with the tab. After a reload the record is still there and the file is not, so t
 row shows the filename with the link inert — which is the honest rendering of a
 prototype with nowhere to put an upload.
 
-**An overdue service does not move the condition verdict.** It is a chore nobody has
-done yet, not a live fault. See [Fuel reconciliation](#fuel-reconciliation) for the
-other half of that asymmetry.
+**A service falling due raises an alarm** (Jeff, 2026-10-05) — one per item: overdue
+is a `Warning`, which turns the condition verdict to `Attention` and puts the set in
+the `Alarms raised` bucket; due soon is `Neutral` and moves neither. The row reads
+e.g. `Engine oil and filter overdue by 26 h` or `Battery due on 12/11/2026`, with
+`Service schedule` as its source. It is raised at the moment the item crossed into
+that stage: the calendar date for months, and for hours an estimate that takes the
+hours since the service as run evenly. A never-serviced item raises nothing. Logging
+the item done drops the row at once, everywhere. Until that date an overdue service
+was a notice beside the alarms and did not move the verdict.
 
-→ `src/modules/genset/types/service.type.ts`, `src/modules/genset/data/services.ts`
+→ `src/modules/genset/types/service.type.ts`, `src/modules/genset/data/services.ts`,
+`src/modules/genset/data/serviceAlarm.ts`
 
 ### Control mode
 
@@ -852,9 +884,7 @@ is where a machine was sent, not a thing anyone opens the app to ask about, and
 /deployment          → /deployments
 
 /fuel                                Depots (depot tanks)
-/fuel?view=deliveries                Genset fills
-/fuel?view=trucks[&truck=<id>]       Trucks and map     (estates with trucks)
-/fuel?view=truck-log                 Truck log          (estates with trucks)
+/fuel?view=history                   History (every genset fill)
 /fuel/depots/<id>                    one depot's own page
 
 /service?tab=due|history             the fleet's service standing, and every visit
@@ -1455,7 +1485,8 @@ that site was reachable only by scrolling to the bottom of its home page. A vert
 rail answers *change section* and *go somewhere under this* with one list, because a
 list can nest and a strip cannot. (The site rail nested `Asset ▸ Genset / Solar /
 Battery`; it went with the site pages. The Fuel rail nests each depot under *Depot
-tanks*.)
+tanks*, a row that is a page as well as a fold: the row is the link, and its chevron
+folds the depots.)
 
 The rails differ only in their header and their items, and share one component so the
 geometry is stated once. A deployment's header is a **switcher**, alarm-ordered like
@@ -1512,7 +1543,8 @@ share-of-site reading this page cannot honestly give.
 and the current run (`CurrentRunCard`): this run, and everything since midnight, so the
 band reads at three horizons — what one start did, what the day's starts did together,
 and how much tank is left beside them. The load is present *only* while the engine
-turns; "0 kW" would read as a genset running into an open breaker.
+turns; "0 kW" would read as a genset running into an open breaker. From tablet
+width the pad takes 20% of the row and the run card 80% (Jeff, 2026-10-05).
 
 **Band 3 — the tank, and the readings.** Three cards:
 
@@ -1817,348 +1849,188 @@ and ATS fitted, and the service schedule. It is named `Devices` in the rail and
 
 ### The fuel page
 
-`/fuel` is four tabs, picked from a rail on the left, all over the same window: the
-last 30 days, rolling, so it ends now and never resets on the 1st; every label
-says *last 30 days* (Jeff, 2026-10-01), not *1 month*, which read as the calendar's. There is no period control at the top (Jeff, 2026-09-30: the page shows
-the current state); it had a 1 day / 7 days / 1 month / custom one until then. The
-Genset fills and Truck log tables each have their own picker, the genset analysis
-tab's `RangePicker` — 24 hours / 7 days / 30 days / custom (2026-10-05) — and so does
-the Level chart on a depot's own page. Each card's corner pill names the period it covers.
-**Depots** has each yard's bulk tank reconciled against what it issued.
-**Genset fills** (`?view=deliveries`; *Deliveries* until 2026-10-05, renamed because
-"delivery" now means supplier fuel into a depot) has every genset filled at a depot. **Trucks** has the fuel that
-reached a machine by road, and **Truck log** (`?view=truck-log`) every load, stop
-and loss, a tab of its own since 2026-09-30 rather than a table under the truck
-register, as Genset fills is beside Depot tanks. An estate with no trucks gets
-Depots and Genset fills only.
+`/fuel` is two tabs, picked from a rail on the left, over the same window: the last
+30 days, rolling, so it ends now and never resets on the 1st; every label says *last
+30 days* (Jeff, 2026-10-01), not *1 month*, which read as the calendar's. There is no
+period control at the top (Jeff, 2026-09-30: the page shows the current state); it
+had a 1 day / 7 days / 1 month / custom one until then. The History table has
+its own picker, the genset analysis tab's `RangePicker` — 24 hours / 7 days / 30
+days / custom (2026-10-05) — and so does the Level chart on a depot's own page. Each
+card's corner pill names the period it covers. **Depots** has each yard's bulk tank
+reconciled against the gensets it supplied. **History** (`?view=history`) has every
+genset fill, with the depot that supplied it. It was *Deliveries* (`?view=deliveries`)
+until 2026-10-05, renamed *Genset fills* because "delivery" now means supplier fuel
+into a depot, then *History* the same day (Jeff), as the Service page's is; an old
+`?view=deliveries` link redirects to it.
+
+**Trucks were removed** (Jeff, 2026-10-05), with their *Truck fleet*
+(`?view=trucks`) and *Truck log* (`?view=truck-log`) tabs and the truck map. An old
+link to either tab opens Depots.
 
 **Numbers are written with a comma and a space**, *164, 158 L* (Jeff, 2026-10-01 on
 the Fuel pages; app-wide since 2026-10-05), with a true minus, *−1, 234 L*. Every
 figure on screen goes through `lib/format.ts` (`figure` and `amount`), so the
-separator is set in one place. CSV exports keep plain numbers. Summary card titles are semibold in the text colour, app-wide,
-so they read as headings.
+separator is set in one place. CSV exports keep plain numbers. Summary card titles
+are semibold in the text colour, app-wide, so they read as headings.
 
-**The Trucks tab is laid out and sized as the Gensets page is** (Jeff,
-2026-09-30): a toolbar (number-plate search, a *Fuel depot* filter (named *Home depot* until
-2026-10-01), list / split /
-map), the filter chips, two summary cards, then the truck register beside the map,
-with the selected truck's panel floating over the map's right edge. The panel shows
-only while a truck is selected (Jeff, 2026-09-30): clicking a row or a pin opens it,
-and its × or a click on the basemap closes it. It had a show / hide toggle in the
-toolbar and an empty *Select a truck* state until then. It is kept short (Jeff, 2026-09-30):
-the tank line (*3, 200 of 10, 000 L · 32%*), where the truck is and who has it, one red
-line when fuel went missing (*2 short loads · 488 L missing*), *This period*
-(received from depot, stops, delivered), and *View in Truck log ›*, which opens the Truck log tab
-searched to that truck (`?view=truck-log&truck=<id>`). The truck's standing facts
-(drivers, the states it covers, its instruments), a card per loss and its own copy
-of the log were taken out. The cards are
-*Missing from trucks* (a toggle that narrows the register to the trucks that lost
-fuel, as the fleet's *Due for service* does), and *Fuel on board*; a *Trucks* count
-(the register counts them) and *Delivered by truck* (a share nobody acted on) were
-cut on 2026-10-01. Beside the map the register drops *Depot* and *Location*, as the
-fleet table drops *Location*. The truck log is its own tab now; it followed below,
-narrowed to whatever trucks the register's filters left, until 2026-09-30. Every truck mark on the map is fuel violet, the colour the genset tanks are drawn in
-(Jeff, 2026-09-30): a truck's dot, and a cluster of trucks, which is a violet bubble
-with its count in white. A truck with fuel missing is violet too; it was red, and
-the register and the *Missing from trucks* card are where the losses are now. On the map a depot is a dark map pin with the warehouse icon on its head and its
-name beside it (*Klang depot*), not another dot (Jeff, 2026-09-30): as a black
-circle it read as one more truck, and a labelled square came in between. The icon is
-the one the rail heads Depots with. The pin's head is a truck dot's width, 22px, so the
-two marks differ in shape and not in size (Jeff, 2026-10-01); the map key draws
-them at one width too. Clicking a depot's pin zooms the map in on it, to
-town scale, and leaves the selected truck as it was. Clicking its name opens the
-depot's own page, and the name is drawn as a link to say so: the brand colour with
-a trailing ›, going dark on hover. Depots are kept out of
-the clusters and out of a hovered state's truck count, and a key in the map's
-top-left corner says what a violet dot and a pin mean. The register and the map take the rest of the screen, as the
-Gensets page's do, so the page does not scroll and the table scrolls in its own box;
-they were a fixed 520px while the log sat below. On a phone the trucks are cards and a truck
-opens as a drawer.
+**The pipe model** (Jeff, 2026-10-05). Each depot is reconciled as **fuel out of its
+bulk tank** (its level sensor's falls) against **fuel that arrived in the gensets it
+supplied** (their own level sensors' rises, the fills), over the period. Whatever
+carries the fuel between the two — a bowser, a can, a set driving in to the yard —
+is one pipe the app does not track. If the two ends do not match, something went
+wrong in the chain between depot and genset, and the gap is **Missing in transit**:
+`max(0, out − arrived)`.
 
-It replaced a stack of sections that opened on a *Fuel missing* verdict with one
-row per loss. That verdict is now the card; each loss is in its truck's panel and
-in the log's *Missing* column.
-
-**How a genset is filled** (Jeff, 2026-09-29), decided per fill by where the
-machine was posted at that moment:
-
-- **In a depot's own state** (Selangor, Perak, Pulau Pinang, Johor): the genset
-  drives in and fills at that yard.
-- **Anywhere else**: the truck that covers that state brings the fuel. Klang takes
-  KL, Pasir Gudang takes Negeri Sembilan, Melaka and Putrajaya, Ipoh takes the
-  east coast, Butterworth takes Kedah and Perlis.
-- **Between postings**: the genset is at a yard, so it fills at the nearest depot.
+**Which depot supplies a fill:** the **nearest depot** to where the genset stood at
+that moment, by distance. Every fill is charged to exactly one depot, in the yard or
+out at a posting. Between postings the genset is where the seed keeps it, and the
+nearest depot to that supplies it. Until 2026-10-05 a genset in a depot's own state
+drove in to that yard and one anywhere else was filled by the truck covering its
+state (Jeff, 2026-09-29).
 
 The postings are the deployments as they stand, edits included (2026-10-05). Create,
-move, end or delete a job and the fills it covers move with it, on the Fuel pages
-and in the Reporting files. Both used to read the seeded record and ignore edits.
+move, end or delete a job and the fills it covers move with it, and so does the
+depot each is charged to, on the Fuel pages and in the Reporting files.
 
 **Each estate has its own depots** (2026-10-05). Express Mission's four are Klang,
-Ipoh, Butterworth and Pasir Gudang. The carrier estate runs no trucks, so every
-genset drives to its nearest yard. Its seven are Klang, Butterworth and Pasir
-Gudang for its peninsular towers, plus Kota Kinabalu, Sandakan, Bintulu and
+Ipoh, Butterworth and Pasir Gudang. The carrier's seven are Klang, Butterworth and
+Pasir Gudang for its peninsular towers, plus Kota Kinabalu, Sandakan, Bintulu and
 Kuching. Before that both estates shared Express Mission's four, and about twenty
 Sabah and Sarawak towers were listed as filled at Pasir Gudang.
 
-**What the seed puts in each depot's gap.** Each yard has a slow loss every hour
-and one larger drop nobody logged, both sized to what the yard issues (2026-10-05).
-They were flat litres before, so a small carrier yard lost half its month to the
-one drop. Butterworth, on Express Mission, takes no drop. Instead its level sensor
-over-reads every fall by 0.1%, a gap just past the 100 L floor and under the
-unlogged line, so it reads *Sensor fault*. The sensor used to under-read, which
-made the gap negative, and since the gap is never shown below zero, that example
-had vanished. The carrier estate has no *Sensor fault* case. Its yards issue under
-20,000 L a month, and at that size 0.5% is already below the 100 L floor.
+**What the seed puts in each depot's gap.** The seed walks each depot's tank down by
+every fill charged to it, so its *Fuel Out* and its gensets' *Reached gensets* match
+except for what is planted: a slow loss every hour and one larger drop nobody
+logged, both sized to what the yard issues (2026-10-05). They were flat litres
+before, so a small carrier yard lost half its month to the one drop. Butterworth, on
+Express Mission, takes no drop. Instead its level sensor over-reads every fall by
+0.1%, about 150 L on the month, which flags as missing in transit like any other gap
+over 100 L.
 
-The depot's newest reading is taken at the same moment as the genset history's
-(2026-10-05). It used to sit half an hour later. Each page then left that last hour
-out of *Fuel Out*, *Mobile gensets* and *Fuel trucks* but still showed it in the
-level. So *Balance* was not the opening level plus *In* minus *Out*, and a yard's
-*Gensets filled here* came out higher than its *Mobile gensets* row.
+Both ends are counted on the depot sensor's hourly grid, and the depot's newest
+reading is taken at the same moment as the genset history's (2026-10-05), so a fill
+at a window's edge is never on one side only.
 
-The state comes from the site's label, not the map polygon. `Kepong, Kuala Lumpur`
-sits just inside Selangor's outline.
-
-**Where a truck's fuel comes from.** Its home depot, and nowhere else: a refuel
-truck never fills at a petrol station (Jeff, 2026-09-29). It loads there every two
-to four days, and when it would drop below 10% before its next stop it goes home
-early to load. So every litre a truck carries left a depot tank the page can see.
-A load that falls short shows on both tabs, from each side: on the Trucks tab as
-*Depot out vs truck in* in the truck's panel and a *Missing* figure in the log,
-and in the depot card's *Fuel trucks* figure, where the tank gave more than the
-trucks received.
+**The verdict.** Over 100 L missing is flagged *Missing in transit* (red), at any
+yard (Jeff, 2026-10-05). Up to 100 L, nothing: two sets of floats never agree
+exactly. Until then it was graded: red needed 1,000 L, or 0.5% of *Fuel Out*
+(Afifah, 2026-09-22), and a gap past 100 L under that line was an amber *Sensor
+fault*, with *check the level sensor* on the depot page. On today's seed that flags
+Klang, Butterworth and Pasir Gudang on Express Mission, and Klang and Pasir Gudang
+on the carrier's. The badge is the
+amount, *252 L missing in transit*. The gap never reads below zero: the gensets
+recording more than the tank fell is set aside for now (Jeff, 2026-10-01) and reads
+*0 L*. The label was *Fuel Out − Fuel Arrived*, *Fuel did not arrive*, *Missing at
+depot*, then *Unlogged fuel* (2026-10-01, while the depot was checked against its
+own pump log), and *Missing in transit* since 2026-10-05.
 
 **The overview cards show what someone acts on** (Jeff, 2026-10-01). Every Fuel tab
-opens on a row of them, and on every tab the problem card comes first; a tab has
-as few cards as pass that test, down to one, rather than a fourth for the sake
-of it. Counts of things (how
-many trucks, entries or fills) were cut, since a table beside them counts them too.
+opens on a row of them, the problem card first, and as few as pass that test.
+Counts of things were cut, since a table beside them counts them too.
 
-**The Depots tab's cards** (Jeff, 2026-10-01): *Needs attention* and *Fuel
-balance*. *Needs attention* lists each yard with a verdict, worst first, in the
-tile's own words (*Klang · 1, 826 L unlogged*, *Butterworth · Sensor
-fault*), each a link to that yard's page, and reads *None* when every yard balances.
-*Fuel balance* is every depot's tank together: *Fuel In*, what suppliers put in,
-and *Fuel Out*, what left for mobile gensets and fuel trucks; then, ruled off under
-them, *Balance*, what is in the tanks now and how full that is. The period is said once per card, as a *last 30 days* pill in its
-top-right corner, not in the title or on each line. *Needs attention* replaced two cards the same day, *Fuel unaccounted for* and
-*Sensor faults*: they counted yards without naming them, so the reader still scanned
-the tiles to find which, and their filters hid one or two of four tiles already on
-screen. *Fuel in stock*, *Low stock* and *Days of stock* were tried and cut that
-day too; *Days of stock* gave the yard running dry first, but took no account of the
-supplier deliveries still to come.
+**The Depots tab's cards** (Jeff, 2026-10-01): *Needs attention* lists each yard with
+a verdict, worst first, in the tile's own words (*Klang · 2, 430 L missing in
+transit*), each a link to that yard's page, and reads
+*None* when every yard balances. *Fuel balance* is every depot's tank together:
+*Fuel In*, what suppliers put in, noted *tank refills*, and *Fuel Out*, what left
+to gensets, noted *gensets fuelled* (both notes *from suppliers* and *to gensets*
+until 2026-10-05); then, ruled
+off under them, *Balance*, what is in the tanks now and how full that is. The period
+is said once per card, as a *last 30 days* pill. *Fuel unaccounted for*, *Sensor
+faults*, *Fuel in stock*, *Low stock* and *Days of stock* were tried and cut.
 
-**The depot card tells the depot's side only** (Jeff, 2026-10-01). The gap is *Unlogged fuel*,
-badged *1, 826 L unlogged* (Jeff, 2026-10-01; it was *Missing at depot*): the figure is fuel
-the log does not hold, and *missing* claimed more than that. It never reads below zero: the
-opposite case, the pumps logging more than the tank fell, had its own label (*Over-logged
-fuel*, once *Extra fuel recorded*) and was set aside the same day as not needed for now, so it
-reads *0 L* with no badge. Under *Fuel Out*,
-indented as where it went, are *Mobile gensets* (fills in the yard) and *Fuel trucks*
-(loads into trucks), each what the yard's own pump log says it gave. They were *To
-gensets at yard* and *To trucks*. *Unlogged fuel* is what is left: the tank's fall
-less everything the log accounts for, so fuel that left with no fill or load logged.
-Whether a fill or load then *arrived* is the receiver's story: a truck's short load
-(the pump gave more than its tank rose) is on the Truck log under *Missing from trucks*.
-A yard fill has no such gap in this data, since the genset's tank records exactly what
-the pump gave. Earlier the same day each share showed its receiver's gap under the
-figure (*180 L short*), and *Unlogged fuel* added those gaps to the unlogged fuel;
-before that the shares were *Out* over *In* pairs, and an arrow, `63,721 → 63,720 L`,
-before that. *In* now means only the depot's deliveries, and *Fuel In* sits above *Fuel
-Out*. A *No fill or load logged* row went too, since it was *Unlogged fuel* again.
-The card names no place beside the title, since the title already says *Klang depot*
-(Jeff, 2026-10-01; it was *Klang, Selangor*, then *Selangor* alone). The period is said once, as a *last 30 days* pill in the card's top-right corner beside the
-verdict, the same pill the overview cards carry, not on the *Fuel In* and *Fuel Out* rows.
-The
-level's percentage sits in the middle of the tank drawing in solid text colour,
-with `level / capacity L` beneath it, which replaced the *Max capacity* row (Jeff,
-2026-09-30). It was white over the diesel for a while, split at the level line, and
-went back to one solid colour. In the card's bottom-left corner, *Last updated: 30
-minutes ago*: when the level sensor last reported, with the exact time as the tooltip, as the
-fleet table's *Last updated* says it for a genset. It sat under the litres at first and moved to the corner
-(Jeff, 2026-09-30). A ring was tried in its place and dropped.
-
-**Every depot card shows every row** (Jeff, 2026-10-01): *Fuel In*, *Fuel Out*, *Mobile
-gensets*, *Fuel trucks* and *Unlogged fuel*, whether or not the card has a verdict. From
-2026-09-30 a card with no verdict showed only the gap row, and a *Show breakdown* toggle was
-tried and removed that day.
-
-**The alarm is named in strong words, and by where the fuel went** (Jeff,
-2026-09-30). On a depot, the gap row is *Unlogged fuel* when more left the tank
-than its pump log accounts for, and *0 L* otherwise. The
-red badge is the amount, *252 L unlogged*, and the amber one is *Sensor
-fault*. Fuel lost after a truck drives off is the Trucks tab's, and says so:
-*Missing from trucks* on its summary card and filter chip, *Missing from truck* in
-a truck's panel. Both once read *Fuel missing*, which let the two stages pass for
-one figure; before that the depot's were *Fuel Out − Fuel Arrived*, *Fuel did not
-arrive* and *Check calibration*. The rail's status line reads `4 depots · 2
-with unlogged fuel · 1 sensor fault`.
+**The depot card.** Every card shows every row, verdict or not (Jeff, 2026-10-01):
+*Fuel In*, *Fuel Out*, indented under it *Reached gensets*, then *Missing in
+transit* with its share of *Fuel Out*. Until 2026-10-05 *Fuel Out* split into
+*Mobile gensets* and *Fuel trucks* from the yard's pump log, and the gap was
+*Unlogged fuel*. The card names no place beside the title, since the title already
+says *Klang depot*. The level's percentage sits in the middle of the tank drawing,
+with `level / capacity L` beneath it, and *Last updated: 30 minutes ago* in the
+bottom-left corner, with the exact time as the tooltip.
 
 **Clicking a depot opens its own page**, `/fuel/depots/<id>` (Jeff, 2026-09-30).
-The whole card is the target. Its name reads as a link, *KLANG DEPOT ›*, and is
-the way in for a keyboard or a new tab; hovering anywhere on the card lifts it and
-underlines the name. A faint *Details* in the footer came first and did not say the
-card was clickable. It was a drawer over the tab for a few minutes
-first and became a page, because a yard is somewhere a reader works in, comes back
-to and shares, not a row glanced at on the way past. The page (`DepotPage.tsx`)
-keeps the Fuel rail, where every depot is listed under *Depot tanks* with its verdict as a dot (Jeff, 2026-09-30). The current depot is marked, and *Depot tanks* goes back up. The
-crumb reads *Fuel / Depots / Klang depot*, and *All depots* above the heading is the
-way back on a phone, shown there only (Jeff, 2026-10-01), since wider the rail and the crumb
-already say it. It reports on the last month, as the Fuel page does, with no period control
-(Jeff, 2026-09-30); it had one for a few minutes, carried in the URL as `?period=`. Top to bottom:
+The whole card is the target; its name reads as a link, *KLANG DEPOT ›*, and is the
+way in for a keyboard or a new tab. The page (`DepotPage.tsx`) keeps the Fuel rail,
+where every depot is listed under *Depot tanks* and this one's row is lit. The crumb
+reads *Fuel / Depots / Klang depot*, and *All depots* above the heading is the way
+back on a phone only. It reports on the last 30 days, with no period control. Top to
+bottom:
 
-Reworked element by element with Jeff on 2026-10-01, so the page tells the depot's side
-only and says each figure once:
-
-- the name, its street address (made up for the prototype; it was *Klang, Selangor*,
-  which said Klang twice). No verdict badge: the *Unlogged fuel* card carries the warning;
-- two overview cards, as on the Depots tab: *Unlogged fuel* with its verdict and share — a
-  warning when the yard has a verdict, tinted red or amber with the figure and an alert mark
-  in that colour and what to check under it (*past the limit, check the pump log*), and a
-  plain card when it has none — and
-  *Fuel balance* for this yard (*In*, *Out*, then *Balance*, *left in the tank*, in litres
-  only since the tank drawing has the percentage), both with a *last 30 days* pill. They
-  replaced *Unlogged fuel*, *Fuel in stock* with its days left, and *Fuel out*; days left
-  was dropped;
-- *Tank* as a third overview card (Jeff, 2026-10-01; it was a card of its own beside the
-  chart): a smaller tank drawing with its percentage, `level / capacity L` and *Last updated*;
-- *Level*, full width: the level over the period, drawn against the full tank rather than
-  fitted to the line, so a quiet week looks quiet and a supplier delivery is a tall step. It
-  is drawn by the genset analysis tab's chart (Jeff, 2026-10-01): round-number litre ticks,
-  gridlines, a crosshair and the shared readout on hover, and a key under it, in the fuel
-  violet. It has the page's one date filter (Jeff, 2026-10-01): the analysis tab's picker,
-  *24 hours*, *7 days*, *30 days* and a custom range back to the start of the record,
-  opening on 30 days, with no *By run*. It moves only the chart; the cards and lists stay
-  on the last 30 days, so the card carries no period pill. Held in the page, not the URL.
-  The level is read every 15 minutes over two days or less and hourly past that, since the
-  chart needs evenly spaced samples;
-- *Fuel breakdown* (it was *Reconciliation*, then *Where the fuel went*): *Fuel Out* and the shares it went to,
-  *Mobile gensets*, *Fuel trucks* and *Unlogged fuel*; *Fuel In* is the balance card's;
-- *Deliveries into the depot*: each rise between two readings, since nothing but a
+- the name and its street address (made up for the prototype). No verdict badge:
+  the *Missing in transit* card carries the warning;
+- *Tank* on the left, two cards tall (Jeff, 2026-10-05; until then the three
+  overview cards were one row), 30% of the width: the tank drawing with its
+  percentage, and under it `level / capacity L` and *Last updated*. Beside it,
+  stacked:
+  - *Fuel balance* for this yard (*Fuel In*, *tank refills*; *Fuel Out*, *gensets
+    fuelled*; then *Balance*, *left in the tank*);
+  - *Missing in transit* with its share of *Fuel Out* — tinted red when the yard
+    has a verdict, with what to do under it (*past the limit, trace it from depot
+    to gensets*), a plain card when it has none;
+- *Fuel level* (*Level* until 2026-10-05), full width: the level drawn against the full tank by the genset analysis
+  tab's chart, with the page's one date filter (24 hours, 7 days, 30 days, custom,
+  opening on 30 days). It moves only the chart. The level is read every 15 minutes
+  over two days or less and hourly past that, since the chart needs evenly spaced
+  samples. Drawn as a saw-tooth through the refills only (Jeff, 2026-10-05): one
+  straight slope down from each refill to the next, and a slope up during the
+  refill. The tank only falls while a genset is being filled, so every reading
+  drawn was a stair; between refills the line is now the rate, not the sensor;
+- *Tank refills* (*Deliveries into the depot* until 2026-10-05): each rise between two readings, since nothing but a
   supplier puts diesel into a bulk tank;
-- *Mobile gensets filled here*: the total, the latest ten, and a link to the Genset fills
-  tab when there are more;
-- *Fuel trucks loaded here*, at the depot pump's litres (*pumped*), one line per truck with its loads and litres, each linking to that
-  truck on the Trucks tab (only where the estate runs trucks). The litres are the depot
-  pump's, as *Fuel trucks* counts them, not the trucks' own sensors.
-
-The lists follow the breakdown, In then Out: deliveries in beside *Fuel breakdown*,
-then gensets and trucks, each totalling what its row says. Every card that covers the
-period wears the *last 30 days* pill in its corner, not in its title.
+- *Gensets fuelled* (*Genset fills supplied* until 2026-10-05), beside *Tank refills*; its count is of fills: every fill charged to this depot, the total, the latest
+  ten with when and where the set stood, and, when there are more, a link that
+  opens the History tab filtered to this depot (`?view=history&depot=klang`, Jeff,
+  2026-10-05). A *Fuel breakdown* card (*Fuel Out*, *Reached gensets*, *Missing in
+  transit*) was removed the same day: the overview cards say it. It was *Mobile gensets filled here*, yard fills only, beside a
+  *Fuel trucks loaded here* card, until 2026-10-05.
 
 **Two depots run down.** On Express Mission's estate Pasir Gudang stands at 24% and
 Ipoh at 50% (Jeff, 2026-09-30), so the page shows a low tank and a half one. (The
-carrier's depots have no such setting; they sit high.) Their supplier brings
-less than the yard issues each round, and the stock runs down week by week, which
-is why their *Fuel In* is far below their *Fuel Out*. The level is set by
-`stockFraction` in `data/depots.ts`, and it stays above the 18% reorder floor. The loss figures are unchanged, since
-they come from issues and receipts, not from the level.
+carrier's depots have no such setting; they sit high.) Their supplier brings less
+than the yard issues each round, so their *Fuel In* is far below their *Fuel Out*.
+The level is set by `stockFraction` in `data/depots.ts`, and it stays above the 18%
+reorder floor. Pasir Gudang's tank is written down at 80,000 L (2026-10-05): sized
+from its catchment once the trucks went, it came out at 60,000 L, too small to run
+down to 24% without touching the floor. The loss figures are unchanged, since they
+come from falls and fills, not from the level.
 
-**A truck has more than one driver** (Jeff, 2026-09-29). Each has two on a rota,
-and it changes hands at its home yard: each run from one home load to the next is
-the next driver's. Every event records who was driving, so a loss and a log row name the
-driver at the time, not the truck's first name. The truck log gives it a column
-of its own, beside the truck, headed *Operator*. The drawer lists both drivers and who has the truck now.
+→ `src/modules/fuel/data/fills.ts`, `depots.ts`, `depotTank.ts`
 
-**Three ways fuel goes missing.** Each truck has a tank level sensor, a nozzle
-meter and GPS. The genset's own level rise is a fourth reading, and each load has
-a fifth: the depot's pump meter.
-
-- **Truck out vs genset in.** The meter says more than the genset rose, by more
-  than 10% of the metered litres.
-- **Truck out vs nothing in.** The truck's level fell with the meter idle.
-- **Depot out vs truck in.** The depot pump says more than the truck's tank
-  rose, by more than 10% of what was pumped.
-
-Gaps under 10% are instrument noise and are not shown as missing anywhere.
-
-Every loss is titled `<where it came out> out vs <where it went> in`, and its
-figures read `Out 1, 806 L · In 1, 556 L`, rather than naming the instruments
-(Jeff, 2026-09-29). Out carries an amber ↗ and In a green ↙; neither is red,
-which stays for the missing litres.
-
-**The Genset fills tab's cards** (Jeff, 2026-10-01): *Litres filled* over the
+**The History tab** (Jeff, 2026-10-01; *Genset fills* until 2026-10-05): two cards, *Litres filled* over the
 table's period, with the fills and gensets under it, and *Waiting for fuel*: the
-gensets below their reserve line now, with the longest any of them has gone since
-a fill. *Waiting for fuel* is a link to the Gensets page filtered to low fuel, which
-lists the same machines. It was "low and not filled this period" first, which over
-a month never fired: every low machine had had some fill, just not enough.
-*Busiest depot* and *Latest delivery* were cut.
+gensets below their reserve line now, with the longest any of them has gone since a
+fill, linking to the Gensets page filtered to low fuel. Then every fill, with
+*Number plate*, *Supplying depot* (the depot the fill was charged to, *Klang
+depot*), *When* and *Litres*. It listed yard fills only until 2026-10-05.
 
-**The Truck log tab's card** (Jeff, 2026-10-01): *Missing from trucks* alone,
-over the log's own period. It filters the table to the entries with fuel missing
-and leaves a chip, and it counts the whole period, not what the other filters
-leave. An *Entries* count was cut, and so were *Depot loads* and *Genset fills*,
-which did the *Activity* dropdown's job from a second place.
+The table works like the Gensets and Deployments registers (Jeff, 2026-09-29): a
+number-plate search, a *Depot* filter whose counts follow the search, a *Filtered
+by* row of removable chips with *Clear all*, headers that sort, and a count on the
+right. It opens newest first. Its period picker opens on 30 days, so on arrival it
+lists what the figures above it add up; changed, it narrows the table and its cards
+and leaves a chip that puts it back to 30 days. Twenty rows a page under
+`TablePager`; any search, filter or sort goes back to page 1.
 
-**The truck log.** Every load and stop, newest first, with the truck and its
-operator in separate columns (Jeff, 2026-09-29), what was recorded (the
-meter at a stop, the depot pump at a load), the truck tank's change, the
-genset's rise, and litres missing, which is empty unless past the 10% line.
+→ `src/components/global/TablePager.tsx`, `src/modules/fuel/RegisterTable.tsx`,
+`TablePeriod.tsx`, `DeliveriesTable.tsx`
 
-The seed plants one of each so every kind can be seen. Klang's truck pumps 16%
-more than arrives at one stop about six days back. Pasir Gudang's loses 380 L
-with the meter idle eleven days back. Ipoh's loads at the depot about two days back
-and its tank rises 12% less than the pump says. There is no "next stop" suggestion
-and no RM pricing.
+**Switching between the tabs.** From tablet width up, a second rail on the left, the
+240px column a genset's sections use (Jeff, 2026-09-29), drawn as the Service page's
+is since 2026-10-05: a *Fuel* label, then two rows with icons, *Depot tanks* (`/fuel`)
+and *History* (`?view=history`). Under *Depot tanks*, one smaller row per
+depot opens that depot's own page, and is the row lit there; a chevron on the *Depot
+tanks* row folds that list away. The rail carries no status: the red and amber dots
+it had on its old *Depots* heading and on each depot, with the status line as the
+heading's tooltip, came off with the move (Jeff, 2026-10-05), and the verdicts are
+the depot cards' to show. A *Trucks* group sat under it until 2026-10-05. A stray
+`?view=depots` is dropped from the address, so *Depot tanks* is lit on it as on a
+bare `/fuel`.
 
-**The four trucks share the work.** Each does roughly 20 to 30 log entries a
-month. To get there, three Kuala Lumpur yards (PE-002 to PE-004, once Setapak,
-Cheras and Sentul) now stand in Temerloh, Alor Setar and Kangar, and Putrajaya
-moved from Klang's truck to Pasir Gudang's (Jeff, 2026-09-29).
-
-→ `src/modules/fuel/data/fills.ts`, `trucks.ts`, `truckRuns.ts`, `depotTank.ts`
-
-**Both tables work like the Gensets and Deployments registers, and like each
-other** (Jeff, 2026-09-29): a number-plate search, filter dropdowns whose counts
-follow the other filters, a *Filtered by* row of removable chips with *Clear all*,
-headers that sort, and a count on the right. A new header opens the way a reader
-means it (names A to Z, newest and biggest first); clicking the one showing flips
-it. Both open newest first. The deliveries filter by *Depot*; the truck log by
-*Operator* and *Activity* (loaded at depot, filled a genset, level fell with
-the meter idle).
-
-Both tables have their own period picker, the genset analysis tab's `RangePicker`:
-24 hours, 7 days, 30 days and Custom (2026-10-05; it was 1 day / 7 days / 1 month /
-Custom from 2026-09-30). It opens on 30 days, so on arrival each table lists what the
-figures above it add up. Changed, it narrows that table and its cards, whose pill
-names the new period, and leaves a chip that puts it back to 30 days. → `src/modules/fuel/TablePeriod.tsx`
-
-Both run twenty rows a page under `TablePager`, the registers' pager (Jeff,
-2026-09-30). Any search, filter or sort goes back to page 1, and turning a
-page scrolls the table's head back into view, since the page scrolls rather than
-the table.
-
-→ `src/components/global/TablePager.tsx`, `src/modules/fuel/RegisterTable.tsx` (the shared pieces), `DeliveriesTable.tsx`,
-`TruckLog.tsx`
-
-**Switching between the tabs.** From tablet width up, a second rail on the left:
-the 240px column a genset's sections use, headed *Fuel* (Jeff, 2026-09-29).
-*Depots* and *Trucks* head it as plain labels that never switch the page and no
-longer fold (Jeff, 2026-09-30; they were dropdowns with a chevron for a while). The
-links under them are always shown and are what switch the page: *Depot tanks* and
-*Genset fills* under Depots, *Trucks and map* and *Truck log* under Trucks. Under
-*Depot tanks*, one smaller link per depot opens that depot's own page, with a dot
-when its card has a verdict. A chevron at the right of the *Depot tanks* row folds
-that list away and back; the row itself still opens the tab. The link
-for the tab showing is highlighted. *Truck log* scrolled to a section of the Trucks
-tab until it became a tab of its own (2026-09-30). A heading with a problem in the period carries a red (or
-amber) dot, and its status line (`4 depots · 2 with unlogged fuel · 1 sensor fault`) is the
-heading's tooltip. Genset fills (then *Deliveries*) was a table under the depot tanks until 2026-09-30,
-when it became a tab of its own (`?view=deliveries`). An estate with no trucks
-shows the Depots group only.
-
-The top bar names the tab too (Jeff, 2026-09-30): `Fuel / Depots`, `Fuel /
-Genset fills`, `Fuel / Trucks`, with *Fuel* a link back to the first tab. The tab is a
-query string rather than a child route, so the route supplies it through
-`staticData.crumbTab`, read off the URL — see `TopNav`.
-
-It was chosen from six built side by side the same day: a status line under each
-label, rows nested under Fuel in the main sidebar, a count on each row, an
-icon-only strip, cards on top, and this. On a phone, where no page has a second
-rail, the switch is a card per tab above the page with the status line on each. The
-cards replaced a small pill switch that read as a filter rather than a choice,
-and a combined page of both halves was tried and dropped: they are different jobs.
+The top bar names the tab too (Jeff, 2026-09-30): `Fuel / Depots`, `Fuel / Genset
+fills`, with *Fuel* a link back to the first tab. The tab is a query string rather
+than a child route, so the route supplies it through `staticData.crumbTab` — see
+`TopNav`. On a phone, where no page has a second rail, the switch is a card per tab
+above the page with the status line on each.
 
 → `src/modules/fuel/FuelNav.tsx`, `src/modules/fuel/ViewSwitch.tsx`
 
@@ -2288,11 +2160,9 @@ src/modules/fuel/
 ├── data/
 │   ├── depots.ts            each estate's depots
 │   ├── depotTank.ts         each depot's level walk, and `reconcile` / `varianceSeverity`
-│   ├── fills.ts             every genset fill, and whether a depot or a truck gave it
-│   ├── trucks.ts            each estate's fuel trucks
-│   └── truckRuns.ts         each truck's loads, stops and short loads
-└── …                        the tabs (index.tsx, FuelNav, ViewSwitch), the depot page,
-                             the Genset fills table, the trucks view and the truck log
+│   └── fills.ts             every genset fill, and the depot that supplied it
+└── …                        the tabs (index.tsx, FuelNav, ViewSwitch), the depot page
+                             and the History table
 
 src/modules/service/         the fleet's service standing and history
 src/modules/reporting/       the three CSV exports

@@ -219,8 +219,9 @@ const RaisedAt = ({at}: {at: string}) => (
  * should compete with `Clear` for the eye.
  *
  * **A row that ends by itself has no `Clear`** (`clearable: false`) — the low tank,
- * which goes when it is refilled. Clearing it would be a person declaring a tank
- * fine while it is not, so the button's place says what will end it instead.
+ * which goes when it is refilled, and a service item, which goes when it is done.
+ * Clearing either would be a person declaring a fact that is not so, so the
+ * button's place says what will end it instead (`endsWhen`).
  */
 const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
   const standing = standingOf(alarm.handling);
@@ -276,7 +277,7 @@ const StandingRow = ({alarm, by}: {alarm: AlarmView; by: string}) => {
           )}
           {alarm.clearable === false ? (
             <span className="self-center text-xs whitespace-nowrap text-tertiary">
-              Clears when refuelled
+              {alarm.endsWhen ?? 'Clears by itself'}
             </span>
           ) : (
             <Button

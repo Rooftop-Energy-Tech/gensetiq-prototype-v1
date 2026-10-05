@@ -105,7 +105,7 @@ export const ControlPad = ({
   return (
     // Modes first, then actions: MANUAL, AUTO, START, STOP, filled column by column,
     // so the left column is the mode and the right the action.
-    <div className="grid h-[170px] w-full shrink-0 grid-flow-col grid-cols-2 grid-rows-2 gap-5 md:w-[220px]">
+    <div className="grid h-[170px] w-full shrink-0 grid-flow-col grid-cols-2 grid-rows-2 gap-5">
       <Tile
         icon={PointerIcon}
         label="MANUAL"

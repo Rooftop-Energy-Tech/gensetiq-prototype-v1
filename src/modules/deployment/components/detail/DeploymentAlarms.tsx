@@ -3,6 +3,7 @@ import {useMemo} from 'react';
 import {useSession} from '@/modules/auth/session';
 import {AlarmLists} from '@/modules/genset/components/alarms/AlarmLists';
 import {useSiteAlarmQueue} from '@/modules/site/data/siteAlarmQueue';
+import type {AlarmView} from '@/modules/genset/types/alarmView.type';
 import {dayMonth, stampDate} from '@/lib/format';
 import type {DeploymentRow} from '../../data/feed';
 
@@ -17,8 +18,11 @@ import type {DeploymentRow} from '../../data/feed';
  * property the site's Alarms tab was rebuilt to get. A second derivation for this
  * page would be a second opinion about what is wrong.
  *
- * The filter is two clauses: the alarm belongs to a machine on this job, and it was
- * raised inside the job's window.
+ * The filter is two clauses: the alarm belongs to a machine on this job, and it
+ * stood at some point inside the job's window — raised before the window closed,
+ * and not cleared before it opened. It was *raised inside* the window until
+ * 2026-10-05, which hid a service that fell overdue the week before the lorry left
+ * and was still overdue on site.
  *
  * ## What this page cannot do, said plainly
  *
@@ -42,15 +46,17 @@ export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) 
     [row.members],
   );
 
-  const inWindow = (raisedAt: string) => {
-    const at = new Date(raisedAt).getTime();
-    return at >= row.startedMs && at <= row.endedMs;
+  const inWindow = (alarm: AlarmView) => {
+    const raised = new Date(alarm.raisedAt).getTime();
+    const cleared =
+      alarm.handling.clearedAt === null ? Number.POSITIVE_INFINITY : new Date(alarm.handling.clearedAt).getTime();
+    return raised <= row.endedMs && cleared >= row.startedMs;
   };
 
   const mine = (id: string) => onJob.some((gensetId) => id.startsWith(gensetId));
 
-  const standing = queue.standing.filter((alarm) => mine(alarm.id) && inWindow(alarm.raisedAt));
-  const cleared = queue.cleared.filter((alarm) => mine(alarm.id) && inWindow(alarm.raisedAt));
+  const standing = queue.standing.filter((alarm) => mine(alarm.id) && inWindow(alarm));
+  const cleared = queue.cleared.filter((alarm) => mine(alarm.id) && inWindow(alarm));
 
   if (row.state === 'planned') {
     return (
@@ -75,8 +81,9 @@ export const DeploymentAlarms = ({row, now}: {row: DeploymentRow; now: number}) 
           </span>
         </h2>
         <p className="max-w-2xl text-sm text-secondary">
-          What the controllers on {row.deployment.reference} raised inside its window. Clearing a
-          row here clears it on the machine&rsquo;s own tab too: one queue, one set of rows.
+          What stood against the machines on {row.deployment.reference} inside its window: their
+          controllers&rsquo; alarms, and the app&rsquo;s own for a low tank or a service falling due.
+          Clearing a row here clears it on the machine&rsquo;s own tab too: one queue, one set of rows.
         </p>
       </div>
 
